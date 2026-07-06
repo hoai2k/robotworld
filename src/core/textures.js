@@ -182,6 +182,68 @@ export function buildingFacade(style = 0, seed = 3) {
   return out;
 }
 
+// Chunk-scale facade: a couple of windows per destructible chunk face.
+export function chunkFacade(style = 0, seed = 3) {
+  const key = `chunkf_${style}_${seed}`;
+  if (cache.has(key)) return cache.get(key);
+  const rng = makeRng(seed * 449 + style * 31);
+  const S = 128;
+  const palettes = [
+    { wall: '#4a5260', win: '#101820', lit: '#ffd98a' },
+    { wall: '#5a5148', win: '#141a20', lit: '#ffe9b0' },
+    { wall: '#37475a', win: '#0e1620', lit: '#9adfff' },
+    { wall: '#4c4c55', win: '#12161c', lit: '#ffc37a' },
+  ];
+  const p = palettes[style % palettes.length];
+  const cols = 2, rows = 2, m = 14;
+  const cw = (S - m * 2) / cols, chh = (S - m * 2) / rows;
+  const lit = [];
+  for (let i = 0; i < cols * rows; i++) lit.push(rng.chance(0.3));
+
+  const map = makeCanvasTexture(null, S, S, (ctx) => {
+    ctx.fillStyle = p.wall;
+    ctx.fillRect(0, 0, S, S);
+    for (let i = 0; i < 40; i++) {
+      ctx.fillStyle = `rgba(0,0,0,${rng.range(0.02, 0.06)})`;
+      ctx.fillRect(rng() * S, rng() * S, rng.range(3, 12), rng.range(3, 12));
+    }
+    let i = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++, i++) {
+        const x = m + c * cw + 5, y = m + r * chh + 5, w = cw - 10, h = chh - 10;
+        ctx.fillStyle = lit[i] ? p.lit : p.win;
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x, y, w, h);
+        ctx.fillStyle = 'rgba(255,255,255,0.09)';
+        ctx.beginPath();
+        ctx.moveTo(x, y + h);
+        ctx.lineTo(x + w * 0.5, y);
+        ctx.lineTo(x + w * 0.75, y);
+        ctx.lineTo(x + w * 0.3, y + h);
+        ctx.fill();
+      }
+    }
+  });
+  const emissiveMap = makeCanvasTexture(null, S, S, (ctx) => {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, S, S);
+    let i = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++, i++) {
+        if (!lit[i]) continue;
+        const x = m + c * cw + 5, y = m + r * chh + 5, w = cw - 10, h = chh - 10;
+        ctx.fillStyle = p.lit;
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+  });
+  const out = { map, emissiveMap };
+  cache.set(key, out);
+  return out;
+}
+
 // ============ GROUND ============
 export function roadTexture() {
   return makeCanvasTexture('road', 512, 512, (ctx, S) => {

@@ -10,8 +10,8 @@ controllers via Gamepad API), AI opponents.
 
 ## Current status
 
-- **Phase:** 3 (animation system) — in progress (Phases 1-2 done)
-- **Next action:** animator.js engine, then combat (Phase 4)
+- **Phase:** 4 (combat) — in progress (Phases 1-3 done)
+- **Next action:** fighter.js state machine, specials, world glue; then arenas
 - **Branch:** `claude/3d-mech-battle-game-uxps6q`
 
 ## Tech stack
@@ -76,8 +76,15 @@ controllers via Gamepad API), AI opponents.
 - [ ] Destructible buildings (chunk-based: facade panels shear off, structure collapses)
 - [ ] Debris physics (ballistic chunks, bounce, fade), dust clouds
 - [ ] Collateral damage from attacks & mech bodies
-- [ ] 3 arenas: Neon District (night), Ironworks Foundry (steampunk dusk), Uptown (day)
-- [ ] Steam vents / gears / industrial props, ambient industrial drone
+- [ ] Theme-driven arena framework (sky/fog/lighting/ground/buildings/props/ambient particles as data)
+- [ ] 12 UNIQUE ARENAS (user request): Neon District (night), Ironworks Foundry
+      (steampunk), Uptown (day), Harbor Docks (dusk), Sky Terrace (rooftop),
+      Scrapyard (rust), Crystal Quarry, Volcanic Forge, Frozen Outpost,
+      Desert Ruins, Jungle Temple, Orbital Platform
+- [ ] Steam vents / gears / industrial props, ambient particles per theme
+- [ ] NOTE: after framework + first 3 themes, spawn parallel agent to author
+      remaining themes in src/arena/themes.js while main session builds
+      AI/input/camera/menus (disjoint files)
 
 ### Phase 6 — AI opponents
 - [ ] AI controller: approach/strafe/spacing, attack selection, blocking, dodging

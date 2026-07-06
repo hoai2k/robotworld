@@ -68,6 +68,7 @@ export class Engine {
     this.composer.addPass(this.fxaa);
 
     // ---- loop state ----
+    this.views = null;         // split-screen: [{camera, x, y, w, h}] (0..1)
     this.timeScale = 1;
     this.hitStop = 0;          // seconds of near-freeze remaining
     this.elapsed = 0;
@@ -110,7 +111,23 @@ export class Engine {
 
       if (this.onUpdate) this.onUpdate(dt);
       if (this.onRender) this.onRender(dtReal);
-      this.composer.render();
+
+      if (this.views && this.views.length > 1) {
+        // split-screen: direct scissored renders (post FX skipped here)
+        const W = window.innerWidth, H = window.innerHeight;
+        const pr = this.renderer.getPixelRatio();
+        this.renderer.setScissorTest(true);
+        for (const v of this.views) {
+          const x = v.x * W, y = v.y * H, w = v.w * W, h = v.h * H;
+          this.renderer.setViewport(x, y, w, h);
+          this.renderer.setScissor(x, y, w, h);
+          this.renderer.render(this.scene, v.camera);
+        }
+        this.renderer.setScissorTest(false);
+        this.renderer.setViewport(0, 0, W, H);
+      } else {
+        this.composer.render();
+      }
     };
     requestAnimationFrame(tick);
   }
