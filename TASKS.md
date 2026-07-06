@@ -10,8 +10,8 @@ controllers via Gamepad API), AI opponents.
 
 ## Current status
 
-- **Phase:** 1 (scaffold & engine core) — in progress
-- **Next action:** Scaffold Vite+Three project, engine core, then Phase 2 mechs
+- **Phase:** 3 (animation system) — in progress (Phases 1-2 done)
+- **Next action:** animator.js engine, then combat (Phase 4)
 - **Branch:** `claude/3d-mech-battle-game-uxps6q`
 
 ## Tech stack
@@ -27,31 +27,31 @@ controllers via Gamepad API), AI opponents.
 
 ## Phases
 
-### Phase 1 — Project scaffold & engine core
-- [ ] Vite + Three.js project scaffold (`package.json`, `vite.config.js`, `index.html`)
-- [ ] Renderer, scene, camera, resize handling, fixed-step game loop
-- [ ] Lighting rig (key/fill/rim + hemisphere), PCF soft shadows
-- [ ] Post-processing stack: UnrealBloom + FXAA + vignette
-- [ ] Procedural texture generator (armor plating, grime, hazard stripes, decals)
-- [ ] Math/easing/utils, object pools
+### Phase 1 — Project scaffold & engine core ✅
+- [x] Vite + Three.js project scaffold (`package.json`, `vite.config.js`, `index.html`)
+- [x] Renderer, scene, camera, resize handling, fixed-step game loop
+- [x] Lighting rig (key/fill/rim + hemisphere), PCF soft shadows
+- [x] Post-processing stack: UnrealBloom + FXAA + vignette
+- [x] Procedural texture generator (armor plating, grime, hazard stripes, decals)
+- [x] Math/easing/utils, object pools
 
-### Phase 2 — Mech construction kit & 12 mech designs
-- [ ] Part library: armor plates, joints, pistons, thrusters, antennae, cockpits, weapon meshes
-- [ ] Rig builder: full joint hierarchy (root/hips/torso/head/shoulders/elbows/wrists/hips/knees/ankles)
-- [ ] Material system: per-mech PBR palettes + emissive accent trims
-- [ ] 12 unique mech designs (silhouette, weapons, personality):
-  - [ ] 1. TITANUS — colossal brawler, rocket-fists (heavy)
-  - [ ] 2. VULCAN — gatling gunner, ammo-belt berserker (ranged)
-  - [ ] 3. AEGIS — shield paladin, energy lance (defense)
-  - [ ] 4. VIPER — twin-blade assassin, serpentine (speed)
-  - [ ] 5. NOVA — plasma archmage, floating cannon arrays (caster)
-  - [ ] 6. RHINO — charging bull, seismic horn (charger)
-  - [ ] 7. TEMPEST — storm dancer, lightning whips (electric)
-  - [ ] 8. FENRIR — wolf chassis, claw frenzy (feral melee)
-  - [ ] 9. COLOSSUS — walking artillery, mortar barrage (siege)
-  - [ ] 10. WRAITH — stealth sniper, phase cloak (sniper)
-  - [ ] 11. INFERNO — flame juggernaut, napalm (fire)
-  - [ ] 12. GLACIER — cryo fortress, freeze beam (ice)
+### Phase 2 — Mech construction kit & 12 mech designs ✅
+- [x] Part library: armor plates, joints, pistons, thrusters, antennae, cockpits, weapon meshes
+- [x] Rig builder: full joint hierarchy (root/hips/torso/head/shoulders/elbows/wrists/hips/knees/ankles)
+- [x] Material system: per-mech PBR palettes + emissive accent trims
+- [x] 12 unique mech designs (silhouette, weapons, personality):
+  - [x] 1. TITANUS — colossal brawler, rocket-fists (heavy)
+  - [x] 2. VULCAN — gatling gunner, ammo-belt berserker (ranged)
+  - [x] 3. AEGIS — shield paladin, energy lance (defense)
+  - [x] 4. VIPER — twin-blade assassin, serpentine (speed)
+  - [x] 5. NOVA — plasma archmage, floating cannon arrays (caster)
+  - [x] 6. RHINO — charging bull, seismic horn (charger)
+  - [x] 7. TEMPEST — storm dancer, lightning whips (electric)
+  - [x] 8. FENRIR — wolf chassis, claw frenzy (feral melee)
+  - [x] 9. COLOSSUS — walking artillery, mortar barrage (siege)
+  - [x] 10. WRAITH — stealth sniper, phase cloak (sniper)
+  - [x] 11. INFERNO — flame juggernaut, napalm (fire)
+  - [x] 12. GLACIER — cryo fortress, freeze beam (ice)
 
 ### Phase 3 — Animation system & full move sets
 - [ ] Pose/keyframe animation engine with blending & layers
@@ -69,11 +69,15 @@ controllers via Gamepad API), AI opponents.
 - [ ] VFX: muzzle flashes, impacts, explosions, sparks, smoke, shockwaves, trails
 
 ### Phase 5 — Destructible city arenas
+> USER NOTES: industrial landscapes with a steampunk edge (smokestacks, gears,
+> brass/copper, steam vents) + matching soundscape; keep anime dynamism and
+> colorful mech cores. Slightly battle-worn look on materials.
 - [ ] City generator: streets, sidewalks, props, skyline backdrop
 - [ ] Destructible buildings (chunk-based: facade panels shear off, structure collapses)
 - [ ] Debris physics (ballistic chunks, bounce, fade), dust clouds
 - [ ] Collateral damage from attacks & mech bodies
-- [ ] 3 arenas: Neon District (night), Harbor City (dusk), Uptown (day)
+- [ ] 3 arenas: Neon District (night), Ironworks Foundry (steampunk dusk), Uptown (day)
+- [ ] Steam vents / gears / industrial props, ambient industrial drone
 
 ### Phase 6 — AI opponents
 - [ ] AI controller: approach/strafe/spacing, attack selection, blocking, dodging
@@ -84,7 +88,10 @@ controllers via Gamepad API), AI opponents.
 - [ ] Keyboard mappings (P1: WASD+..., P2: arrows+...)
 - [ ] Gamepad API: Xbox controller mapping, hot-plug, rumble (vibrationActuator)
 - [ ] Up to 4 local players (any mix of human/AI), free-for-all
-- [ ] Shared dynamic battle camera (frames all fighters, shake, zoom)
+- [ ] LEGO-style dynamic camera: combined third-person view when players are
+      close, splits into per-player chase views when they separate (hysteresis,
+      up to 4 viewports), glowing dividers
+- [ ] Fullscreen toggle (key + menu)
 
 ### Phase 8 — Game flow, HUD & menus
 - [ ] Title screen
@@ -107,4 +114,8 @@ controllers via Gamepad API), AI opponents.
 
 ## Progress log
 
-- 2026-07-06: Repo initialized. Task plan laid out. Starting Phase 1.
+- 2026-07-06: Repo initialized. Task plan laid out.
+- 2026-07-06: Phase 1 complete (scaffold, engine, post FX, textures, utils).
+- 2026-07-06: Phase 2 complete (part kit, rig, materials, 12 designs verified
+  via browser screenshot). User notes added: dynamic combine/separate camera,
+  fullscreen, battle-worn look, steampunk-industrial arena + soundscape.
