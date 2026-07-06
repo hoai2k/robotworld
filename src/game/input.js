@@ -43,6 +43,9 @@ export class Input {
     window.addEventListener('gamepadconnected', (e) => {
       this.onPadConnect?.(e.gamepad);
     });
+    window.addEventListener('gamepaddisconnected', (e) => {
+      this.onPadDisconnect?.(e.gamepad);
+    });
   }
 
   // call once per frame before reading

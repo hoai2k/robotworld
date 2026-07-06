@@ -111,6 +111,14 @@ export async function bootGame() {
   window.addEventListener('keydown', resumeAudio);
 
   input.onPadConnect = (gp) => toast(`🎮 Controller connected: ${gp.id.slice(0, 34)}`);
+  input.onPadDisconnect = (gp) => {
+    toast(`🎮 Controller disconnected`);
+    // pause if that pad was driving a fighter
+    if (S.mode === 'battle' && S.battle && !S.battle.paused) {
+      const inUse = S.battle.humans.some((h) => h.device === 'pad' + gp.index);
+      if (inUse) pauseBattle();
+    }
+  };
 
   // lighting defaults captured for menu restoration
   const defaults = {

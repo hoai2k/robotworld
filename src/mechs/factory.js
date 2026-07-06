@@ -235,6 +235,10 @@ export function buildMech(def) {
 
   root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 
+  // colored core light gives each mech presence, especially in night arenas
+  const coreLight = new THREE.PointLight(def.colors.glow, 14, 11 * D.scale, 2);
+  anchors.core.add(coreLight);
+
   return { group: root, joints, anchors, materials, dims: D, def };
 }
 
