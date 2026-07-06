@@ -48,8 +48,12 @@ export function runBattleTest() {
     if (auto || i > 0) ais.push(new AIController(f, params.get('diff') || 'veteran'));
   });
 
-  const humans = auto ? [] : [fighters[0]];
+  let humans = auto ? [] : [fighters[0]];
   const cameraSys = new CameraSystem(engine, world);
+  if (params.get('forcesplit') === '1') {
+    humans = fighters.slice(0, Math.min(4, fighters.length));
+    fighters.forEach((f, i) => f.pos.set((i % 2) * 90 - 45, 0, (i >> 1) * 60 - 30));
+  }
 
   // simple debug HUD
   const hud = document.createElement('div');

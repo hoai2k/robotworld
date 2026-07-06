@@ -493,7 +493,7 @@ export class Fighter {
         this.faceNearestEnemyIfClose(50, true);
       }
     }
-    if (!I.light) this.queuedLight = this.queuedLight; // (kept until consumed)
+    if (this.state === 'normal') this.queuedLight = false;
 
     // block anim
     if (this.blocking && !this.animator.isPlaying('block')) this.animator.play('block');

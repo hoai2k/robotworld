@@ -10,8 +10,10 @@ controllers via Gamepad API), AI opponents.
 
 ## Current status
 
-- **Phase:** 4 (combat) — in progress (Phases 1-3 done)
-- **Next action:** fighter.js state machine, specials, world glue; then arenas
+- **Phase:** 9-10 (audio + polish). Phases 1-8 CODE-COMPLETE and verified in-browser
+- **Parallel agents running:** (a) src/core/audio.js WebAudio SFX+music,
+  (b) deepening 12 arena themes in src/arena/{themes,props}.js
+- **Next action:** integrate agent output, soak test, balance, build check
 - **Branch:** `claude/3d-mech-battle-game-uxps6q`
 
 ## Tech stack
@@ -53,60 +55,60 @@ controllers via Gamepad API), AI opponents.
   - [x] 11. INFERNO — flame juggernaut, napalm (fire)
   - [x] 12. GLACIER — cryo fortress, freeze beam (ice)
 
-### Phase 3 — Animation system & full move sets
-- [ ] Pose/keyframe animation engine with blending & layers
-- [ ] Locomotion: idle (breathing/personality ticks), walk, run, jump, dash, air fall, land
-- [ ] Combat anims: light combo (3 hits), heavy attack, ranged fire, block, hit-stagger, launch, knockdown, get-up
-- [ ] Special & ultimate attack anims (unique per mech)
-- [ ] Personality: intro taunts, victory poses, idle fidgets
+### Phase 3 — Animation system & full move sets ✅
+- [x] Pose/keyframe animation engine with blending & layers
+- [x] Locomotion: idle (breathing/personality ticks), walk, run, jump, dash, air fall, land
+- [x] Combat anims: light combo (3 hits), heavy attack, ranged fire, block, hit-stagger, launch, knockdown, get-up
+- [x] Special & ultimate attack anims (unique per mech)
+- [x] Personality: intro taunts, victory poses, idle fidgets
 
-### Phase 4 — Combat system
-- [ ] Health/energy/ult meters, damage & knockback model, hit-stop
-- [ ] Melee hitboxes with combo chains
-- [ ] Projectile system (bullets, rockets, plasma, mortar arcs, beams, flame cones)
-- [ ] Blocking, dodging (i-frames), launcher attacks
-- [ ] Per-mech specials (cooldown) + ultimates (meter)
-- [ ] VFX: muzzle flashes, impacts, explosions, sparks, smoke, shockwaves, trails
+### Phase 4 — Combat system ✅
+- [x] Health/energy/ult meters, damage & knockback model, hit-stop
+- [x] Melee hitboxes with combo chains
+- [x] Projectile system (bullets, rockets, plasma, mortar arcs, beams, flame cones)
+- [x] Blocking, dodging (i-frames), launcher attacks
+- [x] Per-mech specials (cooldown) + ultimates (meter)
+- [x] VFX: muzzle flashes, impacts, explosions, sparks, smoke, shockwaves, trails
 
-### Phase 5 — Destructible city arenas
+### Phase 5 — Destructible city arenas ✅
 > USER NOTES: industrial landscapes with a steampunk edge (smokestacks, gears,
 > brass/copper, steam vents) + matching soundscape; keep anime dynamism and
 > colorful mech cores. Slightly battle-worn look on materials.
-- [ ] City generator: streets, sidewalks, props, skyline backdrop
-- [ ] Destructible buildings (chunk-based: facade panels shear off, structure collapses)
-- [ ] Debris physics (ballistic chunks, bounce, fade), dust clouds
-- [ ] Collateral damage from attacks & mech bodies
-- [ ] Theme-driven arena framework (sky/fog/lighting/ground/buildings/props/ambient particles as data)
-- [ ] 12 UNIQUE ARENAS (user request): Neon District (night), Ironworks Foundry
+- [x] City generator: streets, sidewalks, props, skyline backdrop
+- [x] Destructible buildings (chunk-based: facade panels shear off, structure collapses)
+- [x] Debris physics (ballistic chunks, bounce, fade), dust clouds
+- [x] Collateral damage from attacks & mech bodies
+- [x] Theme-driven arena framework (sky/fog/lighting/ground/buildings/props/ambient particles as data)
+- [x] 12 UNIQUE ARENAS (user request): Neon District (night), Ironworks Foundry
       (steampunk), Uptown (day), Harbor Docks (dusk), Sky Terrace (rooftop),
       Scrapyard (rust), Crystal Quarry, Volcanic Forge, Frozen Outpost,
       Desert Ruins, Jungle Temple, Orbital Platform
-- [ ] Steam vents / gears / industrial props, ambient particles per theme
-- [ ] NOTE: after framework + first 3 themes, spawn parallel agent to author
+- [x] Steam vents / gears / industrial props, ambient particles per theme
+- [x] NOTE: after framework + first 3 themes, spawn parallel agent to author
       remaining themes in src/arena/themes.js while main session builds
       AI/input/camera/menus (disjoint files)
 
-### Phase 6 — AI opponents
-- [ ] AI controller: approach/strafe/spacing, attack selection, blocking, dodging
-- [ ] Special/ultimate usage logic
-- [ ] Difficulty levels (Rookie / Veteran / Ace)
+### Phase 6 — AI opponents ✅
+- [x] AI controller: approach/strafe/spacing, attack selection, blocking, dodging
+- [x] Special/ultimate usage logic
+- [x] Difficulty levels (Rookie / Veteran / Ace)
 
-### Phase 7 — Input & local multiplayer
-- [ ] Keyboard mappings (P1: WASD+..., P2: arrows+...)
-- [ ] Gamepad API: Xbox controller mapping, hot-plug, rumble (vibrationActuator)
-- [ ] Up to 4 local players (any mix of human/AI), free-for-all
-- [ ] LEGO-style dynamic camera: combined third-person view when players are
+### Phase 7 — Input & local multiplayer ✅
+- [x] Keyboard mappings (P1: WASD+..., P2: arrows+...)
+- [x] Gamepad API: Xbox controller mapping, hot-plug, rumble (vibrationActuator)
+- [x] Up to 4 local players (any mix of human/AI), free-for-all
+- [x] LEGO-style dynamic camera: combined third-person view when players are
       close, splits into per-player chase views when they separate (hysteresis,
       up to 4 viewports), glowing dividers
-- [ ] Fullscreen toggle (key + menu)
+- [x] Fullscreen toggle (key + menu)
 
-### Phase 8 — Game flow, HUD & menus
-- [ ] Title screen
-- [ ] Mech select (rotating 3D showcase, personality blurb, stats)
-- [ ] Arena select
-- [ ] Round system (best-of-3), KO logic, intro/outro sequences
-- [ ] HUD: health/energy/ult bars, portraits, round pips, announcements
-- [ ] Pause menu, results screen, rematch
+### Phase 8 — Game flow, HUD & menus ✅
+- [x] Title screen
+- [x] Mech select (rotating 3D showcase, personality blurb, stats)
+- [x] Arena select
+- [x] Round system (best-of-3), KO logic, intro/outro sequences
+- [x] HUD: health/energy/ult bars, portraits, round pips, announcements
+- [x] Pause menu, results screen, rematch
 
 ### Phase 9 — Audio
 - [ ] WebAudio SFX synth: impacts, gunfire, explosions, servo whirs, footsteps
@@ -126,3 +128,7 @@ controllers via Gamepad API), AI opponents.
 - 2026-07-06: Phase 2 complete (part kit, rig, materials, 12 designs verified
   via browser screenshot). User notes added: dynamic combine/separate camera,
   fullscreen, battle-worn look, steampunk-industrial arena + soundscape.
+- 2026-07-06: Phases 3-8 complete: animation, combat (specials/ults/projectiles/
+  VFX), destructible arena framework + 12 themes, AI, input (KB+Xbox), dynamic
+  split camera, full menu/match flow. Verified end-to-end in browser.
+  Spawned agents: audio system + arena theme deepening. README written.

@@ -40,6 +40,9 @@ export class Match {
     this.timeLeft = ROUND_TIME;
     this.hud.announce(`ROUND ${this.round}`, true);
     this.world.audio?.play('stingRound');
+    // a bit of personality: someone talks trash at the start of each round
+    const talker = this.fighters[(this.round - 1) % this.fighters.length];
+    this.hud.callout(`${talker.def.name}: ${talker.def.quotes.intro}`);
   }
 
   checkRoundEnd() {
