@@ -15,6 +15,7 @@ import { CameraSystem } from './camera.js';
 import { Match } from './match.js';
 import { Hud, toast } from '../ui/hud.js';
 import { TitleScreen, SetupScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
+import { GameAudio } from '../core/audio.js';
 
 // Menu backdrop: dark stage with a rotating mech line-up / preview.
 class MenuStage {
@@ -98,12 +99,9 @@ export async function bootGame() {
   const input = new Input();
   const uiRoot = document.getElementById('ui-root');
 
-  let audio = null;
+  let audio;
   try {
-    // TODO(audio): switch to a static import once src/core/audio.js lands
-    const audioPath = '../core/' + 'audio.js';
-    const mod = await import(/* @vite-ignore */ audioPath);
-    audio = new mod.GameAudio();
+    audio = new GameAudio();
   } catch (e) {
     console.warn('audio unavailable', e);
     audio = { play() {}, music() {}, stopMusic() {}, resume() {}, setSfxVolume() {}, setMusicVolume() {} };
