@@ -176,7 +176,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [36, 38, 54], knock: [5, 5, 12], range: 3.3 },
       heavy: { dmg: 86, knock: 20, range: 3.7, launch: 8 },
-      ranged: { name: 'Dragon\'s Breath', type: 'flame', dmg: 8, cooldown: 0.09, range: 12 },
+      ranged: { name: 'Dragon\'s Breath', type: 'flame', dmg: 6.5, cooldown: 0.09, range: 12 },
       special: { id: 'napalm', name: 'Napalm Carpet', cooldown: 7.5, dmg: 14, patches: 5, duration: 5 },
       ult: { id: 'backdraft', name: 'BACKDRAFT', dmg: 170, radius: 12, burnDmg: 10 },
     },

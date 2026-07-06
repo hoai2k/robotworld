@@ -78,6 +78,8 @@ export function runBattleTest() {
     cameraSys.update(dtReal, fighters, humans);
   };
   engine.start();
-  window.__world = world; // debug hook
+  window.__world = world; // debug hooks
+  window.__ais = ais;
+  window.__fighters = fighters;
   return engine;
 }
