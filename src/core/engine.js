@@ -1,0 +1,121 @@
+// Renderer, scene, camera, lighting rig, post-processing, game loop.
+import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { clamp } from './utils.js';
+
+export class Engine {
+  constructor(canvas) {
+    this.canvas = canvas;
+    this.renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: false,
+      powerPreference: 'high-performance',
+    });
+    this.renderer.setPixelRatio(clamp(window.devicePixelRatio, 1, 1.75));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.05;
+
+    this.scene = new THREE.Scene();
+    this.camera = new THREE.PerspectiveCamera(46, 1, 0.5, 2200);
+    this.camera.position.set(0, 14, 42);
+
+    // Environment reflections for PBR metals.
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.55;
+    pmrem.dispose();
+
+    // ---- lighting rig (arena setups override colors/positions) ----
+    this.hemi = new THREE.HemisphereLight(0x8fb4d8, 0x2a2620, 0.7);
+    this.scene.add(this.hemi);
+
+    this.sun = new THREE.DirectionalLight(0xfff2dd, 2.4);
+    this.sun.position.set(60, 90, 40);
+    this.sun.castShadow = true;
+    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.camera.near = 10;
+    this.sun.shadow.camera.far = 320;
+    const ext = 85;
+    this.sun.shadow.camera.left = -ext;
+    this.sun.shadow.camera.right = ext;
+    this.sun.shadow.camera.top = ext;
+    this.sun.shadow.camera.bottom = -ext;
+    this.sun.shadow.bias = -0.0005;
+    this.sun.shadow.normalBias = 0.06;
+    this.scene.add(this.sun);
+    this.scene.add(this.sun.target);
+
+    this.rim = new THREE.DirectionalLight(0x5f8fff, 0.85);
+    this.rim.position.set(-50, 40, -60);
+    this.scene.add(this.rim);
+
+    // ---- post-processing ----
+    this.composer = new EffectComposer(this.renderer);
+    this.renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(this.renderPass);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.55, 0.82);
+    this.composer.addPass(this.bloom);
+    this.composer.addPass(new OutputPass());
+    this.fxaa = new ShaderPass(FXAAShader);
+    this.composer.addPass(this.fxaa);
+
+    // ---- loop state ----
+    this.timeScale = 1;
+    this.hitStop = 0;          // seconds of near-freeze remaining
+    this.elapsed = 0;
+    this.onUpdate = null;      // (dt) => {} game-time step
+    this.onRender = null;      // (dtReal) => {} real-time (camera, UI)
+    this._last = performance.now();
+    this._running = false;
+
+    window.addEventListener('resize', () => this.resize());
+    this.resize();
+  }
+
+  resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    this.renderer.setSize(w, h);
+    this.composer.setSize(w, h);
+    this.camera.aspect = w / h;
+    this.camera.updateProjectionMatrix();
+    const pr = this.renderer.getPixelRatio();
+    this.fxaa.material.uniforms.resolution.value.set(1 / (w * pr), 1 / (h * pr));
+  }
+
+  start() {
+    if (this._running) return;
+    this._running = true;
+    this._last = performance.now();
+    const tick = (now) => {
+      if (!this._running) return;
+      requestAnimationFrame(tick);
+      let dtReal = (now - this._last) / 1000;
+      this._last = now;
+      dtReal = clamp(dtReal, 0, 1 / 20);
+
+      let dt = dtReal * this.timeScale;
+      if (this.hitStop > 0) {
+        this.hitStop -= dtReal;
+        dt *= 0.05; // near-freeze for impact punch
+      }
+      this.elapsed += dt;
+
+      if (this.onUpdate) this.onUpdate(dt);
+      if (this.onRender) this.onRender(dtReal);
+      this.composer.render();
+    };
+    requestAnimationFrame(tick);
+  }
+
+  addHitStop(seconds) {
+    this.hitStop = Math.max(this.hitStop, seconds);
+  }
+}
