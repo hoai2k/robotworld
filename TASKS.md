@@ -10,10 +10,8 @@ controllers via Gamepad API), AI opponents.
 
 ## Current status
 
-- **Phase:** 9-10 (audio + polish). Phases 1-8 CODE-COMPLETE and verified in-browser
-- **Parallel agents running:** (a) src/core/audio.js WebAudio SFX+music,
-  (b) deepening 12 arena themes in src/arena/{themes,props}.js
-- **Next action:** integrate agent output, soak test, balance, build check
+- **Phase:** ALL 10 PHASES COMPLETE ✅ — game shipped on this branch
+- **Next action:** playtesting feedback / tuning
 - **Branch:** `claude/3d-mech-battle-game-uxps6q`
 
 ## Tech stack
@@ -115,11 +113,11 @@ controllers via Gamepad API), AI opponents.
 - [x] Announcer-style stingers (synth), menu blips
 - [x] Dynamic music (menu theme + battle theme, synth arps/bass/drums)
 
-### Phase 10 — Polish & ship
-- [ ] Performance pass (instancing, pooling, draw-call budget)
+### Phase 10 — Polish & ship ✅
+- [x] Performance pass (instanced chunks/debris, pooled particles/projectiles, merged mech geometry, ~66 draw calls in 4-way split)
 - [x] Balance pass across 12 mechs (soak-tested all move sets, flame nerf)
 - [x] README with controls & how to run
-- [ ] Final build verification (`vite build`) + browser smoke test & screenshots
+- [x] Final build verification (`vite build`) + browser smoke test & screenshots (docs/)
 
 ## Progress log
 
@@ -132,3 +130,8 @@ controllers via Gamepad API), AI opponents.
   VFX), destructible arena framework + 12 themes, AI, input (KB+Xbox), dynamic
   split camera, full menu/match flow. Verified end-to-end in browser.
   Spawned agents: audio system + arena theme deepening. README written.
+- 2026-07-06: Audio agent delivered 49 SFX + 4 music tracks (committed). Arena
+  agent delivered 33 new props + lighting pass on all 12 themes (committed).
+  Full-match soak: menus → battle → 2 rounds → results, zero errors. Pause/
+  quit teardown verified. Production build passes. Screenshots in docs/.
+  ALL PHASES COMPLETE — SHIPPED.

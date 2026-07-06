@@ -8,6 +8,14 @@ controllers), and AI opponents across three difficulty tiers.
 Everything — 3D models, textures, animation, VFX, music and sound — is
 generated procedurally in code. No asset files, no downloads.
 
+![Title](docs/title.png)
+![Mech select](docs/mech-select.png)
+
+| | |
+|---|---|
+| ![Neon District](docs/arena-neon.png) | ![Volcanic Forge](docs/arena-volcano.png) |
+| ![Frozen Outpost](docs/arena-frozen.png) | ![4-player split screen](docs/split-screen.png) |
+
 ## Running the game
 
 ```bash
