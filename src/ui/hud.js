@@ -1,0 +1,159 @@
+// Battle HUD: health/ult plates, round pips, timer, announcements,
+// damage popups, special/ult callouts, controller toasts.
+import * as THREE from 'three';
+import { PLAYER_COLORS } from '../combat/fighter.js';
+import { clamp01 } from '../core/utils.js';
+
+const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
+const _v = new THREE.Vector3();
+
+export class Hud {
+  constructor(root, world) {
+    this.world = world;
+    this.el = document.createElement('div');
+    this.el.id = 'hud';
+    root.appendChild(this.el);
+
+    this.plates = [];
+    this.timerEl = document.createElement('div');
+    this.timerEl.className = 'hud-timer';
+    this.el.appendChild(this.timerEl);
+
+    this.announceEl = document.createElement('div');
+    this.announceEl.id = 'announce';
+    this.el.appendChild(this.announceEl);
+
+    this.popupLayer = document.createElement('div');
+    this.popupLayer.id = 'popup-layer';
+    this.el.appendChild(this.popupLayer);
+
+    this.calloutEl = document.createElement('div');
+    this.calloutEl.style.cssText = `
+      position:absolute; top:14vh; left:0; right:0; text-align:center; opacity:0;
+      font-size:clamp(18px,2.4vw,32px); font-weight:900; font-style:italic;
+      letter-spacing:0.12em; text-transform:uppercase; color:#fff;
+      text-shadow:0 0 18px rgba(180,107,255,0.9), 0 2px 4px #000; transition:opacity 0.2s;`;
+    this.el.appendChild(this.calloutEl);
+    this.calloutT = 0;
+
+    this.unsubs = [
+      world.events.on('damage', (d) => this.onDamage(d)),
+      world.events.on('special', (d) => this.callout(`${d.fighter.def.name} — ${d.name}`)),
+      world.events.on('ult', (d) => this.callout(`⚡ ${d.fighter.def.name}: ${d.name}! ⚡`, true)),
+    ];
+    this.popupBudget = 0;
+  }
+
+  buildPlates(fighters) {
+    for (const p of this.plates) p.root.remove();
+    this.plates = [];
+    const corners = [
+      'top:2.5vh;left:2vw;', 'top:2.5vh;right:2vw;',
+      'bottom:3vh;left:2vw;', 'bottom:3vh;right:2vw;',
+    ];
+    fighters.forEach((f, i) => {
+      const root = document.createElement('div');
+      root.className = 'hud-plate';
+      root.style.cssText = corners[i % 4];
+      const right = i % 2 === 1;
+      root.innerHTML = `
+        <div class="hp-head" style="${right ? 'flex-direction:row-reverse;' : ''}">
+          <span class="hp-player" style="color:${COLOR_CSS[i % 4]}">${f.isAI ? 'CPU' : 'P' + (i + 1)}</span>
+          <span class="hp-name">${f.def.icon} ${f.def.name}</span>
+        </div>
+        <div class="hud-bar hp"><div class="bar-ghost"></div><div class="bar-fill"></div></div>
+        <div class="hud-bar ult"><div class="bar-fill"></div></div>
+        <div class="round-pips" style="${right ? 'justify-content:flex-end;' : ''}">
+          <div class="round-pip"></div><div class="round-pip"></div>
+        </div>`;
+      this.el.appendChild(root);
+      this.plates.push({
+        root, f,
+        hpBar: root.querySelector('.hud-bar.hp'),
+        hp: root.querySelector('.hud-bar.hp .bar-fill'),
+        ghost: root.querySelector('.bar-ghost'),
+        ult: root.querySelector('.hud-bar.ult'),
+        ultFill: root.querySelector('.hud-bar.ult .bar-fill'),
+        pips: [...root.querySelectorAll('.round-pip')],
+        ghostVal: 1,
+      });
+    });
+  }
+
+  update(dt, camera, timeLeft) {
+    for (const p of this.plates) {
+      const f = p.f;
+      const frac = clamp01(f.hp / f.maxHp);
+      p.ghostVal += (frac - p.ghostVal) * (frac > p.ghostVal ? 1 : dt * 2.2);
+      p.hp.style.transform = `scaleX(${frac})`;
+      p.ghost.style.transform = `scaleX(${p.ghostVal})`;
+      p.hpBar.classList.toggle('low', frac < 0.3);
+      p.ultFill.style.transform = `scaleX(${clamp01(f.ult)})`;
+      p.ult.classList.toggle('full', f.ult >= 1);
+      p.pips.forEach((pip, i) => pip.classList.toggle('won', f.wins > i));
+    }
+    if (timeLeft !== undefined) {
+      this.timerEl.textContent = timeLeft === Infinity ? '' : Math.max(0, Math.ceil(timeLeft));
+    }
+    this.calloutT -= dt;
+    if (this.calloutT <= 0) this.calloutEl.style.opacity = 0;
+  }
+
+  onDamage({ dmg, pos, attacker }) {
+    // cap popup rate (gatling etc.)
+    if (this.popupBudget > 6 || dmg < 4) return;
+    if (!this.world.camera) return;
+    this.popupBudget++;
+    setTimeout(() => this.popupBudget--, 250);
+    _v.copy(pos);
+    _v.project(this.world.camera);
+    if (_v.z > 1) return;
+    const x = (_v.x * 0.5 + 0.5) * 100, y = (-_v.y * 0.5 + 0.5) * 100;
+    const el = document.createElement('div');
+    el.className = 'dmg-pop';
+    el.textContent = Math.round(dmg);
+    const big = dmg >= 60;
+    el.style.cssText = `left:${x + (Math.random() * 4 - 2)}%; top:${y - 4}%;` +
+      (big ? 'font-size:34px;color:#ffd23c;text-shadow:0 0 14px rgba(255,120,20,1),0 2px 2px #000;' : '');
+    this.popupLayer.appendChild(el);
+    setTimeout(() => el.remove(), 850);
+  }
+
+  callout(text, big = false) {
+    this.calloutEl.textContent = text;
+    this.calloutEl.style.opacity = 1;
+    this.calloutEl.style.fontSize = big ? 'clamp(24px,3vw,42px)' : 'clamp(18px,2.4vw,32px)';
+    this.calloutT = 2.2;
+  }
+
+  announce(text, hold = false, color = null) {
+    const el = this.announceEl;
+    el.textContent = text;
+    el.className = '';
+    if (color) el.style.color = color;
+    else el.style.color = '#fff';
+    void el.offsetWidth; // restart animation
+    el.className = hold ? 'show-hold' : 'show';
+  }
+
+  setTimerVisible(v) { this.timerEl.style.display = v ? '' : 'none'; }
+
+  destroy() {
+    for (const u of this.unsubs) u();
+    this.el.remove();
+  }
+}
+
+export function toast(text) {
+  let layer = document.getElementById('toast-layer');
+  if (!layer) {
+    layer = document.createElement('div');
+    layer.id = 'toast-layer';
+    document.getElementById('ui-root').appendChild(layer);
+  }
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = text;
+  layer.appendChild(el);
+  setTimeout(() => el.remove(), 4100);
+}
