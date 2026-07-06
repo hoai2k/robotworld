@@ -35,80 +35,72 @@ export function platingTextures(baseHex, seed = 1, opts = {}) {
   const rng = makeRng(seed * 7919 + 13);
   const S = 256;
 
+  // Subtle by design: parts are small and UVs stretch 0-1 per face, so any
+  // busy detail reads as noisy tiling. Keep it clean; geometry carries detail.
   const drawBase = (ctx, forBump) => {
-    // base fill with subtle vertical gradient
     if (forBump) {
       ctx.fillStyle = '#808080';
       ctx.fillRect(0, 0, S, S);
     } else {
       const g = ctx.createLinearGradient(0, 0, 0, S);
-      g.addColorStop(0, shade(baseHex, 1.12));
+      g.addColorStop(0, shade(baseHex, 1.07));
       g.addColorStop(0.5, shade(baseHex, 1.0));
-      g.addColorStop(1, shade(baseHex, 0.86));
+      g.addColorStop(1, shade(baseHex, 0.9));
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, S, S);
-      // mottled noise for worn metal
-      for (let i = 0; i < 340; i++) {
-        const x = rng() * S, y = rng() * S, r = rng.range(3, 16);
+      // faint worn-metal mottling
+      for (let i = 0; i < 90; i++) {
+        const x = rng() * S, y = rng() * S, r = rng.range(8, 30);
         ctx.fillStyle = rng.chance(0.5)
-          ? `rgba(255,255,255,${rng.range(0.008, 0.035)})`
-          : `rgba(0,0,10,${rng.range(0.01, 0.05)})`;
+          ? `rgba(255,255,255,${rng.range(0.005, 0.018)})`
+          : `rgba(0,0,10,${rng.range(0.006, 0.022)})`;
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
     }
-    // panel lines (grid with jitter)
-    const cells = 4;
-    ctx.strokeStyle = forBump ? 'rgba(30,30,30,0.9)' : 'rgba(6,10,16,0.5)';
-    ctx.lineWidth = 2;
+    // a couple of faint panel seams
+    ctx.strokeStyle = forBump ? 'rgba(90,90,90,0.8)' : 'rgba(6,10,16,0.22)';
+    ctx.lineWidth = 1.5;
     const rng2 = makeRng(seed * 131 + 7);
-    for (let i = 1; i < cells; i++) {
-      const p = (i / cells) * S + rng2.range(-14, 14);
-      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, S); ctx.stroke();
-      const q = (i / cells) * S + rng2.range(-14, 14);
-      ctx.beginPath(); ctx.moveTo(0, q); ctx.lineTo(S, q); ctx.stroke();
-    }
-    // rivets along some lines
-    for (let i = 0; i < 26; i++) {
+    const px = S * rng2.range(0.3, 0.7), py = S * rng2.range(0.3, 0.7);
+    ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, S); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(S, py); ctx.stroke();
+    // sparse edge rivets
+    for (let i = 0; i < 8; i++) {
       const x = rng2() * S, y = rng2() * S;
-      ctx.fillStyle = forBump ? '#e8e8e8' : 'rgba(255,255,255,0.16)';
-      ctx.beginPath(); ctx.arc(x, y, 2.1, 0, Math.PI * 2); ctx.fill();
-      if (!forBump) {
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
-        ctx.beginPath(); ctx.arc(x + 1, y + 1.4, 1.6, 0, Math.PI * 2); ctx.fill();
-      }
+      ctx.fillStyle = forBump ? '#b8b8b8' : 'rgba(255,255,255,0.09)';
+      ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
     }
-    // scratches
+    // faint scratches
     ctx.lineWidth = 1;
-    for (let i = 0; i < 22; i++) {
-      const x = rng() * S, y = rng() * S, a = rng() * Math.PI * 2, l = rng.range(6, 30);
+    for (let i = 0; i < 9; i++) {
+      const x = rng() * S, y = rng() * S, a = rng() * Math.PI * 2, l = rng.range(8, 28);
       ctx.strokeStyle = forBump
-        ? 'rgba(220,220,220,0.5)'
-        : `rgba(255,255,255,${rng.range(0.04, 0.12)})`;
+        ? 'rgba(160,160,160,0.4)'
+        : `rgba(255,255,255,${rng.range(0.02, 0.05)})`;
       ctx.beginPath();
       ctx.moveTo(x, y);
       ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l);
       ctx.stroke();
     }
     if (!forBump) {
-      // grime streaks from panel lines
-      for (let i = 0; i < 14; i++) {
-        const x = rng() * S, y = rng() * S, l = rng.range(10, 42);
+      // soft grime streaks
+      for (let i = 0; i < 6; i++) {
+        const x = rng() * S, y = rng() * S, l = rng.range(14, 46);
         const g = ctx.createLinearGradient(x, y, x, y + l);
-        g.addColorStop(0, 'rgba(8,10,14,0.22)');
+        g.addColorStop(0, 'rgba(8,10,14,0.1)');
         g.addColorStop(1, 'rgba(8,10,14,0)');
         ctx.fillStyle = g;
-        ctx.fillRect(x, y, rng.range(3, 9), l);
+        ctx.fillRect(x, y, rng.range(4, 10), l);
       }
       if (opts.stripes) {
-        // hazard stripes band
         ctx.save();
-        ctx.translate(0, S * 0.82);
-        ctx.rotate(-0.05);
-        for (let x = -S; x < S * 2; x += 26) {
-          ctx.fillStyle = '#0e0e10';
-          ctx.fillRect(x, 0, 13, 22);
-          ctx.fillStyle = '#e8a80c';
-          ctx.fillRect(x + 13, 0, 13, 22);
+        ctx.globalAlpha = 0.85;
+        ctx.translate(0, S * 0.86);
+        for (let x = 0; x < S; x += 26) {
+          ctx.fillStyle = '#17171a';
+          ctx.fillRect(x, 0, 13, 15);
+          ctx.fillStyle = '#d99e0e';
+          ctx.fillRect(x + 13, 0, 13, 15);
         }
         ctx.restore();
       }
