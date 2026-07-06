@@ -8,6 +8,8 @@ if (params.has('showcase')) {
   });
 } else if (params.has('battle')) {
   import('./dev/battletest.js').then(({ runBattleTest }) => runBattleTest());
+} else if (params.has('rigtest')) {
+  import('./dev/rigtest.js').then(({ runRigTest }) => runRigTest());
 } else {
   import('./game/boot.js').then(({ bootGame }) => bootGame());
 }

@@ -16,6 +16,7 @@ import { Match } from './match.js';
 import { Hud, toast } from '../ui/hud.js';
 import { TitleScreen, SetupScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
 import { GameAudio } from '../core/audio.js';
+import { createMech, preloadMechModels } from '../mechs/gltf.js';
 
 // Menu backdrop: dark stage with a rotating mech line-up / preview.
 class MenuStage {
@@ -212,6 +213,7 @@ export async function bootGame() {
 
   function goArenaSelect() {
     S.mode = 'arenaselect';
+    preloadMechModels(S.picks.filter(Boolean)); // warm GLB cache while browsing arenas
     setScreen(new ArenaSelectScreen(uiRoot, {
       audio,
       onDone: (themeId) => { S.themeId = themeId; startBattle(); },
@@ -220,7 +222,7 @@ export async function bootGame() {
   }
 
   // ---------------- battle ----------------
-  function startBattle() {
+  async function startBattle() {
     setScreen(null);
     S.stage?.destroy();
     S.stage = null;
@@ -238,11 +240,15 @@ export async function bootGame() {
     S.slots.forEach((s, i) => { if (s.kind !== 'off') active.push({ slot: s, slotIdx: i }); });
     const spawns = arena.spawnPoints(active.length);
     const fighters = [], humans = [], ais = [];
+    // build mechs up-front: GLB-backed where the model manifest has one
+    const defs = active.map((a) => ROSTER_BY_ID[S.picks[a.slotIdx]] || ROSTER[(Math.random() * 12) | 0]);
+    const mechs = await Promise.all(defs.map((d) => createMech(d)));
     active.forEach((a, i) => {
-      const def = ROSTER_BY_ID[S.picks[a.slotIdx]] || ROSTER[(Math.random() * 12) | 0];
+      const def = defs[i];
       const f = new Fighter(world, def, {
         pos: spawns[i].pos, yaw: spawns[i].yaw,
         playerIndex: a.slotIdx, isAI: a.slot.kind === 'ai',
+        mech: mechs[i],
       });
       fighters.push(f);
       world.fighters.push(f);

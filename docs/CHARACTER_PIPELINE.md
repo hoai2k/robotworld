@@ -1,0 +1,75 @@
+# Character Pipeline — AI-generated rigged mechs
+
+The game can replace any of its 12 procedural mechs with a high-detail rigged
+GLB model, while keeping the **entire existing animation and combat system**
+(walk/run, 3-hit combos, heavies, blocks, knockdowns, specials, ults, victory
+poses — everything). Models are retargeted at runtime via world-space rotation
+offsets, so any standard humanoid rig works without hand-tuning.
+
+## What an incoming model needs to be
+
+- **A single humanoid character in T-pose or A-pose** (arms out / arms ~45°).
+- **Rigged** (skinned to a skeleton). Mixamo-style bone names are matched
+  automatically; other conventions usually work too (see aliases in
+  `src/mechs/rigadapter.js`), with `boneOverrides` as an escape hatch.
+- **GLB format**, facing +Z (use `yawOffset` if not).
+- It does **not** need animations — the game animates it.
+
+## Recommended workflow
+
+1. **Canonical images** — generate with the prompt sheets in
+   [`canonical-prompts.md`](canonical-prompts.md) (Midjourney / DALL-E /
+   SDXL / etc.). Best results for the 3D step: full body, T-pose or neutral
+   stance, front view (plus side/back views if the service accepts
+   multi-view), plain background, whole character in frame.
+2. **Image → 3D** — use one of:
+   - **Meshy.ai** (image-to-3D + auto-rig + texture; API available)
+   - **Tripo3D** (same feature set; API available)
+   - Any mesh source + **Mixamo auto-rigger** (free; upload mesh, place
+     markers, download rigged FBX → convert to GLB, e.g. in Blender)
+   Ask the service for **T-pose rig** output when offered.
+3. **Drop into the game**:
+   - Put the file at `public/models/<mechId>.glb`
+   - Add an entry to `public/models/manifest.json`:
+     ```json
+     {
+       "titanus": { "url": "models/titanus.glb", "bindPose": "tpose" }
+     }
+     ```
+   - Run the game. That mech now uses the model; everything else is untouched.
+     Any mech not in the manifest keeps its procedural model, and a model that
+     fails to load falls back automatically.
+
+If you provide a **Meshy or Tripo API key**, steps 2–3 can be fully automated
+from the canonical images (generation, rigging, download, manifest update).
+
+## Manifest options
+
+| Field | Default | Meaning |
+|---|---|---|
+| `url` | — | path under `public/` |
+| `bindPose` | `"tpose"` | `"tpose"`, `"apose"`, `"native"` (already arms-down), or a custom `{joint:[x,y,z]}` degree map |
+| `boneOverrides` | `{}` | force joint→bone mapping, e.g. `{"torso": "Spine2"}` |
+| `heightScale` | `1.0` | multiply the mech's gameplay height for the visual |
+| `yawOffset` | `0` | degrees, if the model doesn't face +Z |
+| `emissiveBoost` | — | multiply emissive intensity (make cores/visors pop with bloom) |
+
+## Verifying a model
+
+- `?rigtest` — sanity-check the retarget math on a synthetic Mixamo-style
+  skeleton (15/15 bones should map; puppet should stand arms-down and animate).
+- `?battle=uptown&p1=<mechId>&p2=viper&auto=1` — watch the actual model fight.
+- Checklist: arms hang naturally at rest (if not → wrong `bindPose`),
+  feet on the ground (→ `heightScale`), facing its opponent (→ `yawOffset`),
+  fists lead punches (if elbows bend backwards, a bone got mismapped — check
+  the console warning and add `boneOverrides`).
+
+## How the retargeting works (for maintainers)
+
+`src/mechs/gltf.js` builds the invisible *virtual skeleton* (the same joint
+rig the procedural mechs use) and parents the scaled GLB under the mech root.
+`src/mechs/rigadapter.js` poses the virtual rig into the model's bind stance
+(e.g. T-pose), records per-joint offsets `O = jointWorld⁻¹ · boneWorld`, then
+every frame after the Animator runs sets each mapped bone (parents first) to
+`local = parentWorld⁻¹ · jointWorld · O`, plus a hips-translation channel for
+bobs/crouches. Convention-free: no per-axis fix-ups per rig.

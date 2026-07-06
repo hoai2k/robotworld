@@ -13,16 +13,17 @@ const GRAVITY = 34;
 export const PLAYER_COLORS = [0x38e8ff, 0xff4d5e, 0x62ff9a, 0xffb43c];
 
 export class Fighter {
-  constructor(world, def, { pos = new THREE.Vector3(), yaw = 0, playerIndex = 0, isAI = false } = {}) {
+  constructor(world, def, { pos = new THREE.Vector3(), yaw = 0, playerIndex = 0, isAI = false, mech = null } = {}) {
     this.world = world;
     this.def = def;
     this.playerIndex = playerIndex;
     this.isAI = isAI;
 
-    this.mech = buildMech(def);
+    // mech may be prebuilt (async GLB pipeline); otherwise procedural
+    this.mech = mech || buildMech(def);
     this.group = this.mech.group;
     this.group.position.copy(pos);
-    this.animator = new Animator(this.mech);
+    this.animator = this.mech.premadeAnimator || new Animator(this.mech);
     world.scene.add(this.group);
 
     // physique

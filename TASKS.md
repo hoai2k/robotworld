@@ -135,3 +135,19 @@ controllers via Gamepad API), AI opponents.
   Full-match soak: menus → battle → 2 rounds → results, zero errors. Pause/
   quit teardown verified. Production build passes. Screenshots in docs/.
   ALL PHASES COMPLETE — SHIPPED.
+
+## Phase 11 — AI character pipeline (user request, 2026-07-06)
+
+- [x] Runtime GLB character pipeline: manifest-driven loading
+  (public/models/manifest.json), skinned-clone per fighter, height/ground
+  normalization, procedural fallback when a model is missing/broken
+- [x] RigAdapter: convention-free humanoid retargeting (world-space rotation
+  offsets, T-pose/A-pose bind presets, Mixamo-style bone-name auto-mapping,
+  boneOverrides escape hatch) — the FULL existing animation set drives any
+  standard rigged GLB
+- [x] ?rigtest harness: synthetic Mixamo-convention T-pose skeleton;
+  verified 15/15 bones map, rest/walk/heavy retarget correctly
+- [x] docs/CHARACTER_PIPELINE.md (workflow: images -> Meshy/Tripo/Mixamo ->
+  manifest) + docs/canonical-prompts.md (12 style-locked prompt sheets)
+- [ ] AWAITING USER: canonical images (or an imagegen API key), and a
+  Meshy/Tripo API key OR user-provided rigged GLBs — then wire real models

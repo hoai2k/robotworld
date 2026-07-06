@@ -250,6 +250,7 @@ export class Animator {
       c[2] = lerp(c[2], tgt[key][2], rate);
     }
     this.applyPose(this.cur);
+    this.mech.postAnimate?.(); // GLB rigs: retarget virtual joints onto bones
   }
 
   // rest-pose bias: digitigrade legs keep their bend during clips

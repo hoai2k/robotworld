@@ -1,0 +1,197 @@
+// RigAdapter: retargets the game's virtual joint rig (driven by Animator)
+// onto an arbitrary humanoid skeleton (Mixamo / Meshy / Tripo auto-rigs).
+//
+// Method: world-space rotation offsets. At setup we pose the virtual rig to
+// semantically match the model's bind pose (T-pose, A-pose...), then record
+// per-joint offset O = worldQuat(virtualJoint)^-1 * worldQuat(bone).
+// At runtime, after the Animator poses the virtual rig, each mapped bone is
+// set (parents first) to  local = parentWorld^-1 * jointWorld * O.
+// This is convention-free: bone axis layouts never need per-axis hacks.
+import * as THREE from 'three';
+
+const _q1 = new THREE.Quaternion();
+const _q2 = new THREE.Quaternion();
+const _e = new THREE.Euler();
+const D2R = Math.PI / 180;
+
+// Ordered parent-first to match how we propagate world quats.
+export const JOINT_ORDER = [
+  'hips', 'torso', 'head',
+  'shoulderL', 'elbowL', 'handL',
+  'shoulderR', 'elbowR', 'handR',
+  'thighL', 'kneeL', 'ankleL',
+  'thighR', 'kneeR', 'ankleR',
+];
+
+// Bone-name aliases per joint (matched case-insensitively as suffix, with
+// namespace prefixes like "mixamorig:" stripped). Order = preference.
+const BONE_ALIASES = {
+  hips: ['hips', 'pelvis', 'hip', 'root_m', 'spine_00'],
+  torso: ['spine2', 'spine1', 'chest', 'spine', 'upperchest'],
+  head: ['head', 'neck'],
+  shoulderL: ['leftarm', 'l_upperarm', 'upperarm_l', 'arm_l', 'leftupperarm', 'shoulder_l'],
+  elbowL: ['leftforearm', 'l_forearm', 'forearm_l', 'lowerarm_l', 'leftlowerarm', 'elbow_l'],
+  handL: ['lefthand', 'l_hand', 'hand_l', 'wrist_l'],
+  shoulderR: ['rightarm', 'r_upperarm', 'upperarm_r', 'arm_r', 'rightupperarm', 'shoulder_r'],
+  elbowR: ['rightforearm', 'r_forearm', 'forearm_r', 'lowerarm_r', 'rightlowerarm', 'elbow_r'],
+  handR: ['righthand', 'r_hand', 'hand_r', 'wrist_r'],
+  thighL: ['leftupleg', 'l_thigh', 'thigh_l', 'upleg_l', 'leftupperleg', 'leg_l'],
+  kneeL: ['leftleg', 'l_calf', 'calf_l', 'shin_l', 'leftlowerleg', 'knee_l', 'lowerleg_l'],
+  ankleL: ['leftfoot', 'l_foot', 'foot_l', 'ankle_l'],
+  thighR: ['rightupleg', 'r_thigh', 'thigh_r', 'upleg_r', 'rightupperleg', 'leg_r'],
+  kneeR: ['rightleg', 'r_calf', 'calf_r', 'shin_r', 'rightlowerleg', 'knee_r', 'lowerleg_r'],
+  ankleR: ['rightfoot', 'r_foot', 'foot_r', 'ankle_r'],
+};
+
+// How to pose OUR virtual rig so it matches the model's bind pose while the
+// offsets are captured. Degrees, applied on top of the mech's rest pose.
+export const BIND_PRESETS = {
+  // arms straight out to the sides (Mixamo, most auto-riggers)
+  tpose: {
+    shoulderL: [0, 0, 92], shoulderR: [0, 0, -92],
+    elbowL: [0, 0, 0], elbowR: [0, 0, 0],
+  },
+  // arms ~45° down (many game-ready rigs)
+  apose: {
+    shoulderL: [0, 0, 47], shoulderR: [0, 0, -47],
+    elbowL: [0, 0, 0], elbowR: [0, 0, 0],
+  },
+  // model already stands arms-down like our rest pose
+  native: {},
+};
+
+function normName(name) {
+  const n = name.toLowerCase();
+  const i = n.lastIndexOf(':');
+  return (i >= 0 ? n.slice(i + 1) : n).replace(/[\s._-]/g, '');
+}
+
+// Find a bone for each joint among the model's bones.
+export function mapBones(bones, overrides = {}) {
+  const byName = new Map();
+  for (const b of bones) byName.set(normName(b.name), b);
+  const map = {};
+  const taken = new Set();
+  for (const joint of JOINT_ORDER) {
+    if (overrides[joint]) {
+      const b = bones.find((bb) => bb.name === overrides[joint]);
+      if (b) { map[joint] = b; taken.add(b); }
+      continue;
+    }
+    for (const alias of BONE_ALIASES[joint]) {
+      const key = alias.replace(/[\s._-]/g, '');
+      let found = byName.get(key);
+      if (!found) {
+        // suffix match (e.g. "mixamorigLeftArm" normalized ends with "leftarm")
+        for (const [n, b] of byName) {
+          if (n.endsWith(key) && !taken.has(b)) { found = b; break; }
+        }
+      }
+      if (found && !taken.has(found)) { map[joint] = found; taken.add(found); break; }
+    }
+  }
+  return map;
+}
+
+export class RigAdapter {
+  /**
+   * @param joints  the game's virtual joint groups (from buildRig), already
+   *                parented under mech root; Animator drives these.
+   * @param boneMap joint name -> THREE.Bone
+   * @param opts    { bindPose: 'tpose'|'apose'|'native'|object, hipsScale }
+   */
+  constructor(joints, boneMap, opts = {}) {
+    this.joints = joints;
+    this.entries = []; // ordered: {joint, bone, offset, parentEntry|null}
+
+    const bindPose = typeof opts.bindPose === 'string'
+      ? BIND_PRESETS[opts.bindPose] || {}
+      : opts.bindPose || {};
+
+    // 1) pose virtual rig into the model's bind stance (on top of whatever
+    //    rest pose the Animator has already applied)
+    const saved = {};
+    for (const [jname, deg] of Object.entries(bindPose)) {
+      const j = joints[jname];
+      if (!j) continue;
+      saved[jname] = j.rotation.clone();
+      j.rotation.set(
+        j.rotation.x + deg[0] * D2R,
+        j.rotation.y + deg[1] * D2R,
+        j.rotation.z + deg[2] * D2R
+      );
+    }
+    joints.root.updateWorldMatrix(true, true);
+
+    // 2) capture world-space offsets, parent-first
+    const jointWorld = {};
+    const entryByBone = new Map();
+    for (const jname of JOINT_ORDER) {
+      const joint = joints[jname];
+      const bone = boneMap[jname];
+      if (!joint || !bone) continue;
+      bone.updateWorldMatrix(true, false);
+      const jw = joint.getWorldQuaternion(new THREE.Quaternion());
+      const bw = bone.getWorldQuaternion(new THREE.Quaternion());
+      jointWorld[jname] = jw;
+      const offset = jw.clone().invert().multiply(bw);
+      // nearest mapped ancestor bone (for local conversion at runtime)
+      let parentEntry = null;
+      let p = bone.parent;
+      while (p) {
+        if (entryByBone.has(p)) { parentEntry = entryByBone.get(p); break; }
+        p = p.parent;
+      }
+      const entry = {
+        jname, joint, bone, offset, parentEntry,
+        bindLocalPos: bone.position.clone(),
+        parentStaticWorld: null,
+        world: new THREE.Quaternion(),
+      };
+      if (!parentEntry) {
+        // static world quat of the bone's parent chain (never animated by us)
+        entry.parentStaticWorld = bone.parent
+          ? bone.parent.getWorldQuaternion(new THREE.Quaternion())
+          : new THREE.Quaternion();
+      }
+      this.entries.push(entry);
+      entryByBone.set(bone, entry);
+    }
+
+    // hips vertical bob translation scaling (virtual units -> bone-local units).
+    // Rest height is captured lazily on first sync, after the Animator has
+    // applied its rest pose + ground offset.
+    this.hipsEntry = this.entries.find((e) => e.jname === 'hips') || null;
+    this.hipsRestY = null;
+    this.hipsScale = opts.hipsScale ?? 1;
+
+    // 3) restore rest pose
+    for (const [jname, rot] of Object.entries(saved)) {
+      joints[jname].rotation.copy(rot);
+    }
+    joints.root.updateWorldMatrix(true, true);
+  }
+
+  // Call every frame AFTER the Animator has posed the virtual joints.
+  sync() {
+    const root = this.joints.root;
+    root.updateWorldMatrix(true, true);
+    for (const e of this.entries) {
+      // desired bone world = joint world * offset
+      e.joint.getWorldQuaternion(_q1);
+      _q1.multiply(e.offset);
+      e.world.copy(_q1);
+      // convert to bone local
+      if (e.parentEntry) _q2.copy(e.parentEntry.world);
+      else _q2.copy(e.parentStaticWorld);
+      e.bone.quaternion.copy(_q2.invert().multiply(_q1));
+    }
+    // hips bob / crouch translation (vertical only, scaled into model units)
+    if (this.hipsEntry) {
+      if (this.hipsRestY === null) this.hipsRestY = this.joints.hips.position.y;
+      const dy = (this.joints.hips.position.y - this.hipsRestY) * this.hipsScale;
+      this.hipsEntry.bone.position.copy(this.hipsEntry.bindLocalPos);
+      this.hipsEntry.bone.position.y += dy;
+    }
+  }
+}
