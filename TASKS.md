@@ -179,3 +179,10 @@ controllers via Gamepad API), AI opponents.
   proportions, hazard pauldrons, radial reactor core, twin radiator towers).
   Verified: per-mech idle/walk/attack screenshots, 3x 120s ace-AI soaks
   covering all 12 (zero crashes), full menu flow, production build.
+- 2026-07-06: Durable documentation pass: docs/MECH_ART_GUIDE.md (master
+  operator manual: route decision tree, image reading, sculpting vocabulary,
+  verification loop, per-mech combat CONTRACT, pitfalls), CLAUDE.md (session
+  onboarding), tools/shot.mjs + tools/soak.mjs moved in-repo (playwright-core
+  devDep), tools/img2glb.mjs (best-effort Meshy/Tripo API client with
+  verify-docs-first caveats). Any future AI session can continue the
+  image->mech work from these alone.

@@ -91,6 +91,13 @@ screen. Rumble is supported where the browser allows it.
 - `?battle=<themeId>&p1=<mech>&p2=<mech>[&p3=..][&p4=..][&auto=1][&diff=ace]`
   — jump straight into a fight (auto=1: all-AI soak test)
 
+## Mech art pipeline
+
+Turn a concept image into a rigged, animated in-game mech — two routes
+(external image→3D services, or the free in-engine sculpted pipeline) —
+fully documented for future contributors (human or AI) in
+[docs/MECH_ART_GUIDE.md](docs/MECH_ART_GUIDE.md).
+
 ## Task tracking
 
 Build progress and the full phase plan live in [TASKS.md](TASKS.md).

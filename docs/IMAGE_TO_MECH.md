@@ -1,3 +1,6 @@
+> Part of the mech art pipeline — start at [MECH_ART_GUIDE.md](MECH_ART_GUIDE.md)
+> (this file is the deep dive for the hand-built route (B)).
+
 # Image → In-Engine Mech: the hand-built pipeline
 
 How a concept image becomes a fully rigged, animated, PBR-textured in-game

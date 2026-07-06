@@ -1,0 +1,50 @@
+# ROBOTWORLD — agent onboarding
+
+Browser 3D mech arena fighter (Three.js + Vite, plain ES modules, no TS).
+12 mechs, 12 destructible arenas, 4-player local multiplayer (KB + Xbox
+pads), AI opponents, procedural everything (models, textures, animation,
+audio). Progress history: `TASKS.md`.
+
+## Commands
+
+- `npm run dev` → http://localhost:5173 · `npm run build` (must stay green)
+- Headless screenshot: `node tools/shot.mjs "<url>" out.png <waitMs>` —
+  SwiftShader runs the game ~20× slow; use waits from MECH_ART_GUIDE §4 and
+  VIEW the images, don't assume.
+- Combat crash soak: `node tools/soak.mjs "http://localhost:5173/?battle=neon&p1=titanus&p2=viper&auto=1&diff=ace"`
+- Debug URLs: `?showcase` (12-mech lineup) · `?showcase=<id>&anim=<clip|walk|none>`
+  (single mech, judging camera) · `?battle=<arena>&p1=<id>&p2=<id>[&p3..p4][&auto=1][&diff=ace][&forcesplit=1]`
+  · `?rigtest` (GLB retarget math check)
+
+## Mech art pipeline — READ `docs/MECH_ART_GUIDE.md` FIRST
+
+That guide is the master manual for turning concept images into in-game
+mechs (both routes: external rigged-GLB services and the free in-engine
+sculpted route), including **§5 THE CONTRACT** — per-mech joints/anchors
+that combat silently depends on. Never rebuild a design without it.
+
+## Architecture map
+
+- `src/core/` — engine (renderer/loop/post-FX), pbrtex (PBR skin synth),
+  textures (canvas tex), audio (WebAudio synth), utils
+- `src/mechs/` — roster.js (ALL stats/palettes/skins/moves — balance lives
+  here), designs/<id>.js (one file per mech; parallel-agent-safe), parts.js
+  (sculpting vocabulary + Assembler), factory.js (rig + materials),
+  animations.js + animator.js (pose-blend engine), gltf.js + rigadapter.js
+  (GLB loading + humanoid retargeting), roster `skin` blocks drive pbrtex
+- `src/combat/` — fighter.js (state machine), specials.js (24 specials/ults
+  by id), projectiles.js, effects.js (pooled VFX)
+- `src/arena/` — themes.js (12 arena configs), arena.js, destructible.js
+  (instanced chunk buildings), props.js
+- `src/game/` — boot.js (screen flow), world.js, match.js, camera.js
+  (combine/split), input.js, ai.js; `src/ui/` — menus.js, hud.js
+- `public/models/manifest.json` — drop rigged GLBs here to override any
+  mech's procedural model (auto-fallback if missing/broken)
+
+## House rules
+
+- Before committing: `git config user.email noreply@anthropic.com && git config user.name Claude`.
+- Parallel agents may only fan out over `src/mechs/designs/<id>.js` and
+  `src/arena/{themes,props}.js` — everything else is shared, single-writer.
+- Verify visually (screenshots) before claiming art changes work; verify
+  `npx vite build` + a soak before claiming combat changes work.

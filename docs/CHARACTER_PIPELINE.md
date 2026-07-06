@@ -1,3 +1,6 @@
+> Part of the mech art pipeline — start at [MECH_ART_GUIDE.md](MECH_ART_GUIDE.md)
+> (this file is the deep dive for the rigged-GLB route (A)).
+
 # Character Pipeline — AI-generated rigged mechs
 
 The game can replace any of its 12 procedural mechs with a high-detail rigged
