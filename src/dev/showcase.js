@@ -47,8 +47,8 @@ export function runShowcase(which) {
   });
 
   if (defs.length === 1) {
-    camera.position.set(0, 6.5, 17);
-    camera.lookAt(0, 4.5, 0);
+    camera.position.set(4.2, 5.6, 12.2);
+    camera.lookAt(0, 4.3, 0);
   } else {
     camera.position.set(0, 9, 38);
     camera.lookAt(0, 5, -4);

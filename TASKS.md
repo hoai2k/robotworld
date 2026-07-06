@@ -151,3 +151,19 @@ controllers via Gamepad API), AI opponents.
   manifest) + docs/canonical-prompts.md (12 style-locked prompt sheets)
 - [ ] AWAITING USER: canonical images (or an imagegen API key), and a
   Meshy/Tripo API key OR user-provided rigged GLBs — then wire real models
+
+## Phase 12 — Image-to-mech hand-built pipeline + VULCAN pilot (2026-07-06)
+
+- [x] PBR skin synthesizer (src/core/pbrtex.js): albedo + normal (Sobel over
+  synthetic height) + roughness/metalness maps from layered procedural noise
+  (fBm paint, Worley chip clusters, BSP panel lines, rivets, scratches, grime)
+- [x] Skin-recipe hook in factory (def.skin drives materials); decal plates
+  via Assembler.custom (text/emblem rendering, re-weathered)
+- [x] VULCAN rebuilt to the canonical concept image: twin gatling forearms,
+  quad missile towers w/ red lenses, crested head w/ orange visor, bone-white
+  + oxide-red battle-worn plate, VULCAN chest decal, 07X shin markings
+- [x] tools/palette.mjs: k-means palette extraction from concept PNGs ->
+  suggested skin recipe (validated: matched hand-picked palette within ~2%)
+- [x] docs/IMAGE_TO_MECH.md pipeline guide; docs/vulcan-rebuilt.png pilot
+- [ ] User judgment on pilot quality -> roll pipeline across remaining mechs
+  and/or go the Meshy/Tripo GLB route (pipeline for that also ready)

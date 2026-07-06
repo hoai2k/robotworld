@@ -283,12 +283,12 @@ export class Animator {
   signature(dt, ctx, tgt) {
     const J = this.J, id = this.mech.def.id, t = this.t;
     switch (id) {
-      case 'vulcan':
-        if (J.gatling) {
-          this.spinVel = ctx.firing ? Math.min(this.spinVel + dt * 40, 28) : Math.max(this.spinVel - dt * 18, 0);
-          J.gatling.rotation.z += this.spinVel * dt;
-        }
+      case 'vulcan': {
+        this.spinVel = ctx.firing ? Math.min(this.spinVel + dt * 40, 28) : Math.max(this.spinVel - dt * 18, 0);
+        if (J.gatlingR) J.gatlingR.rotation.z += this.spinVel * dt;
+        if (J.gatlingL) J.gatlingL.rotation.z -= this.spinVel * dt;
         break;
+      }
       case 'nova':
         if (J.halo) J.halo.rotation.z += dt * (0.9 + (ctx.firing ? 4 : 0));
         break;

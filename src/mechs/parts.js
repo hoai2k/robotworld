@@ -58,6 +58,13 @@ export function fin(len, wide, thick, taper = 0.25) {
 export class Assembler {
   constructor() {
     this.buckets = new Map(); // `${joint}|${mat}` -> geometry[]
+    this.customs = [];        // {joint, material, geo, opts} — unmerged one-offs (decal plates)
+  }
+
+  // A part with its own THREE.Material (e.g. decal-textured plates).
+  custom(joint, material, geo, opts = {}) {
+    this.customs.push({ joint, material, geo, opts });
+    return this;
   }
 
   part(joint, mat, geo, opts = {}) {
@@ -216,5 +223,19 @@ export class Assembler {
       joint.add(mesh);
     }
     this.buckets.clear();
+
+    for (const c of this.customs) {
+      const joint = jointGroups[c.joint];
+      if (!joint) continue;
+      const mesh = new THREE.Mesh(c.geo, c.material);
+      const p = c.opts.p || [0, 0, 0];
+      const r = c.opts.r || [0, 0, 0];
+      mesh.position.set(p[0], p[1], p[2]);
+      mesh.rotation.set(r[0], r[1], r[2]);
+      if (c.opts.s) mesh.scale.setScalar(c.opts.s);
+      mesh.castShadow = castShadow;
+      joint.add(mesh);
+    }
+    this.customs.length = 0;
   }
 }

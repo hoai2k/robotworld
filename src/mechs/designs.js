@@ -1,7 +1,8 @@
 // The 12 mech designs. Each function decorates the shared rig with unique
 // armor, head, weapons and signature elements, and registers anchors.
 import * as THREE from 'three';
-import { cyl } from './parts.js';
+import { cyl, taperBox } from './parts.js';
+import { decalTexture } from '../core/pbrtex.js';
 import { baseFrame, standardArm, standardLeg, raptorLeg, addAnchor } from './factory.js';
 
 function addJoint(joints, name, parentName, x, y, z) {
@@ -63,50 +64,172 @@ function titanus(A, D, J, anchors) {
 }
 
 // ============================================================
-// 2. VULCAN — gatling gunner. Olive drab, right-arm rotary cannon,
-//    ammo backpack with belt feed, red mono-eye.
+// 2. VULCAN — gatling gunner, rebuilt to the canonical concept image:
+//    bone-white + oxide-red battle-worn plate, TWIN six-barrel gatling
+//    forearms, quad missile towers with red lenses flanking a small
+//    crested head with an orange visor, chunky layered leg armor,
+//    "VULCAN" chest decal.
 // ============================================================
-function vulcan(A, D, J, anchors) {
+function vulcan(A, D, J, anchors, def) {
   const s = D.scale;
   baseFrame(A, D);
-  standardLeg(A, D, 'L'); standardLeg(A, D, 'R');
-  standardArm(A, D, 'L', { bulk: 1.05 });
-  standardArm(A, D, 'R', { bulk: 1.1, fist: false, foreArmor: false });
+  standardLeg(A, D, 'L', { bulk: 1.1 }); standardLeg(A, D, 'R', { bulk: 1.1 });
+  standardArm(A, D, 'L', { bulk: 1.18, fist: false, foreArmor: false });
+  standardArm(A, D, 'R', { bulk: 1.18, fist: false, foreArmor: false });
 
-  // chest: rugged sloped plates + ammo bandolier
-  A.taper('torso', 'primary', [D.torsoW * 1.35, D.torsoH * 0.9, D.torsoD * 1.05], 0.8, 0.75, {
+  // ---- torso: broad chest, white shoulders-slabs, red center plate ----
+  A.taper('torso', 'primary', [D.torsoW * 1.34, D.torsoH * 0.92, D.torsoD * 1.05], 0.86, 0.78, {
     p: [0, D.torsoH * 0.52, 0.02 * s] });
-  for (let i = 0; i < 6; i++) { // bandolier shells
-    A.tube('torso', 'metal', 0.07 * s, 0.07 * s, 0.28 * s, {
-      p: [-D.torsoW * 0.5 + i * 0.2 * s, D.torsoH * (0.75 - i * 0.09), D.torsoD * 0.58],
-      r: [0, 0, 0.5] });
+  for (const sx of [-1, 1]) { // angled upper-chest slabs
+    A.taper('torso', 'primary', [D.torsoW * 0.52, D.torsoH * 0.34, 0.3 * s], 0.8, 0.9, {
+      p: [sx * D.torsoW * 0.42, D.torsoH * 0.78, D.torsoD * 0.5], r: [0.22, 0, sx * -0.1] });
+    // intake vents beneath the slabs
+    A.vents('torso', 'dark', 3, D.torsoW * 0.3, 0.1 * s, 0.05 * s, {
+      p: [sx * D.torsoW * 0.42, D.torsoH * 0.6, D.torsoD * 0.6] });
   }
-  // ammo backpack + feed arch to right arm
-  A.box('torso', 'accent', [D.torsoW * 1.0, D.torsoH * 0.7, 0.5 * s], {
-    p: [0, D.torsoH * 0.5, -D.torsoD * 0.65] });
-  A.part('torso', 'dark', new THREE.TorusGeometry(0.55 * s, 0.09 * s, 8, 14, Math.PI), {
-    p: [D.torsoW * 0.6, D.torsoH * 0.8, -D.torsoD * 0.3], r: [0, Math.PI / 2, 0] });
-  // head: squat dome + red mono-eye
-  A.ball('head', 'primary', D.headSize * 1.05, { p: [0, D.headSize * 0.5, 0] });
-  A.tube('head', 'dark', D.headSize * 0.55, D.headSize * 0.55, D.headSize * 0.5, {
-    p: [0, D.headSize * 0.55, D.headSize * 0.6], r: [Math.PI / 2, 0, 0] });
-  A.ball('head', 'glow', D.headSize * 0.32, { p: [0, D.headSize * 0.55, D.headSize * 0.85] });
-  // gatling on right forearm (spinner joint so it can rotate)
-  const gat = addJoint(J, 'gatling', 'handR', 0, -0.25 * s, 0.2 * s);
-  A.tube('handR', 'frame', 0.3 * s, 0.34 * s, 0.7 * s, { p: [0, -0.15 * s, 0], r: [Math.PI / 2, 0, 0] });
-  A.barrelCluster('gatling', 'metal', 6, 0.17 * s, 0.06 * s, 1.7 * s, { p: [0, 0, 0.8 * s] });
-  A.tube('gatling', 'dark', 0.26 * s, 0.26 * s, 0.25 * s, { p: [0, 0, 1.65 * s], r: [Math.PI / 2, 0, 0] });
-  gat.position.set(0, -0.25 * s, 0.25 * s);
-  // shoulder missile pod (left)
-  A.box('shoulderL', 'accent', [0.7 * s, 0.55 * s, 0.75 * s], { p: [-0.32 * s, 0.3 * s, 0] });
-  for (let i = 0; i < 4; i++) {
-    A.tube('shoulderL', 'dark', 0.07 * s, 0.07 * s, 0.12 * s, {
-      p: [-0.32 * s + (i % 2 - 0.5) * 0.24 * s, 0.3 * s + (Math.floor(i / 2) - 0.5) * 0.24 * s, 0.4 * s],
-      r: [Math.PI / 2, 0, 0] });
+  // red center chest plate carrying the VULCAN decal + emblem
+  const chestTex = decalTexture(
+    { seed: def.seed + 5, ...def.skin.accent },
+    { text: 'VULCAN', textY: 0.38, textScale: 0.2, emblem: true, emblemY: 0.7, emblemScale: 0.15, color: '#e8e2d4' }
+  );
+  A.custom('torso', new THREE.MeshStandardMaterial({
+    map: chestTex.map, normalMap: chestTex.normalMap,
+    roughnessMap: chestTex.rmMap, metalnessMap: chestTex.rmMap,
+    roughness: 1, metalness: 1,
+  }), taperBox(D.torsoW * 0.72, D.torsoH * 0.56, 0.16 * s, 0.85, 1), {
+    p: [0, D.torsoH * 0.52, D.torsoD * 0.62] });
+  // collar guard (slim, keeps the head visible)
+  A.taper('torso', 'frame', [D.torsoW * 0.42, 0.16 * s, D.torsoD * 0.48], 0.85, 0.85, {
+    p: [0, D.torsoH * 0.97, 0] });
+  // abdomen segments + brass waist pistons
+  for (let i = 0; i < 3; i++) {
+    A.box('torso', 'frame', [D.torsoW * (0.72 - i * 0.07), 0.16 * s, D.torsoD * (0.72 - i * 0.06)], {
+      p: [0, D.torsoH * (0.3 - i * 0.11), 0.03 * s] });
   }
-  A.pauldron('shoulderR', 'primary', 0.85 * s, 0.9 * s, 0.9 * s, { p: [0.28 * s, 0.22 * s, 0], side: 1 });
-  anchors.muzzleR = addAnchor(J.gatling, 0, 0, 1.9 * s);
-  anchors.podL = addAnchor(J.shoulderL, -0.32 * s, 0.3 * s, 0.45 * s);
+  for (const sx of [-1, 1]) {
+    A.piston('torso', 'brass', [sx * D.torsoW * 0.5, D.torsoH * 0.06, 0.1 * s],
+      [sx * D.torsoW * 0.62, D.torsoH * 0.42, 0.05 * s], 0.05 * s);
+  }
+  // backpack: ammo drums + radiator
+  A.box('torso', 'accent', [D.torsoW * 1.0, D.torsoH * 0.62, 0.5 * s], {
+    p: [0, D.torsoH * 0.52, -D.torsoD * 0.68] });
+  A.vents('torso', 'dark', 6, D.torsoW * 0.8, 0.34 * s, 0.06 * s, {
+    p: [0, D.torsoH * 0.52, -D.torsoD * 0.95] });
+  for (const sx of [-1, 1]) {
+    A.tube('torso', 'metal', 0.16 * s, 0.16 * s, 0.5 * s, {
+      p: [sx * D.torsoW * 0.32, D.torsoH * 0.9, -D.torsoD * 0.66], r: [0, 0, Math.PI / 2] });
+  }
+
+  // ---- quad missile towers flanking the head (torso-mounted) ----
+  for (const sx of [-1, 1]) {
+    const tx = sx * D.torsoW * 0.76, ty = D.torsoH * 1.16, tz = -0.08 * s;
+    A.taper('torso', 'primary', [0.72 * s, 0.95 * s, 0.8 * s], 0.9, 0.88, { p: [tx, ty, tz] });
+    A.sharpBox('torso', 'accent', [0.76 * s, 0.2 * s, 0.84 * s], { p: [tx, ty + 0.52 * s, tz] }); // red cap
+    A.sharpBox('torso', 'dark', [0.58 * s, 0.6 * s, 0.06 * s], { p: [tx, ty + 0.04 * s, tz + 0.42 * s] });
+    for (let i = 0; i < 4; i++) { // 2x2 launch tubes with red lenses
+      const ox = (i % 2 - 0.5) * 0.28 * s, oy = (Math.floor(i / 2) - 0.5) * 0.28 * s;
+      A.tube('torso', 'metal', 0.1 * s, 0.11 * s, 0.14 * s, {
+        p: [tx + ox, ty + 0.04 * s + oy, tz + 0.46 * s], r: [Math.PI / 2, 0, 0] });
+      A.ball('torso', 'glow2', 0.062 * s, { p: [tx + ox, ty + 0.04 * s + oy, tz + 0.5 * s], seg: 8 });
+    }
+    // side greebles + support strut down to the shoulder line
+    A.sharpBox('torso', 'frame', [0.08 * s, 0.5 * s, 0.44 * s], { p: [tx + sx * 0.42 * s, ty, tz] });
+    A.taper('torso', 'frame', [0.4 * s, 0.55 * s, 0.5 * s], 1.3, 1.1, {
+      p: [tx - sx * 0.1 * s, ty - 0.6 * s, tz], r: [0, 0, sx * 0.18] });
+    A.tube('torso', 'brass', 0.05 * s, 0.05 * s, 0.5 * s, {
+      p: [tx + sx * 0.34 * s, ty - 0.55 * s, tz - 0.1 * s], r: [0.3, 0, 0] });
+  }
+
+  // ---- head: small, white face, orange visor, red crest fins ----
+  const hy = D.headSize * 0.5; // lifted clear of the collar
+  A.tube('head', 'frame', D.headSize * 0.42, D.headSize * 0.5, D.headSize * 0.55, {
+    p: [0, hy * 0.3, 0] });                                               // neck
+  A.taper('head', 'primary', [D.headSize * 1.35, D.headSize * 1.25, D.headSize * 1.5], 0.75, 0.7, {
+    p: [0, hy + D.headSize * 0.7, 0.08 * s] });
+  A.sharpBox('head', 'glow', [D.headSize * 0.95, D.headSize * 0.22, 0.06 * s], {
+    p: [0, hy + D.headSize * 0.72, D.headSize * 0.85] });                 // orange visor
+  A.sharpBox('head', 'frame', [D.headSize * 1.42, D.headSize * 0.26, D.headSize * 0.9], {
+    p: [0, hy + D.headSize * 1.1, 0] });                                  // brow
+  A.vents('head', 'dark', 3, D.headSize * 0.7, D.headSize * 0.18, 0.05 * s, {
+    p: [0, hy + D.headSize * 0.32, D.headSize * 0.78] });                 // chin grill
+  // crest: center blade + swept side antlers (oxide red)
+  A.blade('head', 'accent', D.headSize * 1.5, D.headSize * 0.42, 0.06 * s, {
+    p: [0, hy + D.headSize * 1.7, -D.headSize * 0.1], r: [-0.42, 0, 0], taper: 0.16 });
+  for (const sx of [-1, 1]) {
+    A.blade('head', 'accent', D.headSize * 1.1, D.headSize * 0.32, 0.05 * s, {
+      p: [sx * D.headSize * 0.55, hy + D.headSize * 1.45, -D.headSize * 0.05],
+      r: [-0.6, 0, sx * 0.55], taper: 0.2 });
+  }
+
+  // ---- arms: twin gatling forearms ----
+  for (const side of ['L', 'R']) {
+    const sx = side === 'L' ? -1 : 1;
+    const el = 'elbow' + side, ha = 'hand' + side;
+    // compact shoulder cap (the towers carry the mass above)
+    A.taper('shoulder' + side, 'primary', [0.62 * s, 0.55 * s, 0.66 * s], 0.82, 0.85, {
+      p: [sx * 0.22 * s, 0.18 * s, 0] });
+    A.sharpBox('shoulder' + side, 'accent', [0.66 * s, 0.14 * s, 0.7 * s], {
+      p: [sx * 0.22 * s, 0.42 * s, 0] });
+    // forearm housing: massive, white top plate over red flanks
+    A.taper(el, 'accent', [0.78 * s, D.foreArmLen * 0.9, 0.82 * s], 1.18, 1.12, {
+      p: [0, -D.foreArmLen * 0.54, 0] });
+    A.taper(el, 'primary', [0.62 * s, D.foreArmLen * 0.55, 0.9 * s], 1.12, 1.06, {
+      p: [0, -D.foreArmLen * 0.7, 0.02 * s] });
+    A.piston(el, 'brass', [sx * 0.28 * s, -0.1 * s, -0.15 * s], [sx * 0.3 * s, -D.foreArmLen * 0.6, -0.2 * s], 0.045 * s);
+    // wrist ring + gatling cluster on a spinner joint
+    A.tube(ha, 'frame', 0.4 * s, 0.45 * s, 0.5 * s, { p: [0, -0.05 * s, 0.1 * s], r: [Math.PI / 2, 0, 0] });
+    A.ring(ha, 'brass', 0.4 * s, 0.05 * s, { p: [0, -0.05 * s, 0.36 * s] });
+    const gat = addJoint(J, 'gatling' + side, ha, 0, -0.05 * s, 0.42 * s);
+    A.barrelCluster('gatling' + side, 'metal', 6, 0.24 * s, 0.075 * s, 1.7 * s, { p: [0, 0, 0.72 * s] });
+    A.tube('gatling' + side, 'metal', 0.085 * s, 0.085 * s, 1.8 * s, { p: [0, 0, 0.72 * s], r: [Math.PI / 2, 0, 0] });
+    A.ring('gatling' + side, 'dark', 0.26 * s, 0.06 * s, { p: [0, 0, 1.5 * s] });
+    A.ring('gatling' + side, 'frame', 0.28 * s, 0.06 * s, { p: [0, 0, 0.34 * s] });
+  }
+  // legacy alias: animator/effects reference J.gatling
+  J.gatling = J.gatlingR;
+
+  // ---- hips: red skirt plates ----
+  A.taper('hips', 'accent', [D.torsoW * 0.5, 0.5 * s, 0.14 * s], 1.25, 1, {
+    p: [0, -0.32 * s, D.torsoD * 0.52], r: [0.18, 0, 0] });
+  for (const sx of [-1, 1]) {
+    A.taper('hips', 'primary', [0.16 * s, 0.55 * s, D.torsoD * 0.5], 1, 1.2, {
+      p: [sx * D.torsoW * 0.58, -0.3 * s, 0], r: [0, 0, sx * 0.2] });
+  }
+
+  // ---- legs: layered guards + knee shields ----
+  for (const side of ['L', 'R']) {
+    const sx = side === 'L' ? -1 : 1;
+    // red knee shield over the kneecap
+    A.taper('knee' + side, 'accent', [0.46 * s, 0.52 * s, 0.34 * s], 0.72, 0.7, {
+      p: [0, 0.02 * s, 0.3 * s], r: [0.12, 0, 0] });
+    A.piston('knee' + side, 'brass', [0, 0.15 * s, -0.26 * s], [0, -D.shinLen * 0.4, -0.3 * s], 0.05 * s);
+    // stacked white shin guards
+    A.taper('knee' + side, 'primary', [0.5 * s, 0.5 * s, 0.2 * s], 0.85, 1, {
+      p: [0, -D.shinLen * 0.42, 0.3 * s], r: [0.06, 0, 0] });
+    A.taper('knee' + side, 'primary', [0.56 * s, 0.55 * s, 0.22 * s], 0.9, 1, {
+      p: [0, -D.shinLen * 0.78, 0.3 * s], r: [-0.05, 0, 0] });
+    // red outer shin plate with unit number
+    const plateTex = decalTexture(
+      { seed: def.seed + 5, ...def.skin.accent },
+      { text: '07X', textScale: 0.3, textY: 0.5, color: '#d8d2c4', alpha: 0.8 }
+    );
+    A.custom('knee' + side, new THREE.MeshStandardMaterial({
+      map: plateTex.map, normalMap: plateTex.normalMap,
+      roughnessMap: plateTex.rmMap, metalnessMap: plateTex.rmMap,
+      roughness: 1, metalness: 1,
+    }), taperBox(0.14 * s, 0.62 * s, 0.5 * s, 1, 0.85), {
+      p: [sx * 0.34 * s, -D.shinLen * 0.45, 0] });
+    // broader two-toe foot
+    A.taper('ankle' + side, 'primary', [0.3 * s, 0.24 * s, 0.5 * s], 0.8, 0.6, {
+      p: [sx * 0.17 * s, -0.06 * s, 0.42 * s] });
+    A.taper('ankle' + side, 'primary', [0.3 * s, 0.24 * s, 0.5 * s], 0.8, 0.6, {
+      p: [-sx * 0.14 * s, -0.06 * s, 0.42 * s] });
+  }
+
+  anchors.muzzleR = addAnchor(J.gatlingR, 0, 0, 1.5 * s);
+  anchors.muzzleL = addAnchor(J.gatlingL, 0, 0, 1.5 * s);
+  anchors.podL = addAnchor(J.torso, -D.torsoW * 0.72, D.torsoH * 1.28, 0.4 * s);
+  anchors.podR = addAnchor(J.torso, D.torsoW * 0.72, D.torsoH * 1.28, 0.4 * s);
 }
 
 // ============================================================

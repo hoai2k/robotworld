@@ -22,8 +22,14 @@ export const ROSTER = [
     id: 'vulcan', name: 'VULCAN', title: 'The Lead Storm', icon: '🔫', seed: 22,
     blurb: 'Ex-military fire-support platform with a laugh setting stuck on maniacal. Believes every problem is just insufficient ammunition.',
     quotes: { win: '"HAHAHA! Reload and repeat! WHO\'S NEXT?!"', intro: '"Say hello to my six little friends!"' },
-    colors: { primary: 0x5d6b3c, accent: 0x8a6d3b, glow: 0xff5040, stripes: false },
-    body: { scale: 1.1, torsoW: 1.1, torsoH: 1.0, headSize: 0.85, armLen: 1.0, legLen: 1.0, hipW: 1.0, bulk: 1.0 },
+    // palette derived from the canonical concept image: bone-white plate,
+    // oxide red panels, gunmetal frame, orange visor, red pod lenses
+    colors: { primary: 0xcfc9bd, accent: 0x9c2f28, glow: 0xff8c30, glow2: 0xff2822, stripes: false },
+    skin: {
+      primary: { base: 0xcfc9bd, base2: 0xbdb7a9, metal: 0x8a8f96, wear: 0.4, grime: 0.4, panelDepth: 3, roughPaint: 0.5, metalPaint: 0.3, normalStrength: 1.1 },
+      accent: { base: 0x9c2f28, base2: 0x8a2822, metal: 0x8a8f96, wear: 0.48, grime: 0.42, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },
+    },
+    body: { scale: 1.16, torsoW: 1.28, torsoH: 1.0, headSize: 0.85, armLen: 0.95, legLen: 1.0, hipW: 1.1, bulk: 1.12 },
     stats: { hp: 950, speed: 9.5, jump: 13, weight: 0.62, armor: 0.1 },
     ui: { power: 7, speed: 5, defense: 5 },
     moves: {

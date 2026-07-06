@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Assembler } from './parts.js';
 import { platingTextures } from '../core/textures.js';
+import { skinMaterial } from '../core/pbrtex.js';
 import { DESIGNS } from './designs.js';
 
 // Joint conventions: mech faces +Z. X = pitch, Y = yaw, Z = roll.
@@ -29,8 +30,39 @@ export function computeDims(def) {
   };
 }
 
+// shared battle-worn gunmetal under-frame (cached inside pbrtex by recipe)
+const FRAME_RECIPE = {
+  base: 0x33373e, metal: 0x767c86, wear: 0.4, grime: 0.45,
+  panelDepth: 3, roughPaint: 0.5, metalPaint: 0.72, seed: 3,
+};
+
 export function makeMaterials(def) {
   const c = def.colors;
+
+  // PBR skin path: recipe-driven albedo/normal/rough/metal (concept-derived)
+  if (def.skin) {
+    const mats = {
+      primary: skinMaterial({ seed: def.seed, ...def.skin.primary }),
+      accent: skinMaterial({ seed: def.seed + 5, ...def.skin.accent }),
+      frame: skinMaterial(FRAME_RECIPE),
+      metal: new THREE.MeshStandardMaterial({ color: 0x99a0aa, roughness: 0.28, metalness: 0.98 }),
+      brass: new THREE.MeshStandardMaterial({ color: 0xa8823c, roughness: 0.34, metalness: 0.95 }),
+      dark: new THREE.MeshStandardMaterial({ color: 0x101216, roughness: 0.7, metalness: 0.6 }),
+      glow: new THREE.MeshStandardMaterial({
+        color: c.glow, emissive: c.glow, emissiveIntensity: 2.6, roughness: 0.4, metalness: 0.1,
+      }),
+      glowSoft: new THREE.MeshStandardMaterial({
+        color: c.glow, emissive: c.glow, emissiveIntensity: 1.1, roughness: 0.5, metalness: 0.2,
+      }),
+    };
+    if (c.glow2) {
+      mats.glow2 = new THREE.MeshStandardMaterial({
+        color: c.glow2, emissive: c.glow2, emissiveIntensity: 2.4, roughness: 0.4, metalness: 0.1,
+      });
+    }
+    return mats;
+  }
+
   const primaryTex = platingTextures(c.primary, def.seed, { stripes: c.stripes });
   const accentTex = platingTextures(c.accent, def.seed + 5);
 
