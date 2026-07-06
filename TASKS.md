@@ -110,15 +110,15 @@ controllers via Gamepad API), AI opponents.
 - [x] HUD: health/energy/ult bars, portraits, round pips, announcements
 - [x] Pause menu, results screen, rematch
 
-### Phase 9 — Audio
-- [ ] WebAudio SFX synth: impacts, gunfire, explosions, servo whirs, footsteps
-- [ ] Announcer-style stingers (synth), menu blips
-- [ ] Dynamic music (menu theme + battle theme, synth arps/bass/drums)
+### Phase 9 — Audio ✅
+- [x] WebAudio SFX synth: impacts, gunfire, explosions, servo whirs, footsteps
+- [x] Announcer-style stingers (synth), menu blips
+- [x] Dynamic music (menu theme + battle theme, synth arps/bass/drums)
 
 ### Phase 10 — Polish & ship
 - [ ] Performance pass (instancing, pooling, draw-call budget)
-- [ ] Balance pass across 12 mechs
-- [ ] README with controls & how to run
+- [x] Balance pass across 12 mechs (soak-tested all move sets, flame nerf)
+- [x] README with controls & how to run
 - [ ] Final build verification (`vite build`) + browser smoke test & screenshots
 
 ## Progress log
