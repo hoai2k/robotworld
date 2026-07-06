@@ -6,10 +6,10 @@ export const ROSTER = [
     id: 'titanus', name: 'TITANUS', title: 'The Iron Avalanche', icon: '👊', seed: 11,
     blurb: 'A decommissioned siege engine that refused to power down. Slow as a glacier, hits like the end of the world. Speaks rarely — mostly in earthquakes.',
     quotes: { win: '"Demolition complete. Anything else need... flattening?"', intro: '"I am the wall. I am the wrecking ball."' },
-    colors: { primary: 0xc98a1b, accent: 0x4a4d55, glow: 0xffb43c, stripes: true },
+    colors: { primary: 0xbd9226, accent: 0x3e4148, glow: 0xffa832, stripes: true },
     skin: {
-      primary: { base: 0xc98a1b, base2: 0xac7617, metal: 0x8a8f96, wear: 0.65, grime: 0.6, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },
-      accent: { base: 0x4a4d55, base2: 0x3f4249, metal: 0x8a8f96, wear: 0.73, grime: 0.6, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },
+      primary: { base: 0xbd9226, base2: 0xa07a1e, metal: 0x7e838c, wear: 0.7, grime: 0.62, panelDepth: 4, roughPaint: 0.55, metalPaint: 0.28, normalStrength: 1.2 },
+      accent: { base: 0x3e4148, base2: 0x34373d, metal: 0x8a8f96, wear: 0.6, grime: 0.6, panelDepth: 3, roughPaint: 0.55, metalPaint: 0.45, normalStrength: 1.1 },
     },
     body: { scale: 1.28, torsoW: 1.25, torsoH: 1.05, headSize: 0.9, armLen: 1.15, legLen: 1.0, hipW: 1.15, bulk: 1.1 },
     stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22 },
