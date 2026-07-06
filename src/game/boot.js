@@ -353,4 +353,5 @@ export async function bootGame() {
 
   goTitle();
   engine.start();
+  window.__game = { S, engine, tick: (dt) => engine.onUpdate(dt) }; // debug hook
 }
