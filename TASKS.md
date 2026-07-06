@@ -173,3 +173,9 @@ controllers via Gamepad API), AI opponents.
   bespoke — bulging chest over pinched waist, barrel thighs, rhomboid faceted
   forearms, beveled shield plates. Verified idle/walk/heavy + battle soak +
   lineup regression. Vocabulary ready to roll across remaining 11 mechs.
+- 2026-07-06: ALL 12 mechs now sculpted: 3 parallel agents rebuilt the
+  remaining 11 (heavies/lights/casters) with the lathe/facet/beveled-plate
+  vocabulary; TITANUS rebuilt to the user's canonical concept image (gorilla
+  proportions, hazard pauldrons, radial reactor core, twin radiator towers).
+  Verified: per-mech idle/walk/attack screenshots, 3x 120s ace-AI soaks
+  covering all 12 (zero crashes), full menu flow, production build.
