@@ -52,6 +52,97 @@ export function fin(len, wide, thick, taper = 0.25) {
   return taperBox(wide, len, thick, taper, 0.8);
 }
 
+// ---------- curved / sculpted forms (concept-fidelity vocabulary) ----------
+
+// Smooth revolved bulge through profile control points [[y, radius], ...].
+// scaleX/scaleZ squash the revolution into an elliptical cross-section.
+export function bulgeLathe(profile, { seg = 24, scaleX = 1, scaleZ = 1 } = {}) {
+  const pts = profile.map(([y, r]) => new THREE.Vector2(Math.max(0.001, r), y));
+  // resample through a smooth curve for organic silhouettes
+  const curve = new THREE.SplineCurve(pts);
+  const smooth = curve.getPoints(Math.max(8, profile.length * 5));
+  const g = new THREE.LatheGeometry(smooth.map((p) => new THREE.Vector2(Math.max(0.001, p.x), p.y)), seg);
+  if (scaleX !== 1 || scaleZ !== 1) {
+    g.scale(scaleX, 1, scaleZ);
+    g.computeVertexNormals();
+  }
+  return g;
+}
+
+// Chamfered column: N-sided prism bulging through rBot -> rMid -> rTop.
+// 8 sides reads as a machined rhomboid housing, 6 as a hex slab.
+export function facetBulge(rBot, rMid, rTop, h, { sides = 8, scaleX = 1, scaleZ = 1 } = {}) {
+  const lower = new THREE.CylinderGeometry(rMid, rBot, h / 2, sides, 1);
+  lower.translate(0, -h / 4, 0);
+  const upper = new THREE.CylinderGeometry(rTop, rMid, h / 2, sides, 1);
+  upper.translate(0, h / 4, 0);
+  const g = BufferGeometryUtils.mergeGeometries(
+    [lower.toNonIndexed(), upper.toNonIndexed()], false);
+  lower.dispose(); upper.dispose();
+  g.rotateY(Math.PI / sides); // flat face forward
+  if (scaleX !== 1 || scaleZ !== 1) g.scale(scaleX, 1, scaleZ);
+  g.computeVertexNormals();
+  return g;
+}
+
+// Beveled plate extruded from a rounded 2D outline (in the XY plane,
+// thickness along +Z). outline: array of [x, y]; corners get rounded.
+export function beveledPlate(outline, thickness, { bevel = 0.06, round = 0.12 } = {}) {
+  const shape = new THREE.Shape();
+  const n = outline.length;
+  for (let i = 0; i <= n; i++) {
+    const [x0, y0] = outline[i % n];
+    const [x1, y1] = outline[(i + 1) % n];
+    const [xp, yp] = outline[(i - 1 + n) % n];
+    // move toward corner, round with quadratic through it
+    const inA = { x: x0 + (xp - x0) * round, y: y0 + (yp - y0) * round };
+    const inB = { x: x0 + (x1 - x0) * round, y: y0 + (y1 - y0) * round };
+    if (i === 0) shape.moveTo(inB.x, inB.y);
+    else {
+      shape.lineTo(inA.x, inA.y);
+      shape.quadraticCurveTo(x0, y0, inB.x, inB.y);
+    }
+  }
+  const g = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness, bevelEnabled: true, bevelThickness: bevel,
+    bevelSize: bevel, bevelSegments: 2, curveSegments: 6,
+  });
+  g.translate(0, 0, -thickness / 2);
+  // normalize UVs to ~0..1 so skins read at a sane scale
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const uv = g.attributes.uv;
+  const sx = 1 / Math.max(0.001, bb.max.x - bb.min.x);
+  const sy = 1 / Math.max(0.001, bb.max.y - bb.min.y);
+  for (let i = 0; i < uv.count; i++) {
+    uv.setXY(i, (uv.getX(i) - bb.min.x) * sx, (uv.getY(i) - bb.min.y) * sy);
+  }
+  return g;
+}
+
+// Classic mech shield outline (knee pads, chest plates, skirts): a tapered
+// pentagon, pointing -Y. w/h are full width/height.
+export function shieldOutline(w, h, { taper = 0.72, tip = 0.3 } = {}) {
+  const hw = w / 2, hh = h / 2;
+  return [
+    [-hw, hh], [hw, hh],                       // top edge
+    [hw * taper, -hh + h * tip],               // lower sides taper in
+    [0, -hh],                                  // bottom tip
+    [-hw * taper, -hh + h * tip],
+  ];
+}
+
+// Rhomboid (elongated hex) outline — side plates, fins.
+export function rhombOutline(w, h, { cut = 0.3 } = {}) {
+  const hw = w / 2, hh = h / 2;
+  return [
+    [-hw * (1 - cut), hh], [hw * (1 - cut), hh],
+    [hw, 0],
+    [hw * (1 - cut), -hh], [-hw * (1 - cut), -hh],
+    [-hw, 0],
+  ];
+}
+
 // ---------- assembler ----------
 // Collect geometries per joint & material key, then merge into one mesh each.
 
@@ -110,6 +201,18 @@ export class Assembler {
   }
   blade(joint, mat, len, wide, thick, opts = {}) {
     return this.part(joint, mat, fin(len, wide, thick, opts.taper ?? 0.2), opts);
+  }
+  lathe(joint, mat, profile, opts = {}) {
+    return this.part(joint, mat, bulgeLathe(profile, opts), opts);
+  }
+  facet(joint, mat, rBot, rMid, rTop, h, opts = {}) {
+    return this.part(joint, mat, facetBulge(rBot, rMid, rTop, h, opts), opts);
+  }
+  plate(joint, mat, outline, thickness, opts = {}) {
+    return this.part(joint, mat, beveledPlate(outline, thickness, opts), opts);
+  }
+  capsule(joint, mat, r, len, opts = {}) {
+    return this.part(joint, mat, new THREE.CapsuleGeometry(r, len, 4, 12), opts);
   }
 
   // ---------- compound helpers ----------

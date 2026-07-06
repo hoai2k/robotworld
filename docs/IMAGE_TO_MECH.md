@@ -35,7 +35,25 @@ synthesizes, per recipe:
 Recipe knobs: `base, base2, metal, wear, grime, panelDepth, roughPaint,
 roughMetal, metalPaint, normalStrength, res, seed`.
 
-### 3. Geometry, from the image
+### 3. Geometry, from the image — sculpted forms, not boxes
+
+Match the concept's **shape language** before its details. The parts kit has a
+curved-form vocabulary for this (all in `src/mechs/parts.js`):
+
+| Helper | Form | Use for |
+|---|---|---|
+| `A.lathe(joint, mat, [[y, r]...], {scaleX, scaleZ})` | smooth revolved bulge, elliptical if scaled | bulging chest masses, barrel thighs, calf swells, dome skulls, pauldron shells, waist pinches |
+| `A.facet(joint, mat, rBot, rMid, rTop, h, {sides})` | chamfered N-sided bulge (8 = machined rhomboid, 6 = hex slab) | forearm housings, missile pods, hip blocks |
+| `A.plate(joint, mat, outline, t, {round})` + `shieldOutline` / `rhombOutline` | beveled extruded plate with rounded corners | knee shields, chest plates, skirts, side plates, pod caps |
+| `A.capsule(joint, mat, r, len)` | rounded oblong mass | pec pontoons, coolant drums, organic joints |
+
+Rules of thumb from the VULCAN rebuild: establish the mass rhythm first
+(bulging upper body → pinched waist → flared hips → heavy limbs), keep the
+percentage proportions of the image (measure: chest width ≈ 2.3× waist width,
+forearm length ≈ 0.28 of total height...), and only then add greebles.
+Nothing load-bearing should be a plain box — chamfer, taper or bulge it.
+
+#### Original step 3 notes
 Rebuild the mech's design function in `src/mechs/designs.js` using the parts
 kit (`src/mechs/parts.js`). Work the image top-to-bottom:
 silhouette/proportions first (roster `body` block: scale, torsoW, armLen,

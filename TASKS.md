@@ -167,3 +167,9 @@ controllers via Gamepad API), AI opponents.
 - [x] docs/IMAGE_TO_MECH.md pipeline guide; docs/vulcan-rebuilt.png pilot
 - [ ] User judgment on pilot quality -> roll pipeline across remaining mechs
   and/or go the Meshy/Tripo GLB route (pipeline for that also ready)
+- 2026-07-06: VULCAN v2 sculpted rebuild (user feedback: rounded/exact forms):
+  added curved-form vocabulary to parts kit (bulgeLathe, facetBulge,
+  beveledPlate + shield/rhomb outlines, capsules), rebuilt VULCAN fully
+  bespoke — bulging chest over pinched waist, barrel thighs, rhomboid faceted
+  forearms, beveled shield plates. Verified idle/walk/heavy + battle soak +
+  lineup regression. Vocabulary ready to roll across remaining 11 mechs.
