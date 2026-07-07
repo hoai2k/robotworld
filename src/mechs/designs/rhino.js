@@ -193,7 +193,7 @@ export function rhino(A, D, J, anchors, def) {
   A.plate('head', 'frame', rhombOutline(hh * 2.0, hh * 0.6, { cut: 0.3 }), hh * 0.5, {
     p: [0, hy + hh * 0.75, zf + hh * 0.52], r: [-0.38, 0, 0], round: 0.2 });
   for (const sx of [-1, 1]) {
-    A.ball('head', 'glow', hh * 0.13, { p: [sx * hh * 0.46, hy + hh * 0.46, zf + hh * 1.16], seg: 8 });
+    A.ball('head', 'glow', hh * 0.13, { p: [sx * hh * 0.64, hy + hh * 0.5, zf + hh * 1.08], seg: 8 });
   }
   // THE HORN — giant chrome, two stacked cones curving upward off the snout
   const hornA = Math.PI / 2.9;

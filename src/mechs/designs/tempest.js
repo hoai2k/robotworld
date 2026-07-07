@@ -161,15 +161,15 @@ export function tempest(A, D, J, anchors, def) {
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     const sh = 'shoulder' + side, el = 'elbow' + side, ha = 'hand' + side;
-    J[sh].position.x = sx * (D.shoulderW + 0.22 * s);
+    J[sh].position.x = sx * (D.shoulderW + 0.28 * s);
 
     A.ball(sh, 'frame', 0.26 * s, {});
     // LARGE beveled multi-plate pauldron (roof slabs), bigger than the head
     const tilt = -sx * 0.42;
-    A.plate(sh, 'primary', shieldOutline(1.05 * s, 1.0 * s, { taper: 0.66 }), 0.13 * s, {
-      p: [sx * 0.12 * s, 0.3 * s, 0], r: slabRot(tilt), round: 0.1 });
-    A.plate(sh, 'primary', shieldOutline(0.8 * s, 0.76 * s, { taper: 0.64 }), 0.12 * s, {
-      p: [sx * 0.24 * s, 0.46 * s, 0], r: slabRot(tilt), round: 0.1 });
+    A.plate(sh, 'primary', shieldOutline(1.18 * s, 1.1 * s, { taper: 0.66 }), 0.14 * s, {
+      p: [sx * 0.12 * s, 0.32 * s, 0], r: slabRot(tilt), round: 0.1 });
+    A.plate(sh, 'primary', shieldOutline(0.9 * s, 0.84 * s, { taper: 0.64 }), 0.13 * s, {
+      p: [sx * 0.26 * s, 0.5 * s, 0], r: slabRot(tilt), round: 0.1 });
     // cyan front edge sliver
     A.plate(sh, 'accent', rhombOutline(0.7 * s, 0.14 * s, { cut: 0.2 }), 0.045 * s, {
       p: [sx * 0.14 * s, 0.24 * s, 0.42 * s], r: [0, 0, tilt], round: 0.25 });
@@ -183,7 +183,7 @@ export function tempest(A, D, J, anchors, def) {
       ? { text: 'TEMPEST', textY: 0.55, textScale: 0.155, color: '#cfeeff', alpha: 0.9 }
       : { text: '07', textY: 0.56, textScale: 0.36, color: '#cfeeff', alpha: 0.9 }),
     beveledPlate(rhombOutline(0.66 * s, 0.44 * s, { cut: 0.28 }), 0.05 * s, { round: 0.15 }), {
-      p: [sx * 0.56 * s, 0.34 * s, 0], r: [0, sx * Math.PI / 2, -sx * 0.35] });
+      p: [sx * 0.62 * s, 0.36 * s, 0], r: [0, sx * Math.PI / 2, -sx * 0.35] });
 
     // ===== TESLA SPIRE behind/above the pauldron: stacked tapering discs =====
     const cx = sx * 0.14 * s, cz = -0.3 * s;
@@ -195,7 +195,7 @@ export function tempest(A, D, J, anchors, def) {
         p: [cx, (0.55 + i * 0.125) * s, cz] });
     }
     A.ring(sh, 'brass', 0.065 * s, 0.018 * s, { p: [cx, 1.1 * s, cz], r: [Math.PI / 2, 0, 0] });
-    A.ball(sh, 'glow', 0.08 * s, { p: [cx, 1.16 * s, cz] });
+    A.ball(sh, 'glowSoft', 0.075 * s, { p: [cx, 1.16 * s, cz] });
 
     // sturdy upper arm with a plate wrap
     A.lathe(sh, 'frame', [
@@ -209,8 +209,10 @@ export function tempest(A, D, J, anchors, def) {
     A.facet(el, 'primary', 0.22 * s, 0.3 * s, 0.2 * s, fa * 1.0, {
       sides: 8, scaleZ: 1.05, p: [0, -fa * 0.5, 0] });
     for (let i = 0; i < 3; i++) {
-      A.ring(el, 'glow', (0.31 - i * 0.014) * s, 0.028 * s, {
+      A.ring(el, 'glowSoft', (0.31 - i * 0.014) * s, 0.026 * s, {
         p: [0, -fa * (0.3 + i * 0.2), 0], r: [Math.PI / 2, 0, 0], seg: 24 });
+      A.ring(el, 'dark', (0.325 - i * 0.014) * s, 0.014 * s, {
+        p: [0, -fa * (0.34 + i * 0.2), 0], r: [Math.PI / 2, 0, 0], seg: 24 });
     }
     A.piston(el, 'brass', [sx * 0.13 * s, -0.08 * s, -0.2 * s],
       [sx * 0.15 * s, -fa * 0.6, -0.25 * s], 0.032 * s);
@@ -280,7 +282,7 @@ export function tempest(A, D, J, anchors, def) {
       p: [0, -0.16 * s, 0.16 * s], r: [-0.06, 0, 0] });
     A.plate(an, 'accent', shieldOutline(0.26 * s, 0.28 * s, { taper: 0.7 }), 0.05 * s, {
       p: [0, -0.08 * s, 0.4 * s], r: [0.55, 0, 0], round: 0.2 });
-    A.sharpBox(an, 'glow', [0.18 * s, 0.05 * s, 0.03 * s], { p: [0, -0.2 * s, 0.47 * s] });
+    A.sharpBox(an, 'glowSoft', [0.18 * s, 0.05 * s, 0.03 * s], { p: [0, -0.2 * s, 0.47 * s] });
     A.facet(an, 'frame', 0.14 * s, 0.17 * s, 0.12 * s, 0.28 * s, {
       sides: 6, p: [0, -0.15 * s, -0.18 * s], r: [Math.PI / 2.2, 0, 0] });
     A.sharpBox(an, 'dark', [0.34 * s, 0.08 * s, 0.76 * s], { p: [0, -0.28 * s, 0.08 * s] });

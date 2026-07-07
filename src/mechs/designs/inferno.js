@@ -91,8 +91,8 @@ export function inferno(A, D, J, anchors, def) {
   ], { scaleX: 1.45, scaleZ: 0.8, seg: 28 });
   // INFERNO nameplate band across the upper chest
   A.custom('torso', plateMat({
-    text: 'INFERNO', textY: 0.55, textScale: 0.24, color: '#f2dcc0', alpha: 0.92,
-  }, def.skin.accent, 5), beveledPlate(rhombOutline(W * 0.64, chH * 0.16, { cut: 0.16 }), 0.07 * s, { round: 0.2 }), {
+    text: 'INFERNO', textY: 0.56, textScale: 0.21, color: '#f2dcc0', alpha: 0.95,
+  }, def.skin.accent, 5), beveledPlate(rhombOutline(W * 0.72, chH * 0.17, { cut: 0.13 }), 0.07 * s, { round: 0.2 }), {
     p: [0, chH * 0.86, W * 0.46], r: [0.24, 0, 0] });
   // HUGE FURNACE GRILL: riveted dark frame ring > inset > glow plate > slats
   A.plate('torso', 'accent', rhombOutline(W * 0.86, chH * 0.54, { cut: 0.2 }), 0.1 * s, {
