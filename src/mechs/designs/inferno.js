@@ -130,28 +130,28 @@ export function inferno(A, D, J, anchors, def) {
   A.plate('torso', 'dark', rhombOutline(W * 0.78, chH * 0.6, { cut: 0.3 }), 0.06 * s, {
     p: [0, chH * 0.55, -D.torsoD * 0.44] });
   for (const sx of [-1, 1]) {
-    const tx = sx * W * 0.32, tz = -D.torsoD * 0.62;
+    const tx = sx * W * 0.34, tz = -D.torsoD * 0.6;
     // rounded tank: dome shows over the shoulder from the front
-    A.capsule('torso', 'accent', 0.36 * s, 0.85 * s, { p: [tx, chH * 0.72, tz] });
-    A.ring('torso', 'dark', 0.37 * s, 0.035 * s, {
-      p: [tx, chH * 0.58, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
-    A.ring('torso', 'dark', 0.37 * s, 0.035 * s, {
-      p: [tx, chH * 0.88, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
+    A.capsule('torso', 'accent', 0.37 * s, 0.9 * s, { p: [tx, chH * 0.8, tz] });
+    A.ring('torso', 'dark', 0.38 * s, 0.035 * s, {
+      p: [tx, chH * 0.66, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
+    A.ring('torso', 'dark', 0.38 * s, 0.035 * s, {
+      p: [tx, chH * 0.96, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
     // brass valve dome on top + feed pipe running to the arm
     A.lathe('torso', 'brass', [[0, 0.13 * s], [0.09 * s, 0.1 * s], [0.2 * s, 0.035 * s]], {
-      p: [tx, chH * 0.72 + 0.79 * s, tz] });
-    A.piston('torso', 'brass', [tx, chH * 0.72 + 0.68 * s, tz + 0.22 * s],
-      [sx * W * 0.56, chH * 0.84, -0.2 * s], 0.045 * s);
-    A.piston('torso', 'dark', [tx, chH * 0.32, tz],
-      [sx * W * 0.2, chH * 0.14, -D.torsoD * 0.3], 0.04 * s);
+      p: [tx, chH * 0.8 + 0.83 * s, tz] });
+    A.piston('torso', 'brass', [tx, chH * 0.8 + 0.7 * s, tz + 0.22 * s],
+      [sx * W * 0.56, chH * 0.86, -0.2 * s], 0.045 * s);
+    A.piston('torso', 'dark', [tx, chH * 0.4, tz],
+      [sx * W * 0.2, chH * 0.16, -D.torsoD * 0.3], 0.04 * s);
     // hazard-diamond decal on the outer face
     const dia = 0.19 * s;
     A.custom('torso', hazardMat,
       beveledPlate([[0, dia], [dia, 0], [0, -dia], [-dia, 0]], 0.03 * s, { round: 0.1 }), {
-        p: [tx + sx * 0.36 * s, chH * 0.72, tz], r: [0, sx * Math.PI / 2, 0] });
+        p: [tx + sx * 0.37 * s, chH * 0.8, tz], r: [0, sx * Math.PI / 2, 0] });
     // tank base cap
     A.ring('torso', 'dark', 0.3 * s, 0.05 * s, {
-      p: [tx, chH * 0.28, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
+      p: [tx, chH * 0.34, tz], r: [Math.PI / 2, 0, 0], seg: 24 });
   }
 
   // ================= HEAD: jack-o-lantern furnace grin =================
@@ -165,21 +165,21 @@ export function inferno(A, D, J, anchors, def) {
     [hs * 0.78, hs * 0.28],
   ], { p: [0, hy + hs * 0.55, 0.0], scaleZ: 1.02, seg: 20 });
   // wide dark jaw/face plate, proud of the dome
-  A.plate('head', 'dark', shieldOutline(hs * 1.6, hs * 1.4, { taper: 0.82, tip: 0.2 }), 0.09 * s, {
+  A.plate('head', 'dark', shieldOutline(hs * 1.6, hs * 1.4, { taper: 0.82, tip: 0.2 }), 0.07 * s, {
     p: [0, hy + hs * 0.5, hs * 0.86], r: [-0.05, 0, 0], round: 0.15 });
   // fierce angled glowing eyes
   for (const sx of [-1, 1]) {
-    A.sharpBox('head', 'glow', [hs * 0.34, hs * 0.15, hs * 0.1], {
-      p: [sx * hs * 0.34, hy + hs * 0.88, hs * 1.0], r: [0, 0, sx * 0.35] });
+    A.sharpBox('head', 'glow', [hs * 0.42, hs * 0.18, hs * 0.1], {
+      p: [sx * hs * 0.36, hy + hs * 0.9, hs * 1.18], r: [0, 0, sx * 0.35] });
   }
   // huge GRINNING MOUTH GRILL: glow plate + vertical teeth slats + curled corners
-  A.sharpBox('head', 'glow', [hs * 1.1, hs * 0.42, hs * 0.08], {
-    p: [0, hy + hs * 0.3, hs * 1.02] });
-  A.vents('head', 'dark', 6, hs * 1.16, hs * 0.5, hs * 0.1, {
-    p: [0, hy + hs * 0.3, hs * 1.06] });
+  A.sharpBox('head', 'glow', [hs * 1.24, hs * 0.46, hs * 0.09], {
+    p: [0, hy + hs * 0.3, hs * 1.16] });
+  A.vents('head', 'dark', 6, hs * 1.3, hs * 0.56, hs * 0.09, {
+    p: [0, hy + hs * 0.3, hs * 1.24] });
   for (const sx of [-1, 1]) {
-    A.sharpBox('head', 'glow', [hs * 0.26, hs * 0.12, hs * 0.08], {
-      p: [sx * hs * 0.64, hy + hs * 0.5, hs * 0.97], r: [0, 0, sx * 0.7] });
+    A.sharpBox('head', 'glow', [hs * 0.3, hs * 0.14, hs * 0.09], {
+      p: [sx * hs * 0.7, hy + hs * 0.54, hs * 1.12], r: [0, 0, sx * 0.7] });
   }
   // rivets around the mask + crest ridge + crown antenna
   for (const [rx, ry] of [[-0.62, 1.0], [0.62, 1.0], [-0.7, 0.55], [0.7, 0.55]]) {

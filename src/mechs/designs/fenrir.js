@@ -84,12 +84,12 @@ export function fenrir(A, D, J, anchors, def) {
 
   // ================= TORSO: hunched wolf chest =================
   A.lathe('torso', 'primary', [
-    [chH * 0.06, W * 0.3],
-    [chH * 0.36, W * 0.48],
-    [chH * 0.66, W * 0.56],
-    [chH * 0.92, W * 0.48],
-    [chH * 1.06, W * 0.24],
-  ], { scaleX: 1.3, scaleZ: 0.72, seg: 24, r: [0.09, 0, 0] });
+    [chH * 0.06, W * 0.27],
+    [chH * 0.36, W * 0.45],
+    [chH * 0.68, W * 0.53],
+    [chH * 0.92, W * 0.46],
+    [chH * 1.06, W * 0.22],
+  ], { scaleX: 1.24, scaleZ: 0.68, seg: 24, r: [0.09, 0, 0] });
   // V-tapered layered pec plates over capsule muscle
   for (const sx of [-1, 1]) {
     A.capsule('torso', 'primary', W * 0.14, W * 0.24, {
@@ -110,42 +110,54 @@ export function fenrir(A, D, J, anchors, def) {
     A.sharpBox('torso', 'glowSoft', [0.03 * s, 0.03 * s, 0.03 * s], {
       p: [sx * W * 0.21, chH * 0.06, W * 0.1] });
   }
+  // dark sternum groove splitting the pec masses into a V
+  A.sharpBox('torso', 'dark', [0.055 * s, chH * 0.42, 0.06 * s], {
+    p: [0, chH * 0.72, W * 0.315], r: [-0.14, 0, 0] });
   // wolf-head emblem plate on the chest center
   A.custom('torso', wolfMat,
-    beveledPlate(shieldOutline(W * 0.34, chH * 0.32, { taper: 0.66 }), 0.07 * s, { round: 0.12 }), {
-      p: [0, chH * 0.36, W * 0.37], r: [0.04, 0, 0] });
+    beveledPlate(shieldOutline(W * 0.4, chH * 0.38, { taper: 0.66 }), 0.07 * s, { round: 0.12 }), {
+      p: [0, chH * 0.38, W * 0.36], r: [0.04, 0, 0] });
   // exposed dark neck segments under the head
   A.tube('torso', 'dark', W * 0.14, W * 0.16, 0.09 * s, { p: [0, chH * 1.06, 0.06 * s] });
   A.tube('torso', 'frame', W * 0.15, W * 0.18, 0.16 * s, { p: [0, chH * 0.98, 0.05 * s] });
 
   // ================= MANE: three-row spiked ruff =================
+  // Spike helper: places the blade so its ROOT sits at p (blades are
+  // center-origin, so offset the center along the rotated long axis).
+  const _eu = new THREE.Euler();
+  const maneSpike = (joint, mat, L, wid, th, p, r, taper) => {
+    const dir = new THREE.Vector3(0, 1, 0).applyEuler(_eu.set(r[0], r[1], r[2]));
+    A.blade(joint, mat, L, wid, th, {
+      p: [p[0] + dir.x * L * 0.38, p[1] + dir.y * L * 0.38, p[2] + dir.z * L * 0.38],
+      r, taper });
+  };
   // long silver guard blades over darker under-rows, radiating out/back
   for (let i = 0; i < 9; i++) {
     const a = (i / 8 - 0.5) * Math.PI * 1.16;
     const jag = 1 - 0.08 * ((i * 5) % 3);
-    A.blade('torso', 'metal', (1.6 - Math.abs(a) * 0.22) * jag * s, 0.3 * s, 0.05 * s, {
-      p: [Math.sin(a) * W * 0.52, chH * 0.96, (-Math.cos(a) * 0.52 + 0.1) * W],
-      r: [-0.5 - Math.abs(a) * 0.17, 0, -a * 0.62], taper: 0.05 });
+    maneSpike('torso', 'metal', (1.85 - Math.abs(a) * 0.28) * jag * s, 0.36 * s, 0.05 * s,
+      [Math.sin(a) * W * 0.5, chH * 0.88, (-Math.cos(a) * 0.5 + 0.08) * W],
+      [-0.72 - Math.abs(a) * 0.22, 0, -a * 0.66], 0.05);
   }
   for (let i = 0; i < 8; i++) {
     const a = (i / 7 - 0.5) * Math.PI * 1.02;
     const jag = 1 - 0.09 * ((i * 7) % 3);
-    A.blade('torso', 'primary', (1.25 - Math.abs(a) * 0.2) * jag * s, 0.27 * s, 0.05 * s, {
-      p: [Math.sin(a) * W * 0.44, chH * 1.0, (-Math.cos(a) * 0.44 + 0.1) * W],
-      r: [-0.68 - Math.abs(a) * 0.16, 0, -a * 0.62], taper: 0.1 });
+    maneSpike('torso', 'primary', (1.4 - Math.abs(a) * 0.24) * jag * s, 0.32 * s, 0.05 * s,
+      [Math.sin(a) * W * 0.42, chH * 0.93, (-Math.cos(a) * 0.42 + 0.08) * W],
+      [-0.9 - Math.abs(a) * 0.2, 0, -a * 0.64], 0.1);
   }
   for (let i = 0; i < 7; i++) {
     const a = (i / 6 - 0.5) * Math.PI * 0.9;
-    A.blade('torso', 'dark', (0.92 - Math.abs(a) * 0.16) * s, 0.24 * s, 0.045 * s, {
-      p: [Math.sin(a) * W * 0.37, chH * 1.04, (-Math.cos(a) * 0.37 + 0.1) * W],
-      r: [-0.86 - Math.abs(a) * 0.15, 0, -a * 0.62], taper: 0.14 });
+    maneSpike('torso', 'dark', (1.0 - Math.abs(a) * 0.18) * s, 0.27 * s, 0.045 * s,
+      [Math.sin(a) * W * 0.34, chH * 0.98, (-Math.cos(a) * 0.34 + 0.08) * W],
+      [-1.08 - Math.abs(a) * 0.16, 0, -a * 0.62], 0.14);
   }
-  // lower mane fringe spilling onto the shoulders
+  // lower mane fringe spilling out over the shoulders
   for (const sx of [-1, 1]) {
-    for (let k = 0; k < 2; k++) {
-      A.blade('torso', 'metal', (1.05 - k * 0.2) * s, 0.24 * s, 0.045 * s, {
-        p: [sx * W * (0.56 + k * 0.06), chH * (0.86 - k * 0.1), (0.02 - k * 0.1) * W],
-        r: [-0.35 - k * 0.2, 0, -sx * (0.95 + k * 0.3)], taper: 0.08 });
+    for (let k = 0; k < 3; k++) {
+      maneSpike('torso', k === 1 ? 'primary' : 'metal', (1.1 - k * 0.18) * s, 0.24 * s, 0.045 * s,
+        [sx * W * 0.5, chH * (0.84 - k * 0.08), (0.04 - k * 0.12) * W],
+        [-0.5 - k * 0.25, 0, -sx * (1.05 + k * 0.25)], 0.08);
     }
   }
   // back pack + radiator vents + coolant drums
@@ -164,35 +176,40 @@ export function fenrir(A, D, J, anchors, def) {
   }
 
   // ================= HEAD: big snarling wolf skull =================
-  const hy = hs * 1.0;
-  const hh = hs * 1.4; // wolf head unit — reads well above the humanoid base
-  A.tube('head', 'frame', hs * 0.36, hs * 0.46, hs * 1.0, { p: [0, hy * 0.32, 0] });
-  // faceted cranium (chamfered 8-sided bulge) + smooth crown
-  A.facet('head', 'primary', hh * 0.42, hh * 0.56, hh * 0.3, hh * 0.95, {
-    sides: 8, scaleZ: 1.18, p: [0, hy + hh * 0.42, -hh * 0.12] });
+  J.head.position.y += 0.18 * s;      // lift the skull clear of the mane ruff
+  J.head.position.z += 0.08 * s;
+  const hy = hs * 0.9;
+  const hh = hs * 1.5; // wolf head unit — reads well above the humanoid base
+  A.tube('head', 'frame', hs * 0.36, hs * 0.46, hs * 1.1, { p: [0, hy * 0.26, -0.04 * s] });
+  // cranium: smooth dome core + chamfered facet plates over the temples
   A.lathe('head', 'primary', [
-    [-hh * 0.1, hh * 0.5],
-    [hh * 0.28, hh * 0.44],
-    [hh * 0.5, hh * 0.2],
-  ], { p: [0, hy + hh * 0.52, -hh * 0.12], scaleZ: 1.15, seg: 16 });
-  // long snarling snout, jutting forward
-  A.capsule('head', 'primary', hh * 0.29, hh * 0.8, {
-    p: [0, hy + hh * 0.36, hh * 0.78], r: [Math.PI / 2, 0, 0], s: [0.82, 1, 0.72] });
+    [-hh * 0.42, hh * 0.5],
+    [hh * 0.05, hh * 0.58],
+    [hh * 0.45, hh * 0.44],
+    [hh * 0.64, hh * 0.16],
+  ], { p: [0, hy + hh * 0.42, -hh * 0.14], scaleX: 0.95, scaleZ: 1.18, seg: 20 });
+  for (const sx of [-1, 1]) { // faceted skull side plates
+    A.plate('head', 'primary', rhombOutline(hh * 0.8, hh * 0.55, { cut: 0.3 }), hh * 0.09, {
+      p: [sx * hh * 0.5, hy + hh * 0.52, -hh * 0.12], r: [0, sx * (Math.PI / 2 - 0.2), -sx * 0.25], round: 0.15 });
+  }
+  // long snarling snout, jutting well forward
+  A.capsule('head', 'primary', hh * 0.32, hh * 0.9, {
+    p: [0, hy + hh * 0.36, hh * 0.8], r: [Math.PI / 2, 0, 0], s: [0.82, 1, 0.72] });
   // snout bridge plate + wrinkle vents (snarl)
-  A.plate('head', 'primary', rhombOutline(hh * 0.42, hh * 1.0, { cut: 0.3 }), hh * 0.1, {
-    p: [0, hy + hh * 0.56, hh * 0.72], r: [-Math.PI / 2 + 0.14, 0, 0], round: 0.2 });
-  A.vents('head', 'dark', 3, hh * 0.3, hh * 0.07, 0.03 * s, {
-    p: [0, hy + hh * 0.52, hh * 1.1], r: [-0.3, 0, 0] });
+  A.plate('head', 'primary', rhombOutline(hh * 0.46, hh * 1.05, { cut: 0.3 }), hh * 0.1, {
+    p: [0, hy + hh * 0.58, hh * 0.74], r: [-Math.PI / 2 + 0.14, 0, 0], round: 0.2 });
+  A.vents('head', 'dark', 3, hh * 0.32, hh * 0.08, 0.03 * s, {
+    p: [0, hy + hh * 0.54, hh * 1.14], r: [-0.3, 0, 0] });
   // black nose tip
-  A.ball('head', 'dark', hh * 0.12, { p: [0, hy + hh * 0.42, hh * 1.44], seg: 10 });
+  A.ball('head', 'dark', hh * 0.13, { p: [0, hy + hh * 0.44, hh * 1.5], seg: 10 });
   // upper muzzle rim (dark) the fangs hang from
-  A.taper('head', 'dark', [hh * 0.42, hh * 0.16, hh * 0.85], 0.75, 0.9, {
-    p: [0, hy + hh * 0.2, hh * 0.85] });
+  A.taper('head', 'dark', [hh * 0.46, hh * 0.18, hh * 0.95], 0.75, 0.9, {
+    p: [0, hy + hh * 0.18, hh * 0.88] });
   // OPEN lower jaw, swung well down
-  A.taper('head', 'dark', [hh * 0.36, hh * 0.85, hh * 0.26], 0.5, 0.55, {
-    p: [0, hy - hh * 0.14, hh * 0.52], r: [Math.PI / 2 + 0.62, 0, 0] });
-  A.plate('head', 'accent', rhombOutline(hh * 0.3, hh * 0.7, { cut: 0.3 }), hh * 0.07, {
-    p: [0, hy - hh * 0.3, hh * 0.62], r: [-Math.PI / 2 + 0.75, 0, 0], round: 0.2 });
+  A.taper('head', 'dark', [hh * 0.4, hh * 0.95, hh * 0.3], 0.5, 0.55, {
+    p: [0, hy - hh * 0.2, hh * 0.52], r: [Math.PI / 2 + 0.62, 0, 0] });
+  A.plate('head', 'accent', rhombOutline(hh * 0.32, hh * 0.78, { cut: 0.3 }), hh * 0.07, {
+    p: [0, hy - hh * 0.38, hh * 0.64], r: [-Math.PI / 2 + 0.75, 0, 0], round: 0.2 });
   // STEEL FANGS — upper rows down from the muzzle rim, lower rows up from the jaw
   for (const sx of [-1, 1]) {
     for (let k = 0; k < 3; k++) {
@@ -201,18 +218,18 @@ export function fenrir(A, D, J, anchors, def) {
         r: [Math.PI - 0.08, 0, 0], seg: 5 });
     }
     for (let k = 0; k < 2; k++) {
-      A.spike('head', 'metal', (0.03 - k * 0.006) * s, (0.14 - k * 0.03) * s, {
-        p: [sx * hh * (0.16 - k * 0.02), hy - hh * 0.28, hh * (0.98 - k * 0.2)],
+      A.spike('head', 'metal', (0.03 - k * 0.006) * s, (0.15 - k * 0.03) * s, {
+        p: [sx * hh * (0.17 - k * 0.02), hy - hh * 0.34, hh * (1.02 - k * 0.2)],
         r: [0.35, 0, 0], seg: 5 });
     }
-    // fierce ice-blue slanted eyes on the cranium-snout junction
-    A.sharpBox('head', 'glow', [hh * 0.32, hh * 0.09, 0.05 * s], {
-      p: [sx * hh * 0.3, hy + hh * 0.62, hh * 0.5], r: [0, sx * 0.34, sx * -0.34] });
-    // tall pointed two-layer ears
-    A.blade('head', 'primary', hh * 1.15, hh * 0.48, 0.055 * s, {
-      p: [sx * hh * 0.4, hy + hh * 1.06, -hh * 0.34], r: [-0.28, 0, sx * 0.3], taper: 0.06 });
-    A.blade('head', 'dark', hh * 0.78, hh * 0.28, 0.034 * s, {
-      p: [sx * hh * 0.4, hy + hh * 0.98, -hh * 0.27], r: [-0.28, 0, sx * 0.3], taper: 0.1 });
+    // fierce ice-blue slanted eyes above the snout root
+    A.sharpBox('head', 'glow', [hh * 0.34, hh * 0.1, 0.07 * s], {
+      p: [sx * hh * 0.33, hy + hh * 0.66, hh * 0.46], r: [-0.1, sx * 0.42, sx * -0.35] });
+    // tall pointed two-layer ears rooted at the crown
+    A.blade('head', 'primary', hh * 1.1, hh * 0.46, 0.055 * s, {
+      p: [sx * hh * 0.48, hy + hh * 0.95, -hh * 0.42], r: [-0.3, 0, sx * 0.28], taper: 0.06 });
+    A.blade('head', 'dark', hh * 0.75, hh * 0.26, 0.034 * s, {
+      p: [sx * hh * 0.44, hy + hh * 0.88, -hh * 0.33], r: [-0.3, 0, sx * 0.28], taper: 0.1 });
     // cheek guards
     A.plate('head', 'accent', rhombOutline(hh * 0.52, hh * 0.4, { cut: 0.3 }), hh * 0.08, {
       p: [sx * hh * 0.46, hy + hh * 0.3, hh * 0.12], r: [0, sx * (Math.PI / 2 - 0.25), 0], round: 0.2 });
@@ -245,8 +262,10 @@ export function fenrir(A, D, J, anchors, def) {
       [-ua * 0.5, 0.21 * s],
       [-ua * 0.12, 0.17 * s],
     ], { seg: 14 });
-    A.tube(sh, 'primary', 0.2 * s, 0.23 * s, 0.26 * s, { p: [0, -ua * 0.38, 0] });
-    A.tube(sh, 'primary', 0.185 * s, 0.215 * s, 0.24 * s, { p: [0, -ua * 0.66, 0] });
+    A.plate(sh, 'primary', rhombOutline(0.26 * s, ua * 0.5, { cut: 0.3 }), 0.05 * s, {
+      p: [sx * 0.19 * s, -ua * 0.45, 0.01 * s], r: [0, sx * Math.PI / 2, 0], round: 0.15 });
+    A.plate(sh, 'primary', rhombOutline(0.22 * s, ua * 0.4, { cut: 0.3 }), 0.045 * s, {
+      p: [0, -ua * 0.5, 0.17 * s], r: [0.06, 0, 0], round: 0.15 });
     A.part(el, 'metal', cyl(0.14 * s, 0.14 * s, 0.3 * s, 10), { r: [0, 0, Math.PI / 2] });
     // powerful forearm: faceted housing + layered outer plate + elbow spur fin
     A.facet(el, 'primary', 0.19 * s, 0.27 * s, 0.2 * s, fa * 0.95, {
@@ -293,9 +312,9 @@ export function fenrir(A, D, J, anchors, def) {
     A.ring('tail' + i, 'dark', r0 * 0.95, 0.03 * s, { p: [0, 0, -0.04 * s] });
     for (let k = 0; k < 3; k++) {
       const f = k / 2;
-      A.plate('tail' + i, 'metal', rhombOutline((0.3 - i * 0.05) * s, (0.3 - i * 0.04) * s, { cut: 0.28 }), 0.035 * s, {
-        p: [0, r0 * 0.72 + dy * (f - 0.1), -segLen[i] * (0.14 + f * 0.62)],
-        r: [rx + 0.32, 0, 0], round: 0.15 });
+      A.plate('tail' + i, 'metal', rhombOutline((0.34 - i * 0.05) * s, (0.34 - i * 0.04) * s, { cut: 0.28 }), 0.035 * s, {
+        p: [0, r0 * 0.52 + dy * f, -segLen[i] * (0.14 + f * 0.62)],
+        r: [rx + 0.22, 0, 0], round: 0.15 });
     }
     // side scale pair on the thicker segments
     if (i < 2) {
