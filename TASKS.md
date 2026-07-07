@@ -186,3 +186,11 @@ controllers via Gamepad API), AI opponents.
   devDep), tools/img2glb.mjs (best-effort Meshy/Tripo API client with
   verify-docs-first caveats). Any future AI session can continue the
   image->mech work from these alone.
+- 2026-07-06: ALL 12 MECHS AT CANONICAL-IMAGE FIDELITY. User supplied concept
+  images for every mech; six parallel agents rebuilt the remaining 11 to
+  image-derived specs (banner-pod AEGIS, crescent-halo NOVA, horn-blade VIPER,
+  carapace-dome RHINO, V-cannon COLOSSUS, crystal GLACIER, lightning-crest
+  TEMPEST, furnace-face INFERNO, reaper WRAITH, werewolf FENRIR). All
+  palettes/skins measured from images; visual specs archived in
+  docs/canonical/SPECS.md (PNGs to be committed by user). Verified: per-mech
+  idle/walk/attack, 3x ace soaks (zero crashes), menu flow, build green.

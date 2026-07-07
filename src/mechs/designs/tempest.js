@@ -72,10 +72,10 @@ export function tempest(A, D, J, anchors, def) {
   ], { scaleX: 1.42, scaleZ: 0.74, seg: 28 });
   // layered angular pec plates + accent slivers
   for (const sx of [-1, 1]) {
-    A.plate('torso', 'primary', rhombOutline(W * 0.52, chH * 0.32, { cut: 0.32 }), 0.09 * s, {
-      p: [sx * W * 0.34, chH * 0.84, W * 0.3], r: [0.42, sx * 0.3, sx * -0.18], round: 0.12 });
-    A.plate('torso', 'accent', rhombOutline(W * 0.3, chH * 0.09, { cut: 0.3 }), 0.04 * s, {
-      p: [sx * W * 0.32, chH * 0.72, W * 0.36], r: [0.32, sx * 0.28, sx * -0.16], round: 0.2 });
+    A.plate('torso', 'primary', rhombOutline(W * 0.54, chH * 0.34, { cut: 0.32 }), 0.09 * s, {
+      p: [sx * W * 0.3, chH * 0.82, W * 0.32], r: [0.32, sx * 0.14, sx * -0.04], round: 0.12 });
+    A.plate('torso', 'accent', rhombOutline(W * 0.3, chH * 0.08, { cut: 0.3 }), 0.04 * s, {
+      p: [sx * W * 0.3, chH * 0.7, W * 0.37], r: [0.22, sx * 0.14, sx * -0.04], round: 0.2 });
     // glow slit vents flanking the core + dark side intakes
     A.sharpBox('torso', 'glowSoft', [0.035 * s, chH * 0.26, 0.035 * s], {
       p: [sx * W * 0.25, chH * 0.52, W * 0.36], r: [-0.06, 0, sx * 0.1] });
