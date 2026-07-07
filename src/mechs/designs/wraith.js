@@ -8,11 +8,14 @@ import { addJoint } from './common.js';
 
 
 // ============================================================
-// 10. WRAITH — stealth sniper, sculpted rebuild. Gaunt matte-black
-//     frame veined with red power seams, an open hooded cowl
-//     (partial lathe shell) around a recessed skull with one
-//     deep-set red eye, tattered cloak fins off the back, and a
-//     very long twin-rail anti-materiel railgun in the right hand.
+// 10. WRAITH — the reaper, matched to the canonical concept.
+//     Gaunt near-black silhouette: a tall pointed cowl over a black
+//     void face with ONE red eye, a huge tattered cloak of layered
+//     blade-strips swallowing the torso (shin-length at the back),
+//     a skeletal V-chest with exposed spine/ribs, wiry actuator
+//     arms with claw fingers, blade-thin digitigrade legs, and an
+//     enormous rail rifle carried vertically at the right hand —
+//     nearly the mech's full height (the aim clip raises it level).
 // ============================================================
 export function wraith(A, D, J, anchors, def) {
   const s = D.scale;
@@ -30,245 +33,288 @@ export function wraith(A, D, J, anchors, def) {
     });
   };
 
-  // ================= WAIST / PELVIS: skeletal =================
-  A.lathe('hips', 'frame', [[-0.12 * s, W * 0.23], [0.22 * s, W * 0.15], [0.55 * s, W * 0.21]], {
-    scaleX: 1.15, seg: 16 });
-  for (let i = 0; i < 3; i++) {
-    A.tube('hips', 'dark', W * (0.165 - i * 0.008), W * (0.175 - i * 0.008), 0.05 * s, {
+  // ================= WAIST / PELVIS: pinched, skeletal =================
+  A.lathe('hips', 'frame', [[-0.12 * s, W * 0.22], [0.22 * s, W * 0.14], [0.55 * s, W * 0.2]], {
+    scaleX: 1.12, seg: 16 });
+  for (let i = 0; i < 3; i++) { // exposed spine rings continue down the waist
+    A.tube('hips', 'dark', W * (0.16 - i * 0.008), W * (0.17 - i * 0.008), 0.05 * s, {
       p: [0, (0.06 + i * 0.15) * s, 0] });
   }
-  A.facet('hips', 'primary', W * 0.25, W * 0.32, W * 0.22, 0.7 * s, {
-    sides: 6, scaleZ: 0.75, p: [0, -0.38 * s, 0] });
-  // ragged skirt plates, front seam glows faintly
-  A.plate('hips', 'accent', shieldOutline(W * 0.28, 0.75 * s, { taper: 0.5 }), 0.06 * s, {
-    p: [0, -0.5 * s, W * 0.24], r: [0.16, 0, 0], round: 0.12 });
-  A.sharpBox('hips', 'glowSoft', [0.022 * s, 0.3 * s, 0.022 * s], {
-    p: [0, -0.56 * s, W * 0.28], r: [0.16, 0, 0] });
-  for (const sx of [-1, 1]) {
-    A.plate('hips', 'primary', rhombOutline(0.32 * s, 0.66 * s, { cut: 0.32 }), 0.05 * s, {
-      p: [sx * W * 0.33, -0.42 * s, 0], r: [0.05, sx * Math.PI / 2, sx * 0.24], round: 0.15 });
-  }
-  A.facet('hips', 'dark', W * 0.15, W * 0.19, W * 0.13, 0.38 * s, {
-    sides: 6, scaleZ: 0.7, p: [0, -0.44 * s, -W * 0.2] });
+  A.facet('hips', 'primary', W * 0.24, W * 0.3, W * 0.2, 0.62 * s, {
+    sides: 6, scaleZ: 0.72, p: [0, -0.36 * s, 0] });
+  // narrow front fang plate — the only skirt (the cloak owns the rest)
+  A.plate('hips', 'accent', shieldOutline(W * 0.26, 0.72 * s, { taper: 0.5 }), 0.055 * s, {
+    p: [0, -0.48 * s, W * 0.22], r: [0.16, 0, 0], round: 0.12 });
+  A.facet('hips', 'dark', W * 0.14, W * 0.18, W * 0.12, 0.36 * s, {
+    sides: 6, scaleZ: 0.7, p: [0, -0.42 * s, -W * 0.18] });
 
-  // ================= TORSO: gaunt chest, red seams =================
+  // ================= TORSO: skeletal V-chest, spine + rib arcs =================
+  // gaunt core mass (kept narrow — the cloak provides the width)
   A.lathe('torso', 'primary', [
-    [chH * 0.06, W * 0.24],
-    [chH * 0.38, W * 0.4],
-    [chH * 0.7, W * 0.48],
-    [chH * 0.95, W * 0.42],
-    [chH * 1.08, W * 0.18],
-  ], { scaleX: 1.15, scaleZ: 0.62, seg: 22 });
-  // exposed rib rings under the chest
-  for (let i = 0; i < 3; i++) {
-    A.tube('torso', 'dark', W * (0.17 - i * 0.015), W * (0.185 - i * 0.015), 0.055 * s, {
-      p: [0, chH * (0.1 - i * 0.09), 0] });
-  }
-  // red power seams: sternum line + collar bones
-  A.sharpBox('torso', 'glow', [0.026 * s, chH * 0.46, 0.026 * s], {
-    p: [0, chH * 0.62, W * 0.28], r: [-0.06, 0, 0] });
+    [chH * 0.06, W * 0.2],
+    [chH * 0.4, W * 0.34],
+    [chH * 0.72, W * 0.42],
+    [chH * 0.96, W * 0.36],
+    [chH * 1.08, W * 0.16],
+  ], { scaleX: 1.05, scaleZ: 0.56, seg: 20 });
+  // V chest plates: two angled slabs meeting at the sternum
   for (const sx of [-1, 1]) {
-    A.sharpBox('torso', 'glowSoft', [0.02 * s, chH * 0.22, 0.02 * s], {
-      p: [sx * W * 0.22, chH * 0.68, W * 0.245], r: [-0.05, 0, sx * 0.32] });
-    // rib vents raked along the flanks
-    A.vents('torso', 'dark', 3, W * 0.3, 0.07 * s, 0.04 * s, {
-      p: [sx * W * 0.4, chH * 0.55, 0], r: [0, sx * (Math.PI / 2 - 0.25), sx * 0.5] });
+    A.plate('torso', 'primary', rhombOutline(W * 0.34, chH * 0.52, { cut: 0.3 }), 0.06 * s, {
+      p: [sx * W * 0.185, chH * 0.68, W * 0.225], r: [-0.1, sx * 0.28, sx * 0.42], round: 0.12 });
+    // collar-bone seams (faint)
+    A.sharpBox('torso', 'glowSoft', [0.018 * s, chH * 0.2, 0.018 * s], {
+      p: [sx * W * 0.2, chH * 0.72, W * 0.26], r: [-0.08, 0, sx * 0.4] });
+  }
+  // red sternum seam in the V gap (kept faint — silhouette carries the mech)
+  A.sharpBox('torso', 'glowSoft', [0.02 * s, chH * 0.3, 0.02 * s], {
+    p: [0, chH * 0.66, W * 0.265], r: [-0.06, 0, 0] });
+  // exposed dark spine rings under the chest
+  for (let i = 0; i < 3; i++) {
+    A.tube('torso', 'dark', W * (0.155 - i * 0.014), W * (0.17 - i * 0.014), 0.055 * s, {
+      p: [0, chH * (0.14 - i * 0.1), 0] });
+  }
+  // rib arcs: thin elliptical tori half-sunk into the lower chest
+  for (let i = 0; i < 3; i++) {
+    A.ring('torso', 'dark', W * (0.34 - i * 0.03), 0.022 * s, {
+      p: [0, chH * (0.42 - i * 0.11), 0.01 * s], r: [Math.PI / 2, 0, 0],
+      s: [1, 1, 0.62], seg: 24 });
+  }
+  // brass spine pistons up the back
+  for (const sx of [-1, 1]) {
+    A.piston('torso', 'brass', [sx * W * 0.1, chH * 0.0, -W * 0.05],
+      [sx * W * 0.22, chH * 0.34, -W * 0.09], 0.028 * s);
   }
   // collar ring
-  A.tube('torso', 'frame', W * 0.12, W * 0.15, 0.13 * s, { p: [0, chH * 1.04, 0] });
-  // cloak yoke across the upper back
-  A.plate('torso', 'frame', rhombOutline(W * 0.9, chH * 0.24, { cut: 0.25 }), 0.08 * s, {
-    p: [0, chH * 0.92, -W * 0.3], r: [0.25, 0, 0], round: 0.15 });
-  // tattered cloak fins: long dark outer layer + short accent underlayer
-  for (let i = 0; i < 5; i++) {
-    const fx = (i - 2) / 2; // -1..1
-    A.blade('torso', 'dark', (1.75 - Math.abs(fx) * 0.45 - (i % 2) * 0.12) * s, 0.36 * s, 0.035 * s, {
-      p: [fx * W * 0.36, chH * 0.6, -W * (0.4 + Math.abs(fx) * 0.04)],
-      r: [Math.PI + 0.14 + Math.abs(fx) * 0.1, 0, fx * 0.32], taper: 0.45 });
+  A.tube('torso', 'frame', W * 0.11, W * 0.14, 0.12 * s, { p: [0, chH * 1.04, 0] });
+
+  // ================= CLOAK: the dominant element =================
+  // shoulder yoke the strips hang from
+  A.plate('torso', 'frame', rhombOutline(W * 1.0, chH * 0.22, { cut: 0.25 }), 0.08 * s, {
+    p: [0, chH * 0.96, -W * 0.26], r: [0.3, 0, 0], round: 0.15 });
+  for (const sx of [-1, 1]) { // yoke shoulder hooks
+    A.plate('torso', 'frame', rhombOutline(W * 0.3, chH * 0.14, { cut: 0.3 }), 0.06 * s, {
+      p: [sx * W * 0.52, chH * 0.94, -W * 0.12], r: [0.2, sx * 0.8, sx * 0.15], round: 0.15 });
   }
-  for (let i = 0; i < 4; i++) {
-    const fx = (i - 1.5) / 1.5;
-    A.blade('torso', 'accent', (1.1 - Math.abs(fx) * 0.25) * s, 0.3 * s, 0.03 * s, {
-      p: [fx * W * 0.26, chH * 0.68, -W * 0.34],
-      r: [Math.PI + 0.1 + Math.abs(fx) * 0.08, 0, fx * 0.24], taper: 0.5 });
+  // jagged blade-strips: a = angle around the back (0 = straight back).
+  // Hang from the yoke, tilt backward, roll bottoms outward (skirt flare).
+  const strip = (mat, a, L, R, yTop, tilt, wid, th, taper) => {
+    const dirY = Math.cos(tilt), dirZ = Math.sin(tilt);
+    A.blade('torso', mat, L, wid, th, {
+      p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - dirY * L * 0.5,
+        -Math.cos(a) * R * 0.9 - dirZ * L * 0.5],
+      r: [Math.PI + tilt, 0, -a * 0.3], taper });
+  };
+  const jag = (i, k) => 0.82 + 0.18 * (((i * 7 + k * 3) % 4) / 3); // varied lengths
+  for (let i = 0; i < 11; i++) { // outer layer — near-black, shin-length at center
+    const a = (i / 10 - 0.5) * 4.1;
+    strip('accent', a, (3.6 - Math.abs(a) * 0.44) * jag(i, 1) * s, W * 0.5,
+      chH * 1.0, 0.09 + 0.24 * Math.cos(a * 0.5), 0.4 * s, 0.035 * s, 0.2);
   }
-  // brass spine pistons
+  for (let i = 0; i < 9; i++) { // mid layer
+    const a = (i / 8 - 0.5) * 3.3;
+    strip('primary', a, (2.8 - Math.abs(a) * 0.34) * jag(i, 2) * s, W * 0.43,
+      chH * 0.92, 0.06 + 0.2 * Math.cos(a * 0.5), 0.34 * s, 0.032 * s, 0.28);
+  }
+  for (let i = 0; i < 6; i++) { // inner underlayer
+    const a = (i / 5 - 0.5) * 2.5;
+    strip('dark', a, (2.0 - Math.abs(a) * 0.26) * jag(i, 3) * s, W * 0.36,
+      chH * 0.84, 0.05 + 0.16 * Math.cos(a * 0.5), 0.3 * s, 0.03 * s, 0.34);
+  }
+  // side wrap strips framing the V-chest from the front
   for (const sx of [-1, 1]) {
-    A.piston('torso', 'brass', [sx * W * 0.12, chH * 0.0, -W * 0.06],
-      [sx * W * 0.26, chH * 0.32, -W * 0.1], 0.03 * s);
+    A.blade('torso', 'accent', 2.5 * s, 0.3 * s, 0.035 * s, {
+      p: [sx * W * 0.56, chH * 0.92 - 1.2 * s, 0.02 * s],
+      r: [Math.PI + 0.04, 0, -sx * 0.34], taper: 0.22 });
+    A.blade('torso', 'primary', 1.9 * s, 0.26 * s, 0.03 * s, {
+      p: [sx * W * 0.5, chH * 0.86 - 0.9 * s, 0.09 * s],
+      r: [Math.PI + 0.02, 0, -sx * 0.26], taper: 0.3 });
   }
 
-  // ================= HEAD: hooded cowl, one red eye =================
+  // ================= HEAD: tall pointed cowl, one red eye =================
   const hy = hs * 0.9;
-  A.tube('head', 'frame', hs * 0.26, hs * 0.34, hs * 0.8, { p: [0, hy * 0.3, 0] });
-  // recessed skull: dark dome, deep-set glowing eye + socket ring
-  A.ball('head', 'dark', hs * 0.5, { p: [0, hy + hs * 0.42, hs * 0.02], seg: 16 });
-  A.ball('head', 'glow', hs * 0.13, { p: [0, hy + hs * 0.46, hs * 0.42], seg: 10 });
-  A.ring('head', 'metal', hs * 0.17, hs * 0.035, { p: [0, hy + hs * 0.46, hs * 0.44] });
-  // chin guard under the skull
-  A.taper('head', 'dark', [hs * 0.34, hs * 0.3, hs * 0.4], 0.55, 0.5, {
-    p: [0, hy + hs * 0.06, hs * 0.3], r: [0.2, 0, 0] });
-  // hood: open lathe shell (outer + mirrored inner lining), gap facing forward
+  A.tube('head', 'frame', hs * 0.24, hs * 0.32, hs * 0.8, { p: [0, hy * 0.3, 0] });
+  // black void face: dark ball, ONE deep-set red eye — nothing else
+  A.ball('head', 'dark', hs * 0.52, { p: [0, hy + hs * 0.42, 0], seg: 16 });
+  A.ball('head', 'glow', hs * 0.11, { p: [0, hy + hs * 0.48, hs * 0.42], seg: 10 });
+  // cowl shell: open-front partial lathe, rising steeply
   const hoodProfile = [
-    [-hs * 0.5, hs * 0.7],
-    [hs * 0.08, hs * 0.78],
-    [hs * 0.55, hs * 0.6],
-    [hs * 0.82, hs * 0.14],
+    [-hs * 0.7, hs * 0.82],
+    [hs * 0.05, hs * 0.92],
+    [hs * 0.75, hs * 0.7],
+    [hs * 1.5, hs * 0.26],
   ].map(([y, r]) => new THREE.Vector2(r, y));
   const hoodPts = new THREE.SplineCurve(hoodProfile).getPoints(18)
     .map((p) => new THREE.Vector2(Math.max(0.001, p.x), p.y));
   const hoodOuter = new THREE.LatheGeometry(hoodPts, 24, 0.95, Math.PI * 2 - 1.9);
-  hoodOuter.scale(0.95, 1, 1.1);
+  hoodOuter.scale(0.95, 1, 1.08);
   hoodOuter.computeVertexNormals();
   const hoodInner = hoodOuter.clone();
-  hoodInner.scale(-0.93, 0.95, 0.93); // mirrored + shrunk: visible lining
+  hoodInner.scale(-0.93, 0.96, 0.93); // mirrored + shrunk: visible dark lining
   hoodInner.computeVertexNormals();
-  A.part('head', 'primary', hoodOuter, { p: [0, hy + hs * 0.42, -hs * 0.06] });
-  A.part('head', 'primary', hoodInner, { p: [0, hy + hs * 0.42, -hs * 0.06] });
-  // hood peak brim jutting over the eye
-  A.plate('head', 'primary', rhombOutline(hs * 0.9, hs * 0.6, { cut: 0.35 }), hs * 0.1, {
-    p: [0, hy + hs * 0.88, hs * 0.4], r: [-Math.PI / 2 + 0.5, 0, 0], round: 0.2 });
-  // hood side drapes falling toward the shoulders
+  A.part('head', 'primary', hoodOuter, { p: [0, hy + hs * 0.4, -hs * 0.08] });
+  A.part('head', 'primary', hoodInner, { p: [0, hy + hs * 0.4, -hs * 0.08] });
+  // sharp peak: 4-sided pyramid capping the cowl, hooked slightly forward
+  A.spike('head', 'primary', hs * 0.42, hs * 1.6, {
+    p: [0, hy + hs * 2.25, -hs * 0.1], r: [0.18, Math.PI / 4, 0], seg: 4 });
+  A.spike('head', 'accent', hs * 0.22, hs * 0.9, {
+    p: [0, hy + hs * 2.85, hs * 0.08], r: [0.3, Math.PI / 4, 0], seg: 4 });
+  // angled cowl-edge plates hugging the sides of the face opening
   for (const sx of [-1, 1]) {
-    A.blade('head', 'primary', hs * 0.9, hs * 0.5, 0.04 * s, {
-      p: [sx * hs * 0.66, hy + hs * 0.1, -hs * 0.1],
-      r: [Math.PI + 0.1, 0, sx * 0.25], taper: 0.5 });
+    A.plate('head', 'primary', rhombOutline(hs * 0.5, hs * 1.3, { cut: 0.32 }), hs * 0.08, {
+      p: [sx * hs * 0.6, hy + hs * 0.55, hs * 0.42],
+      r: [-0.12, sx * 0.55, sx * 0.1], round: 0.15 });
   }
-  // trailing hood point
-  A.spike('head', 'primary', hs * 0.16, hs * 0.7, {
-    p: [0, hy + hs * 0.7, -hs * 0.75], r: [-2.2, 0, 0], seg: 6 });
+  // cowl drapes falling outward toward the shoulders + rear drape
+  for (const sx of [-1, 1]) {
+    A.blade('head', 'primary', hs * 1.9, hs * 0.6, 0.045 * s, {
+      p: [sx * hs * 0.85, hy - hs * 0.35, -hs * 0.12],
+      r: [Math.PI + 0.06, 0, -sx * 0.42], taper: 0.35 });
+    A.blade('head', 'accent', hs * 1.3, hs * 0.42, 0.035 * s, {
+      p: [sx * hs * 0.68, hy - hs * 0.1, hs * 0.16],
+      r: [Math.PI + 0.04, 0, -sx * 0.3], taper: 0.4 });
+  }
+  A.blade('head', 'primary', hs * 1.7, hs * 0.7, 0.045 * s, {
+    p: [0, hy - hs * 0.25, -hs * 0.72], r: [Math.PI + 0.22, 0, 0], taper: 0.35 });
 
-  // ================= ARMS: wiry, matte =================
+  // ================= ARMS: skeletal actuators, claw fingers =================
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     const sh = 'shoulder' + side, el = 'elbow' + side, ha = 'hand' + side;
 
-    A.ball(sh, 'frame', 0.18 * s, {});
-    // low-profile shoulder cap (no bulky pauldron — a sniper's slip-frame)
+    A.ball(sh, 'frame', 0.16 * s, {});
+    // slim shoulder cap tucked under the cloak yoke
     A.lathe(sh, 'primary', [
-      [-0.12 * s, 0.26 * s],
-      [0.08 * s, 0.22 * s],
-      [0.26 * s, 0.05 * s],
-    ], { p: [sx * 0.06 * s, 0.05 * s, 0], scaleZ: 0.85, seg: 16 });
-    A.plate(sh, 'accent', rhombOutline(0.3 * s, 0.24 * s, { cut: 0.3 }), 0.04 * s, {
-      p: [sx * 0.24 * s, 0.04 * s, 0], r: [0, sx * Math.PI / 2, 0], round: 0.15 });
-    // wiry upper arm
-    A.lathe(sh, 'frame', [
-      [-ua * 0.98, 0.1 * s],
-      [-ua * 0.52, 0.145 * s],
-      [-ua * 0.1, 0.12 * s],
-    ], { seg: 12 });
-    A.part(el, 'metal', cyl(0.105 * s, 0.105 * s, 0.24 * s, 10), { r: [0, 0, Math.PI / 2] });
-    // slim forearm housing + red seam
-    A.facet(el, 'primary', 0.13 * s, 0.18 * s, 0.14 * s, fa * 0.92, {
-      sides: 6, scaleZ: 1.12, p: [0, -fa * 0.5, 0] });
-    A.sharpBox(el, 'glowSoft', [0.02 * s, fa * 0.4, 0.02 * s], {
-      p: [sx * 0.16 * s, -fa * 0.5, 0.04 * s] });
-    A.piston(el, 'brass', [sx * -0.08 * s, -0.06 * s, -0.11 * s],
-      [sx * -0.1 * s, -fa * 0.55, -0.15 * s], 0.026 * s);
-    // slender hand
-    A.facet(ha, 'frame', 0.1 * s, 0.13 * s, 0.09 * s, 0.28 * s, { sides: 6, p: [0, -0.07 * s, 0] });
+      [-0.1 * s, 0.23 * s],
+      [0.08 * s, 0.2 * s],
+      [0.24 * s, 0.05 * s],
+    ], { p: [sx * 0.05 * s, 0.05 * s, 0], scaleZ: 0.85, seg: 14 });
+    // upper arm: bone core + exposed actuator tubes
+    A.tube(sh, 'frame', 0.075 * s, 0.09 * s, ua * 0.92, { p: [0, -ua * 0.5, 0] });
+    A.tube(sh, 'metal', 0.032 * s, 0.032 * s, ua * 0.74, { p: [sx * 0.02 * s, -ua * 0.48, 0.1 * s], seg: 8 });
+    A.tube(sh, 'dark', 0.028 * s, 0.028 * s, ua * 0.7, { p: [sx * 0.09 * s, -ua * 0.46, -0.06 * s], seg: 8 });
+    A.plate(sh, 'primary', rhombOutline(0.2 * s, ua * 0.5, { cut: 0.3 }), 0.035 * s, {
+      p: [sx * 0.13 * s, -ua * 0.45, 0.02 * s], r: [0, sx * Math.PI / 2, 0], round: 0.15 });
+    A.part(el, 'metal', cyl(0.095 * s, 0.095 * s, 0.22 * s, 10), { r: [0, 0, Math.PI / 2] });
+    // forearm: slim housing, actuator tube, one faint seam
+    A.facet(el, 'primary', 0.11 * s, 0.155 * s, 0.12 * s, fa * 0.9, {
+      sides: 6, scaleZ: 1.1, p: [0, -fa * 0.5, 0] });
+    A.tube(el, 'metal', 0.03 * s, 0.03 * s, fa * 0.62, { p: [sx * 0.1 * s, -fa * 0.45, 0.08 * s], seg: 8 });
+    A.sharpBox(el, 'glowSoft', [0.018 * s, fa * 0.36, 0.018 * s], {
+      p: [sx * 0.14 * s, -fa * 0.5, 0.03 * s] });
+    A.piston(el, 'brass', [sx * -0.07 * s, -0.06 * s, -0.1 * s],
+      [sx * -0.09 * s, -fa * 0.55, -0.13 * s], 0.024 * s);
+    // slender hand + long articulated claw fingers (two segments each)
+    A.facet(ha, 'frame', 0.09 * s, 0.12 * s, 0.08 * s, 0.24 * s, { sides: 6, p: [0, -0.06 * s, 0] });
     for (let i = -1; i <= 1; i++) {
-      A.spike(ha, 'dark', 0.028 * s, 0.18 * s, {
-        p: [i * 0.07 * s, -0.22 * s, 0.04 * s], r: [Math.PI - 0.2, 0, i * 0.08], seg: 5 });
+      A.sharpBox(ha, 'dark', [0.032 * s, 0.17 * s, 0.038 * s], {
+        p: [i * 0.06 * s, -0.24 * s, 0.05 * s], r: [-0.5, 0, i * 0.08] });
+      A.spike(ha, 'metal', 0.024 * s, 0.24 * s, {
+        p: [i * 0.06 * s, -0.4 * s, 0.1 * s], r: [Math.PI - 0.12, 0, i * 0.08], seg: 5 });
     }
+    A.sharpBox(ha, 'dark', [0.03 * s, 0.13 * s, 0.036 * s], {
+      p: [sx * 0.1 * s, -0.16 * s, 0.02 * s], r: [-0.3, 0, sx * 0.6] });
+    A.spike(ha, 'metal', 0.022 * s, 0.18 * s, {
+      p: [sx * 0.14 * s, -0.27 * s, 0.05 * s], r: [Math.PI - 0.1, 0, sx * 0.55], seg: 5 });
   }
 
-  // ================= RAILGUN: twin-rail anti-materiel =================
-  addJoint(J, 'rifle', 'handR', 0, -0.18 * s, 0.15 * s);
-  // shoulder stock: beveled end plate + slim frame spar
-  A.plate('rifle', 'primary', rhombOutline(0.3 * s, 0.44 * s, { cut: 0.3 }), 0.07 * s, {
-    p: [0, -0.02 * s, -0.66 * s], round: 0.15 });
-  A.facet('rifle', 'frame', 0.07 * s, 0.1 * s, 0.08 * s, 0.6 * s, {
-    sides: 6, scaleZ: 1.5, p: [0, -0.02 * s, -0.36 * s], r: [Math.PI / 2, 0, 0] });
-  // receiver: elongated octagonal housing (taller than wide)
-  A.facet('rifle', 'primary', 0.14 * s, 0.185 * s, 0.15 * s, 1.5 * s, {
-    sides: 8, scaleX: 0.78, scaleZ: 1.3, p: [0, 0.02 * s, 0.55 * s], r: [Math.PI / 2, 0, 0] });
-  // charge cell + grip under the receiver
-  A.facet('rifle', 'dark', 0.07 * s, 0.1 * s, 0.08 * s, 0.3 * s, {
-    sides: 6, p: [0, -0.24 * s, 0.5 * s] });
-  A.ring('rifle', 'glowSoft', 0.075 * s, 0.018 * s, {
-    p: [0, -0.32 * s, 0.5 * s], r: [Math.PI / 2, 0, 0] });
-  A.taper('rifle', 'dark', [0.08 * s, 0.26 * s, 0.12 * s], 0.7, 0.8, {
-    p: [0, -0.18 * s, -0.02 * s], r: [0.45, 0, 0] });
-  // receiver decal — scrapped-unit stencil
+  // ================= RAIL RIFLE: carried vertically, full height =================
+  // Long axis along local Y: muzzle DOWN at rest (alongside the shin),
+  // swings level when the aim clip pitches the arm forward.
+  addJoint(J, 'rifle', 'handR', 0.2 * s, -0.05 * s, 0.16 * s);
+  // grip wedge bridging to the hand
+  A.taper('rifle', 'dark', [0.08 * s, 0.24 * s, 0.11 * s], 0.7, 0.8, {
+    p: [-0.06 * s, 0.02 * s, -0.12 * s], r: [0.4, 0, -0.25] });
+  // tall receiver block
+  A.facet('rifle', 'primary', 0.13 * s, 0.17 * s, 0.13 * s, 1.9 * s, {
+    sides: 8, scaleX: 0.75, scaleZ: 1.25, p: [0, 1.5 * s, 0] });
+  // receiver charge-seam glow strip (front face at rest, underside when aimed)
+  A.sharpBox('rifle', 'glowSoft', [0.02 * s, 1.3 * s, 0.02 * s], { p: [0, 1.45 * s, 0.19 * s] });
+  // stock: spar + butt pad capping the top
+  A.facet('rifle', 'frame', 0.06 * s, 0.09 * s, 0.07 * s, 0.55 * s, {
+    sides: 6, scaleZ: 1.4, p: [0, 2.72 * s, -0.04 * s] });
+  A.plate('rifle', 'primary', rhombOutline(0.26 * s, 0.5 * s, { cut: 0.3 }), 0.07 * s, {
+    p: [0, 3.16 * s, -0.04 * s], r: [Math.PI / 2, 0, 0], round: 0.15 });
+  // scrapped-unit stencil on the receiver flank
   A.custom('rifle', plateMat({ text: 'WR-110', textY: 0.55, textScale: 0.22, color: '#8a9099', alpha: 0.55 }),
-    beveledPlate(rhombOutline(0.9 * s, 0.22 * s, { cut: 0.25 }), 0.03 * s, { round: 0.15 }), {
-      p: [0.17 * s, 0.05 * s, 0.55 * s], r: [0, Math.PI / 2, 0] });
-  // scope: long tube, red rear lens
-  A.tube('rifle', 'frame', 0.065 * s, 0.065 * s, 0.68 * s, {
-    p: [0, 0.32 * s, 0.45 * s], r: [Math.PI / 2, 0, 0] });
-  A.ring('rifle', 'dark', 0.068 * s, 0.02 * s, { p: [0, 0.32 * s, 0.78 * s] });
-  A.ring('rifle', 'dark', 0.068 * s, 0.02 * s, { p: [0, 0.32 * s, 0.14 * s] });
-  A.ball('rifle', 'glow', 0.042 * s, { p: [0, 0.32 * s, 0.1 * s], seg: 8 });
-  A.sharpBox('rifle', 'dark', [0.035 * s, 0.12 * s, 0.07 * s], { p: [0, 0.22 * s, 0.3 * s] });
-  A.sharpBox('rifle', 'dark', [0.035 * s, 0.12 * s, 0.07 * s], { p: [0, 0.22 * s, 0.66 * s] });
+    beveledPlate(rhombOutline(1.1 * s, 0.2 * s, { cut: 0.25 }), 0.03 * s, { round: 0.15 }), {
+      p: [0.14 * s, 1.6 * s, 0], r: [0, Math.PI / 2, Math.PI / 2] });
+  // charge cell + glow ring behind the grip
+  A.facet('rifle', 'dark', 0.06 * s, 0.09 * s, 0.07 * s, 0.3 * s, {
+    sides: 6, p: [0, 0.42 * s, -0.2 * s], r: [Math.PI / 2, 0, 0] });
+  A.ring('rifle', 'glowSoft', 0.065 * s, 0.016 * s, { p: [0, 0.42 * s, -0.34 * s] });
+  // scope riding the +Z face (top face when aimed)
+  A.tube('rifle', 'frame', 0.058 * s, 0.058 * s, 0.85 * s, { p: [0, 1.72 * s, 0.3 * s] });
+  A.ring('rifle', 'dark', 0.062 * s, 0.018 * s, { p: [0, 2.12 * s, 0.3 * s], r: [Math.PI / 2, 0, 0] });
+  A.ring('rifle', 'dark', 0.062 * s, 0.018 * s, { p: [0, 1.34 * s, 0.3 * s], r: [Math.PI / 2, 0, 0] });
+  A.ball('rifle', 'glow', 0.038 * s, { p: [0, 2.16 * s, 0.3 * s], seg: 8 });
+  A.sharpBox('rifle', 'dark', [0.032 * s, 0.1 * s, 0.06 * s], { p: [0, 1.5 * s, 0.22 * s] });
+  A.sharpBox('rifle', 'dark', [0.032 * s, 0.1 * s, 0.06 * s], { p: [0, 2.0 * s, 0.22 * s] });
   // barrel shroud where the rails leave the receiver
-  A.tube('rifle', 'frame', 0.085 * s, 0.105 * s, 0.5 * s, {
-    p: [0, 0.05 * s, 1.4 * s], r: [Math.PI / 2, 0, 0] });
-  // twin rails + red charge seam between them
+  A.tube('rifle', 'frame', 0.095 * s, 0.075 * s, 0.66 * s, { p: [0, 0.24 * s, 0] });
+  // triple rails + red charge seam
   for (const rx of [-1, 1]) {
-    A.tube('rifle', 'dark', 0.042 * s, 0.042 * s, 2.5 * s, {
-      p: [rx * 0.055 * s, 0.05 * s, 2.35 * s], r: [Math.PI / 2, 0, 0], seg: 8 });
+    A.tube('rifle', 'dark', 0.038 * s, 0.038 * s, 2.1 * s, {
+      p: [rx * 0.052 * s, -0.95 * s, 0], seg: 8 });
   }
-  A.sharpBox('rifle', 'glow', [0.024 * s, 0.024 * s, 2.4 * s], { p: [0, 0.05 * s, 2.3 * s] });
+  A.tube('rifle', 'dark', 0.032 * s, 0.032 * s, 2.0 * s, { p: [0, -0.9 * s, -0.07 * s], seg: 8 });
+  A.sharpBox('rifle', 'glowSoft', [0.02 * s, 2.0 * s, 0.02 * s], { p: [0, -0.9 * s, 0.042 * s] });
   // rail spacer rings
-  for (const rz of [1.75, 2.35, 2.95]) {
-    A.ring('rifle', 'dark', 0.075 * s, 0.02 * s, { p: [0, 0.05 * s, rz * s] });
+  for (const ry of [-0.55, -1.15, -1.7]) {
+    A.ring('rifle', 'dark', 0.072 * s, 0.02 * s, { p: [0, ry * s, -0.01 * s], r: [Math.PI / 2, 0, 0] });
   }
-  // muzzle brake + glow choke
-  A.facet('rifle', 'dark', 0.05 * s, 0.085 * s, 0.04 * s, 0.42 * s, {
-    sides: 6, p: [0, 0.05 * s, 3.72 * s], r: [Math.PI / 2, 0, 0] });
-  A.ring('rifle', 'glow', 0.07 * s, 0.016 * s, { p: [0, 0.05 * s, 3.58 * s] });
-  // folded bipod blades under the shroud
-  for (const rx of [-1, 1]) {
-    A.blade('rifle', 'dark', 0.5 * s, 0.05 * s, 0.02 * s, {
-      p: [rx * 0.05 * s, -0.1 * s, 1.55 * s], r: [Math.PI / 2 - 0.25, 0, rx * 0.18], taper: 0.3 });
-  }
+  // muzzle brake + glow choke at the very tip
+  A.facet('rifle', 'dark', 0.036 * s, 0.08 * s, 0.048 * s, 0.32 * s, {
+    sides: 6, p: [0, -2.1 * s, -0.01 * s] });
+  A.ring('rifle', 'glow', 0.062 * s, 0.014 * s, { p: [0, -2.02 * s, -0.01 * s], r: [Math.PI / 2, 0, 0] });
 
-  // ================= LEGS: gaunt digitigrade =================
+  // ================= LEGS: blade-thin digitigrade =================
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     const th = 'thigh' + side, kn = 'knee' + side, an = 'ankle' + side;
     const tl = D.thighLen, sl = D.shinLen;
 
-    A.ball(th, 'frame', 0.18 * s, {});
-    // lean thigh bulge (rest pose angles it forward)
+    A.ball(th, 'frame', 0.17 * s, {});
+    // lean thigh (rest pose angles it forward)
     A.lathe(th, 'primary', [
-      [-tl * 1.0, 0.13 * s],
-      [-tl * 0.6, 0.21 * s],
-      [-tl * 0.15, 0.17 * s],
+      [-tl * 1.0, 0.12 * s],
+      [-tl * 0.6, 0.2 * s],
+      [-tl * 0.15, 0.16 * s],
     ], { scaleZ: 1.25, seg: 16, p: [0, 0, 0.03 * s] });
-    A.plate(th, 'accent', rhombOutline(0.26 * s, tl * 0.52, { cut: 0.3 }), 0.045 * s, {
-      p: [sx * 0.2 * s, -tl * 0.45, 0.03 * s], r: [0, sx * Math.PI / 2, 0], round: 0.15 });
-    A.piston(th, 'brass', [0, -tl * 0.18, -0.14 * s], [0, -tl * 0.85, -0.17 * s], 0.028 * s);
+    A.plate(th, 'accent', rhombOutline(0.24 * s, tl * 0.5, { cut: 0.3 }), 0.04 * s, {
+      p: [sx * 0.19 * s, -tl * 0.45, 0.03 * s], r: [0, sx * Math.PI / 2, 0], round: 0.15 });
+    A.piston(th, 'brass', [0, -tl * 0.18, -0.13 * s], [0, -tl * 0.85, -0.16 * s], 0.026 * s);
 
-    A.ball(kn, 'metal', 0.115 * s, {});
-    A.plate(kn, 'accent', shieldOutline(0.22 * s, 0.32 * s, { taper: 0.6 }), 0.05 * s, {
-      p: [0, -0.03 * s, 0.14 * s], r: [0.2, 0, 0], round: 0.15 });
-    // wiry calf + red stabilizer seam
+    // exposed knee actuators
+    A.ball(kn, 'metal', 0.11 * s, {});
+    A.piston(kn, 'metal', [sx * 0.07 * s, 0.06 * s, 0.1 * s], [sx * 0.055 * s, -sl * 0.32, 0.12 * s], 0.02 * s);
+    A.plate(kn, 'accent', shieldOutline(0.2 * s, 0.3 * s, { taper: 0.6 }), 0.045 * s, {
+      p: [0, -0.03 * s, 0.13 * s], r: [0.2, 0, 0], round: 0.15 });
+    // blade-like shin: wiry calf + front and rear blade edges
     A.lathe(kn, 'primary', [
-      [-sl * 1.0, 0.08 * s],
-      [-sl * 0.68, 0.135 * s],
-      [-sl * 0.34, 0.16 * s],
-      [-sl * 0.06, 0.11 * s],
+      [-sl * 1.0, 0.075 * s],
+      [-sl * 0.68, 0.125 * s],
+      [-sl * 0.34, 0.15 * s],
+      [-sl * 0.06, 0.1 * s],
     ], { scaleZ: 1.2, seg: 14 });
-    A.sharpBox(kn, 'glowSoft', [0.02 * s, sl * 0.42, 0.02 * s], {
-      p: [sx * 0.13 * s, -sl * 0.55, 0.03 * s] });
-    A.blade(kn, 'dark', 0.6 * s, 0.14 * s, 0.03 * s, {
-      p: [0, -sl * 0.48, -0.15 * s], r: [Math.PI - 0.3, 0, 0], taper: 0.15 });
+    A.blade(kn, 'primary', sl * 0.78, 0.1 * s, 0.028 * s, {
+      p: [0, -sl * 0.52, 0.155 * s], r: [0.06, 0, 0], taper: 0.2 });
+    A.blade(kn, 'dark', 0.58 * s, 0.13 * s, 0.03 * s, {
+      p: [0, -sl * 0.48, -0.14 * s], r: [Math.PI - 0.3, 0, 0], taper: 0.15 });
 
-    // gaunt clawed foot
-    A.ball(an, 'frame', 0.11 * s, {});
-    A.taper(an, 'frame', [0.22 * s, 0.24 * s, 0.4 * s], 0.7, 0.5, { p: [0, -0.2 * s, 0.07 * s] });
-    for (let i = -1; i <= 1; i++) {
-      A.spike(an, 'dark', 0.05 * s, 0.48 * s, {
-        p: [i * 0.09 * s, -0.2 * s, 0.28 * s], r: [2.0, 0, i * 0.24], seg: 6 });
+    // spiked two-claw toes + rear spur, sole grounded
+    A.ball(an, 'frame', 0.105 * s, {});
+    A.taper(an, 'frame', [0.2 * s, 0.24 * s, 0.36 * s], 0.65, 0.5, { p: [0, -0.2 * s, 0.06 * s] });
+    for (const tx of [-1, 1]) {
+      A.spike(an, 'dark', 0.052 * s, 0.5 * s, {
+        p: [tx * 0.085 * s, -0.2 * s, 0.27 * s], r: [2.0, 0, tx * 0.2], seg: 6 });
     }
-    A.spike(an, 'dark', 0.04 * s, 0.3 * s, {
-      p: [0, -0.16 * s, -0.15 * s], r: [-2.1, 0, 0], seg: 6 });
+    A.spike(an, 'dark', 0.042 * s, 0.32 * s, {
+      p: [0, -0.16 * s, -0.14 * s], r: [-2.1, 0, 0], seg: 6 });
   }
 
-  anchors.muzzleR = addAnchor(J.rifle, 0, 0.05 * s, 3.9 * s);
-  anchors.scope = addAnchor(J.rifle, 0, 0.32 * s, 0.45 * s);
+  anchors.muzzleR = addAnchor(J.rifle, 0, -2.28 * s, -0.01 * s);
+  anchors.scope = addAnchor(J.rifle, 0, 1.72 * s, 0.3 * s);
+  // core sits deep in the chest so the red light rims the cloak instead of
+  // blowing out the sternum gap
+  anchors.core = addAnchor(J.torso, 0, chH * 0.5, -W * 0.1);
 }

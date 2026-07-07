@@ -135,13 +135,13 @@ export function viper(A, D, J, anchors, def) {
     p: [0, hy + hs * 0.06, hs * 0.2], r: [Math.PI, 0, 0] });
   // green V-visor: two angled strips meeting forward in a low point
   for (const sx of [-1, 1]) {
-    A.sharpBox('head', 'glow', [hs * 0.66, hs * 0.13, 0.05 * s], {
-      p: [sx * hs * 0.25, hy + hs * 0.58, hs * 0.72], r: [0.05, sx * 0.55, sx * 0.2] });
+    A.sharpBox('head', 'glow', [hs * 0.68, hs * 0.14, 0.055 * s], {
+      p: [sx * hs * 0.26, hy + hs * 0.58, hs * 1.06], r: [0.05, sx * 0.5, sx * 0.2] });
   }
   // angled brow plates hooding the visor
   for (const sx of [-1, 1]) {
     A.plate('head', 'frame', rhombOutline(hs * 0.95, hs * 0.4, { cut: 0.35 }), hs * 0.22, {
-      p: [sx * hs * 0.28, hy + hs * 1.0, hs * 0.55], r: [-0.42, sx * 0.3, sx * 0.14], round: 0.15 });
+      p: [sx * hs * 0.28, hy + hs * 1.02, hs * 0.92], r: [-0.42, sx * 0.3, sx * 0.14], round: 0.15 });
   }
   // chin fangs
   for (const sx of [-1, 1]) {
@@ -158,10 +158,10 @@ export function viper(A, D, J, anchors, def) {
     return [e.x, e.y, e.z];
   };
   for (const sx of [-1, 1]) {
-    A.blade('head', 'primary', hs * 2.7, hs * 0.55, 0.055 * s, {
-      p: [sx * hs * 0.36, hy + hs * 1.9, -hs * 0.2], r: hornRot(sx, -0.3, 0.1), taper: 0.02 });
-    A.blade('head', 'accent', hs * 1.9, hs * 0.26, 0.065 * s, {
-      p: [sx * hs * 0.36, hy + hs * 1.5, -hs * 0.04], r: hornRot(sx, -0.3, 0.1), taper: 0.05 });
+    A.blade('head', 'primary', hs * 2.7, hs * 0.6, 0.085 * s, {
+      p: [sx * hs * 0.36, hy + hs * 1.9, -hs * 0.2], r: hornRot(sx, -0.3, 0.12), taper: 0.02 });
+    A.blade('head', 'accent', hs * 1.9, hs * 0.28, 0.1 * s, {
+      p: [sx * hs * 0.36, hy + hs * 1.5, -hs * 0.04], r: hornRot(sx, -0.3, 0.12), taper: 0.05 });
   }
   // two shorter side spikes, flared out
   for (const sx of [-1, 1]) {

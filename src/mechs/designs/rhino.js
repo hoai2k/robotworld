@@ -63,27 +63,29 @@ export function rhino(A, D, J, anchors, def) {
   A.sharpBox('hips', 'dark', [W * 0.32, 0.32 * s, W * 0.2], { p: [0, -0.55 * s, -W * 0.24] });
 
   // ================= TORSO: hunched barrel chest, sloped plates ============
+  // head slung low & forward out of the hunch (anchors follow the joint)
+  J.head.position.set(0, chH * 0.8, 0.6 * s);
   A.lathe('torso', 'primary', [
     [chH * 0.06, W * 0.3],
-    [chH * 0.34, W * 0.52],
-    [chH * 0.62, W * 0.6],
-    [chH * 0.9, W * 0.52],
-    [chH * 1.08, W * 0.26],
-  ], { p: [0, 0, 0.04 * s], r: [lean, 0, 0], scaleX: 1.38, scaleZ: 0.8, seg: 28 });
+    [chH * 0.3, W * 0.53],
+    [chH * 0.55, W * 0.6],
+    [chH * 0.8, W * 0.48],
+    [chH * 0.96, W * 0.2],
+  ], { p: [0, 0, 0.04 * s], r: [lean, 0, 0], scaleX: 1.3, scaleZ: 0.8, seg: 28 });
   // broad sloped upper-chest plates + rivets + intake slits
   for (const sx of [-1, 1]) {
     A.plate('torso', 'primary', rhombOutline(W * 0.56, chH * 0.36, { cut: 0.3 }), 0.09 * s, {
-      p: [sx * W * 0.3, chH * 0.76, W * 0.47], r: [lean + 0.3, sx * 0.32, -sx * 0.1], round: 0.1 });
+      p: [sx * W * 0.3, chH * 0.68, W * 0.44], r: [lean + 0.34, sx * 0.32, -sx * 0.1], round: 0.1 });
     studs('torso', [
-      [sx * W * 0.16, chH * 0.68, W * 0.55],
-      [sx * W * 0.32, chH * 0.64, W * 0.53],
-      [sx * W * 0.46, chH * 0.6, W * 0.48],
+      [sx * W * 0.16, chH * 0.62, W * 0.52],
+      [sx * W * 0.32, chH * 0.58, W * 0.5],
+      [sx * W * 0.46, chH * 0.54, W * 0.45],
     ]);
     A.vents('torso', 'dark', 3, W * 0.24, 0.09 * s, 0.05 * s, {
-      p: [sx * W * 0.38, chH * 0.52, W * 0.56], r: [lean, 0, 0] });
+      p: [sx * W * 0.38, chH * 0.5, W * 0.54], r: [lean, 0, 0] });
     // oxide-red flank panel
     A.plate('torso', 'accent', rhombOutline(W * 0.3, chH * 0.4, { cut: 0.3 }), 0.07 * s, {
-      p: [sx * W * 0.56, chH * 0.55, W * 0.14], r: [0, sx * 1.1, 0], round: 0.12 });
+      p: [sx * W * 0.54, chH * 0.5, W * 0.14], r: [0, sx * 1.1, 0], round: 0.12 });
   }
   // pentagon housing with the red-lit sigil: frame housing, glow backer,
   // dark emblem-decal plate riding proud of it
@@ -106,7 +108,7 @@ export function rhino(A, D, J, anchors, def) {
       p: [sx * W * 0.34, chH * 0.42, W * 0.53], r: [lean, 0, sx * 0.12] });
   }
   // collar guard behind the low head
-  A.tube('torso', 'frame', W * 0.26, W * 0.3, 0.26 * s, { p: [0, chH * 0.98, 0.14 * s], r: [lean, 0, 0] });
+  A.tube('torso', 'frame', W * 0.26, W * 0.3, 0.26 * s, { p: [0, chH * 0.82, 0.4 * s], r: [lean + 0.15, 0, 0] });
   for (const sx of [-1, 1]) {
     A.piston('torso', 'brass', [sx * W * 0.18, chH * 0.02, W * 0.14],
       [sx * W * 0.38, chH * 0.3, W * 0.32], 0.05 * s);
@@ -120,7 +122,10 @@ export function rhino(A, D, J, anchors, def) {
   // ================= THE DOME: spiked carapace behind/above the head =======
   const dR = W * 0.6, dH = 0.82 * s;
   const dXs = 1.12, dZs = 0.72;
-  const dY = chH * 1.02, dZC = -W * 0.46;
+  const dY = chH * 0.92, dZC = -W * 0.46;
+  // dark support drum bridging the back down into the chest
+  A.facet('torso', 'frame', W * 0.42, W * 0.46, W * 0.4, 0.7 * s, {
+    sides: 8, scaleZ: 0.7, p: [0, chH * 0.72, dZC + 0.12 * s] });
   A.lathe('torso', 'primary', [
     [0, dR * 0.99],
     [dH * 0.3, dR * 0.9],
@@ -159,39 +164,40 @@ export function rhino(A, D, J, anchors, def) {
   anchors.muzzleR = addAnchor(J.torso, px, py, pz + 0.9 * s);
 
   // ================= HEAD: rhino face slung low between the shoulders ======
-  const hy = hs * 0.28, zf = hs * 1.35;
-  A.tube('head', 'frame', hs * 0.45, hs * 0.55, hs * 0.9, {
-    p: [0, hy - hs * 0.1, zf - hs * 0.85], r: [0.5, 0, 0] });
+  const hh = hs * 1.28; // rhino face reads big — scale the whole head up
+  const hy = hh * 0.24, zf = hh * 1.3;
+  A.tube('head', 'frame', hh * 0.45, hh * 0.55, hh * 0.9, {
+    p: [0, hy - hh * 0.1, zf - hh * 0.85], r: [0.5, 0, 0] });
   // broad skull dome
   A.lathe('head', 'primary', [
-    [-hs * 0.5, hs * 0.85],
-    [hs * 0.05, hs * 0.98],
-    [hs * 0.55, hs * 0.68],
-    [hs * 0.75, hs * 0.2],
-  ], { p: [0, hy + hs * 0.35, zf + hs * 0.05], scaleX: 1.35, scaleZ: 1.25, seg: 20 });
+    [-hh * 0.5, hh * 0.85],
+    [hh * 0.05, hh * 0.98],
+    [hh * 0.55, hh * 0.68],
+    [hh * 0.75, hh * 0.2],
+  ], { p: [0, hy + hh * 0.35, zf + hh * 0.05], scaleX: 1.35, scaleZ: 1.25, seg: 20 });
   // broad armored faceplate
-  A.plate('head', 'primary', shieldOutline(hs * 2.15, hs * 1.5, { taper: 0.58, tip: 0.32 }), hs * 0.3, {
-    p: [0, hy + hs * 0.3, zf + hs * 0.72], r: [-0.12, 0, 0], round: 0.12 });
+  A.plate('head', 'primary', shieldOutline(hh * 2.15, hh * 1.5, { taper: 0.58, tip: 0.32 }), hh * 0.3, {
+    p: [0, hy + hh * 0.3, zf + hh * 0.72], r: [-0.12, 0, 0], round: 0.12 });
   studs('head', [
-    [-hs * 0.85, hy + hs * 0.85, zf + hs * 0.78], [hs * 0.85, hy + hs * 0.85, zf + hs * 0.78],
+    [-hh * 0.85, hy + hh * 0.85, zf + hh * 0.78], [hh * 0.85, hy + hh * 0.85, zf + hh * 0.78],
   ], 0.04 * s);
   // chamfered snout pushed forward, slightly drooped
-  A.facet('head', 'primary', hs * 0.6, hs * 0.72, hs * 0.48, hs * 1.25, {
-    sides: 8, scaleX: 1.3, p: [0, hy + hs * 0.02, zf + hs * 1.0], r: [Math.PI / 2 + 0.14, 0, 0] });
+  A.facet('head', 'primary', hh * 0.6, hh * 0.72, hh * 0.48, hh * 1.25, {
+    sides: 8, scaleX: 1.3, p: [0, hy + hh * 0.02, zf + hh * 1.0], r: [Math.PI / 2 + 0.14, 0, 0] });
   // vertical grill jaw / muzzle guard
-  A.vents('head', 'dark', 5, hs * 1.05, hs * 0.44, 0.05 * s, {
-    p: [0, hy - hs * 0.3, zf + hs * 1.18], r: [0.12, 0, 0] });
-  A.plate('head', 'accent', shieldOutline(hs * 1.45, hs * 0.75, { taper: 0.7 }), hs * 0.26, {
-    p: [0, hy - hs * 0.32, zf + hs * 0.72], r: [0.5, 0, 0], round: 0.18 });
+  A.vents('head', 'dark', 5, hh * 1.05, hh * 0.46, 0.06 * s, {
+    p: [0, hy - hh * 0.34, zf + hh * 1.6], r: [0.14, 0, 0] });
+  A.plate('head', 'accent', shieldOutline(hh * 1.45, hh * 0.75, { taper: 0.7 }), hh * 0.26, {
+    p: [0, hy - hh * 0.32, zf + hh * 0.72], r: [0.5, 0, 0], round: 0.18 });
   // heavy brow plate + small furious red eyes deep beneath it
-  A.plate('head', 'frame', rhombOutline(hs * 2.0, hs * 0.6, { cut: 0.3 }), hs * 0.5, {
-    p: [0, hy + hs * 0.75, zf + hs * 0.52], r: [-0.38, 0, 0], round: 0.2 });
+  A.plate('head', 'frame', rhombOutline(hh * 2.0, hh * 0.6, { cut: 0.3 }), hh * 0.5, {
+    p: [0, hy + hh * 0.75, zf + hh * 0.52], r: [-0.38, 0, 0], round: 0.2 });
   for (const sx of [-1, 1]) {
-    A.ball('head', 'glow', hs * 0.11, { p: [sx * hs * 0.48, hy + hs * 0.42, zf + hs * 0.98], seg: 8 });
+    A.ball('head', 'glow', hh * 0.13, { p: [sx * hh * 0.46, hy + hh * 0.46, zf + hh * 1.16], seg: 8 });
   }
   // THE HORN — giant chrome, two stacked cones curving upward off the snout
   const hornA = Math.PI / 2.9;
-  const hbY = hy + hs * 0.42, hbZ = zf + hs * 1.4;
+  const hbY = hy + hh * 0.42, hbZ = zf + hh * 1.4;
   const hLen = 1.65 * s;
   const dY2 = Math.cos(hornA), dZ2 = Math.sin(hornA);
   A.spike('head', 'metal', 0.21 * s, hLen, {
@@ -206,11 +212,11 @@ export function rhino(A, D, J, anchors, def) {
   // two smaller side horns angled outward
   for (const sx of [-1, 1]) {
     A.spike('head', 'metal', 0.07 * s, 0.55 * s, {
-      p: [sx * hs * 0.68, hy + hs * 0.28, zf + hs * 1.05], r: [0.9, 0, -sx * 0.7], seg: 10 });
+      p: [sx * hh * 0.68, hy + hh * 0.28, zf + hh * 1.05], r: [0.9, 0, -sx * 0.7], seg: 10 });
   }
   // stub horn on the forehead
   A.spike('head', 'metal', 0.09 * s, 0.5 * s, {
-    p: [0, hy + hs * 0.88, zf + hs * 0.45], r: [Math.PI / 3.4, 0, 0], seg: 10 });
+    p: [0, hy + hh * 0.88, zf + hh * 0.45], r: [Math.PI / 3.4, 0, 0], seg: 10 });
   anchors.horn = addAnchor(J.head, 0, tY + Math.cos(tipA) * tLen * 0.85, tZ + Math.sin(tipA) * tLen * 0.85);
 
   // ================= ARMS: huge, spiked =================
