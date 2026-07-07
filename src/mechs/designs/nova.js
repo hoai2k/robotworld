@@ -8,11 +8,12 @@ import { addJoint } from './common.js';
 
 
 // ============================================================
-// 5. NOVA — sculpted star-oracle rebuild. Slender feminine mass
-//    rhythm: small pauldrons over a smooth lathe chest with a big
-//    magenta core in a gold ring, pinched waist, flowing skirt of
-//    beveled plates all around, serene lathe mask with a vertical
-//    third-eye slit, spinning halo, staff-cannon with orbital prongs.
+// 5. NOVA — star-oracle, matched to the canonical image. White +
+//    deep teal + gold trim, magenta glow: broken-halo of two large
+//    crescent panels orbiting behind the head, featureless egg dome
+//    with a vertical slit and a tall crown spire, radiant magenta
+//    star core in a teal inlay, floor-length robe of alternating
+//    white/teal panels (open at the front), ring-and-star staff.
 // ============================================================
 export function nova(A, D, J, anchors, def) {
   const s = D.scale;
@@ -41,37 +42,64 @@ export function nova(A, D, J, anchors, def) {
     return [e.x, e.y, e.z];
   };
 
-  // ================= WAIST / PELVIS / SKIRT =================
+  // ================= WAIST / PELVIS =================
   // narrow articulated waist column
   A.lathe('hips', 'frame', [[0.62 * s, W * 0.2], [0.34 * s, W * 0.14], [0.0 * s, W * 0.2]], {
     scaleX: 1.1 });
   A.ring('hips', 'brass', W * 0.165, 0.028 * s, {
     p: [0, 0.34 * s, 0], r: [Math.PI / 2, 0, 0], s: [1.1, 1, 1] });
-  // small hex pelvis under the skirt
+  // small hex pelvis — the exposed inner frame seen through the open front
   A.facet('hips', 'primary', W * 0.28, W * 0.34, W * 0.22, 0.55 * s, {
     sides: 6, scaleZ: 0.85, p: [0, -0.32 * s, 0] });
-  // flowing skirt: beveled shield plates all around (front one is the decal)
-  const skirtN = 8;
-  for (let i = 0; i < skirtN; i++) {
-    const a = (i / skirtN) * Math.PI * 2; // 0 = front
-    const tilt = 0.46;
-    const p = [Math.sin(a) * (W * 0.28 + 0.24 * s), -0.68 * s, Math.cos(a) * (W * 0.28 + 0.24 * s)];
-    const r = eul([0, a, 0], [tilt, 0, 0]);
-    if (i === 0) {
-      A.custom('hips', plateMat({ text: 'NOVA', textY: 0.36, textScale: 0.26, color: '#2f9d9d', alpha: 0.85 },
-        def.skin.primary), beveledPlate(shieldOutline(0.7 * s, 1.5 * s, { taper: 0.85, tip: 0.18 }), 0.05 * s, { round: 0.14 }), {
-        p, r });
+  A.tube('hips', 'dark', W * 0.14, W * 0.16, 0.3 * s, { p: [0, -0.68 * s, 0] });
+
+  // ================= FLOOR-LENGTH ROBE SKIRT =================
+  // Outer row: large beveled panels, longer toward the back, alternating
+  // white (gold-hemmed) / deep teal. The front center stays OPEN.
+  const r0 = W * 0.28 + 0.14 * s;
+  const topY = -0.42 * s;
+  const outer = [
+    { a: Math.PI, len: 2.1, mat: 'primary' },
+    { a: 2.531, len: 1.95, mat: 'accent' }, { a: -2.531, len: 1.95, mat: 'accent' },
+    { a: 1.920, len: 1.75, mat: 'primary' }, { a: -1.920, len: 1.75, mat: 'primary' },
+    { a: 1.309, len: 1.5, mat: 'accent' }, { a: -1.309, len: 1.5, mat: 'accent' },
+    { a: 0.698, len: 1.28, mat: 'primary' }, { a: -0.698, len: 1.28, mat: 'primary' },
+  ];
+  for (const { a, len, mat } of outer) {
+    const L = len * s;
+    const tilt = 0.26 + 0.14 * (1 - Math.cos(a)) / 2; // extra flare at the back
+    const cy = topY - Math.cos(tilt) * L / 2;
+    const rad = r0 + Math.sin(tilt) * L / 2;
+    const wid = (Math.abs(a) < 1 ? 0.56 : 0.62) * s;
+    const rot = eul([0, a, 0], [-tilt, 0, 0]);
+    const outline = shieldOutline(wid, L, { taper: 0.85, tip: 0.14 });
+    if (a === 0.698) { // NOVA decal on a front-side panel
+      A.custom('hips', plateMat({ text: 'NOVA', textY: 0.62, textScale: 0.24, color: '#2f7d7b', alpha: 0.88 },
+        def.skin.primary), beveledPlate(outline, 0.05 * s, { round: 0.12 }), {
+        p: [Math.sin(a) * rad, cy, Math.cos(a) * rad], r: rot });
     } else {
-      A.plate('hips', 'primary', shieldOutline(0.7 * s, 1.5 * s, { taper: 0.85, tip: 0.18 }), 0.05 * s, {
-        p, r, round: 0.14 });
+      A.plate('hips', mat, outline, 0.05 * s, {
+        p: [Math.sin(a) * rad, cy, Math.cos(a) * rad], r: rot, round: 0.12 });
+    }
+    if (mat === 'primary') { // gold hem strip low on the white panels
+      const d = L * 0.8;
+      A.plate('hips', 'accent', rhombOutline(wid * 0.66, 0.11 * s, { cut: 0.3 }), 0.03 * s, {
+        p: [Math.sin(a) * (r0 + Math.sin(tilt) * d + 0.045 * s), topY - Math.cos(tilt) * d,
+          Math.cos(a) * (r0 + Math.sin(tilt) * d + 0.045 * s)], r: rot, round: 0.2 });
     }
   }
-  // upper skirt layer: shorter teal petals in the gaps
-  for (let i = 0; i < skirtN; i++) {
-    const a = ((i + 0.5) / skirtN) * Math.PI * 2;
-    A.plate('hips', 'accent', shieldOutline(0.44 * s, 0.8 * s, { taper: 0.78, tip: 0.24 }), 0.04 * s, {
-      p: [Math.sin(a) * (W * 0.28 + 0.15 * s), -0.42 * s, Math.cos(a) * (W * 0.28 + 0.15 * s)],
-      r: eul([0, a, 0], [0.36, 0, 0]), round: 0.16 });
+  // Inner row: shorter petals in the gaps (teal/white alternating)
+  const inner = [0.96, 1.62, 2.27, 2.92];
+  for (let i = 0; i < inner.length; i++) {
+    for (const sgn of [-1, 1]) {
+      const a = sgn * inner[i];
+      const L = (0.85 + 0.25 * (1 - Math.cos(a)) / 2) * s;
+      const tilt = 0.2;
+      A.plate('hips', i % 2 ? 'primary' : 'accent', shieldOutline(0.42 * s, L, { taper: 0.8, tip: 0.2 }), 0.04 * s, {
+        p: [Math.sin(a) * (r0 - 0.06 * s + Math.sin(tilt) * L / 2), topY + 0.06 * s - Math.cos(tilt) * L / 2,
+          Math.cos(a) * (r0 - 0.06 * s + Math.sin(tilt) * L / 2)],
+        r: eul([0, a, 0], [-tilt, 0, 0]), round: 0.16 });
+    }
   }
 
   // ================= TORSO: smooth feminine lathe =================
@@ -85,20 +113,16 @@ export function nova(A, D, J, anchors, def) {
   // gold sash ring at the waist pinch
   A.ring('torso', 'brass', W * 0.24, 0.03 * s, {
     p: [0, chH * 0.12, 0], r: [Math.PI / 2, 0, 0], s: [1.18, 0.84, 1], seg: 24 });
-  // big magenta core in a gold ring + teal petals radiating around it
-  A.ball('torso', 'glow', 0.24 * s, { p: [0, chH * 0.56, W * 0.4], seg: 18 });
-  A.ring('torso', 'brass', 0.31 * s, 0.045 * s, { p: [0, chH * 0.56, W * 0.4], seg: 26 });
-  for (let k = 0; k < 4; k++) {
-    const b = (k / 4) * Math.PI * 2 + Math.PI / 4;
-    A.plate('torso', 'accent', rhombOutline(0.3 * s, 0.13 * s, { cut: 0.32 }), 0.035 * s, {
-      p: [Math.cos(b) * 0.42 * s, chH * 0.56 + Math.sin(b) * 0.42 * s, W * 0.36],
-      r: [0, 0, b], round: 0.2 });
-  }
-  // teal bodice plates over the collarbones
-  for (const sx of [-1, 1]) {
-    A.plate('torso', 'accent', shieldOutline(W * 0.3, chH * 0.22, { taper: 0.72 }), 0.04 * s, {
-      p: [sx * W * 0.26, chH * 0.88, W * 0.26], r: [0.42, 0, sx * -0.3], round: 0.16 });
-  }
+
+  // ---- MAGENTA STAR CORE in a teal chest inlay ----
+  const coreY = chH * 0.58, coreZ = W * 0.38;
+  A.plate('torso', 'accent', shieldOutline(W * 0.44, chH * 0.42, { taper: 0.8 }), 0.05 * s, {
+    p: [0, coreY, coreZ - 0.02 * s], r: [-0.06, 0, 0], round: 0.2 });
+  A.ring('torso', 'brass', 0.29 * s, 0.04 * s, { p: [0, coreY, coreZ + 0.045 * s], seg: 26 });
+  A.ball('torso', 'glow', 0.17 * s, { p: [0, coreY, coreZ + 0.05 * s], seg: 18 });
+  // four thin glow blades radiating in a + shape
+  A.sharpBox('torso', 'glow', [0.042 * s, 0.72 * s, 0.03 * s], { p: [0, coreY, coreZ + 0.045 * s] });
+  A.sharpBox('torso', 'glow', [0.72 * s, 0.042 * s, 0.03 * s], { p: [0, coreY, coreZ + 0.045 * s] });
   // slim collar
   A.tube('torso', 'frame', W * 0.13, W * 0.16, 0.16 * s, { p: [0, chH * 1.02, 0] });
   A.ring('torso', 'brass', W * 0.15, 0.022 * s, {
@@ -107,65 +131,78 @@ export function nova(A, D, J, anchors, def) {
   A.lathe('torso', 'accent', [[-chH * 0.16, W * 0.16], [0, W * 0.22], [chH * 0.2, W * 0.1]], {
     p: [0, chH * 0.82, -D.torsoD * 0.42], scaleZ: 0.7, seg: 16 });
 
-  // ================= HALO (spins on its .z — keep centered) =================
-  addJoint(J, 'halo', 'torso', 0, chH * 1.06, -D.torsoD * 0.82);
-  // inner gold ring
-  A.ring('halo', 'brass', 0.5 * s, 0.032 * s, { seg: 30 });
-  // six glowing arc segments around the joint center
-  for (let i = 0; i < 6; i++) {
-    A.part('halo', 'glowSoft', new THREE.TorusGeometry(0.92 * s, 0.05 * s, 8, 14, Math.PI / 4.4), {
-      r: [0, 0, (i / 6) * Math.PI * 2 + 0.14] });
-  }
-  // star gems + teal spokes riding the ring (make the spin readable)
-  for (let i = 0; i < 3; i++) {
-    const b = (i / 3) * Math.PI * 2 + Math.PI / 2;
-    A.ball('halo', 'glow', 0.07 * s, {
-      p: [Math.cos(b) * 0.92 * s, Math.sin(b) * 0.92 * s, 0], seg: 10 });
-    A.blade('halo', 'accent', 0.42 * s, 0.15 * s, 0.03 * s, {
-      p: [Math.cos(b + Math.PI / 3) * 1.1 * s, Math.sin(b + Math.PI / 3) * 1.1 * s, 0],
-      r: [0, 0, b + Math.PI / 3 - Math.PI / 2], taper: 0.2 });
+  // ================= HALO: two crescent panels (broken halo) =================
+  // Both crescents live ON the halo joint, centered on it — the animator
+  // spins .z constantly, so they orbit the head. Tips point inward-up.
+  addJoint(J, 'halo', 'torso', 0, chH * 1.12, -D.torsoD * 0.75);
+  const hR = 1.12 * s;
+  const arc = 1.7;
+  for (const start of [1.85, -0.42]) { // left and right crescents
+    // white body panel: flattened partial torus
+    A.part('halo', 'primary', new THREE.TorusGeometry(hR, 0.15 * s, 8, 26, arc), {
+      r: [0, 0, start], s: [1, 1, 0.3] });
+    // teal inlay riding the front face
+    A.part('halo', 'accent', new THREE.TorusGeometry(hR, 0.062 * s, 8, 26, arc), {
+      p: [0, 0, 0.045 * s], r: [0, 0, start], s: [1, 1, 0.55] });
+    // gold trim arcs along both edges
+    A.part('halo', 'brass', new THREE.TorusGeometry(hR + 0.16 * s, 0.02 * s, 6, 26, arc), {
+      r: [0, 0, start], s: [1, 1, 0.8] });
+    A.part('halo', 'brass', new THREE.TorusGeometry(hR - 0.16 * s, 0.02 * s, 6, 26, arc), {
+      r: [0, 0, start], s: [1, 1, 0.8] });
+    // gold tip caps + magenta gems at both ends
+    for (const ang of [start, start + arc]) {
+      const tp = [Math.cos(ang) * hR, Math.sin(ang) * hR, 0];
+      A.ball('halo', 'brass', 0.075 * s, { p: tp, seg: 10 });
+      A.ball('halo', 'glowSoft', 0.045 * s, { p: [tp[0], tp[1], 0.06 * s], seg: 8 });
+    }
   }
 
-  // ================= HEAD: serene mask =================
+  // ================= HEAD: featureless egg + crown spire =================
   const hy = hs * 0.95;
   A.tube('head', 'frame', hs * 0.3, hs * 0.36, hs * 0.5, { p: [0, hy * 0.26, 0] });
-  // smooth lathe dome — featureless oracle mask
+  // smooth egg dome — no face
   A.lathe('head', 'primary', [
     [-hs * 0.5, hs * 0.6],
     [hs * 0.05, hs * 0.7],
     [hs * 0.5, hs * 0.55],
     [hs * 0.78, hs * 0.2],
   ], { p: [0, hy + hs * 0.55, 0.02 * s], scaleZ: 1.08, seg: 22 });
-  // vertical glowing third-eye slit
-  A.sharpBox('head', 'glow', [hs * 0.15, hs * 0.52, 0.06 * s], {
-    p: [0, hy + hs * 0.68, hs * 0.76], r: [0.14, 0, 0] });
-  // gold circlet
-  A.ring('head', 'brass', hs * 0.72, 0.02 * s, {
-    p: [0, hy + hs * 0.82, 0], r: [Math.PI / 2, 0, 0], s: [1, 1.08, 1], seg: 24 });
-  // teal side veils + white back veil (hair silhouette)
+  // the ONLY facial feature: thin vertical magenta slit
+  A.sharpBox('head', 'glow', [hs * 0.11, hs * 0.55, 0.06 * s], {
+    p: [0, hy + hs * 0.66, hs * 0.74], r: [0.14, 0, 0] });
+  // small teal swept fins at the temples
   for (const sx of [-1, 1]) {
-    A.plate('head', 'accent', shieldOutline(hs * 0.55, hs * 1.15, { taper: 0.8, tip: 0.25 }), 0.04 * s, {
-      p: [sx * hs * 0.78, hy + hs * 0.3, -hs * 0.08], r: [0, sx * Math.PI / 2, sx * 0.14], round: 0.16 });
+    A.blade('head', 'accent', hs * 0.7, hs * 0.2, 0.035 * s, {
+      p: [sx * hs * 0.66, hy + hs * 0.78, -hs * 0.14], r: [-0.55, 0, sx * 0.75], taper: 0.25 });
   }
-  A.plate('head', 'primary', shieldOutline(hs * 0.95, hs * 1.3, { taper: 0.85, tip: 0.2 }), 0.05 * s, {
-    p: [0, hy + hs * 0.25, -hs * 0.62], r: [-0.14, 0, 0], round: 0.16 });
+  // TALL ornate crown spire: gold+white blade/cone stack + magenta gem
+  A.lathe('head', 'brass', [[0, hs * 0.18], [hs * 0.12, hs * 0.1], [hs * 0.26, hs * 0.045]], {
+    p: [0, hy + hs * 1.18, 0], seg: 12 });
+  A.blade('head', 'primary', hs * 0.75, hs * 0.3, 0.03 * s, {
+    p: [0, hy + hs * 1.75, 0], taper: 0.3 });
+  A.tube('head', 'brass', 0.018 * s, 0.026 * s, hs * 0.85, { p: [0, hy + hs * 1.8, 0], seg: 8 });
+  A.ball('head', 'glowSoft', hs * 0.11, { p: [0, hy + hs * 2.32, 0], seg: 10 });
+  A.spike('head', 'brass', hs * 0.05, hs * 0.42, { p: [0, hy + hs * 2.62, 0], seg: 6 });
 
   // ================= ARMS (slender) =================
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     const sh = 'shoulder' + side, el = 'elbow' + side;
 
-    // small pauldron shell + gold rim + teal fin
+    // small rounded white pauldron shell over a teal underlayer
     A.ball(sh, 'frame', 0.18 * s, {});
+    A.lathe(sh, 'accent', [
+      [-0.2 * s, W * 0.2],
+      [-0.06 * s, W * 0.17],
+      [0.06 * s, W * 0.1],
+    ], { p: [sx * 0.05 * s, 0.0, 0], scaleZ: 0.9, seg: 16 });
     A.lathe(sh, 'primary', [
-      [-0.12 * s, W * 0.2],
-      [0.1 * s, W * 0.17],
-      [0.24 * s, W * 0.08],
-    ], { p: [sx * 0.05 * s, 0.05 * s, 0], scaleZ: 0.92, seg: 18 });
-    A.ring(sh, 'brass', W * 0.19, 0.02 * s, {
-      p: [sx * 0.05 * s, -0.07 * s, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.92, 1] });
-    A.blade(sh, 'accent', 0.45 * s, 0.16 * s, 0.03 * s, {
-      p: [sx * 0.3 * s, 0.24 * s, -0.02 * s], r: [0, 0, sx * 0.5], taper: 0.3 });
+      [-0.12 * s, W * 0.21],
+      [0.1 * s, W * 0.18],
+      [0.26 * s, W * 0.08],
+    ], { p: [sx * 0.05 * s, 0.06 * s, 0], scaleZ: 0.92, seg: 18 });
+    A.ring(sh, 'brass', W * 0.2, 0.02 * s, {
+      p: [sx * 0.05 * s, -0.06 * s, 0], r: [Math.PI / 2, 0, 0], s: [1, 0.92, 1] });
     // slim upper arm
     A.lathe(sh, 'primary', [
       [-D.upperArmLen * 0.95, 0.12 * s],
@@ -182,32 +219,42 @@ export function nova(A, D, J, anchors, def) {
     A.ring(el, 'brass', 0.16 * s, 0.022 * s, {
       p: [0, -fA * 0.82, 0], r: [Math.PI / 2, 0, 0] });
   }
-  A.fist('handR', 'frame', 'dark', 0.24 * s, { side: 1 });
-  A.fist('handL', 'frame', 'dark', 0.24 * s, { side: -1 });
+  // small articulated silver hands
+  A.fist('handR', 'metal', 'dark', 0.21 * s, { side: 1 });
+  A.fist('handL', 'metal', 'dark', 0.21 * s, { side: -1 });
 
-  // ================= STAFF-CANNON (right hand) =================
-  A.tube('handR', 'metal', 0.045 * s, 0.045 * s, 3.2 * s, {
-    p: [0, -0.15 * s, 0.55 * s], r: [Math.PI / 2, 0, 0] });
-  A.tube('handR', 'dark', 0.058 * s, 0.058 * s, 0.5 * s, {
+  // ================= STAR STAFF (right hand) =================
+  // thin silver shaft, taller than the shoulder line
+  A.tube('handR', 'metal', 0.042 * s, 0.042 * s, 4.6 * s, {
+    p: [0, -0.15 * s, 0.9 * s], r: [Math.PI / 2, 0, 0] });
+  A.tube('handR', 'dark', 0.056 * s, 0.056 * s, 0.5 * s, {
     p: [0, -0.15 * s, 0.05 * s], r: [Math.PI / 2, 0, 0] });
-  // rear counterweight
-  A.lathe('handR', 'accent', [[-0.12 * s, 0.045 * s], [0, 0.085 * s], [0.15 * s, 0.02 * s]], {
-    p: [0, -0.15 * s, -0.92 * s], r: [Math.PI / 2, 0, 0] });
-  A.ball('handR', 'glowSoft', 0.06 * s, { p: [0, -0.15 * s, -1.08 * s], seg: 10 });
-  // head: gold socket, glowing orb, tilted gold ring, orbital prongs
-  A.lathe('handR', 'brass', [[-0.1 * s, 0.05 * s], [0.02 * s, 0.1 * s], [0.16 * s, 0.035 * s]], {
-    p: [0, -0.15 * s, 2.0 * s], r: [Math.PI / 2, 0, 0] });
-  A.ball('handR', 'glow', 0.2 * s, { p: [0, -0.15 * s, 2.35 * s], seg: 18 });
-  A.ring('handR', 'brass', 0.3 * s, 0.026 * s, {
-    p: [0, -0.15 * s, 2.35 * s], r: [0.55, 0, 0], seg: 26 });
-  for (let i = 0; i < 3; i++) {
-    const b = (i / 3) * Math.PI * 2 + Math.PI / 2;
-    A.blade('handR', 'accent', 0.55 * s, 0.13 * s, 0.035 * s, {
-      p: [Math.cos(b) * 0.27 * s, -0.15 * s + Math.sin(b) * 0.27 * s, 2.22 * s],
-      r: eul([0, 0, b - Math.PI / 2], [Math.PI / 2 - 0.35, 0, 0]), taper: 0.15 });
+  // rear counterweight spike + tiny magenta gem
+  A.lathe('handR', 'brass', [[-0.1 * s, 0.04 * s], [0, 0.08 * s], [0.12 * s, 0.03 * s]], {
+    p: [0, -0.15 * s, -1.32 * s], r: [Math.PI / 2, 0, 0] });
+  A.ball('handR', 'glowSoft', 0.05 * s, { p: [0, -0.15 * s, -1.46 * s], seg: 8 });
+  A.spike('handR', 'metal', 0.045 * s, 0.28 * s, {
+    p: [0, -0.15 * s, -1.62 * s], r: [-Math.PI / 2, 0, 0], seg: 8 });
+  // ornate head: gold socket at the shaft's end
+  A.lathe('handR', 'brass', [[-0.12 * s, 0.05 * s], [0.02 * s, 0.11 * s], [0.18 * s, 0.04 * s]], {
+    p: [0, -0.15 * s, 2.52 * s], r: [Math.PI / 2, 0, 0] });
+  // large gold ring, coaxial — the star burst floats at its center
+  A.ring('handR', 'brass', 0.46 * s, 0.038 * s, { p: [0, -0.15 * s, 3.0 * s], seg: 30 });
+  A.ball('handR', 'glow', 0.13 * s, { p: [0, -0.15 * s, 3.0 * s], seg: 16 });
+  A.sharpBox('handR', 'glow', [0.036 * s, 0.68 * s, 0.036 * s], { p: [0, -0.15 * s, 3.0 * s] });
+  A.sharpBox('handR', 'glow', [0.68 * s, 0.036 * s, 0.036 * s], { p: [0, -0.15 * s, 3.0 * s] });
+  // two white crescent blades framing the ring
+  for (const start of [2.39, -0.75]) {
+    A.part('handR', 'primary', new THREE.TorusGeometry(0.6 * s, 0.05 * s, 6, 18, 1.5), {
+      p: [0, -0.15 * s, 3.0 * s], r: [0, 0, start], s: [1, 1, 0.55] });
   }
+  // spike finial on top (forward, past the ring)
+  A.lathe('handR', 'brass', [[-0.08 * s, 0.05 * s], [0.02 * s, 0.07 * s], [0.1 * s, 0.03 * s]], {
+    p: [0, -0.15 * s, 3.3 * s], r: [Math.PI / 2, 0, 0] });
+  A.spike('handR', 'metal', 0.05 * s, 0.42 * s, {
+    p: [0, -0.15 * s, 3.55 * s], r: [Math.PI / 2, 0, 0], seg: 8 });
 
-  // ================= LEGS (slender plantigrade) =================
+  // ================= LEGS (slender plantigrade, heeled boots) =================
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     const th = 'thigh' + side, kn = 'knee' + side, an = 'ankle' + side;
@@ -239,17 +286,18 @@ export function nova(A, D, J, anchors, def) {
       p: [0, -D.shinLen * 0.92, 0], r: [Math.PI / 2, 0, 0], s: [1, 1.1, 1] });
     A.piston(kn, 'brass', [0, 0.08 * s, -0.16 * s], [0, -D.shinLen * 0.4, -0.24 * s], 0.035 * s);
 
-    // pointed boot: slim toe, teal cap, small heel
+    // heeled boot: slim pointed toe, teal cap, thin heel column
     A.ball(an, 'frame', 0.13 * s, {});
-    A.part(an, 'primary', roundedBox(0.24 * s, 0.18 * s, 0.68 * s, 0.06 * s), {
-      p: [0, -0.15 * s, 0.26 * s], r: [-0.06, 0, 0] });
-    A.plate(an, 'accent', shieldOutline(0.24 * s, 0.3 * s, { taper: 0.75 }), 0.04 * s, {
-      p: [0, -0.08 * s, 0.5 * s], r: [0.7, 0, 0], round: 0.2 });
-    A.facet(an, 'frame', 0.1 * s, 0.13 * s, 0.09 * s, 0.26 * s, {
-      sides: 6, p: [0, -0.15 * s, -0.14 * s], r: [Math.PI / 2.3, 0, 0] });
-    A.sharpBox(an, 'dark', [0.28 * s, 0.08 * s, 0.8 * s], { p: [0, -0.24 * s, 0.12 * s] });
+    A.part(an, 'primary', roundedBox(0.2 * s, 0.16 * s, 0.64 * s, 0.05 * s), {
+      p: [0, -0.17 * s, 0.28 * s], r: [-0.1, 0, 0] });
+    A.plate(an, 'accent', shieldOutline(0.2 * s, 0.28 * s, { taper: 0.7 }), 0.035 * s, {
+      p: [0, -0.12 * s, 0.5 * s], r: [0.72, 0, 0], round: 0.2 });
+    // small toe pad + slender heel down to the same sole plane
+    A.sharpBox(an, 'dark', [0.16 * s, 0.05 * s, 0.3 * s], { p: [0, -0.28 * s, 0.42 * s] });
+    A.tube(an, 'brass', 0.045 * s, 0.06 * s, 0.16 * s, { p: [0, -0.2 * s, -0.14 * s], seg: 8 });
+    A.sharpBox(an, 'dark', [0.12 * s, 0.05 * s, 0.14 * s], { p: [0, -0.28 * s, -0.14 * s] });
   }
 
-  anchors.muzzleR = addAnchor(J.handR, 0, -0.15 * s, 2.6 * s);
-  anchors.core = addAnchor(J.torso, 0, chH * 0.56, W * 0.44);
+  anchors.muzzleR = addAnchor(J.handR, 0, -0.15 * s, 3.0 * s);
+  anchors.core = addAnchor(J.torso, 0, coreY, W * 0.44);
 }
