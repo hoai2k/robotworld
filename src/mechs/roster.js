@@ -231,7 +231,7 @@ export const ROSTER = [
     id: 'glacier', name: 'GLACIER', title: 'The Cold Shoulder', icon: '❄️', seed: 132,
     blurb: 'Guardian of a polar research station, promoted to war machine by boredom. Devastating in combat, insufferable at parties — every joke is about ice, and he thinks they all land.',
     quotes: { win: '"Ice to beat you. ...I\'m contractually obligated to say that."', intro: '"Chill out. No? Fine — I\'ll handle it."' },
-    colors: { primary: 0xa2c0d2, accent: 0x6fa8c8, glow: 0x9be8ff, stripes: false },
+    colors: { primary: 0x9fb2c2, accent: 0x4c5560, glow: 0x7ce0ff, stripes: false },
     skin: {
       primary: { base: 0xa2c0d2, base2: 0x8ba5b4, metal: 0x8a8f96, wear: 0.3, grime: 0.22, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },
       accent: { base: 0x6fa8c8, base2: 0x5f90ac, metal: 0x8a8f96, wear: 0.38, grime: 0.22, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },

@@ -43,7 +43,10 @@ in-engine model. A failed GLB load also falls back. The game never breaks.
 
 ## 1. Read the image
 
-**Palette** — commit the image to `docs/canonical/<mechId>-front.png`, then:
+**Palette** — commit the image to `docs/canonical/<mechId>-front.png`
+(the detailed visual read of every canonical image also lives in
+`docs/canonical/SPECS.md` — the fallback source of truth if a PNG is
+missing), then:
 ```bash
 node tools/palette.mjs docs/canonical/<mechId>-front.png
 ```
