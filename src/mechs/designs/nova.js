@@ -134,20 +134,20 @@ export function nova(A, D, J, anchors, def) {
   // ================= HALO: two crescent panels (broken halo) =================
   // Both crescents live ON the halo joint, centered on it — the animator
   // spins .z constantly, so they orbit the head. Tips point inward-up.
-  addJoint(J, 'halo', 'torso', 0, chH * 1.12, -D.torsoD * 0.75);
-  const hR = 1.12 * s;
-  const arc = 1.7;
-  for (const start of [1.85, -0.42]) { // left and right crescents
+  addJoint(J, 'halo', 'torso', 0, chH * 1.26, -D.torsoD * 0.72);
+  const hR = 1.24 * s;
+  const arc = 1.6;
+  for (const start of [1.885, -0.35]) { // left and right crescents
     // white body panel: flattened partial torus
-    A.part('halo', 'primary', new THREE.TorusGeometry(hR, 0.15 * s, 8, 26, arc), {
+    A.part('halo', 'primary', new THREE.TorusGeometry(hR, 0.18 * s, 8, 26, arc), {
       r: [0, 0, start], s: [1, 1, 0.3] });
     // teal inlay riding the front face
-    A.part('halo', 'accent', new THREE.TorusGeometry(hR, 0.062 * s, 8, 26, arc), {
+    A.part('halo', 'accent', new THREE.TorusGeometry(hR, 0.075 * s, 8, 26, arc), {
       p: [0, 0, 0.045 * s], r: [0, 0, start], s: [1, 1, 0.55] });
     // gold trim arcs along both edges
-    A.part('halo', 'brass', new THREE.TorusGeometry(hR + 0.16 * s, 0.02 * s, 6, 26, arc), {
+    A.part('halo', 'brass', new THREE.TorusGeometry(hR + 0.19 * s, 0.022 * s, 6, 26, arc), {
       r: [0, 0, start], s: [1, 1, 0.8] });
-    A.part('halo', 'brass', new THREE.TorusGeometry(hR - 0.16 * s, 0.02 * s, 6, 26, arc), {
+    A.part('halo', 'brass', new THREE.TorusGeometry(hR - 0.19 * s, 0.022 * s, 6, 26, arc), {
       r: [0, 0, start], s: [1, 1, 0.8] });
     // gold tip caps + magenta gems at both ends
     for (const ang of [start, start + arc]) {
@@ -178,8 +178,8 @@ export function nova(A, D, J, anchors, def) {
   // TALL ornate crown spire: gold+white blade/cone stack + magenta gem
   A.lathe('head', 'brass', [[0, hs * 0.18], [hs * 0.12, hs * 0.1], [hs * 0.26, hs * 0.045]], {
     p: [0, hy + hs * 1.18, 0], seg: 12 });
-  A.blade('head', 'primary', hs * 0.75, hs * 0.3, 0.03 * s, {
-    p: [0, hy + hs * 1.75, 0], taper: 0.3 });
+  A.blade('head', 'primary', hs * 0.9, hs * 0.38, 0.035 * s, {
+    p: [0, hy + hs * 1.8, 0], taper: 0.28 });
   A.tube('head', 'brass', 0.018 * s, 0.026 * s, hs * 0.85, { p: [0, hy + hs * 1.8, 0], seg: 8 });
   A.ball('head', 'glowSoft', hs * 0.11, { p: [0, hy + hs * 2.32, 0], seg: 10 });
   A.spike('head', 'brass', hs * 0.05, hs * 0.42, { p: [0, hy + hs * 2.62, 0], seg: 6 });

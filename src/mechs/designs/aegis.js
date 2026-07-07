@@ -47,9 +47,9 @@ export function aegis(A, D, J, anchors, def) {
   };
   // flat gold cross built from two thin plates, on any joint
   const cross = (joint, mat, cx, cy, cz, wArm, tall, t, rot = [0, 0, 0]) => {
-    A.plate(joint, mat, rectOutline(tall * 0.22, tall), t, {
+    A.plate(joint, mat, rectOutline(tall * 0.17, tall), t, {
       p: [cx, cy, cz], r: rot, round: 0.25 });
-    A.plate(joint, mat, rectOutline(wArm, tall * 0.22), t, {
+    A.plate(joint, mat, rectOutline(wArm, tall * 0.17), t, {
       p: [cx, cy + tall * 0.2, cz], r: rot, round: 0.25 });
   };
 
@@ -74,7 +74,7 @@ export function aegis(A, D, J, anchors, def) {
   A.plate('hips', 'primary', shieldOutline(0.68 * s, tabH * 0.94, { taper: 0.64, tip: 0.16 }), 0.06 * s, {
     p: [0, tabCy + 0.02 * s, tabCz + 0.02 * s], r: [tabTilt, 0, 0], round: 0.1 });
   // gold cross emblem on the tabard face
-  cross('hips', 'brass', 0, tabCy + tabH * 0.14, tabCz + 0.07 * s + Math.sin(-tabTilt) * tabH * 0.14,
+  cross('hips', 'accent', 0, tabCy + tabH * 0.14, tabCz + 0.07 * s + Math.sin(-tabTilt) * tabH * 0.14,
     0.4 * s, 0.62 * s, 0.025 * s, [tabTilt, 0, 0]);
 
   // side skirt plates + gold hems
@@ -104,7 +104,7 @@ export function aegis(A, D, J, anchors, def) {
     p: [0, chH * 0.84, 0], r: [Math.PI / 2, 0, 0], s: [1.32, 0.76, 1], seg: 28 });
 
   // ---- CHEST CRYSTAL: faceted blue octahedron in a gold ray housing ----
-  const cyY = chH * 0.62, cyZ = W * 0.44;
+  const cyY = chH * 0.62, cyZ = W * 0.5;
   // white sculpted backing plate
   A.plate('torso', 'primary', shieldOutline(W * 0.4, chH * 0.36, { taper: 0.78 }), 0.07 * s, {
     p: [0, cyY, cyZ - 0.06 * s], r: [-0.05, 0, 0], round: 0.16 });
@@ -168,7 +168,7 @@ export function aegis(A, D, J, anchors, def) {
     A.plate('torso', 'primary', rectOutline(bW * 0.78, bH * 0.92), 0.05 * s, {
       p: [bx, bCy, bZ + 0.055 * s], r: [0.05, sx * -0.06, 0], round: 0.06 });
     // gold cross emblem on the face
-    cross('torso', 'brass', bx, bCy + bH * 0.12, bZ + 0.11 * s, bW * 0.52, bH * 0.3, 0.022 * s,
+    cross('torso', 'accent', bx, bCy + bH * 0.12, bZ + 0.11 * s, bW * 0.52, bH * 0.3, 0.022 * s,
       [0.05, sx * -0.06, 0]);
     // blue gem slit low on the face
     A.sharpBox('torso', 'glowSoft', [bW * 0.1, bH * 0.16, 0.03 * s], {
@@ -286,7 +286,7 @@ export function aegis(A, D, J, anchors, def) {
   A.plate('shield', 'primary', rhombOutline(shW * 0.56, shH * 0.61, { cut: 0.32 }), 0.06 * s, {
     p: [0, 0, 0.33 * s], round: 0.08 });
   // gold cross + boss at the crossing
-  cross('shield', 'brass', 0, -0.12 * s, 0.39 * s, 0.72 * s, 1.5 * s, 0.03 * s);
+  cross('shield', 'accent', 0, -0.12 * s, 0.39 * s, 0.72 * s, 1.5 * s, 0.03 * s);
   A.ring('shield', 'brass', 0.17 * s, 0.035 * s, { p: [0, 0.18 * s, 0.41 * s] });
   A.ball('shield', 'glowSoft', 0.09 * s, { p: [0, 0.18 * s, 0.43 * s], seg: 12 });
   // AEGIS text plate near the top

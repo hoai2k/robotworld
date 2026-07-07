@@ -125,40 +125,48 @@ export function viper(A, D, J, anchors, def) {
   }
 
   // ================= HEAD: sharp arrowhead helm =================
-  const hy = hs * 1.05;
-  A.tube('head', 'frame', hs * 0.28, hs * 0.38, hs * 0.9, { p: [0, hy * 0.3, 0] });
+  const hy = hs * 1.15;
+  A.tube('head', 'frame', hs * 0.3, hs * 0.4, hs * 1.0, { p: [0, hy * 0.3, 0] });
   // faceted cranium, tapering to a crown ridge
-  A.facet('head', 'primary', hs * 0.66, hs * 0.8, hs * 0.2, hs * 1.25, {
-    sides: 6, scaleZ: 1.3, p: [0, hy + hs * 0.62, -hs * 0.06] });
+  A.facet('head', 'primary', hs * 0.8, hs * 0.97, hs * 0.22, hs * 1.5, {
+    sides: 6, scaleZ: 1.3, p: [0, hy + hs * 0.7, -hs * 0.04] });
   // chin wedge: hard taper down to a point
-  A.taper('head', 'primary', [hs * 0.92, hs * 0.85, hs * 1.15], 0.1, 0.26, {
-    p: [0, hy + hs * 0.02, hs * 0.16], r: [Math.PI, 0, 0] });
+  A.taper('head', 'primary', [hs * 1.1, hs * 1.0, hs * 1.4], 0.08, 0.24, {
+    p: [0, hy + hs * 0.06, hs * 0.2], r: [Math.PI, 0, 0] });
   // green V-visor: two angled strips meeting forward in a low point
   for (const sx of [-1, 1]) {
-    A.sharpBox('head', 'glow', [hs * 0.52, hs * 0.1, 0.045 * s], {
-      p: [sx * hs * 0.2, hy + hs * 0.52, hs * 0.56], r: [0.05, sx * 0.55, sx * 0.18] });
+    A.sharpBox('head', 'glow', [hs * 0.66, hs * 0.13, 0.05 * s], {
+      p: [sx * hs * 0.25, hy + hs * 0.58, hs * 0.72], r: [0.05, sx * 0.55, sx * 0.2] });
   }
   // angled brow plates hooding the visor
   for (const sx of [-1, 1]) {
-    A.plate('head', 'frame', rhombOutline(hs * 0.78, hs * 0.32, { cut: 0.35 }), hs * 0.18, {
-      p: [sx * hs * 0.24, hy + hs * 0.86, hs * 0.42], r: [-0.42, sx * 0.3, sx * 0.14], round: 0.15 });
+    A.plate('head', 'frame', rhombOutline(hs * 0.95, hs * 0.4, { cut: 0.35 }), hs * 0.22, {
+      p: [sx * hs * 0.28, hy + hs * 1.0, hs * 0.55], r: [-0.42, sx * 0.3, sx * 0.14], round: 0.15 });
   }
   // chin fangs
   for (const sx of [-1, 1]) {
-    A.spike('head', 'metal', 0.026 * s, 0.15 * s, {
-      p: [sx * hs * 0.2, hy - hs * 0.2, hs * 0.5], r: [Math.PI - 0.2, 0, 0], seg: 5 });
+    A.spike('head', 'metal', 0.03 * s, 0.18 * s, {
+      p: [sx * hs * 0.24, hy - hs * 0.2, hs * 0.62], r: [Math.PI - 0.2, 0, 0], seg: 5 });
   }
-  // TWO TALL horn-blades rising off the crown, swept slightly back
+  // TWO TALL horn-blades rising off the crown, swept back + flared out
+  const hornRot = (sx, sweep, flare) => {
+    const q = new THREE.Quaternion()
+      .setFromAxisAngle(new THREE.Vector3(0, 0, 1), -sx * flare)
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), sweep))
+      .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2));
+    const e = new THREE.Euler().setFromQuaternion(q);
+    return [e.x, e.y, e.z];
+  };
   for (const sx of [-1, 1]) {
-    A.blade('head', 'primary', hs * 2.3, hs * 0.42, 0.04 * s, {
-      p: [sx * hs * 0.27, hy + hs * 1.55, -hs * 0.14], r: [-0.28, Math.PI / 2, 0], taper: 0.03 });
-    A.blade('head', 'accent', hs * 1.6, hs * 0.2, 0.05 * s, {
-      p: [sx * hs * 0.27, hy + hs * 1.2, -hs * 0.02], r: [-0.28, Math.PI / 2, 0], taper: 0.06 });
+    A.blade('head', 'primary', hs * 2.7, hs * 0.55, 0.055 * s, {
+      p: [sx * hs * 0.36, hy + hs * 1.9, -hs * 0.2], r: hornRot(sx, -0.3, 0.1), taper: 0.02 });
+    A.blade('head', 'accent', hs * 1.9, hs * 0.26, 0.065 * s, {
+      p: [sx * hs * 0.36, hy + hs * 1.5, -hs * 0.04], r: hornRot(sx, -0.3, 0.1), taper: 0.05 });
   }
   // two shorter side spikes, flared out
   for (const sx of [-1, 1]) {
-    A.spike('head', 'dark', 0.035 * s, hs * 1.0, {
-      p: [sx * hs * 0.52, hy + hs * 0.8, -hs * 0.05], r: [-0.15, 0, -sx * 0.55], seg: 5 });
+    A.spike('head', 'dark', 0.045 * s, hs * 1.3, {
+      p: [sx * hs * 0.66, hy + hs * 0.9, -hs * 0.05], r: [-0.15, 0, -sx * 0.6], seg: 5 });
   }
 
   // ================= ARMS: slim, dagger-bearing =================
