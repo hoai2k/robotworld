@@ -17,6 +17,8 @@ import { Hud, toast } from '../ui/hud.js';
 import { TitleScreen, SetupScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
 import { GameAudio } from '../core/audio.js';
 import { createMech, preloadMechModels } from '../mechs/gltf.js';
+import { TouchControls } from './touch.js';
+import { isTouchDevice } from '../core/utils.js';
 
 // Menu backdrop: dark stage with a rotating mech line-up / preview.
 class MenuStage {
@@ -110,6 +112,13 @@ export async function bootGame() {
   const resumeAudio = () => audio.resume();
   window.addEventListener('pointerdown', resumeAudio);
   window.addEventListener('keydown', resumeAudio);
+
+  // On-screen touch controls (phones/tablets). Mounting sets input.touchAvailable,
+  // which unlocks the TOUCH device option on the setup screen.
+  const touchControls = isTouchDevice()
+    ? new TouchControls(input, { onPause: () => pauseBattle() })
+    : null;
+  if (isTouchDevice()) document.body.classList.add('touch-mode');
 
   input.onPadConnect = (gp) => toast(`🎮 Controller connected: ${gp.id.slice(0, 34)}`);
   input.onPadDisconnect = (gp) => {
@@ -265,6 +274,7 @@ export async function bootGame() {
       engine, world, fighters, hud,
       onEnd: (winner) => {
         S.mode = 'results';
+        touchControls?.setVisible(false);
         setScreen(new ResultsScreen(uiRoot, {
           winner, audio,
           onRematch: () => { setScreen(null); match.begin(); S.mode = 'battle'; },
@@ -274,7 +284,9 @@ export async function bootGame() {
       },
     });
 
-    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false };
+    const usesTouch = humans.some((h) => h.device === 'touch');
+    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false, usesTouch };
+    if (touchControls) touchControls.setVisible(usesTouch);
     audio.music(theme.music);
     match.begin();
 
@@ -287,6 +299,7 @@ export async function bootGame() {
 
   function teardownBattle() {
     if (!S.battle) return;
+    touchControls?.setVisible(false);
     S.battle.match.destroy();
     S.battle.hud.destroy();
     S.battle.cameraSys.dividerEl.remove();
@@ -299,10 +312,11 @@ export async function bootGame() {
   function pauseBattle() {
     if (!S.battle || S.battle.paused) return;
     S.battle.paused = true;
+    touchControls?.setVisible(false);
     audio.play('pause');
     setScreen(new PauseScreen(uiRoot, {
       audio,
-      onResume: () => { S.battle.paused = false; setScreen(null); },
+      onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
     }));
   }

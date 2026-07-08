@@ -27,6 +27,22 @@ Production build: `npm run build`, then `npm run preview` (or serve `dist/`).
 
 Best experienced in Chrome/Edge fullscreen (F10 or the title-menu option).
 
+### Play online
+
+Pushing to `main` (or the game branch) publishes a build to **GitHub Pages**
+via `.github/workflows/deploy.yml` — the live URL appears in the Actions run
+summary and under *Settings → Pages* once the first deploy finishes. No
+install needed; just open the link.
+
+### Mobile & tablet (touch)
+
+On phones and tablets the game auto-detects touch and switches to a
+**single-player** layout with on-screen controls: a floating analog stick on
+the left and an action cluster on the right (light, heavy, jump, dash, block,
+ranged, special, ultimate), plus taunt and pause. Menus are fully tappable.
+Add `?touch=1` to force touch mode on desktop for testing (or `?desktop=1` to
+force it off). Desktop keyboard + controller local multiplayer is unchanged.
+
 ## The Roster
 
 | Mech | Role | Ranged | Special | Ultimate |

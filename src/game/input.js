@@ -33,6 +33,16 @@ export class Input {
     this.padsCur = [{}, {}, {}, {}];
     this.onPadConnect = null;
 
+    // ---- virtual touch device (on-screen controls write here) ----
+    this.touchAvailable = false;             // set true when touch UI is mounted
+    this.touch = {
+      moveX: 0, moveZ: 0,                     // analog stick, same convention as keys
+      held: new Set(),                        // buttons currently down
+      pressed: new Set(),                     // buttons pressed this frame (edge)
+    };
+    // On-screen menu buttons inject edges here; consumed like keysPressed.
+    this.touchMenu = { up: false, down: false, left: false, right: false, confirm: false, back: false, pause: false };
+
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || (e.code === 'Space' && e.target === document.body)) e.preventDefault();
       if (!this.keys.has(e.code)) this.keysPressed.add(e.code);
@@ -69,7 +79,18 @@ export class Input {
 
   endFrame() {
     this.keysPressed.clear();
+    this.touch.pressed.clear();
+    const m = this.touchMenu;
+    m.up = m.down = m.left = m.right = m.confirm = m.back = m.pause = false;
   }
+
+  // Called by on-screen controls to register a virtual button press/release.
+  touchButton(name, down) {
+    if (down) { this.touch.held.add(name); this.touch.pressed.add(name); }
+    else this.touch.held.delete(name);
+  }
+  // Called by on-screen menu buttons to inject a one-frame nav edge.
+  touchMenuEvent(name) { if (name in this.touchMenu) this.touchMenu[name] = true; }
 
   key(code) { return this.keys.has(code); }
   keyPressed(code) { return this.keysPressed.has(code); }
@@ -123,6 +144,19 @@ export class Input {
       intent.ult = this.padPressed(i, 'LB');
       intent.dash = this.padPressed(i, 'RB');
       intent.taunt = this.padPressed(i, 'RS');
+    } else if (device === 'touch') {
+      const t = this.touch;
+      mx = t.moveX;
+      mz = t.moveZ;
+      intent.jump = t.pressed.has('jump');
+      intent.light = t.pressed.has('light');
+      intent.heavy = t.pressed.has('heavy');
+      intent.block = t.held.has('block');
+      intent.ranged = t.held.has('ranged');
+      intent.special = t.pressed.has('special');
+      intent.ult = t.pressed.has('ult');
+      intent.dash = t.pressed.has('dash');
+      intent.taunt = t.pressed.has('taunt');
     }
 
     // rotate into world space (camera-relative):
@@ -156,7 +190,13 @@ export class Input {
       if (this.padPressed(i, 'START')) ev.pause = true;
       for (const b of ['A', 'B', 'X', 'Y', 'START']) if (this.padPressed(i, b)) anyPad = true;
     }
-    ev.any = anyKey || anyPad;
+    // on-screen menu buttons (touch)
+    const tm = this.touchMenu;
+    let anyTouch = false;
+    for (const k of ['up', 'down', 'left', 'right', 'confirm', 'back', 'pause']) {
+      if (tm[k]) { ev[k] = true; anyTouch = true; }
+    }
+    ev.any = anyKey || anyPad || anyTouch;
     return ev;
   }
 
@@ -185,6 +225,10 @@ export class Input {
       ev.right = this.padPressed(i, 'DR') || (this.padsCur[i].lx > 0.6 && !(this.padsPrev[i].lx > 0.6));
       ev.confirm = this.padPressed(i, 'A');
       ev.back = this.padPressed(i, 'B');
+    } else if (device === 'touch') {
+      const tm = this.touchMenu;
+      ev.up = tm.up; ev.down = tm.down; ev.left = tm.left; ev.right = tm.right;
+      ev.confirm = tm.confirm; ev.back = tm.back;
     }
     return ev;
   }

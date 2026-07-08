@@ -72,6 +72,22 @@ export const rand = (a = 1, b) => (b === undefined ? Math.random() * a : a + Mat
 export const randInt = (a, b) => Math.floor(rand(a, b + 1));
 export const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
+// ---- device detection (touch/mobile) ----
+// Cached; honors ?touch=1 / ?notouch=1 (aka ?desktop) overrides, else sniffs
+// for a touchscreen with a coarse primary pointer (phones, tablets).
+let _touchOverride = null;
+export function isTouchDevice() {
+  if (_touchOverride === null) {
+    const p = new URLSearchParams(location.search);
+    if (p.has('touch') || p.get('input') === 'touch') _touchOverride = true;
+    else if (p.has('notouch') || p.has('desktop')) _touchOverride = false;
+    else _touchOverride = !!(
+      (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) &&
+      window.matchMedia?.('(pointer: coarse)').matches);
+  }
+  return _touchOverride;
+}
+
 // ---- scratch vectors (avoid per-frame allocation) ----
 export const _v1 = new THREE.Vector3();
 export const _v2 = new THREE.Vector3();

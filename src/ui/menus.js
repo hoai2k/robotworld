@@ -2,6 +2,7 @@
 // Each screen builds DOM into #ui-root and consumes aggregated menu events.
 import { ROSTER } from '../mechs/roster.js';
 import { THEMES } from '../arena/themes.js';
+import { isTouchDevice } from '../core/utils.js';
 
 const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
 
@@ -10,6 +11,19 @@ function el(tag, cls, html) {
   if (cls) e.className = cls;
   if (html !== undefined) e.innerHTML = html;
   return e;
+}
+
+// On-screen nav button for touch devices (click fires on tap too).
+function touchBtn(label, cls, onTap) {
+  const b = el('div', 'touch-navbtn ' + cls, label);
+  b.addEventListener('click', (e) => { e.preventDefault(); onTap(); });
+  return b;
+}
+
+// A floating BACK button, bottom-left, shown only on touch screens.
+function appendTouchBack(screenEl, onBack) {
+  if (!isTouchDevice()) return;
+  screenEl.appendChild(touchBtn('◀ BACK', 'nav-back', onBack));
 }
 
 // ---------------- TITLE ----------------
@@ -67,33 +81,53 @@ export class SetupScreen {
     this.el.appendChild(el('div', 'screen-heading', 'BATTLE SETUP'));
     this.grid = el('div', 'setup-grid');
     this.el.appendChild(this.grid);
+    this.touch = isTouchDevice();
     this.el.appendChild(el('div', 'hint-bar',
       '<b>←→</b> change&nbsp;&nbsp;<b>↑↓</b> slot&nbsp;&nbsp;<b>ENTER / A</b> continue&nbsp;&nbsp;<b>ESC / B</b> back&nbsp;&nbsp;·&nbsp;&nbsp;need at least 2 fighters'));
     root.appendChild(this.el);
 
-    this.slots = prev || [
-      { kind: 'human', device: 'kb1' },
-      { kind: 'ai', diff: 'veteran' },
-      { kind: 'off' },
-      { kind: 'off' },
-    ];
+    // On touch: default to solo play (you vs one AI) with the on-screen pad.
+    const defaults = this.touch
+      ? [{ kind: 'human', device: 'touch' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }]
+      : [{ kind: 'human', device: 'kb1' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
+    this.slots = prev || defaults;
     this.cursor = 0;
     this.cards = [];
     for (let i = 0; i < 4; i++) {
       const c = el('div', 'panel slot-card');
+      // Tap/click a card to cycle: left half = previous option, right half = next.
+      c.addEventListener('click', (e) => {
+        this.cursor = i;
+        const r = c.getBoundingClientRect();
+        this.cycle(i, (e.clientX - r.left) < r.width / 2 ? -1 : 1);
+      });
       this.grid.appendChild(c);
       this.cards.push(c);
+    }
+
+    if (this.touch) {
+      const bar = el('div', 'touch-navbar');
+      bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => { this.audio?.play('uiBack'); this.onBack(); }));
+      bar.appendChild(touchBtn('CONTINUE ▶', 'nav-next', () => this.tryContinue()));
+      this.el.appendChild(bar);
     }
     this.render();
   }
 
   options() {
-    const opts = [{ kind: 'human', device: 'kb1' }, { kind: 'human', device: 'kb2' }];
+    const opts = [];
+    if (this.input.touchAvailable) opts.push({ kind: 'human', device: 'touch' });
+    opts.push({ kind: 'human', device: 'kb1' }, { kind: 'human', device: 'kb2' });
     for (let i = 0; i < 4; i++) {
       if (this.input.padConnected(i)) opts.push({ kind: 'human', device: 'pad' + i });
     }
     opts.push({ kind: 'ai', diff: 'rookie' }, { kind: 'ai', diff: 'veteran' }, { kind: 'ai', diff: 'ace' }, { kind: 'off' });
     return opts;
+  }
+
+  tryContinue() {
+    if (this.activeCount() >= 2) { this.audio?.play('uiSelect'); this.onNext(this.slots); }
+    else this.audio?.play('uiBack');
   }
 
   optIndex(slot) {
@@ -130,6 +164,7 @@ export class SetupScreen {
       return { v: names[s.diff], sub: 'computer-controlled fighter' };
     }
     const map = {
+      touch: ['TOUCH', 'On-screen joystick + buttons'],
       kb1: ['KEYBOARD 1', 'WASD + F/G/H/R/T/Y · Space · Shift'],
       kb2: ['KEYBOARD 2', 'Arrows + Numpad 1-6 · Num0 jump'],
       pad0: ['GAMEPAD 1', 'Xbox controller'], pad1: ['GAMEPAD 2', 'Xbox controller'],
@@ -158,10 +193,7 @@ export class SetupScreen {
     if (ev.right) this.cycle(this.cursor, 1);
     if (ev.up) { this.cursor = (this.cursor + 3) % 4; this.audio?.play('uiMove'); this.render(); }
     if (ev.down) { this.cursor = (this.cursor + 1) % 4; this.audio?.play('uiMove'); this.render(); }
-    if (ev.confirm) {
-      if (this.activeCount() >= 2) { this.audio?.play('uiSelect'); this.onNext(this.slots); }
-      else this.audio?.play('uiBack');
-    }
+    if (ev.confirm) this.tryContinue();
     if (ev.back) { this.audio?.play('uiBack'); this.onBack(); }
   }
   destroy() { this.el.remove(); }
@@ -202,6 +234,8 @@ export class MechSelectScreen {
     this.el.appendChild(el('div', 'hint-bar',
       '<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>ENTER / A</b> lock in&nbsp;&nbsp;<b>ESC / B</b> back'));
     root.appendChild(this.el);
+    // On touch, tapping a mech tile locks it in; this handles going back.
+    appendTouchBack(this.el, () => this.input.touchMenuEvent('back'));
 
     // picking order: humans in slot order
     this.pickOrder = [];
@@ -343,6 +377,8 @@ export class ArenaSelectScreen {
     this.el.appendChild(wrap);
     this.el.appendChild(el('div', 'hint-bar', '<b>ARROWS</b> move&nbsp;&nbsp;<b>ENTER / A</b> fight!&nbsp;&nbsp;<b>ESC / B</b> back'));
     root.appendChild(this.el);
+    // On touch, tapping an arena starts the fight; this handles going back.
+    appendTouchBack(this.el, () => { this.audio?.play('uiBack'); this.onBack(); });
     this.cursor = 0;
     this.refresh();
   }
