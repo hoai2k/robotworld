@@ -18,6 +18,7 @@ export class CameraSystem {
     this.mode = 'combined';
     this.switchCd = 0;
     this.azimuth = Math.PI;      // camera sits south of the action by default
+    this.azInit = false;         // has the single-player behind-view locked on yet
     this.elevation = 0.42;
     this.shakeT = 0;
 
@@ -98,18 +99,34 @@ export class CameraSystem {
     for (const f of framed) {
       radius = Math.max(radius, f.pos.distanceTo(_center) + 6);
     }
-    // single human: bias toward that player Override-style
-    if (humans.length === 1 && humans[0].alive) {
-      _center.lerp(humans[0].pos.clone().setY(_center.y), 0.35);
+    // Single human: bias framing toward them (Override-style) and swing the
+    // camera BEHIND the player, looking toward the nearest enemy — a proper
+    // third-person over-the-shoulder view instead of staring at the mech's
+    // face. Gently damped so it trails the action rather than snapping.
+    const solo = humans.length === 1 && humans[0].alive;
+    if (solo) {
+      const player = humans[0];
+      // frame tight on the player rather than the true centroid
+      _center.lerp(player.pos.clone().setY(_center.y), 0.5);
+      const enemy = player.nearestEnemy();
+      if (enemy) {
+        // offset direction points from the enemy toward the player (behind them)
+        const behindAz = Math.atan2(player.pos.x - enemy.pos.x, player.pos.z - enemy.pos.z);
+        this.azimuth = this.azInit ? angleDamp(this.azimuth, behindAz, 1.8, dt) : behindAz;
+        this.azInit = true;
+      }
     }
 
     const fovHalf = (this.engine.camera.fov * Math.PI / 360);
-    const wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95);
+    let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95);
+    // Solo: pull in close for an over-the-shoulder chase (the enemy stays
+    // framed because the camera is directly behind the player, facing them).
+    if (solo) wantDist = clamp(wantDist * 0.58, 22, 46);
     if (!this.init) this.dist = wantDist;
     this.dist = damp(this.dist, wantDist, 3, dt);
 
     const az = this.azimuth;
-    const el = this.elevation;
+    const el = solo ? 0.34 : this.elevation;   // lower, behind-the-shoulder angle
     _v.set(
       Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)
     ).multiplyScalar(this.dist);

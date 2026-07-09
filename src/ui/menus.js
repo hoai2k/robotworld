@@ -209,6 +209,7 @@ export class MechSelectScreen {
     this.onDone = onDone;
     this.onBack = onBack;
     this.onHover = onHover;
+    this.touch = isTouchDevice();
     this.el = el('div', 'screen fade-in');
     this.el.appendChild(el('div', 'screen-heading', 'CHOOSE YOUR MECH'));
 
@@ -220,7 +221,12 @@ export class MechSelectScreen {
         <div class="cell-icon">${m.icon}</div>
         <div class="cell-name">${m.name}</div>`;
       c.addEventListener('mouseenter', () => { this.cursor = i; this.refresh(); });
-      c.addEventListener('click', () => this.confirm());
+      // On touch, a tap previews (so you can read stats first); the LOCK IN
+      // button commits. On desktop a click locks in immediately, as before.
+      c.addEventListener('click', () => {
+        if (this.touch) { this.cursor = i; this.audio?.play('uiMove'); this.refresh(); }
+        else this.confirm();
+      });
       this.grid.appendChild(c);
       return c;
     });
@@ -234,8 +240,13 @@ export class MechSelectScreen {
     this.el.appendChild(el('div', 'hint-bar',
       '<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>ENTER / A</b> lock in&nbsp;&nbsp;<b>ESC / B</b> back'));
     root.appendChild(this.el);
-    // On touch, tapping a mech tile locks it in; this handles going back.
-    appendTouchBack(this.el, () => this.input.touchMenuEvent('back'));
+    // On touch: tap a tile to preview, then BACK / LOCK IN drive the pick.
+    if (this.touch) {
+      const bar = el('div', 'touch-navbar');
+      bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => this.input.touchMenuEvent('back')));
+      bar.appendChild(touchBtn('LOCK IN ▶', 'nav-next', () => this.confirm()));
+      this.el.appendChild(bar);
+    }
 
     // picking order: humans in slot order
     this.pickOrder = [];
@@ -358,8 +369,7 @@ export class ArenaSelectScreen {
     this.el = el('div', 'screen dim fade-in');
     this.el.appendChild(el('div', 'screen-heading', 'SELECT ARENA'));
 
-    const wrap = el('div', '');
-    wrap.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:14px;max-width:min(88vw,1240px);margin-top:8vh;';
+    const wrap = el('div', 'arena-grid');
     this.cards = THEMES.map((t, i) => {
       const c = el('div', 'arena-card');
       const art = document.createElement('canvas');
