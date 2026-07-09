@@ -18,9 +18,10 @@ const BUTTONS = [
 ];
 
 export class TouchControls {
-  constructor(input, { onPause } = {}) {
+  constructor(input, { onPause, onLook } = {}) {
     this.input = input;
     this.onPause = onPause;
+    this.onLook = onLook;
     input.touchAvailable = true;
 
     this.root = document.createElement('div');
@@ -28,11 +29,43 @@ export class TouchControls {
     this.root.className = 'touch-root';
     this.root.style.display = 'none';
 
+    // Look zone is mounted FIRST so it sits beneath the stick and buttons —
+    // drags on any empty area (typically the right side, opposite the stick
+    // hand) fall through to it and orbit the camera.
+    this._buildLookZone();
     this._buildJoystick();
     this._buildActions();
     this._buildTopBar();
 
     document.getElementById('app').appendChild(this.root);
+  }
+
+  // ---------- camera look (drag anywhere not covered by stick/buttons) ----------
+  _buildLookZone() {
+    const zone = document.createElement('div');
+    zone.className = 'touch-look-zone';
+    this.root.appendChild(zone);
+    this.lookZone = zone;
+    this._lookId = null;
+    let lx = 0, ly = 0;
+
+    zone.addEventListener('pointerdown', (e) => {
+      if (this._lookId !== null) return;
+      this._lookId = e.pointerId;
+      lx = e.clientX; ly = e.clientY;
+      try { zone.setPointerCapture(e.pointerId); } catch { /* no active pointer */ }
+      e.preventDefault();
+    });
+    zone.addEventListener('pointermove', (e) => {
+      if (e.pointerId !== this._lookId) return;
+      this.onLook?.(e.clientX - lx, e.clientY - ly);
+      lx = e.clientX; ly = e.clientY;
+      e.preventDefault();
+    });
+    const end = (e) => { if (e.pointerId === this._lookId) this._lookId = null; };
+    zone.addEventListener('pointerup', end);
+    zone.addEventListener('pointercancel', end);
+    zone.addEventListener('lostpointercapture', end);
   }
 
   // ---------- left analog stick ----------
@@ -182,6 +215,7 @@ export class TouchControls {
     this.input.touch.pressed.clear();
     this.input.touch.moveX = this.input.touch.moveZ = 0;
     this._stickId = null;
+    this._lookId = null;
     if (this.stickThumb) this.stickThumb.style.transform = 'translate(0px,0px)';
     this.buttons?.forEach((b) => { b.classList.remove('pressed'); b._pid = undefined; });
   }

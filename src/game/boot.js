@@ -142,7 +142,12 @@ export async function bootGame() {
   // On-screen touch controls (phones/tablets). Mounting sets input.touchAvailable,
   // which unlocks the TOUCH device option on the setup screen.
   const touchControls = isTouchDevice()
-    ? new TouchControls(input, { onPause: () => pauseBattle() })
+    ? new TouchControls(input, {
+        onPause: () => pauseBattle(),
+        onLook: (dx, dy) => {
+          if (S.mode === 'battle' && S.battle && !S.battle.paused) S.battle.cameraSys.applyLook(dx, dy);
+        },
+      })
     : null;
   if (isTouchDevice()) {
     document.body.classList.add('touch-mode');

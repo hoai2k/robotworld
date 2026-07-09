@@ -22,6 +22,12 @@ export class CameraSystem {
     this.elevation = 0.42;
     this.shakeT = 0;
 
+    // Manual look (touch drag): offsets layered on top of the auto framing,
+    // held while the player drags, then eased back to the auto view.
+    this.lookAzOffset = 0;
+    this.lookElOffset = 0;
+    this.lookCd = 0;             // seconds of "hold" left since the last drag
+
     // combined-cam smoothed state
     this.cPos = new THREE.Vector3(0, 24, 46);
     this.cTarget = new THREE.Vector3(0, 4, 0);
@@ -42,6 +48,15 @@ export class CameraSystem {
     this.dividerEl = document.createElement('div');
     this.dividerEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:6;display:none;';
     document.getElementById('ui-root').appendChild(this.dividerEl);
+  }
+
+  // Player dragged on the look region (touch). dx/dy are per-frame pixel
+  // deltas; rotate the orbit and nudge the pitch, and hold the view briefly.
+  applyLook(dx, dy) {
+    this.lookAzOffset -= dx * 0.006;
+    this.lookElOffset = clamp(this.lookElOffset - dy * 0.004, -0.22, 0.45);
+    this.lookCd = 3.0;
+    this.azInit = true; // ensure the auto base eases (never snaps) under us
   }
 
   // fighters framed by the camera; humans get viewports when split
@@ -125,8 +140,15 @@ export class CameraSystem {
     if (!this.init) this.dist = wantDist;
     this.dist = damp(this.dist, wantDist, 3, dt);
 
-    const az = this.azimuth;
-    const el = solo ? 0.34 : this.elevation;   // lower, behind-the-shoulder angle
+    // Manual look offsets hold while dragging, then ease back to the auto view.
+    if (this.lookCd > 0) this.lookCd -= dt;
+    else {
+      this.lookAzOffset = damp(this.lookAzOffset, 0, 1.0, dt);
+      this.lookElOffset = damp(this.lookElOffset, 0, 1.0, dt);
+    }
+
+    const az = this.azimuth + this.lookAzOffset;
+    const el = clamp((solo ? 0.34 : this.elevation) + this.lookElOffset, 0.12, 0.82);
     _v.set(
       Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)
     ).multiplyScalar(this.dist);

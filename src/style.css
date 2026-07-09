@@ -310,6 +310,9 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 }
 .touch-root * { -webkit-tap-highlight-color: transparent; }
 
+/* full-screen camera-look catcher, beneath the stick & buttons */
+.touch-look-zone { position: absolute; inset: 0; pointer-events: auto; touch-action: none; }
+
 /* left half grabs the floating analog stick */
 .touch-stick-zone {
   position: absolute; left: 0; bottom: 0; width: 42%; height: 62%;
