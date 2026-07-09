@@ -18,7 +18,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: #05070c; }
 #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 
 /* Kill browser scroll/zoom/callout gestures on touch so the game owns them. */
-body.touch-mode, body.touch-mode #app { touch-action: none; -webkit-user-select: none;
+body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-mode #vignette {
+  touch-action: none; -webkit-user-select: none;
   -webkit-touch-callout: none; overscroll-behavior: none; }
 
 #vignette {
