@@ -8,7 +8,8 @@ import { chromium } from 'playwright-core';
 
 const base = process.argv[2] || 'http://localhost:5173';
 const MECHS = ['titanus', 'vulcan', 'aegis', 'viper', 'nova', 'rhino',
-  'tempest', 'fenrir', 'colossus', 'wraith', 'inferno', 'glacier'];
+  'tempest', 'fenrir', 'colossus', 'wraith', 'inferno', 'glacier',
+  'cranky', 'saurion', 'frogger'];
 
 const browser = await chromium.launch({
   executablePath: '/opt/pw-browsers/chromium',

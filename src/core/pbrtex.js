@@ -8,6 +8,8 @@
 // height field. Roughness in G, metalness in B (one shared texture).
 import * as THREE from 'three';
 import { makeRng } from './utils.js';
+import { CONFIG } from './config.js';
+import { pbrMaterial } from './texload.js';
 
 const cache = new Map();
 
@@ -284,7 +286,25 @@ export function mechSkin(recipe) {
 }
 
 // Build a MeshStandardMaterial from a skin recipe.
+// pick a pack armor material for a skin recipe (texture-pack mode)
+function armorTexName(recipe) {
+  if ((recipe.metalPaint ?? 0) >= 0.6) return 'mech_steel_bare';
+  if ((recipe.wear ?? 0) >= 0.62) return 'mech_armor_worn';
+  if ((recipe.panelDepth ?? 0) >= 4) return 'mech_armor_heavy';
+  return 'mech_armor_clean';
+}
+
 export function skinMaterial(recipe, extra = {}) {
+  // texture-pack mode: neutral-gray armor albedos tinted by the mech's
+  // palette; anything missing falls back to the procedural synth below
+  if (CONFIG.useTextures) {
+    const name = recipe.frameBucket ? 'mech_gunmetal_dark' : armorTexName(recipe);
+    const mat = pbrMaterial('mech', name, {
+      repeat: 0.5, color: recipe.base ?? 0xffffff,
+      extra: { envMapIntensity: extra.envMapIntensity ?? 1.0, ...extra },
+    });
+    if (mat) return mat;
+  }
   const tex = mechSkin(recipe);
   return new THREE.MeshStandardMaterial({
     map: tex.map,

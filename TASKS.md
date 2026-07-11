@@ -313,3 +313,27 @@ controllers via Gamepad API), AI opponents.
     re-encountered at regular intervals; boundary ring/pylons removed.
   - Verified: wraptest (seam/ammo/escape), attackmatrix ALL CONNECT, 2 ace
     soaks clean, menu flow clean, crate screenshot viewed, build green.
+- 2026-07-11: THREE NEW MECHS wired (CRANKY crab / SAURION raptor / FROGGER
+  slime-frog): full roster kits (water cannon+geyser+riptide; razor plumes+
+  sickle rush+extinction; slime slinger+quad barrage+royal ribbit), new
+  ranged types water/feather/slime, AI buckets, 15-mech 4-column select
+  grid, canonical image specs archived. Design files sculpted per-image by
+  parallel agents (designs/cranky|saurion|frogger.js).
+- 2026-07-11: TEXTURE PACK integration: CONFIG.useTextures (default ON,
+  ?textures=0 off) + src/core/texload.js (import.meta.glob loader).
+  Grounds per arena (tinted toward theme), building facades per style
+  (emissive windows, whisper tints), mech armor from neutral-gray pack
+  albedos tinted by palette (worn/heavy/clean/bare-steel selection by
+  recipe, gunmetal frame bucket). Missing files auto-fallback procedural.
+  Round-2 gap/redo prompt appended to docs/TEXTURE_GEN_PROMPT.md
+  (4 missing grounds, kaleidoscope regen, glass facade redo).
+- 2026-07-11: SEAMLESS WRAP v2 (toroidal rendering): destructible chunks
+  ghost-tiled into 8 neighbor cells inside one InstancedMesh (stride
+  blocks; kills/fades mirror to ghosts), props cloned at 8 offsets,
+  skyline camera-locked as an infinite backdrop (was the "grey buildings"
+  pop), dynamic entities (fighters/projectiles/pickups) shifted to their
+  nearest image per viewport before each render and restored after
+  (engine.onBeforeView/onAfterView), fog capped at 400 so nothing beyond
+  the ±1-cell tiling shows. Verified: standing at the seam looking across
+  shows the city + opponent exactly as if walking through; entity shift
+  math exact (150.4 == expected); soak + menu flow clean.

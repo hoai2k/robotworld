@@ -13,10 +13,10 @@ export const DIFFICULTY = {
 function preferredRange(def) {
   const t = def.moves.ranged.type;
   if (t === 'railgun' || t === 'mortar') return 26;
-  if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning') return 16;
-  if (t === 'shard') return 14;
+  if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning' || t === 'water') return 16;
+  if (t === 'shard' || t === 'slime') return 14;
   if (t === 'flame') return 8;
-  return 5; // brawlers
+  return 5; // brawlers (dart, wave, rocket, feather)
 }
 
 // self-centered AoE moves only connect up close — gate them by their radius

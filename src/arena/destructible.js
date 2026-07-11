@@ -35,16 +35,25 @@ const _e = new THREE.Euler();
 const _c = new THREE.Color();
 
 export class DestructibleSystem {
-  constructor(scene, material, capacity = 2600) {
+  constructor(scene, material, capacity = 1400) {
     this.scene = scene;
-    this.capacity = capacity;
+    this.capacity = capacity;      // per-cell chunk budget
+    // toroidal arenas: every chunk gets 8 ghost copies in the neighbor
+    // cells (index blocks of `capacity`), so the city is visible across
+    // the wrap seam. Ghosts activate when setWrapPeriod() is called.
+    this.totalCap = capacity * 9;
+    this.wrapPeriod = 0;
+    this.ghostOffsets = [];
 
     const geo = new THREE.BoxGeometry(1, 1, 1);
-    this.mesh = new THREE.InstancedMesh(geo, material, capacity);
+    this.mesh = new THREE.InstancedMesh(geo, material, this.totalCap);
     this.mesh.castShadow = true;
     this.mesh.receiveShadow = true;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
+    _m.compose(_p.set(0, -500, 0), _q.identity(), _s.set(0.0001, 0.0001, 0.0001));
+    for (let i = 0; i < this.totalCap; i++) this.mesh.setMatrixAt(i, _m);
+    this.mesh.count = this.totalCap;
     scene.add(this.mesh);
 
     this.chunks = [];      // {x,y,z (center), w,h,d, alive, bIdx, gx,gy,gz, hp}
@@ -80,7 +89,7 @@ export class DestructibleSystem {
     // the player never loses their mech behind cover. Dithered discard (no
     // alpha blending) keeps instancing + depth simple.
     // NOTE: patched AFTER the debris material clone so debris stays solid.
-    this.fadeAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity).fill(1), 1);
+    this.fadeAttr = new THREE.InstancedBufferAttribute(new Float32Array(this.totalCap).fill(1), 1);
     this.mesh.geometry.setAttribute('aFade', this.fadeAttr);
     const mats = Array.isArray(material) ? [...new Set(material)] : [material];
     for (const mat of mats) {
@@ -97,6 +106,55 @@ export class DestructibleSystem {
     }
     #include <clipping_planes_fragment>`);
       };
+    }
+  }
+
+  // Activate ghost tiling for a toroidal arena of the given period.
+  setWrapPeriod(P) {
+    this.wrapPeriod = P;
+    this.ghostOffsets = [];
+    for (let gx = -1; gx <= 1; gx++) {
+      for (let gz = -1; gz <= 1; gz++) {
+        if (gx || gz) this.ghostOffsets.push([gx * P, gz * P]);
+      }
+    }
+    for (const c of this.chunks) {
+      if (c.alive) this.writeChunk(c);
+    }
+    this.mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  // write a chunk's matrix (and its 8 ghost copies)
+  writeChunk(chunk) {
+    _m.compose(
+      _p.set(chunk.x, chunk.y, chunk.z), _q.identity(),
+      _s.set(chunk.w * 1.001, chunk.h * 1.001, chunk.d * 1.001)
+    );
+    this.mesh.setMatrixAt(chunk.i, _m);
+    for (let g = 0; g < this.ghostOffsets.length; g++) {
+      _m.compose(
+        _p.set(chunk.x + this.ghostOffsets[g][0], chunk.y, chunk.z + this.ghostOffsets[g][1]),
+        _q.identity(),
+        _s.set(chunk.w * 1.001, chunk.h * 1.001, chunk.d * 1.001)
+      );
+      this.mesh.setMatrixAt(this.capacity * (g + 1) + chunk.i, _m);
+    }
+  }
+
+  writeFade(b, v) {
+    for (const chunk of b.grid.values()) {
+      if (!chunk.alive) continue;
+      this.fadeAttr.array[chunk.i] = v;
+      for (let g = 1; g <= 8; g++) this.fadeAttr.array[this.capacity * g + chunk.i] = v;
+    }
+    this.fadeAttr.needsUpdate = true;
+  }
+
+  hideChunk(chunk) {
+    _m.compose(_p.set(0, -500, 0), _q.identity(), _s.set(0.0001, 0.0001, 0.0001));
+    this.mesh.setMatrixAt(chunk.i, _m);
+    for (let g = 0; g < 8; g++) {
+      this.mesh.setMatrixAt(this.capacity * (g + 1) + chunk.i, _m);
     }
   }
 
@@ -144,16 +202,12 @@ export class DestructibleSystem {
           b.grid.set(`${gx},${gy},${gz}`, chunk);
           b.chunkCount++;
           b.alive++;
-          // slight per-chunk color variance
+          // slight per-chunk color variance (ghost copies match)
           const v = 1.25 + rng() * 0.3;
           _c.set(tint).multiplyScalar(v);
           this.mesh.setColorAt(i, _c);
-          _m.compose(
-            _p.set(chunk.x, chunk.y, chunk.z),
-            _q.identity(),
-            _s.set(cw * 1.001, ch * 1.001, cd * 1.001)
-          );
-          this.mesh.setMatrixAt(i, _m);
+          for (let g = 1; g <= 8; g++) this.mesh.setColorAt(this.capacity * g + i, _c);
+          this.writeChunk(chunk);
         }
       }
     }
@@ -163,7 +217,6 @@ export class DestructibleSystem {
       minZ: z0 - 0.5, maxZ: z0 + d + 0.5,
     };
     this.buildings.push(b);
-    this.mesh.count = this.count;
     this.mesh.instanceMatrix.needsUpdate = true;
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
     return b;
@@ -173,8 +226,7 @@ export class DestructibleSystem {
     if (!chunk.alive) return;
     chunk.alive = false;
     chunk.b.alive--;
-    _m.compose(_p.set(0, -500, 0), _q.identity(), _s.set(0.001, 0.001, 0.001));
-    this.mesh.setMatrixAt(chunk.i, _m);
+    this.hideChunk(chunk);
     this.mesh.instanceMatrix.needsUpdate = true;
 
     // spawn 1-2 debris pieces
@@ -307,16 +359,10 @@ export class DestructibleSystem {
       const cur = b.fade ?? 1;
       if (Math.abs(cur - target) > 0.005) {
         b.fade = cur + (target - cur) * fk;
-        for (const chunk of b.grid.values()) {
-          if (chunk.alive) this.fadeAttr.array[chunk.i] = b.fade;
-        }
-        this.fadeAttr.needsUpdate = true;
+        this.writeFade(b, b.fade);
       } else if (b.fade !== target) {
         b.fade = target;
-        for (const chunk of b.grid.values()) {
-          if (chunk.alive) this.fadeAttr.array[chunk.i] = target;
-        }
-        this.fadeAttr.needsUpdate = true;
+        this.writeFade(b, target);
       }
     }
 

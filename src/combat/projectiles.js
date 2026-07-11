@@ -186,7 +186,7 @@ export class ProjectileSystem {
         if (cdx * cdx + cdy * cdy + cdz * cdz < rr * rr) {
           p.hitSet.add(f);
           if (p.splash) {
-            world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+            world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch, status: p.status });
           } else {
             f.takeHit(p.dmg, p.owner, { knock: p.knock, launch: p.launch, srcPos: p.mesh.position, status: p.status });
             world.effects.impactSparks(p.mesh.position, p.color, 10, 8);
@@ -197,7 +197,7 @@ export class ProjectileSystem {
 
       // ground
       if (!dead && p.mesh.position.y <= 0.15) {
-        if (p.splash) world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+        if (p.splash) world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch, status: p.status });
         else world.effects.impactSparks(p.mesh.position, p.color, 6, 5);
         dead = true;
       }

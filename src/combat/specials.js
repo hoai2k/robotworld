@@ -281,6 +281,90 @@ export const SPECIALS = {
     }
   },
 
+  // CRANKY: water column erupts under the target, launching them skyward
+  geyser(f, sp) {
+    const dur = f.animator.play('castRaise', {
+      onEvent: (t) => {
+        if (t !== 'fire') return;
+        const w = f.world;
+        const e = f.nearestEnemy();
+        const target = e ? leadPos(f, e, 1.05) : fwd(f, 14);
+        target.y = 0;
+        w.effects.rings.spawn(target, { from: sp.radius, to: sp.radius * 0.9, dur: 0.5, color: 0x4fc3ff, y: 0.3 });
+        w.audio?.play('cast');
+        w.schedule(0.5, () => {
+          const top = target.clone();
+          top.y += 26;
+          w.effects.beams.spawn(target, top, { radius: sp.radius * 0.5, dur: 0.55, color: 0x8fdcff });
+          for (let i = 0; i < 16; i++) {
+            w.effects.glows.emit(target.x + rand(-2.2, 2.2), rand(1, 18), target.z + rand(-2.2, 2.2),
+              0, rand(4, 10), 0, { life: rand(0.4, 0.85), size: rand(1.3, 2.6), color: 0xaee8ff, alpha: 0.85 });
+          }
+          w.audio?.play('wave');
+          w.effects.addShake(0.6);
+          for (const v of w.fighters) {
+            if (v === f || !v.alive) continue;
+            const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);
+            if (Math.hypot(dx, dz) < sp.radius + v.hitRadius * 0.5) {
+              v.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, launch: sp.launch, srcPos: target, heavy: true });
+            }
+          }
+        });
+      },
+    });
+    f.setState('special', dur * 0.85);
+  },
+
+  // SAURION: sickle-claw dash-through that leaves targets bleeding
+  sickleRush(f, sp) {
+    f.animator.play('lunge');
+    f.setState('special', 0.4);
+    f.iframes = 0.32;
+    const spd = f.def.stats.speed * 4.4;
+    f.vel.x = Math.sin(f.yaw) * spd;
+    f.vel.z = Math.cos(f.yaw) * spd;
+    f.world.audio?.play('dash');
+    const victims = new Set();
+    for (let i = 1; i <= 8; i++) {
+      f.world.schedule(i * 0.045, () => {
+        if (!f.alive) return;
+        f.world.effects.dashTrail(f.pos, 0xff3826, f.scale * 1.3);
+        for (const e of f.world.fighters) {
+          if (e === f || !e.alive || victims.has(e)) continue;
+          const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
+          if (Math.hypot(dx, dz) < 3.4 * f.scale) {
+            victims.add(e);
+            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 9, srcPos: f.pos, status: { burn: sp.bleed, burnT: 2.2 } });
+            f.world.audio?.play('slash');
+            f.world.engine.addHitStop(0.05);
+          }
+        }
+      });
+    }
+  },
+
+  // FROGGER: all four gunk guns lob a sticky mortar carpet
+  slimeBarrage(f, sp) {
+    const dur = f.animator.play('spray', { speed: 1.4 });
+    f.setState('special', Math.min(dur, 1.0));
+    for (let i = 0; i < sp.count; i++) {
+      f.world.schedule(0.1 * i, () => {
+        if (!f.alive) return;
+        const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+        const arcTime = rand(0.7, 1.0);
+        const e = f.nearestEnemy();
+        const target = e ? leadPos(f, e, arcTime * 0.8) : fwd(f, 16);
+        target.x += rand(-sp.radius, sp.radius) * 0.4;
+        target.z += rand(-sp.radius, sp.radius) * 0.4;
+        f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
+          dmg: sp.dmg * f.dmgMult(), splash: 2.6, color: 0x9ade2a, arcTo: target, arcTime,
+          status: { slow: 0.6, slowT: 1.8 },
+        });
+        f.world.audio?.play('plasma');
+      });
+    }
+  },
+
   // GLACIER: cryo beam channel
   freezeBeam(f, sp) {
     f.animator.play('shootLoop');
@@ -619,6 +703,108 @@ export const ULTS = {
     });
     f.setState('ult', dur);
     f.iframes = dur;
+  },
+
+  // CRANKY: fan of crushing waves, then a tidal surge around the shell
+  riptide(f, u) {
+    const dur = f.animator.play('burst', {
+      onEvent: (t) => {
+        if (t !== 'fire') return;
+        const w = f.world;
+        w.audio?.play('wave');
+        const n = u.waves;
+        for (let i = 0; i < n; i++) {
+          const a = f.yaw + (i - (n - 1) / 2) * 0.16;
+          const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+          from.y = Math.min(from.y, 3.2);
+          w.projectiles.spawn('wave', f, from, new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), {
+            dmg: u.dmg * f.dmgMult(), speed: 42, color: 0x5fd0ff, knock: 16, launch: 7, pierce: true, maxDist: 46,
+          });
+        }
+        w.schedule(0.5, () => {
+          if (!f.alive) return;
+          w.groundShockwave(f, f.pos, u.radius, u.surgeDmg * f.dmgMult(), 20, 0x5fd0ff, true);
+          w.audio?.play('explosionBig');
+          w.effects.addShake(1.1);
+        });
+      },
+    });
+    f.setState('ult', dur);
+    f.iframes = dur;
+  },
+
+  // SAURION: chained sickle lunges, launcher on the final pass
+  extinction(f, u) {
+    f.world.audio?.play('powerup');
+    const doLunge = (n) => {
+      if (n >= u.hits || !f.alive) { f.animator.stop(); f.setState('normal'); return; }
+      f.faceNearestEnemyIfClose(120, true);
+      f.animator.play('lunge', { speed: 1.4 });
+      f.setState('ult', 0.5);
+      f.iframes = 0.3;
+      const spd = f.def.stats.speed * 4.2;
+      f.vel.x = Math.sin(f.yaw) * spd;
+      f.vel.z = Math.cos(f.yaw) * spd;
+      const last = n === u.hits - 1;
+      const victims = new Set();
+      for (let i = 1; i <= 7; i++) {
+        f.world.schedule(i * 0.05, () => {
+          if (!f.alive) return;
+          f.world.effects.dashTrail(f.pos, 0xff3826, f.scale * 1.5);
+          for (const e of f.world.fighters) {
+            if (e === f || !e.alive || victims.has(e)) continue;
+            const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
+            if (Math.hypot(dx, dz) < 3.6 * f.scale) {
+              victims.add(e);
+              e.takeHit(u.dmg * f.dmgMult(), f, {
+                knock: last ? u.knock : 6, launch: last ? 10 : 0, srcPos: f.pos, heavy: last,
+              });
+              f.world.audio?.play('slash');
+              f.world.engine.addHitStop(last ? 0.1 : 0.05);
+            }
+          }
+        });
+      }
+      f.world.schedule(0.55, () => doLunge(n + 1));
+    };
+    doLunge(0);
+  },
+
+  // FROGGER: moon-leap onto the target and detonate a slime splat
+  royalRibbit(f, u) {
+    f.setState('ult', 2.1);
+    f.animator.play('launched');
+    f.vel.y = 30;
+    f.grounded = false;
+    f.iframes = 1.1;
+    f.world.audio?.play('powerup');
+    const e = f.nearestEnemy();
+    if (e) {
+      const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
+      f.vel.x = dx / 1.2;
+      f.vel.z = dz / 1.2;
+    }
+    f.world.schedule(0.65, () => {
+      if (!f.alive) return;
+      f.vel.y = -52;
+      f.animator.play('groundPound', { speed: 1.7 });
+      const land = () => {
+        if (!f.alive) return;
+        if (f.grounded) {
+          const w = f.world;
+          w.effects.explosion(f.pos, u.radius * 0.7, { color: 0x9ade2a });
+          w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 2.2, dur: 0.6, color: 0xaef23c, y: 0.4 });
+          w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
+            owner: f, knock: 18, color: 0x9ade2a, launch: 11, status: { slow: 0.5, slowT: 2.5 },
+          });
+          w.effects.addShake(1.4);
+          w.engine.addHitStop(0.14);
+          w.audio?.play('explosionBig');
+          f.setState('normal');
+        } else f.world.schedule(0.04, land);
+      };
+      f.world.schedule(0.1, land);
+    });
   },
 
   // GLACIER: freeze everything nearby

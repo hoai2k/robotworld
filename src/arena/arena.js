@@ -5,6 +5,22 @@ import { DestructibleSystem } from './destructible.js';
 import { PROPS, PROP_MATS, placeProp } from './props.js';
 import { roadTexture, chunkFacade, skyStarsTexture } from '../core/textures.js';
 import { rand, makeRng, clamp } from '../core/utils.js';
+import { CONFIG } from '../core/config.js';
+import { pbrMaterial } from '../core/texload.js';
+
+// texture-pack material names per arena / building style
+const GROUND_TEX = {
+  neon: 'ground_neon_asphalt', foundry: 'ground_foundry_ironplate',
+  uptown: 'ground_uptown_paving', harbor: 'ground_harbor_concrete',
+  skyterrace: 'ground_skyterrace_roofpanel', scrapyard: 'ground_scrapyard_dirt',
+  quarry: 'ground_quarry_rock', volcano: 'ground_volcano_basalt',
+  frozen: 'ground_frozen_snowice', ruins: 'ground_ruins_sandstone',
+  jungle: 'ground_jungle_mossstone', orbital: 'ground_orbital_deck',
+};
+const FACADE_TEX = {
+  0: 'bldg_concrete_panel', 1: 'bldg_brick_industrial',
+  2: 'bldg_glass_office', 3: 'bldg_steampunk_metal',
+};
 
 const _v = new THREE.Vector3();
 
@@ -65,7 +81,8 @@ export class Arena {
     this.sky = makeSkyDome(theme);
     this.scene.add(this.sky);
     this.objects.push(this.sky);
-    this.scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near * 1.5, theme.fog.far * 1.5);
+    // fog capped so nothing beyond the ±1-cell ghost tiling is ever visible
+    this.scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near * 1.5, Math.min(theme.fog.far * 1.5, 400));
     this.scene.background = null;
 
     const { sun, hemi, rim } = engine;
@@ -81,13 +98,24 @@ export class Arena {
     engine.renderer.toneMappingExposure = theme.exposure ?? 1.0;
 
     // ---- ground ----
-    const gmat = new THREE.MeshStandardMaterial({
-      color: theme.ground.color, roughness: 0.88, metalness: 0.08,
-    });
-    if (theme.ground.road) {
-      gmat.map = roadTexture();
-      gmat.map.repeat.set(7, 7);
-      gmat.color.set(0xffffff);
+    let gmat = null;
+    if (CONFIG.useTextures && GROUND_TEX[theme.id]) {
+      // pack texture, lightly tinted toward the theme's ground color so
+      // arena mood grading survives
+      gmat = pbrMaterial('ground', GROUND_TEX[theme.id], {
+        repeat: 44,
+        color: new THREE.Color(theme.ground.color).lerp(new THREE.Color(0xffffff), 0.55),
+      });
+    }
+    if (!gmat) {
+      gmat = new THREE.MeshStandardMaterial({
+        color: theme.ground.color, roughness: 0.88, metalness: 0.08,
+      });
+      if (theme.ground.road) {
+        gmat.map = roadTexture();
+        gmat.map.repeat.set(7, 7);
+        gmat.color.set(0xffffff);
+      }
     }
     const ground = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), gmat);
     ground.rotation.x = -Math.PI / 2;
@@ -101,12 +129,16 @@ export class Arena {
     this.wrapHalf = B * 1.35;
 
     // ---- skyline backdrop (cheap, far, unlit boxes) ----
+    // camera-locked: the engine re-centers it on each view camera before
+    // rendering, so it reads as an infinitely distant city and never gets
+    // crossed or wrapped (this is what used to look like "grey buildings"
+    // popping at the seam).
     const skyMatDark = new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.fog.color).multiplyScalar(0.55) });
     const skyline = new THREE.Group();
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2 + rng.range(-0.05, 0.05);
-      const r = rng.range(190, 310);
-      const w = rng.range(12, 30), h = rng.range(20, 90), d = rng.range(12, 30);
+      const r = rng.range(230, 340);
+      const w = rng.range(14, 34), h = rng.range(24, 100), d = rng.range(14, 34);
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), skyMatDark);
       m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
       m.rotation.y = rng.range(0, Math.PI);
@@ -114,21 +146,34 @@ export class Arena {
     }
     this.scene.add(skyline);
     this.objects.push(skyline);
+    engine.backdrop = skyline;
 
     // ---- destructible buildings ----
     const styleIdx = theme.buildings.styles[0];
-    const facade = chunkFacade(styleIdx, seed);
-    const sideMat = new THREE.MeshStandardMaterial({
-      map: facade.map, roughness: 0.82, metalness: 0.15,
-    });
-    if (theme.buildings.glow) {
-      sideMat.emissiveMap = facade.emissiveMap;
-      sideMat.emissive = new THREE.Color(0xffffff);
-      sideMat.emissiveIntensity = 0.6;
+    let sideMat = null, roofMat = null;
+    if (CONFIG.useTextures && FACADE_TEX[styleIdx]) {
+      // pack facade: one tile ≈ one floor band, per-chunk face UVs are 0..1
+      sideMat = pbrMaterial('building', FACADE_TEX[styleIdx], {
+        repeat: 1, emissiveIntensity: theme.buildings.glow ? 0.6 : 0.0,
+      });
+      roofMat = pbrMaterial('building', 'bldg_roof_gravel', { repeat: 1 });
     }
-    const roofMat = new THREE.MeshStandardMaterial({
-      color: 0xb0aca4, roughness: 0.9, metalness: 0.1,
-    });
+    if (!sideMat) {
+      const facade = chunkFacade(styleIdx, seed);
+      sideMat = new THREE.MeshStandardMaterial({
+        map: facade.map, roughness: 0.82, metalness: 0.15,
+      });
+      if (theme.buildings.glow) {
+        sideMat.emissiveMap = facade.emissiveMap;
+        sideMat.emissive = new THREE.Color(0xffffff);
+        sideMat.emissiveIntensity = 0.6;
+      }
+    }
+    if (!roofMat) {
+      roofMat = new THREE.MeshStandardMaterial({
+        color: 0xb0aca4, roughness: 0.9, metalness: 0.1,
+      });
+    }
     // box face order: px, nx, py (top), ny, pz, nz
     const chunkMats = [sideMat, sideMat, roofMat, roofMat, sideMat, sideMat];
     this.destructo = new DestructibleSystem(this.scene, chunkMats);
@@ -159,11 +204,20 @@ export class Arena {
       const nx = rng.int(2, 3), nz = rng.int(2, 3);
       const ny = rng.int(theme.buildings.hRange[0], theme.buildings.hRange[1]);
       const cw = rng.range(3.2, 3.9), ch = rng.range(3.1, 3.6), cd = rng.range(3.2, 3.9);
-      const tint = theme.buildings.tints[rng.int(0, theme.buildings.tints.length - 1)];
+      let tint = theme.buildings.tints[rng.int(0, theme.buildings.tints.length - 1)];
+      if (CONFIG.useTextures && FACADE_TEX[styleIdx]) {
+        // pack facades carry their own color — keep only a whisper of tint
+        tint = new THREE.Color(tint).lerp(new THREE.Color(0xffffff), 0.68).getHex();
+      }
       this.destructo.addBuilding(x, z, nx, ny, nz, cw, ch, cd, { tint, rng });
     }
 
     // ---- props ----
+    // all props live in one group so the toroidal tiling below can clone
+    // them into the 8 neighbor cells
+    this.propGroup = new THREE.Group();
+    this.scene.add(this.propGroup);
+    this.objects.push(this.propGroup);
     for (const spec of theme.props || []) {
       for (let i = 0; i < spec.count; i++) {
         const a = rng.range(0, Math.PI * 2);
@@ -172,10 +226,23 @@ export class Arena {
         let opts = Array.isArray(spec.opts) ? spec.opts[i % spec.opts.length] : { ...(spec.opts || {}) };
         opts = { ...opts, seed: rng.int(1, 99999) };
         if (opts.mat === 'ice') opts.mat = PROP_MATS.ice;
-        const g = placeProp(this.scene, this.objects, spec.name, x, z, opts);
+        const g = placeProp(this.propGroup, this.objects, spec.name, x, z, opts);
         if (g && g.userData.spin) this.spinners.push(g);
         if (g && g.userData.steamY !== undefined) {
           this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY, z));
+        }
+      }
+    }
+    // ghost copies of the props in the 8 neighbor cells (static)
+    {
+      const P = this.wrapHalf * 2;
+      for (let gx = -1; gx <= 1; gx++) {
+        for (let gz = -1; gz <= 1; gz++) {
+          if (!gx && !gz) continue;
+          const ghost = this.propGroup.clone();
+          ghost.position.set(gx * P, 0, gz * P);
+          this.scene.add(ghost);
+          this.objects.push(ghost);
         }
       }
     }
@@ -190,6 +257,7 @@ export class Arena {
     this.world = world;
     this.destructo.world = world;
     world.wrapHalf = this.wrapHalf;
+    this.destructo.setWrapPeriod(this.wrapHalf * 2);
   }
 
   // ---- combat services ----

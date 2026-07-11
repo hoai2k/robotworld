@@ -121,3 +121,41 @@ value and wear only, not hue. 29–32 are used as-is.
 Deliver as one folder per material containing its maps, e.g.
 `ground/ground_neon_asphalt/ground_neon_asphalt_albedo.png` (+ `_normal`,
 `_rough`, and `_metal`/`_emissive` where specified). 32 materials total.
+
+---
+
+# ADDENDUM — round 2 (after in-game testing of the first pack)
+
+The pack is wired in and working (`use_textures` flag, on by default;
+`?textures=0` disables). These are the gaps and re-dos found in-game.
+
+## Missing entirely (never delivered — same specs as above)
+1. `ground_uptown_paving`
+2. `ground_skyterrace_roofpanel`
+3. `ground_scrapyard_dirt`
+4. `ground_volcano_basalt` (+emissive crack glow)
+
+## Please REGENERATE (quality issues in-game)
+
+**All GROUND textures — kaleidoscope artifact.** The current grounds were
+made tileable by mirroring, which creates large symmetric "medallion"
+motifs that are extremely visible when the texture repeats ~40× across the
+arena floor (worst: `ground_neon_asphalt`, `ground_frozen_snowice`,
+`ground_quarry_rock`). Regenerate with:
+- seamless tiling via offset/blend continuation, NOT mirror symmetry —
+  no motif should appear twice symmetrically;
+- small, uniform, non-directional detail (crack networks, grain, patches)
+  with no large distinctive features that read as a repeating stamp;
+- overall value variation kept LOW (±10%) so repetition is invisible.
+
+**`bldg_glass_office` — reads beige/woven in-game.** Regenerate with:
+clearly BLUE reflective glass panes (cool, saturated), near-black slim
+mullions, higher contrast between glass and frame; emissive map windows
+brighter and sparser (~25%).
+
+## Nice-to-have additions (new)
+- `ground_road_markings` — TRANSPARENT PNG overlay tile (lane lines /
+  crosswalk fragments, worn) to composite over city grounds.
+- `mech_core_glow` — emissive-only radial reactor glow disc (black bg).
+- `prop_kelp_fouling` — barnacles/kelp fouling patches with alpha, for the
+  crab mech and harbor props.

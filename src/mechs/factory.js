@@ -34,6 +34,7 @@ export function computeDims(def) {
 const FRAME_RECIPE = {
   base: 0x33373e, metal: 0x767c86, wear: 0.4, grime: 0.45,
   panelDepth: 3, roughPaint: 0.5, metalPaint: 0.72, seed: 3,
+  frameBucket: true, // texture-pack mode: use the gunmetal frame material
 };
 
 export function makeMaterials(def) {

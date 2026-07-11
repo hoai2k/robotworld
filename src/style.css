@@ -108,7 +108,7 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 /* ---------- mech select ---------- */
 .roster-grid {
   position: absolute; left: 3vw; top: 50%; transform: translateY(-50%);
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: min(34vw, 430px);
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; width: min(36vw, 470px);
 }
 .roster-cell {
   aspect-ratio: 1; border-radius: 6px; cursor: pointer; position: relative;

@@ -69,6 +69,9 @@ export class Engine {
 
     // ---- loop state ----
     this.views = null;         // split-screen: [{camera, x, y, w, h}] (0..1)
+    this.backdrop = null;      // camera-locked skyline group (re-centered per view)
+    this.onBeforeView = null;  // (camera) => {} pre-render per view (wrap shifting)
+    this.onAfterView = null;   // () => {} post-render per view
     this.timeScale = 1;
     this.hitStop = 0;          // seconds of near-freeze remaining
     this.elapsed = 0;
@@ -118,15 +121,21 @@ export class Engine {
         const pr = this.renderer.getPixelRatio();
         this.renderer.setScissorTest(true);
         for (const v of this.views) {
+          if (this.backdrop) this.backdrop.position.set(v.camera.position.x, 0, v.camera.position.z);
+          this.onBeforeView?.(v.camera);
           const x = v.x * W, y = v.y * H, w = v.w * W, h = v.h * H;
           this.renderer.setViewport(x, y, w, h);
           this.renderer.setScissor(x, y, w, h);
           this.renderer.render(this.scene, v.camera);
+          this.onAfterView?.();
         }
         this.renderer.setScissorTest(false);
         this.renderer.setViewport(0, 0, W, H);
       } else {
+        if (this.backdrop) this.backdrop.position.set(this.camera.position.x, 0, this.camera.position.z);
+        this.onBeforeView?.(this.camera);
         this.composer.render();
+        this.onAfterView?.();
       }
     };
     requestAnimationFrame(tick);

@@ -256,6 +256,9 @@ export async function bootGame() {
     engine.rim.position.copy(defaults.rim.pos);
     engine.renderer.toneMappingExposure = 1.05;
     engine.views = null;
+    engine.backdrop = null;
+    engine.onBeforeView = null;
+    engine.onAfterView = null;
     engine.timeScale = 1;
     engine.scene.fog = null;
     engine.scene.background = new THREE.Color(0x0a0e18);
@@ -363,6 +366,9 @@ export async function bootGame() {
     arena.bind(world);
     world.input = input;
     world.spawnAmmoBoxes(4, arena.bounds * 0.6);
+    // per-view seam rendering: dynamic entities show their nearest image
+    engine.onBeforeView = (cam) => world.applyViewWrap(cam);
+    engine.onAfterView = () => world.clearViewWrap();
 
     const active = [];
     S.slots.forEach((s, i) => { if (s.kind !== 'off') active.push({ slot: s, slotIdx: i }); });

@@ -158,3 +158,43 @@ muzzle (reaches mid-shin). Left arm: heavy gauntlet fist. Broad frosted
 hex-plate chest with snowflake emblem; cyan abdomen slits; thick skirts;
 enormous hex-plated legs and huge flat feet. Crystals translucent, NOT
 emissive; wear 0.5 with light frost mottling (white base2 patches).
+
+## cranky — rust-orange crab shell (0xa64a28 patchy over dark steel), blue-steel cannons (0x46759e), blue LED glow (0x4fc3ff)
+Full crab. Enormous domed carapace shell (wider than tall) with heavy patchy
+corrosion — orange paint flaking to dark steel; "CRANKY" + crab sigil center,
+"07" right, small spike antennae row on the crown. NO raised head: face is
+embedded under the shell brow — two clusters of FOUR round blue LED eyes
+flanking a vertical grill mouth, framed by dark pipe "mandibles". TWO GIANT
+serrated crab claws carried low in front (orange shell outer, dark mech
+inner, chrome saw-tooth serrations along both jaws, claw ≈ torso height).
+Shoulder-mounted WATER CANNONS ×2 atop the shell: blue-steel barrels with
+banded segments and glowing blue muzzle rings, each fed by a blue riveted
+TANK (brass bands, hoses) behind it. Wide stance segmented crab legs (dark
+steel joints, orange armor caps on upper segments), flat gripper feet.
+Squat, hunched silhouette; wear 0.78, drips/streak grime. Sea-worn.
+
+## saurion — gunmetal-black raptor (0x33343a/0x17181c), red glow (0xff2418), white decals
+Utahraptor frame, predatory S-pose. Long armored SNOUT with chrome steel
+teeth in an exposed grin, single RED eye each side under an angry brow;
+MOHAWK CREST of layered blade-feathers (metal quills) from crown down the
+neck. Feather-blade rows: short mane over shoulders/upper back, wing-fan
+rows along both forearms, and a DOUBLE ROW fanning the whole tail to its
+tip. Long tail (≈ body length) with "MX-7 SAURION" plate mid-tail. Chest:
+angular plates with a RED glowing core strip + seam glows; white decals
+"77" both shoulders, skull-triangle corp logo + "SAURION" on chest.
+Arms mid-length with THREE long chrome claws each. Digitigrade legs, thick
+thighs, exposed piston shins, huge raised SICKLE TOE-CLAW (chrome) on each
+foot + two ground toes. Whole body gunmetal black, red accent lights.
+
+## frogger — lime green (0x7cb420) + translucent slime (glow 0xaef23c), black frame (0x262b20)
+Frog-mech. Head merged into wide torso: two HUGE glass-dome BUG EYES on top
+(lime iris, dark pupil, mechanical ring mounts), wide grin mouth-line seam,
+and a TRANSLUCENT SLIME VISOR/chin — lime resin with DRIPS running off the
+chin and chest (translucent, glowing slightly). "SLIMER" decal on brow.
+FOUR ARMS: upper pair = big SLIME CANNONS on raised shoulder pods (angled
+up-out, translucent glowing barrel cores, slime dripping from muzzles);
+lower pair = articulated arms whose forearms are translucent slime tubes
+ending in nozzle guns (also dripping). Black mech joints/frame between lime
+armor plates; small hazard chevrons. Powerful crouched digitigrade legs w/
+translucent slime shin sections; HUGE webbed 3-toed feet (translucent toe
+tips). Glossy, clean-ish (wear 0.42), everything oozing lime gunk.

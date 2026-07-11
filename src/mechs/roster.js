@@ -247,6 +247,75 @@ export const ROSTER = [
       ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 150, radius: 13, freezeTime: 2.5 },
     },
   },
+  {
+    id: 'cranky', name: 'CRANKY', title: 'The Abyssal Bulwark', icon: '🦀', seed: 137,
+    blurb: 'A deep-sea salvage rig that got tired of being salvaged. Waddled ashore trailing kelp and grudges, shell first, questions never. The claws are non-negotiable.',
+    quotes: { win: '"*bubbling chuckle* Shell: 1. Everything else: 0."', intro: '"You look... crackable."' },
+    // canonical image: rust-orange patchy shell over dark steel, blue-steel
+    // water cannons + tanks on the shoulders, quad blue LED eyes
+    colors: { primary: 0xa64a28, accent: 0x46759e, glow: 0x4fc3ff, stripes: false },
+    skin: {
+      primary: { base: 0xa64a28, base2: 0x7c3a1e, metal: 0x564e46, wear: 0.78, grime: 0.7, panelDepth: 4, roughPaint: 0.62, metalPaint: 0.3, normalStrength: 1.3 },
+      accent: { base: 0x46759e, base2: 0x3a6288, metal: 0x9aa2aa, wear: 0.55, grime: 0.5, panelDepth: 3, roughPaint: 0.45, metalPaint: 0.5, normalStrength: 1.15 },
+    },
+    body: { scale: 1.3, torsoW: 1.5, torsoH: 0.85, headSize: 0.6, armLen: 1.18, legLen: 0.85, hipW: 1.32, bulk: 1.25 },
+    restPose: { shoulderL: [8, 0, -26], shoulderR: [8, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], thighL: [-8, 0, -8], thighR: [-8, 0, 8], kneeL: [16, 0, 0], kneeR: [16, 0, 0], ankleL: [-8, 0, 0], ankleR: [-8, 0, 0] },
+    stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26 },
+    ui: { power: 8, speed: 3, defense: 10 },
+    moves: {
+      light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
+      heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
+      ranged: { name: 'Hydro Cannon', type: 'water', dmg: 55, speed: 42, cooldown: 1.2, splash: 2.5 },
+      special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 5.5, launch: 15 },
+      ult: { id: 'riptide', name: 'RIPTIDE', dmg: 42, waves: 8, surgeDmg: 70, radius: 13 },
+    },
+  },
+  {
+    id: 'saurion', name: 'SAURION', title: 'The Apex Prototype', icon: '🦖', seed: 151,
+    blurb: 'Unit MX-7, grown in a black-site lab by a corporation that wanted to end wars by ending everything else. It ate the lab, filed itself as CEO, and went hunting.',
+    quotes: { win: '"*metallic shriek* Target archive updated: extinct."', intro: '"Clever girl? No. Clever MACHINE."' },
+    // canonical image: gunmetal-black raptor, robotic blade-feathers,
+    // red eye/core glow, white unit decals, chrome sickle toe-claws
+    colors: { primary: 0x33343a, accent: 0x17181c, glow: 0xff2418, stripes: false },
+    skin: {
+      primary: { base: 0x33343a, base2: 0x27282e, metal: 0x6a6e76, wear: 0.5, grime: 0.44, panelDepth: 4, roughPaint: 0.42, metalPaint: 0.5, normalStrength: 1.25 },
+      accent: { base: 0x17181c, base2: 0x101216, metal: 0x565a62, wear: 0.5, grime: 0.44, panelDepth: 3, roughPaint: 0.4, metalPaint: 0.55, normalStrength: 1.15 },
+    },
+    body: { scale: 1.12, torsoW: 0.95, torsoH: 0.9, headSize: 1.0, armLen: 1.0, legLen: 1.15, hipW: 0.95, bulk: 0.95 },
+    restPose: { thighL: [-38, 0, 0], thighR: [-38, 0, 0], kneeL: [66, 0, 0], kneeR: [66, 0, 0], ankleL: [-30, 0, 0], ankleR: [-30, 0, 0] },
+    stats: { hp: 900, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06 },
+    ui: { power: 7, speed: 10, defense: 3 },
+    moves: {
+      light: { dmg: [32, 34, 48], knock: [4, 5, 12], range: 3.5 },
+      heavy: { dmg: 80, knock: 19, range: 3.8, launch: 8 },
+      ranged: { name: 'Razor Plume', type: 'feather', dmg: 30, speed: 58, cooldown: 0.55 },
+      special: { id: 'sickleRush', name: 'Sickle Rush', cooldown: 5.5, dmg: 58, bleed: 8 },
+      ult: { id: 'extinction', name: 'EXTINCTION PROTOCOL', dmg: 46, hits: 4, knock: 26 },
+    },
+  },
+  {
+    id: 'frogger', name: 'FROGGER', title: 'The Gunk Gladiator', icon: '🐸', seed: 163,
+    blurb: 'Vat-grown smart-slime poured into a bounce-frame with four gunk guns and no indoor voice. Jumps like gravity is a suggestion, lands like a lawsuit.',
+    quotes: { win: '"Ribbit means gg. Look it up."', intro: '"Four arms. Zero mercy. MAXIMUM GUNK."' },
+    // canonical image: lime-green plate + translucent dripping slime,
+    // black joint frame, glass-dome bug eyes, four slime cannons
+    colors: { primary: 0x7cb420, accent: 0x262b20, glow: 0xaef23c, stripes: false },
+    skin: {
+      primary: { base: 0x7cb420, base2: 0x639414, metal: 0x6e7860, wear: 0.42, grime: 0.4, panelDepth: 3, roughPaint: 0.35, metalPaint: 0.25, normalStrength: 1.1 },
+      accent: { base: 0x262b20, base2: 0x1c2018, metal: 0x5a6054, wear: 0.46, grime: 0.42, panelDepth: 3, roughPaint: 0.45, metalPaint: 0.45, normalStrength: 1.1 },
+    },
+    body: { scale: 1.1, torsoW: 1.2, torsoH: 0.95, headSize: 0.7, armLen: 1.0, legLen: 1.05, hipW: 1.05, bulk: 1.05 },
+    restPose: { thighL: [-30, 0, -6], thighR: [-30, 0, 6], kneeL: [55, 0, 0], kneeR: [55, 0, 0], ankleL: [-25, 0, 0], ankleR: [-25, 0, 0] },
+    stats: { hp: 1000, speed: 10.5, jump: 19, weight: 0.5, armor: 0.12 },
+    ui: { power: 6, speed: 8, defense: 5 },
+    moves: {
+      light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 3.0 },
+      heavy: { dmg: 78, knock: 18, range: 3.3, launch: 9 },
+      ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4 },
+      special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 8, radius: 8 },
+      ult: { id: 'royalRibbit', name: 'ROYAL RIBBIT', dmg: 190, radius: 12 },
+    },
+  },
 ];
 
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((m) => [m.id, m]));

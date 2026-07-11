@@ -72,6 +72,39 @@ export class World {
     );
   }
 
+  // ---- per-view render wrapping ----
+  // Before each viewport renders, shift every dynamic entity to its nearest
+  // image relative to that view's camera, so opponents/projectiles are seen
+  // straight across the wrap seam (the static world is ghost-tiled).
+  // Restored immediately after the render — physics never sees the shift.
+  applyViewWrap(camera) {
+    if (!this.wrapHalf) return;
+    const cx = camera.position.x, cz = camera.position.z;
+    this._viewShifted = this._viewShifted || [];
+    const shift = (obj) => {
+      const dx = this.wrapDelta(obj.position.x - cx) - (obj.position.x - cx);
+      const dz = this.wrapDelta(obj.position.z - cz) - (obj.position.z - cz);
+      if (dx || dz) {
+        obj.position.x += dx;
+        obj.position.z += dz;
+        this._viewShifted.push(obj, dx, dz);
+      }
+    };
+    for (const f of this.fighters) shift(f.group);
+    for (const p of this.projectiles.active) shift(p.mesh);
+    for (const p of this.pickups) shift(p.mesh);
+  }
+
+  clearViewWrap() {
+    const s = this._viewShifted;
+    if (!s || !s.length) return;
+    for (let i = 0; i < s.length; i += 3) {
+      s[i].position.x -= s[i + 1];
+      s[i].position.z -= s[i + 2];
+    }
+    s.length = 0;
+  }
+
   schedule(delay, fn) {
     this.tasks.push({ t: this.time + delay, fn });
   }
@@ -369,6 +402,26 @@ export class World {
           status: { slow: 0.85, slowT: 0.8 },
         });
         this.audio?.play('shard');
+        break;
+      case 'water': // CRANKY: high-pressure slug, big knockback
+        this.projectiles.spawn('plasma', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0x59c8ff, knock: 17,
+        });
+        this.audio?.play('wave');
+        this.effects.muzzleFlash(from);
+        break;
+      case 'feather': // SAURION: razor blade-feathers
+        this.projectiles.spawn('shard', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9aa0a8, knock: 5,
+        });
+        this.audio?.play('dart');
+        break;
+      case 'slime': // FROGGER: sticky gunk bolt, slows on hit
+        this.projectiles.spawn('plasma', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0x9ade2a, knock: 8,
+          status: { slow: 0.7, slowT: 1.4 },
+        });
+        this.audio?.play('plasma');
         break;
     }
   }

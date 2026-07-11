@@ -438,12 +438,12 @@ export class MechSelectScreen {
       const back = ev.back || (solo && evAll?.back);
 
       if (!pk.locked) {
-        const cols = 3;
+        const N = ROSTER.length, cols = 4;
         let moved = false;
-        if (left) { pk.cursor = (pk.cursor + 11) % 12; moved = true; }
-        if (right) { pk.cursor = (pk.cursor + 1) % 12; moved = true; }
-        if (up) { pk.cursor = (pk.cursor + 12 - cols) % 12; moved = true; }
-        if (down) { pk.cursor = (pk.cursor + cols) % 12; moved = true; }
+        if (left) { pk.cursor = (pk.cursor + N - 1) % N; moved = true; }
+        if (right) { pk.cursor = (pk.cursor + 1) % N; moved = true; }
+        if (up) { pk.cursor = (pk.cursor + N - cols) % N; moved = true; }
+        if (down) { pk.cursor = (pk.cursor + cols) % N; moved = true; }
         if (moved) { this.audio?.play('uiMove'); this.refresh(); }
         if (confirm) this.lockIn(pk);
         if (back) anyBack = true;
