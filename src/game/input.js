@@ -129,6 +129,7 @@ export class Input {
       intent.block = k('block');
       intent.ranged = k('ranged');
       intent.special = kp('special');
+      intent.specialHeld = k('special');
       intent.ult = kp('ult');
       intent.dash = kp('dash');
       intent.taunt = kp('taunt');
@@ -149,6 +150,7 @@ export class Input {
       intent.block = this.padHeld(i, 'LT');
       intent.ranged = this.padHeld(i, 'RT');
       intent.special = this.padPressed(i, 'B');
+      intent.specialHeld = this.padHeld(i, 'B');
       // LB is now strafe-lock (hold); the ultimate moved to D-pad UP
       intent.ult = this.padPressed(i, 'DU');
       intent.strafe = this.padHeld(i, 'LB');
@@ -168,6 +170,7 @@ export class Input {
       intent.block = t.held.has('block');
       intent.ranged = t.held.has('ranged');
       intent.special = t.pressed.has('special');
+      intent.specialHeld = t.held.has('special');
       intent.ult = t.pressed.has('ult');
       intent.dash = t.pressed.has('dash');
       intent.taunt = t.pressed.has('taunt');

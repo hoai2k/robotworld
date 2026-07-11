@@ -84,6 +84,26 @@ export class DestructibleSystem {
     this.pendingCollapse = []; // {chunk, t}
     this.world = null;
 
+    // ---- rubble: full-size falling blocks a collapsing building drops.
+    // Unlike the small fading debris, these tumble down, SETTLE on the
+    // ground, and stay as solid boxes fighters push against and stand on.
+    const RUB = 200;
+    this.rubble = {
+      mesh: new THREE.InstancedMesh(geo, (Array.isArray(material) ? material[0] : material).clone(), RUB),
+      items: [],           // {px,py,pz, vx,vy,vz, rx,ry,rz, avx,avy,avz, w,h,d, settled, life, i}
+      head: 0,
+      cap: RUB,
+    };
+    this.rubble.mesh.castShadow = true;
+    this.rubble.mesh.receiveShadow = true;
+    this.rubble.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.rubble.mesh.frustumCulled = false;
+    scene.add(this.rubble.mesh);
+    for (let i = 0; i < RUB; i++) {
+      _m.compose(_p.set(0, -200, 0), _q.identity(), _s.set(0.0001, 0.0001, 0.0001));
+      this.rubble.mesh.setMatrixAt(i, _m);
+    }
+
     // ---- camera see-through: per-instance dither fade ----
     // buildings between a follow-cam and its mech ghost to ~25% coverage so
     // the player never loses their mech behind cover. Dithered discard (no
@@ -222,23 +242,37 @@ export class DestructibleSystem {
     return b;
   }
 
-  killChunk(chunk, vel = null, silent = false) {
+  killChunk(chunk, vel = null, silent = false, asRubble = false) {
     if (!chunk.alive) return;
     chunk.alive = false;
     chunk.b.alive--;
+    // capture the impulse BEFORE hideChunk — vel may alias the shared _p temp
+    // that hideChunk clobbers to (0,-500,0)
+    const vx = vel ? vel.x : 0, vy = vel ? vel.y : 0, vz = vel ? vel.z : 0;
     this.hideChunk(chunk);
     this.mesh.instanceMatrix.needsUpdate = true;
 
-    // spawn 1-2 debris pieces
-    const n = silent ? 1 : 2;
-    for (let k = 0; k < n; k++) {
-      this.spawnDebris(
-        chunk.x + rand(-0.3, 0.3), chunk.y + rand(-0.3, 0.3), chunk.z + rand(-0.3, 0.3),
-        (vel ? vel.x * rand(3, 7) : rand(-4, 4)) + rand(-2, 2),
-        (vel ? vel.y * rand(2, 5) : 0) + rand(1, 6),
-        (vel ? vel.z * rand(3, 7) : rand(-4, 4)) + rand(-2, 2),
-        chunk.w * rand(0.3, 0.55), chunk.h * rand(0.3, 0.55), chunk.d * rand(0.3, 0.55)
+    if (asRubble) {
+      // a collapsing chunk falls as a real full-size block that settles into
+      // solid, standable rubble (plus a little dust)
+      this.spawnRubble(
+        chunk.x, chunk.y, chunk.z,
+        chunk.w, chunk.h, chunk.d,
+        rand(-2, 2), vy + rand(-1, 1), rand(-2, 2),
+        this.chunkColor(chunk)
       );
+    } else {
+      // spawn 1-2 debris pieces
+      const n = silent ? 1 : 2;
+      for (let k = 0; k < n; k++) {
+        this.spawnDebris(
+          chunk.x + rand(-0.3, 0.3), chunk.y + rand(-0.3, 0.3), chunk.z + rand(-0.3, 0.3),
+          (vel ? vx * rand(3, 7) : rand(-4, 4)) + rand(-2, 2),
+          (vel ? vy * rand(2, 5) : 0) + rand(1, 6),
+          (vel ? vz * rand(3, 7) : rand(-4, 4)) + rand(-2, 2),
+          chunk.w * rand(0.3, 0.55), chunk.h * rand(0.3, 0.55), chunk.d * rand(0.3, 0.55)
+        );
+      }
     }
     if (!silent && this.world) {
       this.world.effects.dustPuff(_p.set(chunk.x, chunk.y, chunk.z), 3, 0x9a9284);
@@ -310,6 +344,37 @@ export class DestructibleSystem {
     D.rotVel[i * 3] = rand(-6, 6); D.rotVel[i * 3 + 1] = rand(-6, 6); D.rotVel[i * 3 + 2] = rand(-6, 6);
     D.scale[i * 3] = sw; D.scale[i * 3 + 1] = sh; D.scale[i * 3 + 2] = sd;
     D.life[i] = rand(2.6, 4);
+  }
+
+  chunkColor(chunk) {
+    if (this.mesh.instanceColor) {
+      _c.fromArray(this.mesh.instanceColor.array, chunk.i * 3);
+      return _c.clone();
+    }
+    return new THREE.Color(0x9a9284);
+  }
+
+  // spawn a full-size falling block from a collapsing chunk
+  spawnRubble(x, y, z, w, h, d, vx, vy, vz, color) {
+    const R = this.rubble;
+    let it;
+    if (R.items.length < R.cap) {
+      it = { i: R.items.length };
+      R.items.push(it);
+    } else {
+      // recycle the oldest settled block; skip if all still falling
+      it = R.items[R.head];
+      R.head = (R.head + 1) % R.cap;
+    }
+    it.px = x; it.py = y; it.pz = z;
+    it.vx = vx; it.vy = vy; it.vz = vz;
+    it.rx = rand(-0.25, 0.25); it.ry = rand(-0.3, 0.3); it.rz = rand(-0.25, 0.25);
+    it.avx = rand(-2.5, 2.5); it.avy = rand(-2, 2); it.avz = rand(-2.5, 2.5);
+    it.w = w; it.h = h; it.d = d;
+    it.settled = false;
+    it.life = 26 + rand(0, 8); // long-lived rubble
+    if (color) this.rubble.mesh.setColorAt(it.i, color.multiplyScalar(0.86));
+    if (this.rubble.mesh.instanceColor) this.rubble.mesh.instanceColor.needsUpdate = true;
   }
 
   // ---- queries ----
@@ -401,7 +466,26 @@ export class DestructibleSystem {
         else { f.pos.z += Math.sign(dz || 1) * pz; f.vel.z *= 0.4; }
       }
     }
-    // stand on the highest rooftop found underfoot
+    // settled rubble blocks push back and can be stood on, just like chunks
+    for (const it of this.rubble.items) {
+      if (!it.settled || it.life <= 0) continue;
+      const dy = f.pos.y - it.py;
+      if (dy > it.h / 2 + f.height || dy < -it.h) continue;
+      const hw = it.w / 2 + f.radius, hd = it.d / 2 + f.radius;
+      const dx = f.pos.x - it.px, dz = f.pos.z - it.pz;
+      if (Math.abs(dx) >= hw || Math.abs(dz) >= hd) continue;
+      const top = it.py + it.h / 2;
+      if (f.pos.y >= top - 0.7 && f.vel.y <= 0.01 &&
+          Math.abs(dx) < it.w / 2 + f.radius * 0.5 && Math.abs(dz) < it.d / 2 + f.radius * 0.5) {
+        support = Math.max(support, top);
+        continue;
+      }
+      if (f.pos.y > top || f.pos.y + f.height < it.py - it.h / 2) continue;
+      const px = hw - Math.abs(dx), pz = hd - Math.abs(dz);
+      if (px < pz) { f.pos.x += Math.sign(dx || 1) * px; f.vel.x *= 0.5; }
+      else { f.pos.z += Math.sign(dz || 1) * pz; f.vel.z *= 0.5; }
+    }
+    // stand on the highest rooftop / rubble found underfoot
     if (support > -Infinity && f.pos.y <= support + 0.9) {
       const fallSpeed = -f.vel.y;
       f.pos.y = support;
@@ -414,6 +498,44 @@ export class DestructibleSystem {
         }
       }
     }
+  }
+
+  // integrate the falling rubble blocks: gravity, ground landing, settle
+  updateRubble(dt) {
+    const R = this.rubble;
+    if (!R.items.length) return;
+    for (const it of R.items) {
+      if (it.life <= 0) { continue; }
+      it.life -= dt;
+      if (it.life <= 0) { // expired: hide the instance
+        _m.compose(_p.set(0, -200, 0), _q.identity(), _s.set(0.0001, 0.0001, 0.0001));
+        R.mesh.setMatrixAt(it.i, _m);
+        continue;
+      }
+      if (!it.settled) {
+        it.vy -= 30 * dt;
+        it.px += it.vx * dt; it.py += it.vy * dt; it.pz += it.vz * dt;
+        it.rx += it.avx * dt; it.ry += it.avy * dt; it.rz += it.avz * dt;
+        const rest = it.h / 2;
+        if (it.py <= rest) {
+          it.py = rest;
+          if (it.vy < -6) { // bounce once, shed spin
+            it.vy *= -0.28; it.vx *= 0.5; it.vz *= 0.5;
+            it.avx *= 0.4; it.avy *= 0.4; it.avz *= 0.4;
+            if (this.world && it.w > 1) this.world.effects.dustPuff(_p.set(it.px, 0.3, it.pz), 4, 0x9a9284);
+          } else { // settle flat, snap toward axis-aligned so it stacks readably
+            it.settled = true;
+            it.vx = it.vy = it.vz = 0;
+            it.rx = Math.round(it.rx / (Math.PI / 2)) * (Math.PI / 2);
+            it.rz = Math.round(it.rz / (Math.PI / 2)) * (Math.PI / 2);
+          }
+        }
+      }
+      _e.set(it.rx, it.ry, it.rz);
+      _m.compose(_p.set(it.px, it.py, it.pz), _q.setFromEuler(_e), _s.set(it.w, it.h, it.d));
+      R.mesh.setMatrixAt(it.i, _m);
+    }
+    R.mesh.instanceMatrix.needsUpdate = true;
   }
 
   update(dt) {
@@ -431,17 +553,20 @@ export class DestructibleSystem {
       }
     }
 
-    // pending collapses cascade
+    // pending collapses cascade — forced (whole-building) collapses drop
+    // their chunks as full-size interactable rubble blocks
     for (let i = this.pendingCollapse.length - 1; i >= 0; i--) {
       const pc = this.pendingCollapse[i];
       pc.t -= dt;
       if (pc.t <= 0) {
         this.pendingCollapse.splice(i, 1);
         if (pc.chunk.alive && (pc.force || !this.hasSupport(pc.chunk))) {
-          this.killChunk(pc.chunk, _p.set(0, -0.5, 0), true);
+          this.killChunk(pc.chunk, _p.set(0, -0.5, 0), true, !!pc.force);
         }
       }
     }
+
+    this.updateRubble(dt);
 
     // debris sim
     const D = this.debris;
@@ -480,7 +605,9 @@ export class DestructibleSystem {
   dispose() {
     this.scene.remove(this.mesh);
     this.scene.remove(this.debris.mesh);
+    this.scene.remove(this.rubble.mesh);
     this.mesh.dispose();
     this.debris.mesh.dispose();
+    this.rubble.mesh.dispose();
   }
 }

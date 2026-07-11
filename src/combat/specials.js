@@ -154,8 +154,9 @@ export const SPECIALS = {
       const dt = 0.05;
       f._chargeT += dt;
       // always commit to at least a short lunge (a tap still connects), then
-      // keep charging as long as the button is held, to a 5s cap
-      const holding = (f.intent.special || f._chargeT < 0.85) && f._chargeT < 5;
+      // keep charging as long as B is HELD (specialHeld, not the one-frame
+      // edge), to a 5s cap
+      const holding = (f.intent.specialHeld || f._chargeT < 0.85) && f._chargeT < 5;
       const spd = f.def.stats.speed * 3.1;
       f.vel.x = Math.sin(f.yaw) * spd;
       f.vel.z = Math.cos(f.yaw) * spd;

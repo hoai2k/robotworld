@@ -332,6 +332,35 @@ export class Animator {
       case 'nova':
         if (J.halo) J.halo.rotation.z += dt * (0.9 + (ctx.firing ? 4 : 0));
         break;
+      case 'rhino': {
+        // BULL RUSH: drop onto all fours and gallop like a charging beast.
+        // Overrides the biped pose while the charge is rolling.
+        if (ctx.charging) {
+          const g = this.phase * 2.4;         // fast gallop cycle
+          const fL = Math.sin(g), fR = Math.sin(g + Math.PI);
+          const hips = J.hips, D = this.D;
+          // pitch the whole frame down over the front limbs, ride low
+          hips.rotation.x = 0.95;
+          hips.position.y = D.hipHeight * 0.5 + (this.groundOffset || 0);
+          if (J.torso) J.torso.rotation.set(0.45, 0, 0);
+          if (J.head) J.head.rotation.set(-1.15, 0, 0); // head up, eyes forward
+          // FRONT legs = the arms, reaching to the ground and pounding
+          J.shoulderL.rotation.set(-1.5 + fL * 0.6, 0, -0.18);
+          J.shoulderR.rotation.set(-1.5 + fR * 0.6, 0, 0.18);
+          J.elbowL.rotation.set(-0.5 - Math.max(0, fL) * 0.6, 0, 0);
+          J.elbowR.rotation.set(-0.5 - Math.max(0, fR) * 0.6, 0, 0);
+          if (J.handL) J.handL.rotation.set(0.5, 0, 0);
+          if (J.handR) J.handR.rotation.set(0.5, 0, 0);
+          // BACK legs gallop on the opposite phase
+          J.thighL.rotation.set(-0.2 + fR * 0.7, 0, 0);
+          J.thighR.rotation.set(-0.2 + fL * 0.7, 0, 0);
+          J.kneeL.rotation.set(0.5 + Math.max(0, -fR) * 0.7, 0, 0);
+          J.kneeR.rotation.set(0.5 + Math.max(0, -fL) * 0.7, 0, 0);
+          J.ankleL.rotation.set(-0.35, 0, 0);
+          J.ankleR.rotation.set(-0.35, 0, 0);
+        }
+        break;
+      }
       case 'fenrir': {
         const wag = 0.25 + (ctx.speed > 1 ? 0.5 : 0);
         for (let i = 0; i < 3; i++) {

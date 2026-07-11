@@ -423,3 +423,34 @@ controllers via Gamepad API), AI opponents.
   clean (3 KOs, no crash), select-flow drive-through (title→pick→lock→arena),
   functional probes for block/crouch/guardbreak/charge + tail-wave/jaw-snap,
   showcase + battle screenshots viewed.
+- 2026-07-11: RHINO CHARGE FIX + DESTRUCTION BATCH.
+  · RHINO HELD CHARGE (real): intent.special was an edge (one frame), so the
+    "hold to charge" never actually held — added intent.specialHeld
+    (kb/pad/touch held state) and bullRush now reads it, charging up to 5s
+    while B is down (min 0.85s lunge on a tap), ending ~0.17s after release.
+    Verified 5.18s held / 0.17s release. AI holds it a few seconds then lets
+    go. During the charge Rhino drops onto ALL FOURS and gallops (animator
+    'rhino' case pitches the frame down, arms become pounding front legs,
+    legs gallop opposite phase) via ctx.charging.
+  · EXPLOSIVE TANKS: fuelTank props are now flammable — hazard-chevron glow,
+    userData.explosive {r,hp}. Registered in arena.explosives. A fighter
+    running into one, a projectile striking it, or any blast in range cooks
+    it off: fireball + rising embers + burning fire-patch crater, AoE that
+    scorches nearby fighters (up to ~70 dmg, knock/launch, 3.5s burn),
+    cracks nearby building chunks, and chain-reacts other tanks. Pulled
+    tanks into the play area (ring 16-34, count 4) across the 4 themes that
+    have them. Verified detonate → 55 dmg + burn on a neighbor.
+  · COLLAPSE → INTERACTABLE RUBBLE: a building that structurally collapses no
+    longer just vanishes into a dust puff — every chunk drops as a FULL-SIZE
+    block (new bounded rubble system, cap 200) that tumbles under gravity,
+    lands, bounces once, then SETTLES flat as solid rubble. Fighters push
+    against settled blocks and can stand/land on top of them (collideFighter
+    extended). Verified 33/33 blocks settle at rest height and a mech dropped
+    on one lands on its top face (standsOnRubble). Fixed a latent aliasing
+    bug: killChunk's `vel` aliased the shared _p temp that hideChunk clobbers
+    to (0,-500,0), so collapse debris/rubble were being launched at ±500 —
+    now the impulse is captured before hideChunk.
+  Verified: build green, attackmatrix ALL CONNECT, two ace soaks (4-way
+  foundry + harbor) clean, functional probe (charge/tank/rubble/stand-on)
+  all pass, screenshots of the quad-gallop charge, tank blast embers, and a
+  settled rubble pile.

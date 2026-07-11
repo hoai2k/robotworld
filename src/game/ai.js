@@ -45,6 +45,7 @@ export class AIController {
     I.ranged = false;
     I.block = false;
     I.duck = false;
+    I.specialHeld = false;
     if (!f.alive || f.controlsLocked) { I.moveX = I.moveZ = 0; return; }
 
     // retarget occasionally
@@ -130,8 +131,13 @@ export class AIController {
     if (I.block) { I.moveX = I.moveZ = 0; }
 
     // Rhino's bull rush is a HELD charge — keep the button down once it's
-    // rolling so it plows for its full duration
-    if (f.state === 'special' && f._charging) { I.special = true; return; }
+    // rolling so it plows for its full duration (a few seconds, then let go)
+    if (f.state === 'special' && f._charging) {
+      this._holdCharge = (this._holdCharge || 0) + dt;
+      if (this._holdCharge < 2.5 + Math.random() * 2) { I.special = true; I.specialHeld = true; }
+      return;
+    }
+    this._holdCharge = 0;
 
     // if the target is turtling behind a facing block, crouch to slip the
     // next attack UNDER their high guard (unless we out-tier them at breaking)

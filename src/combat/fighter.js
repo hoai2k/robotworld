@@ -89,8 +89,8 @@ export class Fighter {
 
     this.intent = {
       moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
-      ranged: false, special: false, ult: false, block: false, dash: false, taunt: false,
-      strafe: false, duck: false, aimYaw: undefined,
+      ranged: false, special: false, specialHeld: false, ult: false, block: false, dash: false,
+      taunt: false, strafe: false, duck: false, aimYaw: undefined,
     };
     this.plunging = false;   // aerial ground-smash riding down to impact
     this._plungeVy = 0;
@@ -712,6 +712,7 @@ export class Fighter {
       firing: this.firing,
       hovering: this.hovering,
       duck: dk,
+      charging: this._charging,
     });
     if (this.state !== 'channel') this.firing = false;
 

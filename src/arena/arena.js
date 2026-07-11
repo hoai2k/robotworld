@@ -74,6 +74,7 @@ export class Arena {
     this.objects = [];   // everything we added (for dispose)
     this.spinners = [];  // props with userData.spin
     this.steamSpots = [];
+    this.explosives = []; // fuel tanks etc. that cook off when hit
     this.ambientT = 0;
     const rng = makeRng(seed * 31 + theme.id.length * 77);
 
@@ -231,6 +232,10 @@ export class Arena {
         if (g && g.userData.steamY !== undefined) {
           this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY, z));
         }
+        if (g && g.userData.explosive) {
+          const e = g.userData.explosive;
+          this.explosives.push({ group: g, x, z, r: e.r, hp: e.hp, top: e.top || 6, dead: false });
+        }
       }
     }
     // ghost copies of the props in the 8 neighbor cells (static)
@@ -269,8 +274,86 @@ export class Arena {
   setOccluders(segments) { this.destructo.setOccluders(segments); }
 
   collideFighter(f) {
-    // no boundary clamp — space wraps; only buildings push back
+    // no boundary clamp — space wraps; only buildings + settled rubble push back
     this.destructo.collideFighter(f);
+  }
+
+  // ---- explosive props (fuel tanks): cook off into a fiery inferno ----
+  // Detonate any live explosive whose blast radius is reached by an impact
+  // at `pos` (melee/projectile/other explosion). Returns how many went up.
+  hitExplosives(pos, radius = 0) {
+    let n = 0;
+    for (const e of this.explosives) {
+      if (e.dead) continue;
+      const dx = this.world ? this.world.wrapDelta(e.x - pos.x) : e.x - pos.x;
+      const dz = this.world ? this.world.wrapDelta(e.z - pos.z) : e.z - pos.z;
+      if (dx * dx + dz * dz < (radius + e.r * 0.4) ** 2) { this.detonateExplosive(e); n++; }
+    }
+    return n;
+  }
+
+  detonateExplosive(e) {
+    if (e.dead || !this.world) return;
+    e.dead = true;
+    const w = this.world;
+    const pos = new THREE.Vector3(e.x, Math.min(3, e.top * 0.5), e.z);
+    w.audio?.play('explosionBig');
+    w.effects.explosion(pos, e.r * 0.9, { color: 0xff7020 });
+    w.effects.explosion(pos.clone().setY(pos.y + 2), e.r * 0.5, { color: 0xffd050, smoke: false });
+    w.effects.addShake(0.9);
+    w.engine.addHitStop(0.07);
+    // rolling fireball glows
+    for (let i = 0; i < 14; i++) {
+      const a = rand(Math.PI * 2), rr = rand(0, e.r * 0.7);
+      w.effects.glows.emit(e.x + Math.cos(a) * rr, rand(0.5, e.top), e.z + Math.sin(a) * rr,
+        rand(-3, 3), rand(3, 9), rand(-3, 3), { life: rand(0.5, 1.1), size: rand(1.6, 3.2), color: 0xff7a20, alpha: 0.9 });
+    }
+    // AoE: scorch every fighter caught in the blast, set them ablaze
+    for (const f of w.fighters) {
+      if (!f.alive) continue;
+      const dx = w.wrapDelta(f.pos.x - e.x), dz = w.wrapDelta(f.pos.z - e.z);
+      const d = Math.hypot(dx, dz);
+      if (d < e.r && Math.abs(f.pos.y - pos.y) < e.top + 3) {
+        const fall = 1 - d / e.r;
+        f.takeHit(70 * Math.max(0.3, fall), null, {
+          knock: 20 * fall, launch: 9 * fall, srcPos: pos, heavy: true,
+          status: { burn: 12, burnT: 3.5 },
+        });
+      }
+    }
+    // wreck nearby building chunks and leave a burning crater
+    this.damageSphere(pos, e.r * 0.8, 160, null, true);
+    w.addFirePatch(null, new THREE.Vector3(e.x, 0, e.z), e.r * 0.55, 5, 14);
+    e.group.visible = false;
+    // chain-react other tanks in range a beat later
+    for (const o of this.explosives) {
+      if (o.dead || o === e) continue;
+      const dx = o.x - e.x, dz = o.z - e.z;
+      if (Math.hypot(dx, dz) < e.r * 1.1) w.schedule(rand(0.08, 0.2), () => this.detonateExplosive(o));
+    }
+  }
+
+  // per-frame: a fighter running into a tank, or a projectile striking it,
+  // sets it off
+  updateExplosives() {
+    if (!this.world || !this.explosives.length) return;
+    for (const e of this.explosives) {
+      if (e.dead) continue;
+      const contact = e.r * 0.32;
+      let boom = false;
+      for (const f of this.world.fighters) {
+        if (!f.alive) continue;
+        const dx = this.world.wrapDelta(f.pos.x - e.x), dz = this.world.wrapDelta(f.pos.z - e.z);
+        if (dx * dx + dz * dz < (contact + f.radius) ** 2 && f.pos.y < e.top + 2) { boom = true; break; }
+      }
+      if (!boom) {
+        for (const p of this.world.projectiles.active) {
+          const dx = this.world.wrapDelta(p.mesh.position.x - e.x), dz = this.world.wrapDelta(p.mesh.position.z - e.z);
+          if (dx * dx + dz * dz < (contact + 1.3) ** 2 && p.mesh.position.y < e.top + 1.5) { boom = true; break; }
+        }
+      }
+      if (boom) this.detonateExplosive(e);
+    }
   }
 
   spawnPoints(n) {
@@ -288,6 +371,7 @@ export class Arena {
 
   update(dt) {
     this.destructo.update(dt);
+    this.updateExplosives();
     for (const g of this.spinners) g.rotation.z += g.userData.spin * dt;
 
     // ambient particles

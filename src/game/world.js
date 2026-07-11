@@ -245,6 +245,7 @@ export class World {
       }
     }
     this.arena?.damageSphere(pos, radius * 0.85, dmg * 2.2, null, true);
+    this.arena?.hitExplosives?.(pos, radius);   // blasts cook off nearby tanks
   }
 
   // expanding ground ring that hits grounded fighters (slams)
