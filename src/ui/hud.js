@@ -57,6 +57,7 @@ export class Hud {
         </div>
         <div class="hud-bar hp"><div class="bar-ghost"></div><div class="bar-fill"></div></div>
         <div class="hud-bar ult"><div class="bar-fill"></div></div>
+        ${f.ammoMax !== undefined ? '<div class="ammo-count" style="font-size:11px;font-weight:700;letter-spacing:0.08em;color:#ffd23c;margin-top:2px;"></div>' : ''}
         <div class="round-pips">
           <div class="round-pip"></div><div class="round-pip"></div>
         </div>`;
@@ -71,6 +72,7 @@ export class Hud {
         ult: root.querySelector('.hud-bar.ult'),
         ultFill: root.querySelector('.hud-bar.ult .bar-fill'),
         pips: [...root.querySelectorAll('.round-pip')],
+        ammoEl: root.querySelector('.ammo-count'),
         ghostVal: 1,
       });
     });
@@ -123,6 +125,10 @@ export class Hud {
       p.hpBar.classList.toggle('low', frac < 0.3);
       p.ultFill.style.transform = `scaleX(${clamp01(f.ult)})`;
       p.ult.classList.toggle('full', f.ult >= 1);
+      if (p.ammoEl) {
+        p.ammoEl.textContent = f.ammo > 0 ? `AMMO ${f.ammo}` : 'AMMO 0 — FIND A CRATE';
+        p.ammoEl.style.color = f.ammo > 0 ? '#ffd23c' : '#ff5050';
+      }
       p.pips.forEach((pip, i) => pip.classList.toggle('won', f.wins > i));
     }
     if (timeLeft !== undefined) {

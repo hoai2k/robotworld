@@ -38,11 +38,107 @@ export class World {
     this.tasks = [];        // {t, fn}
     this.firePatches = [];  // {pos, radius, t, dps, owner}
     this.iceBlocks = [];    // {mesh, t, fighter}
+    this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
     this.time = 0;
+    // toroidal arena: coordinates wrap at ±wrapHalf on X and Z (0 = off).
+    // Set from the arena in bind(); all combat queries use nearest-image
+    // deltas so opponents are "close" straight through the seam.
+    this.wrapHalf = 0;
+  }
+
+  // shortest signed delta on a wrapped axis (nearest image)
+  wrapDelta(d) {
+    const W = this.wrapHalf;
+    if (!W) return d;
+    const P = W * 2;
+    let x = (d + W) % P;
+    if (x < 0) x += P;
+    return x - W;
+  }
+
+  // fold a coordinate into [-wrapHalf, wrapHalf)
+  wrapCoord(v) {
+    const W = this.wrapHalf;
+    if (!W) return v;
+    return this.wrapDelta(v);
+  }
+
+  // nearest-image position of `pos` as seen from `ref` (fresh Vector3)
+  nearestImage(pos, ref) {
+    return new THREE.Vector3(
+      ref.x + this.wrapDelta(pos.x - ref.x),
+      pos.y,
+      ref.z + this.wrapDelta(pos.z - ref.z)
+    );
   }
 
   schedule(delay, fn) {
     this.tasks.push({ t: this.time + delay, fn });
+  }
+
+  // ---- ammo crates: refill burst weapons (gatling / flame) ----
+  spawnAmmoBoxes(count = 4, radius = 60) {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + rand(-0.4, 0.4);
+      const r = radius * rand(0.45, 1);
+      const pos = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
+      const grp = new THREE.Group();
+      const box = new THREE.Mesh(
+        new THREE.BoxGeometry(1.6, 1.1, 1.1),
+        new THREE.MeshStandardMaterial({ color: 0x3a4a30, roughness: 0.6, metalness: 0.4 })
+      );
+      box.position.y = 0.8;
+      box.castShadow = true;
+      grp.add(box);
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(1.7, 0.24, 1.16),
+        new THREE.MeshBasicMaterial({ color: 0xffd23c })
+      );
+      band.position.y = 0.8;
+      grp.add(band);
+      const glow = new THREE.Mesh(
+        new THREE.RingGeometry(1.3, 1.6, 24),
+        new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.5, side: THREE.DoubleSide })
+      );
+      glow.rotation.x = -Math.PI / 2;
+      glow.position.y = 0.05;
+      grp.add(glow);
+      grp.position.copy(pos);
+      this.scene.add(grp);
+      this.pickups.push({ mesh: grp, pos, active: true, respawnT: 0, t: rand(0, 6) });
+    }
+  }
+
+  updatePickups(dt) {
+    for (const p of this.pickups) {
+      p.t += dt;
+      if (!p.active) {
+        p.respawnT -= dt;
+        if (p.respawnT <= 0) {
+          p.active = true;
+          p.mesh.visible = true;
+          this.effects.rings.spawn(p.pos, { from: 0.4, to: 2.6, dur: 0.4, color: 0xffd23c, y: 0.3 });
+        }
+        continue;
+      }
+      p.mesh.rotation.y = p.t * 1.4;
+      p.mesh.position.y = Math.sin(p.t * 2.2) * 0.18 + 0.05;
+      for (const f of this.fighters) {
+        if (!f.alive || f.ammoMax === undefined) continue;
+        if (f.ammo >= f.ammoMax) continue;
+        const dx = this.wrapDelta(f.pos.x - p.pos.x), dz = this.wrapDelta(f.pos.z - p.pos.z);
+        if (dx * dx + dz * dz < 6.5 && f.pos.y < 4) {
+          f.ammo = f.ammoMax;
+          p.active = false;
+          p.mesh.visible = false;
+          p.respawnT = 14;
+          this.audio?.play('powerup');
+          this.effects.rings.spawn(p.pos, { from: 2.2, to: 0.4, dur: 0.35, color: 0xffd23c, y: 0.6 });
+          this.events.emit('ammo', { fighter: f });
+          break;
+        }
+      }
+    }
   }
 
   update(dt) {
@@ -59,6 +155,7 @@ export class World {
     this.projectiles.update(dt);
     this.effects.update(dt);
     this.arena?.update(dt);
+    this.updatePickups(dt);
 
     // fire patches
     for (let i = this.firePatches.length - 1; i >= 0; i--) {
@@ -104,7 +201,9 @@ export class World {
     }
     for (const f of this.fighters) {
       if (f === owner || !f.alive) continue;
-      const d = f.center().distanceTo(pos);
+      const c = f.center();
+      const dx = this.wrapDelta(c.x - pos.x), dz = this.wrapDelta(c.z - pos.z);
+      const d = Math.sqrt(dx * dx + (c.y - pos.y) ** 2 + dz * dz);
       if (d < radius + f.hitRadius) {
         const falloff = 1 - Math.max(0, (d - radius * 0.3)) / (radius + f.hitRadius);
         f.takeHit(dmg * Math.max(0.25, falloff), owner, {
@@ -123,7 +222,8 @@ export class World {
     this.arena?.damageSphere(_v.set(pos.x, pos.y + 1, pos.z), radius * 0.7, dmg * 1.6, null, true);
     for (const f of this.fighters) {
       if (f === owner || !f.alive) continue;
-      const d = f.pos.distanceTo(pos);
+      const dxs = this.wrapDelta(f.pos.x - pos.x), dzs = this.wrapDelta(f.pos.z - pos.z);
+      const d = Math.hypot(dxs, dzs);
       if (d < radius && f.pos.y < 3) {
         const falloff = 1 - d / radius;
         f.takeHit(dmg * Math.max(0.35, falloff), owner, {
@@ -163,6 +263,8 @@ export class World {
     let barrelDot = -1, flatDist = 0;
     if (e) {
       const to = e.center().sub(from);
+      to.x = this.wrapDelta(to.x);   // aim through the arena seam
+      to.z = this.wrapDelta(to.z);
       flatDist = Math.hypot(to.x, to.z) || 1;
       barrelDot = (to.x / flatDist) * dir.x + (to.z / flatDist) * dir.z;
       if (barrelDot > 0.86) {

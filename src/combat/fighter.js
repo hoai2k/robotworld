@@ -51,6 +51,12 @@ export class Fighter {
     this.dashCd = 0;
     this.iframes = 0;
 
+    // burst weapons (gatling / flame) run on ammo, refilled at crates
+    if (def.moves.ranged.ammo) {
+      this.ammoMax = def.moves.ranged.ammo;
+      this.ammo = this.ammoMax;
+    }
+
     // hover jets: double-tap jump and HOLD to fly. Lighter mechs get more
     // fuel and stronger jets — the little ones really take to the air.
     const lightness = 1 - def.stats.weight;
@@ -90,21 +96,32 @@ export class Fighter {
     return out.set(this.pos.x, this.pos.y + this.height * 0.55, this.pos.z).clone();
   }
 
-  // nearest living enemy
+  // nearest living enemy (through the arena seam when wrapping)
   nearestEnemy() {
     let best = null, bestD = Infinity;
-    for (const f of this.world.fighters) {
+    const w = this.world;
+    for (const f of w.fighters) {
       if (f === this || !f.alive) continue;
-      const d = this.pos.distanceToSquared(f.pos);
+      const dx = w.wrapDelta(f.pos.x - this.pos.x);
+      const dz = w.wrapDelta(f.pos.z - this.pos.z);
+      const d = dx * dx + dz * dz;
       if (d < bestD) { best = f; bestD = d; }
     }
     return best;
   }
 
+  // yaw toward another fighter via the shortest (possibly wrapped) path
+  yawTo(e) {
+    return Math.atan2(
+      this.world.wrapDelta(e.pos.x - this.pos.x),
+      this.world.wrapDelta(e.pos.z - this.pos.z)
+    );
+  }
+
   faceNearestEnemy(snap = false) {
     const e = this.nearestEnemy();
     if (!e) return;
-    const yaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
+    const yaw = this.yawTo(e);
     this.targetYaw = yaw;
     if (snap) this.yaw = yaw;
   }
@@ -195,6 +212,11 @@ export class Fighter {
   doRanged() {
     const mv = this.def.moves.ranged;
     if (this.rangedCd > 0) return;
+    if (this.ammoMax !== undefined && this.ammo <= 0) {
+      this.world.audio?.play('uiBack'); // dry click — find an ammo crate
+      this.rangedCd = 0.4;
+      return;
+    }
     this.uncloak();
     const isChannel = mv.type === 'gatling' || mv.type === 'flame';
     this.faceAim();
@@ -204,6 +226,7 @@ export class Fighter {
       this.setState('channel', 0.1);
       this.firing = true;
       this.rangedCd = mv.cooldown;
+      if (this.ammoMax !== undefined) this.ammo--;
       this.world.fireRanged(this, mv);
     } else {
       const clip = mv.type === 'mortar' ? 'brace' : mv.type === 'railgun' ? 'aim' : 'shoot';
@@ -272,8 +295,10 @@ export class Fighter {
   faceNearestEnemyIfClose(maxDist, always = false) {
     const e = this.nearestEnemy();
     if (!e) return;
-    if (always || this.pos.distanceTo(e.pos) < maxDist) {
-      this.targetYaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
+    const dx = this.world.wrapDelta(e.pos.x - this.pos.x);
+    const dz = this.world.wrapDelta(e.pos.z - this.pos.z);
+    if (always || Math.hypot(dx, dz) < maxDist) {
+      this.targetYaw = Math.atan2(dx, dz);
       this.yaw = this.targetYaw;
     }
   }
@@ -296,7 +321,7 @@ export class Fighter {
     for (const f of this.world.fighters) {
       if (f === this || !f.alive) continue;
       const c = f.center();
-      const dx = c.x - cx, dy = c.y - cy, dz = c.z - cz;
+      const dx = this.world.wrapDelta(c.x - cx), dy = c.y - cy, dz = this.world.wrapDelta(c.z - cz);
       const rr = reach * 0.8 + f.hitRadius;
       if (dx * dx + dy * dy + dz * dz < rr * rr) {
         f.takeHit(atk.dmg, this, {
@@ -491,6 +516,24 @@ export class Fighter {
         }
         break;
       case 'knockdown':
+        // escape jump: mash jump while downed to spring clear instead of
+        // eating the same knockdown loop again
+        if (I.jump) {
+          const ex = Math.abs(I.moveX) + Math.abs(I.moveZ) > 0.2
+            ? _v.set(I.moveX, 0, I.moveZ).normalize()
+            : _v.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); // default: backward
+          this.vel.x = ex.x * this.def.stats.speed * 2.6;
+          this.vel.z = ex.z * this.def.stats.speed * 2.6;
+          this.vel.y = 13;
+          this.grounded = false;
+          this.iframes = 0.9;
+          this.setState('getup', 0.3);
+          this.animator.play('getup', { speed: 2.4 });
+          this.world.audio?.play('jump');
+          this.world.effects.dustPuff(this.pos, 8);
+          this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4, dur: 0.35, color: PLAYER_COLORS[this.playerIndex % 4], y: 0.3 });
+          break;
+        }
         if (this.stateT <= 0) {
           this.setState('getup', this.animator.play('getup') * 0.9);
           this.iframes = 0.5;
@@ -553,12 +596,13 @@ export class Fighter {
       this.queuedLight = false;
       if (this.comboIdx > 0 && this.comboIdx < 3) this.doLight();
     } else if (this.state === 'channel') {
-      // keep channel while held
-      if (I.ranged) {
+      // keep channel while held (and while there's ammo for it)
+      if (I.ranged && !(this.ammoMax !== undefined && this.ammo <= 0)) {
         this.stateT = 0.1;
         this.firing = true;
         if (this.rangedCd <= 0) {
           this.rangedCd = this.def.moves.ranged.cooldown;
+          if (this.ammoMax !== undefined) this.ammo--;
           this.world.fireRanged(this, this.def.moves.ranged);
         }
         this.faceAim();
@@ -677,13 +721,26 @@ export class Fighter {
       this.grounded = false;
     }
 
+    // toroidal wrap: fold back into the periodic cell; stash the offset so
+    // this player's chase camera shifts with them (invisible to their view)
+    if (this.world.wrapHalf) {
+      const wx = this.world.wrapCoord(this.pos.x);
+      const wz = this.world.wrapCoord(this.pos.z);
+      if (wx !== this.pos.x || wz !== this.pos.z) {
+        this._wrap = { dx: wx - this.pos.x, dz: wz - this.pos.z };
+        this.pos.x = wx;
+        this.pos.z = wz;
+      }
+    }
+
     // arena bounds & buildings
     this.world.arena?.collideFighter(this);
 
-    // fighter-fighter push out
+    // fighter-fighter push out (nearest image across the seam)
     for (const f of this.world.fighters) {
       if (f === this || !f.alive) continue;
-      const dx = this.pos.x - f.pos.x, dz = this.pos.z - f.pos.z;
+      const dx = this.world.wrapDelta(this.pos.x - f.pos.x);
+      const dz = this.world.wrapDelta(this.pos.z - f.pos.z);
       const rr = this.radius + f.radius;
       const d2 = dx * dx + dz * dz;
       if (d2 < rr * rr && d2 > 1e-6) {
@@ -721,6 +778,7 @@ export class Fighter {
     this.hovering = false;
     this.hoverFuel = this.hoverFuelMax;
     this.plunging = false;
+    if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this.animator.action = null;
   }
 }

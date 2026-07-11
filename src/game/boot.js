@@ -362,6 +362,7 @@ export async function bootGame() {
     world.arena = arena;
     arena.bind(world);
     world.input = input;
+    world.spawnAmmoBoxes(4, arena.bounds * 0.6);
 
     const active = [];
     S.slots.forEach((s, i) => { if (s.kind !== 'off') active.push({ slot: s, slotIdx: i }); });

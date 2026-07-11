@@ -121,6 +121,9 @@ export class ProjectileSystem {
       }
       if (p.homing && p.homing.alive && !p.committed) {
         _v.copy(p.homing.center());
+        // chase the nearest image across the arena seam
+        _v.x = p.mesh.position.x + world.wrapDelta(_v.x - p.mesh.position.x);
+        _v.z = p.mesh.position.z + world.wrapDelta(_v.z - p.mesh.position.z);
         const sp = p.vel.length();
         const dist = _v.distanceTo(p.mesh.position);
         // terminal commit: in the last ~0.15s of flight the missile stops
@@ -141,6 +144,10 @@ export class ProjectileSystem {
       const stepLen = step.length();
       p.dist += stepLen;
       p.mesh.position.add(step);
+      if (world.wrapHalf) {
+        p.mesh.position.x = world.wrapCoord(p.mesh.position.x);
+        p.mesh.position.z = world.wrapCoord(p.mesh.position.z);
+      }
       if (p.mesh.userData.vis.rot || p.gravity) this.orient(p);
       if (p.mesh.userData.vis.pulse) {
         const s = 1 + Math.sin(performance.now() * 0.02) * 0.15;
@@ -167,13 +174,16 @@ export class ProjectileSystem {
       // ---- collision ----
       let dead = false;
 
-      // fighters
+      // fighters (nearest-image distance across the seam)
       for (const f of world.fighters) {
         if (f === p.owner || !f.alive || p.hitSet.has(f)) continue;
         if (f.iframes > 0) continue;
         const c = f.center();
         const rr = f.hitRadius + 0.5;
-        if (p.mesh.position.distanceToSquared(c) < rr * rr) {
+        const cdx = world.wrapDelta(c.x - p.mesh.position.x);
+        const cdy = c.y - p.mesh.position.y;
+        const cdz = world.wrapDelta(c.z - p.mesh.position.z);
+        if (cdx * cdx + cdy * cdy + cdz * cdz < rr * rr) {
           p.hitSet.add(f);
           if (p.splash) {
             world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });

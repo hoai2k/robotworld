@@ -596,6 +596,8 @@ export class PauseScreen {
       <b style="color:#fff">XBOX PAD</b> — L-stick move · R-stick camera · A jump · X light · Y heavy · B special · RT ranged · LT block · RB dash · LB strafe-lock · D-pad ↑ ultimate · VIEW taunt<br>
       <b style="color:#fff">AIM</b> — shots fire where the camera points (hold strafe-lock to face it while moving sideways)<br>
       <b style="color:#fff">HOVER JETS</b> — press JUMP again in mid-air and HOLD to fly (lighter mechs fly higher)<br>
+      <b style="color:#fff">DOWNED?</b> — press JUMP while knocked down to spring clear · gatling/flame run on AMMO — grab the yellow crates<br>
+      <b style="color:#fff">WORLD</b> — the arena wraps: walk off any side and you come around the other<br>
       <b style="color:#fff">VIEW</b> — F9 flips the 2-player split (side-by-side ↔ stacked) · F10 fullscreen`;
     this.el.appendChild(this.controls);
     root.appendChild(this.el);

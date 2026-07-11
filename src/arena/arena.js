@@ -95,30 +95,10 @@ export class Arena {
     this.scene.add(ground);
     this.objects.push(ground);
 
-    // boundary markings + pylons
+    // No walls anymore: the arena wraps toroidally at ±wrapHalf (set on the
+    // world in bind), out in the foggy empty ring where the seam is subtle.
     const B = this.bounds;
-    const edge = new THREE.Mesh(
-      new THREE.RingGeometry(B * 1.355, B * 1.415, 4, 1),
-      new THREE.MeshBasicMaterial({
-        color: theme.ground.accent || 0x53e8ff, transparent: true, opacity: 0.5, side: THREE.DoubleSide,
-      })
-    );
-    edge.rotation.x = -Math.PI / 2;
-    edge.rotation.z = Math.PI / 4;
-    edge.position.y = 0.06;
-    this.scene.add(edge);
-    this.objects.push(edge);
-
-    const pylonMat = new THREE.MeshStandardMaterial({
-      color: theme.ground.accent || 0x53e8ff,
-      emissive: theme.ground.accent || 0x53e8ff, emissiveIntensity: 1.6,
-    });
-    for (const [px, pz] of [[-B, -B], [B, -B], [-B, B], [B, B]]) {
-      const py = PROPS.barrierPylon({ mat: pylonMat });
-      py.position.set(px, 0, pz);
-      this.scene.add(py);
-      this.objects.push(py);
-    }
+    this.wrapHalf = B * 1.35;
 
     // ---- skyline backdrop (cheap, far, unlit boxes) ----
     const skyMatDark = new THREE.MeshBasicMaterial({ color: new THREE.Color(theme.fog.color).multiplyScalar(0.55) });
@@ -209,6 +189,7 @@ export class Arena {
   bind(world) {
     this.world = world;
     this.destructo.world = world;
+    world.wrapHalf = this.wrapHalf;
   }
 
   // ---- combat services ----
@@ -220,9 +201,7 @@ export class Arena {
   setOccluders(segments) { this.destructo.setOccluders(segments); }
 
   collideFighter(f) {
-    const B = this.bounds;
-    f.pos.x = clamp(f.pos.x, -B, B);
-    f.pos.z = clamp(f.pos.z, -B, B);
+    // no boundary clamp — space wraps; only buildings push back
     this.destructo.collideFighter(f);
   }
 

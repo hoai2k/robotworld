@@ -16,18 +16,24 @@ function muzzle(f, name = 'muzzleR') {
   return a.getWorldPosition(new THREE.Vector3());
 }
 // ground aim point led by the victim's current velocity, for slow drops
-// (artillery arcs, delayed pillars) that otherwise land where they WERE
-function leadPos(e, t) {
-  const p = e.pos.clone().addScaledVector(e.vel, t);
-  p.y = 0;
-  return p;
+// (artillery arcs, delayed pillars) that otherwise land where they WERE.
+// Uses the victim's nearest image so artillery works across the arena seam.
+function leadPos(f, e, t) {
+  return new THREE.Vector3(
+    f.pos.x + f.world.wrapDelta(e.pos.x - f.pos.x) + e.vel.x * t,
+    0,
+    f.pos.z + f.world.wrapDelta(e.pos.z - f.pos.z) + e.vel.z * t
+  );
 }
 
 function aimDir(f, pitch = 0) {
   const e = f.nearestEnemy();
   if (e) {
-    const d = new THREE.Vector3().subVectors(e.center(), muzzle(f)).normalize();
-    return d;
+    const m = muzzle(f);
+    const c = e.center();
+    return new THREE.Vector3(
+      f.world.wrapDelta(c.x - m.x), c.y - m.y, f.world.wrapDelta(c.z - m.z)
+    ).normalize();
   }
   return new THREE.Vector3(Math.sin(f.yaw), pitch, Math.cos(f.yaw)).normalize();
 }
@@ -238,7 +244,7 @@ export const SPECIALS = {
             // one stale aim point misses everything by the last shell
             const arcTime = rand(1.1, 1.5);
             const e = f.nearestEnemy();
-            const target = e ? leadPos(e, arcTime * 0.85) : fallback;
+            const target = e ? leadPos(f, e, arcTime * 0.85) : fallback;
             const to = target.clone().add(new THREE.Vector3(rand(-sp.radius, sp.radius) * 0.45, 0, rand(-sp.radius, sp.radius) * 0.45));
             f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
               dmg: sp.dmg * f.dmgMult(), splash: 4, color: 0xffd23c, arcTo: to, arcTime,
@@ -385,7 +391,7 @@ export const ULTS = {
       onEvent: (t) => {
         if (t !== 'fire') return;
         const e = f.nearestEnemy();
-        const target = e ? leadPos(e, 0.45) : fwd(f, 12);
+        const target = e ? leadPos(f, e, 0.45) : fwd(f, 12);
         f.world.audio?.play('cast');
         // warning ring, then the pillar
         f.world.effects.rings.spawn(target, { from: u.radius, to: u.radius * 0.95, dur: 0.55, color: 0x49b7ff, y: 0.4 });
@@ -551,7 +557,7 @@ export const ULTS = {
   // COLOSSUS: one apocalyptic shell
   bigBertha(f, u) {
     const e = f.nearestEnemy();
-    const target = e ? leadPos(e, 1.0) : fwd(f, 30);
+    const target = e ? leadPos(f, e, 1.0) : fwd(f, 30);
     const dur = f.animator.play('brace', {
       onEvent: (t, a) => {
         if (t === 'shake') { f.world.effects.addShake(0.8); return; }

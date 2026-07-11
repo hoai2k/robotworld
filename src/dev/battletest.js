@@ -24,6 +24,7 @@ export function runBattleTest() {
   const arena = new Arena(engine, theme);
   world.arena = arena;
   arena.bind(world);
+  world.spawnAmmoBoxes(4, arena.bounds * 0.6);
 
   const input = new Input();
   world.input = input;

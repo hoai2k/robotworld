@@ -297,3 +297,19 @@ controllers via Gamepad API), AI opponents.
     correctness) since strafing now legitimately dodges dumb-fire; specials/
     ults still tested vs circle-strafe. ALL CONNECT; 2 soaks clean; hover-
     attack/air-block/plunge/strafe-lock all verified headlessly.
+- 2026-07-11: Ammo, escape jump, toroidal arenas (user request):
+  - AMMO for burst weapons: gatling 160 / flame 130 rounds; dry click at 0;
+    4 glowing crates spawn per battle (full refill on touch, 14s respawn);
+    AI detours to crates when dry and holds fire; HUD shows AMMO count
+    ("FIND A CRATE" when empty); refills between rounds.
+  - ESCAPE JUMP: press JUMP while knocked down to spring clear (input dir or
+    backward, 0.9s i-frames) — breaks knockdown loops. AI uses it too.
+  - TOROIDAL ARENAS: no walls; space wraps at ±bounds*1.35 (seam sits in the
+    foggy empty ring). Fighter/projectile positions fold; nearest-image
+    deltas everywhere (enemy queries, AI pursuit, melee, explosions,
+    shockwaves, projectile collision/homing, artillery lead, camera framing
+    & behind-az). The wrapping player's camera shifts with them — verified
+    max 0.02 NDC on-screen jump/frame through the seam (sub-pixel). Enemies
+    re-encountered at regular intervals; boundary ring/pylons removed.
+  - Verified: wraptest (seam/ammo/escape), attackmatrix ALL CONNECT, 2 ace
+    soaks clean, menu flow clean, crate screenshot viewed, build green.

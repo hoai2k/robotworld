@@ -147,21 +147,52 @@ export class CameraSystem {
   }
 
   updateCombined(dt, framed, humans, shakeX, shakeY) {
-    // centroid + radius needed to frame everyone
+    // centroid + radius needed to frame everyone. On wrapped arenas frame
+    // each fighter's NEAREST IMAGE relative to the solo player, so crossing
+    // the seam never snaps the framing (the enemy "ahead through the seam"
+    // is treated as genuinely ahead).
+    const soloRef = humans.length === 1 && humans[0].alive ? humans[0] : null;
+    const wd = (d) => this.world.wrapDelta(d);
+    if (this._pts === undefined) {
+      this._pts = [];
+      for (let i = 0; i < 8; i++) this._pts.push(new THREE.Vector3());
+    }
+    const pts = [];
+    for (let i = 0; i < framed.length && i < this._pts.length; i++) {
+      const f = framed[i];
+      const p = this._pts[i];
+      if (soloRef && f !== soloRef && this.world.wrapHalf) {
+        p.set(
+          soloRef.pos.x + wd(f.pos.x - soloRef.pos.x),
+          f.pos.y,
+          soloRef.pos.z + wd(f.pos.z - soloRef.pos.z)
+        );
+      } else {
+        p.copy(f.pos);
+      }
+      pts.push(p);
+    }
     _center.set(0, 0, 0);
-    for (const f of framed) _center.add(f.pos);
-    _center.divideScalar(framed.length);
+    for (const p of pts) _center.add(p);
+    _center.divideScalar(pts.length);
     _center.y += 4;
 
     let radius = 10;
-    for (const f of framed) {
-      radius = Math.max(radius, f.pos.distanceTo(_center) + 6);
+    for (const p of pts) {
+      radius = Math.max(radius, p.distanceTo(_center) + 6);
     }
     // Single human: bias framing toward them (Override-style) and swing the
     // camera BEHIND the player, looking toward the nearest enemy — a proper
     // third-person over-the-shoulder view instead of staring at the mech's
     // face. Gently damped so it trails the action rather than snapping.
     const solo = humans.length === 1 && humans[0].alive;
+    if (solo && humans[0]._wrap) {
+      // shift the solo cam with a wrapping player — seamless fold
+      const wr = humans[0]._wrap;
+      this.cPos.x += wr.dx; this.cPos.z += wr.dz;
+      this.cTarget.x += wr.dx; this.cTarget.z += wr.dz;
+      humans[0]._wrap = null;
+    }
     if (solo) {
       const player = humans[0];
       // frame tight on the player rather than the true centroid
@@ -171,8 +202,12 @@ export class CameraSystem {
       _center.y = Math.max(_center.y, player.pos.y + 3);
       const enemy = player.nearestEnemy();
       if (enemy) {
-        // offset direction points from the enemy toward the player (behind them)
-        const behindAz = Math.atan2(player.pos.x - enemy.pos.x, player.pos.z - enemy.pos.z);
+        // offset direction points from the enemy toward the player (behind
+        // them) — via the shortest wrapped path
+        const behindAz = Math.atan2(
+          -this.world.wrapDelta(enemy.pos.x - player.pos.x),
+          -this.world.wrapDelta(enemy.pos.z - player.pos.z)
+        );
         this.azimuth = this.azInit ? angleDamp(this.azimuth, behindAz, 1.8, dt) : behindAz;
         this.azInit = true;
       }
@@ -252,6 +287,14 @@ export class CameraSystem {
       cam.aspect = (window.innerWidth * vp.w) / (window.innerHeight * vp.h);
       cam.updateProjectionMatrix();
 
+      // toroidal wrap: when this player folds across the seam, shift their
+      // camera by the same offset — relative geometry unchanged, no pop
+      if (f._wrap) {
+        ch.pos.x += f._wrap.dx; ch.pos.z += f._wrap.dz;
+        ch.target.x += f._wrap.dx; ch.target.z += f._wrap.dz;
+        f._wrap = null;
+      }
+
       // each cam starts directly BEHIND its player (facing their spawn look
       // direction) and orbits with that player's right stick from there
       if (!ch.azInit) {
@@ -270,7 +313,18 @@ export class CameraSystem {
       ).multiplyScalar(dist);
       const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2, 0));
       const enemy = f.nearestEnemy();
-      const lookAhead = enemy ? _center.copy(f.pos).lerp(enemy.pos, 0.22) : _center.copy(f.pos);
+      let lookAhead;
+      if (enemy) {
+        // lean toward the enemy's nearest image (may be across the seam)
+        _ray.set(
+          f.pos.x + this.world.wrapDelta(enemy.pos.x - f.pos.x),
+          enemy.pos.y,
+          f.pos.z + this.world.wrapDelta(enemy.pos.z - f.pos.z)
+        );
+        lookAhead = _center.copy(f.pos).lerp(_ray, 0.22);
+      } else {
+        lookAhead = _center.copy(f.pos);
+      }
       lookAhead.y += 4.5;
       // jet flight: keep the look target riding with the flyer so the mech
       // doesn't graze the top of its viewport at altitude

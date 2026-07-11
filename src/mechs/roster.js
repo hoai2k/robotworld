@@ -39,7 +39,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 2.9 },
       heavy: { dmg: 78, knock: 18, range: 3.2, launch: 7 },
-      ranged: { name: 'Gatling Burst', type: 'gatling', dmg: 9, speed: 90, cooldown: 0.085, spread: 0.05 },
+      ranged: { name: 'Gatling Burst', type: 'gatling', dmg: 9, speed: 90, cooldown: 0.085, spread: 0.05, ammo: 160 },
       special: { id: 'missileVolley', name: 'Micro-Missile Volley', cooldown: 6.5, dmg: 22, count: 6 },
       ult: { id: 'bulletHurricane', name: 'BULLET HURRICANE', dmg: 12, duration: 3.2 },
     },
@@ -222,7 +222,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [36, 38, 54], knock: [5, 5, 12], range: 3.3 },
       heavy: { dmg: 86, knock: 20, range: 3.7, launch: 8 },
-      ranged: { name: 'Dragon\'s Breath', type: 'flame', dmg: 6.5, cooldown: 0.09, range: 12 },
+      ranged: { name: 'Dragon\'s Breath', type: 'flame', dmg: 6.5, cooldown: 0.09, range: 12, ammo: 130 },
       special: { id: 'napalm', name: 'Napalm Carpet', cooldown: 7.5, dmg: 14, patches: 5, duration: 5 },
       ult: { id: 'backdraft', name: 'BACKDRAFT', dmg: 170, radius: 12, burnDmg: 10 },
     },

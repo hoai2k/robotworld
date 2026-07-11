@@ -53,7 +53,14 @@ export class AIController {
     const t = this.target;
     if (!t) { I.moveX = I.moveZ = 0; return; }
 
-    const dx = t.pos.x - f.pos.x, dz = t.pos.z - f.pos.z;
+    // downed? spring clear sometimes instead of eating the loop
+    if (f.state === 'knockdown' && Math.random() < dt * (1.5 + this.d.aggression * 2)) {
+      I.jump = true;
+      return;
+    }
+
+    // nearest-image pursuit — chases straight through the arena seam
+    const dx = f.world.wrapDelta(t.pos.x - f.pos.x), dz = f.world.wrapDelta(t.pos.z - f.pos.z);
     const dist = Math.hypot(dx, dz);
     const nx = dx / (dist || 1), nz = dz / (dist || 1);
 
@@ -84,6 +91,18 @@ export class AIController {
     }
     // spacing: don't hug when ranged
     if (!melee && dist < wantDist * 0.6) { mx = -nx; mz = -nz; }
+
+    // dry burst weapon: detour to the nearest ammo crate
+    if (f.ammoMax !== undefined && f.ammo <= 0) {
+      let box = null, boxD = Infinity;
+      for (const p of f.world.pickups) {
+        if (!p.active) continue;
+        const bx = f.world.wrapDelta(p.pos.x - f.pos.x), bz = f.world.wrapDelta(p.pos.z - f.pos.z);
+        const d = Math.hypot(bx, bz);
+        if (d < boxD) { box = { bx, bz, d }; boxD = d; }
+      }
+      if (box && box.d > 2) { mx = box.bx / box.d; mz = box.bz / box.d; }
+    }
     I.moveX = mx; I.moveZ = mz;
 
     // occasional hops
@@ -126,7 +145,8 @@ export class AIController {
             if (Math.random() < 0.25) I.heavy = true;
             else I.light = true;
           }
-        } else if (dist < this.rangedPref * 1.7 && f.rangedCd <= 0) {
+        } else if (dist < this.rangedPref * 1.7 && f.rangedCd <= 0 &&
+                   !(f.ammoMax !== undefined && f.ammo <= 0)) {
           // face target implicitly via fighter auto-aim
           I.ranged = true;
         }
