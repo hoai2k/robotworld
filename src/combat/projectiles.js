@@ -5,6 +5,7 @@ import { rand, clamp } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
 const _dir = new THREE.Vector3();
+const _probe = new THREE.Vector3();
 
 const VISUALS = {
   bullet: { geo: () => new THREE.SphereGeometry(0.22, 6, 5), scaleZ: 4, light: false },
@@ -143,6 +144,8 @@ export class ProjectileSystem {
       const step = _v.copy(p.vel).multiplyScalar(dt);
       const stepLen = step.length();
       p.dist += stepLen;
+      const px = p.mesh.position.x, py = p.mesh.position.y, pz = p.mesh.position.z;
+      const sdx = step.x, sdy = step.y, sdz = step.z;
       p.mesh.position.add(step);
       if (world.wrapHalf) {
         p.mesh.position.x = world.wrapCoord(p.mesh.position.x);
@@ -202,15 +205,25 @@ export class ProjectileSystem {
         dead = true;
       }
 
-      // buildings
-      if (!dead && world.arena && world.arena.pointHits(p.mesh.position)) {
-        if (p.splash) {
-          world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
-        } else {
-          world.arena.damageSphere(p.mesh.position, 1.6, p.dmg * 0.8, _v.copy(p.vel).normalize());
-          world.effects.impactSparks(p.mesh.position, p.color, 8, 6);
+      // buildings — substepped so fast rounds can't tunnel through a wall
+      if (!dead && world.arena) {
+        let bHit = world.arena.pointHits(p.mesh.position) ? p.mesh.position : null;
+        if (!bHit && stepLen > 1.1) {
+          const n = Math.ceil(stepLen);
+          for (let k = 1; k < n && !bHit; k++) {
+            _probe.set(px + sdx * k / n, py + sdy * k / n, pz + sdz * k / n);
+            if (world.arena.pointHits(_probe)) bHit = _probe;
+          }
         }
-        dead = true;
+        if (bHit) {
+          if (p.splash) {
+            world.explode(bHit, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+          } else {
+            world.arena.damageSphere(bHit, 2.2, p.dmg * 1.4, _v.copy(p.vel).normalize());
+            world.effects.impactSparks(bHit, p.color, 8, 6);
+          }
+          dead = true;
+        }
       }
 
       if (p.life <= 0 || p.dist > p.maxDist) dead = true;

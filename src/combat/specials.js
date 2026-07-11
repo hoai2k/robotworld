@@ -315,32 +315,69 @@ export const SPECIALS = {
     f.setState('special', dur * 0.85);
   },
 
-  // SAURION: sickle-claw dash-through that leaves targets bleeding
+  // SAURION: raptor pounce — leaps ONTO the victim and rakes with the toe
+  // sickles, pinning them for two follow-up slashes that leave them bleeding
   sickleRush(f, sp) {
-    f.animator.play('lunge');
-    f.setState('special', 0.4);
-    f.iframes = 0.32;
-    const spd = f.def.stats.speed * 4.4;
-    f.vel.x = Math.sin(f.yaw) * spd;
-    f.vel.z = Math.cos(f.yaw) * spd;
-    f.world.audio?.play('dash');
-    const victims = new Set();
-    for (let i = 1; i <= 8; i++) {
-      f.world.schedule(i * 0.045, () => {
-        if (!f.alive) return;
-        f.world.effects.dashTrail(f.pos, 0xff3826, f.scale * 1.3);
-        for (const e of f.world.fighters) {
-          if (e === f || !e.alive || victims.has(e)) continue;
-          const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
-          if (Math.hypot(dx, dz) < 3.4 * f.scale) {
-            victims.add(e);
-            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 9, srcPos: f.pos, status: { burn: sp.bleed, burnT: 2.2 } });
-            f.world.audio?.play('slash');
-            f.world.engine.addHitStop(0.05);
+    const w = f.world;
+    const e = f.nearestEnemy();
+    f.animator.play('lunge', { speed: 1.15 });
+    f.setState('special', 1.6);
+    f.iframes = 0.35;
+    w.audio?.play('jump');
+    // ballistic arc timed to land exactly on the victim's led position
+    const T = 0.72; // airtime at vy 12.2 under g=34
+    let dist = sp.leap || 20;
+    if (e) {
+      const lead = leadPos(f, e, T * 0.8);
+      const dx = w.wrapDelta(lead.x - f.pos.x), dz = w.wrapDelta(lead.z - f.pos.z);
+      f.yaw = f.targetYaw = Math.atan2(dx, dz);
+      dist = Math.min(sp.leap || 20, Math.hypot(dx, dz));
+    }
+    f.vel.x = Math.sin(f.yaw) * dist / T;
+    f.vel.z = Math.cos(f.yaw) * dist / T;
+    f.vel.y = 12.3;
+    f.grounded = false;
+    let done = false;
+    const strike = () => {
+      if (done || !f.alive) return;
+      if (!f.grounded) { w.schedule(0.04, strike); return; }
+      done = true;
+      let clawed = false;
+      for (const v of w.fighters) {
+        if (v === f || !v.alive) continue;
+        const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
+        if (Math.hypot(dx, dz) < 4.8 * f.scale && Math.abs(v.pos.y - f.pos.y) < 4.5) {
+          clawed = true;
+          v.takeHit(sp.dmg * f.dmgMult(), f, {
+            knock: 6, srcPos: f.pos, heavy: true,
+            status: { burn: sp.bleed, burnT: 2.4 },
+          });
+          // pinned: two fast toe-claw rakes while they stagger
+          for (let k = 1; k <= 2; k++) {
+            w.schedule(0.16 * k, () => {
+              if (!f.alive || !v.alive) return;
+              const rx = w.wrapDelta(v.pos.x - f.pos.x), rz = w.wrapDelta(v.pos.z - f.pos.z);
+              if (Math.hypot(rx, rz) < 5.2 * f.scale) {
+                v.takeHit(sp.dmg * 0.35 * f.dmgMult(), f, { knock: k === 2 ? 13 : 2, srcPos: f.pos });
+                w.audio?.play('slash');
+                w.effects.impactSparks(v.center(), 0xff3826, 10, 8);
+              }
+            });
           }
         }
-      });
-    }
+      }
+      w.effects.dustPuff(f.pos, 10);
+      w.audio?.play(clawed ? 'slash' : 'bodyfall');
+      if (clawed) {
+        w.engine.addHitStop(0.08);
+        w.effects.addShake(0.5);
+        f.animator.play('flurry', { speed: 1.4 });
+        f.setState('special', 0.4);
+      } else {
+        f.setState('normal');
+      }
+    };
+    w.schedule(0.2, strike);
   },
 
   // FROGGER: all four gunk guns lob a sticky mortar carpet

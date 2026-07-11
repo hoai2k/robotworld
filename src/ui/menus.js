@@ -591,12 +591,12 @@ export class PauseScreen {
     this.controls = el('div', 'panel');
     this.controls.style.cssText = 'margin-top:20px;padding:16px 26px;display:none;font-size:13px;line-height:1.9;color:#b8d4e6;';
     this.controls.innerHTML = `
-      <b style="color:#fff">KEYBOARD P1</b> — WASD move · SPACE jump · F light · G heavy · H block · R ranged · T special · Y ultimate · SHIFT dash · Q strafe-lock · B taunt<br>
-      <b style="color:#fff">KEYBOARD P2</b> — Arrows move · Num0 jump · Num1 light · Num2 heavy · Num3 block · Num4 ranged · Num5 special · Num6 ult · NumEnter dash · Num7 strafe-lock<br>
-      <b style="color:#fff">XBOX PAD</b> — L-stick move · R-stick camera · A jump · X light · Y heavy · B special · RT ranged · LT block · RB dash · LB strafe-lock · D-pad ↑ ultimate · VIEW taunt<br>
+      <b style="color:#fff">KEYBOARD P1</b> — WASD move · SPACE jump · F light · G heavy · H block · R ranged · T special · Y ultimate · SHIFT dash · Q strafe-lock · C duck · B taunt<br>
+      <b style="color:#fff">KEYBOARD P2</b> — Arrows move · Num0 jump · Num1 light · Num2 heavy · Num3 block · Num4 ranged · Num5 special · Num6 ult · NumEnter dash · Num7 strafe-lock · Num8 duck<br>
+      <b style="color:#fff">XBOX PAD</b> — L-stick move · R-stick camera · A jump · X light · Y heavy · B special · RT ranged · LT block · RB dash · LB strafe-lock · L-stick click duck · D-pad ↑ ultimate · VIEW taunt<br>
       <b style="color:#fff">AIM</b> — shots fire where the camera points (hold strafe-lock to face it while moving sideways)<br>
       <b style="color:#fff">HOVER JETS</b> — press JUMP again in mid-air and HOLD to fly (lighter mechs fly higher)<br>
-      <b style="color:#fff">DOWNED?</b> — press JUMP while knocked down to spring clear · gatling/flame run on AMMO — grab the yellow crates<br>
+      <b style="color:#fff">DOWNED?</b> — press JUMP while knocked down to spring clear · every ranged weapon runs on AMMO — grab the yellow crates<br>
       <b style="color:#fff">WORLD</b> — the arena wraps: walk off any side and you come around the other<br>
       <b style="color:#fff">VIEW</b> — F9 flips the 2-player split (side-by-side ↔ stacked) · F10 fullscreen`;
     this.el.appendChild(this.controls);

@@ -109,8 +109,8 @@ export class World {
     this.tasks.push({ t: this.time + delay, fn });
   }
 
-  // ---- ammo crates: refill burst weapons (gatling / flame) ----
-  spawnAmmoBoxes(count = 4, radius = 60) {
+  // ---- ammo crates: every mech's ranged weapon runs on ammo now ----
+  spawnAmmoBoxes(count = 6, radius = 60) {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + rand(-0.4, 0.4);
       const r = radius * rand(0.45, 1);
@@ -160,11 +160,11 @@ export class World {
         if (!f.alive || f.ammoMax === undefined) continue;
         if (f.ammo >= f.ammoMax) continue;
         const dx = this.wrapDelta(f.pos.x - p.pos.x), dz = this.wrapDelta(f.pos.z - p.pos.z);
-        if (dx * dx + dz * dz < 6.5 && f.pos.y < 4) {
+        if (dx * dx + dz * dz < 10.5 && f.pos.y < 4) {
           f.ammo = f.ammoMax;
           p.active = false;
           p.mesh.visible = false;
-          p.respawnT = 14;
+          p.respawnT = 10;
           this.audio?.play('powerup');
           this.effects.rings.spawn(p.pos, { from: 2.2, to: 0.4, dur: 0.35, color: 0xffd23c, y: 0.6 });
           this.events.emit('ammo', { fighter: f });
@@ -257,7 +257,8 @@ export class World {
       if (f === owner || !f.alive) continue;
       const dxs = this.wrapDelta(f.pos.x - pos.x), dzs = this.wrapDelta(f.pos.z - pos.z);
       const d = Math.hypot(dxs, dzs);
-      if (d < radius && f.pos.y < 3) {
+      // height check is RELATIVE so slams landed on a rooftop still connect
+      if (d < radius && Math.abs(f.pos.y - pos.y) < 3) {
         const falloff = 1 - d / radius;
         f.takeHit(dmg * Math.max(0.35, falloff), owner, {
           knock: knock * falloff, launch: launchAll ? 11 : 8 * falloff, srcPos: pos, heavy: true,

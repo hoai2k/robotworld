@@ -346,3 +346,26 @@ controllers via Gamepad API), AI opponents.
   daylight trio lineup viewed, 15-mech attackmatrix ALL CONNECT (titanus 0
   was test variance — reruns 58/115), 2 ace soaks with the trio, menu flow
   clean, build green.
+- 2026-07-11: COMBAT DEPTH BATCH: universal ammo (every ranged weapon has a
+  per-weapon count; crates refill ALL mechs — the new trio previously had
+  no ammoMax so pickups silently skipped them; 6 crates, 10s respawn,
+  wider pickup radius) · DUCK (hold C / Num8 / L-stick click; slows
+  movement, shrinks+lowers hitbox, animator squat — FROGGER duckDepth 1.0
+  goes ankle-low, saurion 0.75) · SAURION velociraptor rework (torso/head
+  restPose pitch kept through clips via restBias, deeper leg crouch,
+  animated counterbalancing tail in signature(), much bigger sickle toe
+  claws + flanking toe spikes, special is now a true pounce: ballistic
+  leap onto the led target, toe-claw slam + 2 pinned rakes + bleed) ·
+  FROGGER 4 real arms (upper cannons rebuilt as shoulder2/elbow2 joint
+  chains; signature() mirrors lower-arm motion onto them so all four pump
+  in every move; muzzles ride the elbows) · BUILDINGS: rooftop landing
+  (collideFighter exposed-top support w/ landing FX; shockwaves are
+  height-relative so rooftop slams connect), unstable collapse (killChunk
+  re-checks 5 neighbors; <45% chunks alive or <40% of the ground floor →
+  bottom-up forced rubble cascade), projectile substep vs walls (no
+  tunneling) + stronger chip damage (1.4x, r2.2) · CAMERA: player-only
+  see-through (per steer), fade 0.15, and HARD framing anchor — centroid
+  may pull at most 9u off the solo player, split-cam look-ahead capped at
+  8u/9u vertical so the player's mech is never lost. Verified: 15-mech
+  attackmatrix ALL CONNECT (saurion special 110), rooftop/duck/ammo/
+  collapse functional probe green, 2 ace soaks, showcase + battle shots.

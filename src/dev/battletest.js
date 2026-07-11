@@ -24,7 +24,7 @@ export function runBattleTest() {
   const arena = new Arena(engine, theme);
   world.arena = arena;
   arena.bind(world);
-  world.spawnAmmoBoxes(4, arena.bounds * 0.6);
+  world.spawnAmmoBoxes(6, arena.bounds * 0.6);
   engine.onBeforeView = (cam) => world.applyViewWrap(cam);
   engine.onAfterView = () => world.clearViewWrap();
 

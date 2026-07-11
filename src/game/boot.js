@@ -365,7 +365,7 @@ export async function bootGame() {
     world.arena = arena;
     arena.bind(world);
     world.input = input;
-    world.spawnAmmoBoxes(4, arena.bounds * 0.6);
+    world.spawnAmmoBoxes(6, arena.bounds * 0.6);
     // per-view seam rendering: dynamic entities show their nearest image
     engine.onBeforeView = (cam) => world.applyViewWrap(cam);
     engine.onAfterView = () => world.clearViewWrap();

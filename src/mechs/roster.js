@@ -17,7 +17,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [46, 50, 68], knock: [6, 7, 16], range: 3.4 },
       heavy: { dmg: 105, knock: 26, range: 3.8, launch: 9 },
-      ranged: { name: 'Rocket Fist', type: 'rocket', dmg: 82, speed: 32, cooldown: 1.6, splash: 4.5 },
+      ranged: { name: 'Rocket Fist', type: 'rocket', dmg: 82, speed: 32, cooldown: 1.6, splash: 4.5, ammo: 12 },
       special: { id: 'groundPound', name: 'Seismic Slam', cooldown: 7, dmg: 85, radius: 9, knock: 24 },
       ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
     },
@@ -59,7 +59,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
       heavy: { dmg: 88, knock: 20, range: 4.2, launch: 8 },
-      ranged: { name: 'Lance Wave', type: 'wave', dmg: 44, speed: 38, cooldown: 1.1 },
+      ranged: { name: 'Lance Wave', type: 'wave', dmg: 44, speed: 38, cooldown: 1.1, ammo: 16 },
       special: { id: 'shieldBash', name: 'Bulwark Bash', cooldown: 6, dmg: 60, knock: 22, guard: 2.2 },
       ult: { id: 'judgment', name: 'JUDGMENT RAY', dmg: 200, radius: 8 },
     },
@@ -80,7 +80,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
-      ranged: { name: 'Venom Dart', type: 'dart', dmg: 30, speed: 60, cooldown: 0.7 },
+      ranged: { name: 'Venom Dart', type: 'dart', dmg: 30, speed: 60, cooldown: 0.7, ammo: 26 },
       special: { id: 'phantomStrike', name: 'Phantom Strike', cooldown: 5, dmg: 55, dashLen: 12 },
       ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 24, hits: 8 },
     },
@@ -100,7 +100,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [28, 30, 42], knock: [4, 4, 10], range: 3.4 },
       heavy: { dmg: 72, knock: 17, range: 3.8, launch: 8 },
-      ranged: { name: 'Plasma Lance', type: 'plasma', dmg: 55, speed: 28, cooldown: 1.3, splash: 3 },
+      ranged: { name: 'Plasma Lance', type: 'plasma', dmg: 55, speed: 28, cooldown: 1.3, splash: 3, ammo: 14 },
       special: { id: 'starfall', name: 'Starfall Trio', cooldown: 7, dmg: 34, count: 3 },
       ult: { id: 'supernova', name: 'SUPERNOVA', dmg: 190, radius: 14 },
     },
@@ -120,7 +120,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 6, 14], range: 3.4 },
       heavy: { dmg: 95, knock: 24, range: 3.8, launch: 9 },
-      ranged: { name: 'Shoulder Cannon', type: 'shell', dmg: 56, speed: 42, cooldown: 1.3, splash: 3 },
+      ranged: { name: 'Shoulder Cannon', type: 'shell', dmg: 56, speed: 42, cooldown: 1.3, splash: 3, ammo: 14 },
       special: { id: 'bullRush', name: 'Bull Rush', cooldown: 6.5, dmg: 75, knock: 26, dashLen: 16 },
       ult: { id: 'stampede', name: 'STAMPEDE', dmg: 60, hits: 3, knock: 30 },
     },
@@ -140,7 +140,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [28, 30, 44], knock: [4, 4, 10], range: 3.2 },
       heavy: { dmg: 74, knock: 17, range: 3.6, launch: 8 },
-      ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8 },
+      ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8, ammo: 20 },
       special: { id: 'staticField', name: 'Static Overload', cooldown: 7, dmg: 70, radius: 8 },
       ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 55, strikes: 8, radius: 12 },
     },
@@ -161,7 +161,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.3 },
       heavy: { dmg: 76, knock: 18, range: 3.7, launch: 8 },
-      ranged: { name: 'Rend Wave', type: 'wave', dmg: 36, speed: 34, cooldown: 1.0 },
+      ranged: { name: 'Rend Wave', type: 'wave', dmg: 36, speed: 34, cooldown: 1.0, ammo: 18 },
       special: { id: 'pounce', name: 'Lunar Pounce', cooldown: 5.5, dmg: 65, leap: 14 },
       ult: { id: 'wildHunt', name: 'WILD HUNT', duration: 6, speedBoost: 1.5, dmgBoost: 1.6 },
     },
@@ -181,7 +181,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [42, 46, 62], knock: [6, 6, 14], range: 3.5 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
-      ranged: { name: 'Mortar Lob', type: 'mortar', dmg: 68, speed: 30, cooldown: 1.7, splash: 5.5 },
+      ranged: { name: 'Mortar Lob', type: 'mortar', dmg: 68, speed: 30, cooldown: 1.7, splash: 5.5, ammo: 10 },
       special: { id: 'barrage', name: 'Fire Mission', cooldown: 8, dmg: 50, count: 5, radius: 9 },
       ult: { id: 'bigBertha', name: 'BIG BERTHA', dmg: 240, radius: 15 },
     },
@@ -202,7 +202,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.0 },
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
-      ranged: { name: 'Longshot', type: 'railgun', dmg: 85, cooldown: 1.9 },
+      ranged: { name: 'Longshot', type: 'railgun', dmg: 85, cooldown: 1.9, ammo: 10 },
       special: { id: 'cloak', name: 'Ghost Protocol', cooldown: 9, duration: 4, speedBoost: 1.3 },
       ult: { id: 'deadeye', name: 'DEADEYE', dmg: 110, shots: 3 },
     },
@@ -242,7 +242,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [38, 42, 58], knock: [5, 6, 13], range: 3.4 },
       heavy: { dmg: 92, knock: 22, range: 3.8, launch: 9 },
-      ranged: { name: 'Shard Burst', type: 'shard', dmg: 34, speed: 46, cooldown: 0.8 },
+      ranged: { name: 'Shard Burst', type: 'shard', dmg: 34, speed: 46, cooldown: 0.8, ammo: 22 },
       special: { id: 'freezeBeam', name: 'Cryo Beam', cooldown: 8, dmg: 12, duration: 1.8, slow: 0.45 },
       ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 150, radius: 13, freezeTime: 2.5 },
     },
@@ -265,7 +265,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
-      ranged: { name: 'Hydro Cannon', type: 'water', dmg: 55, speed: 42, cooldown: 1.2, splash: 2.5 },
+      ranged: { name: 'Hydro Cannon', type: 'water', dmg: 55, speed: 42, cooldown: 1.2, splash: 2.5, ammo: 14 },
       special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 5.5, launch: 15 },
       ult: { id: 'riptide', name: 'RIPTIDE', dmg: 42, waves: 8, surgeDmg: 70, radius: 13 },
     },
@@ -282,14 +282,16 @@ export const ROSTER = [
       accent: { base: 0x24262c, base2: 0x1a1c22, metal: 0x6a6e76, wear: 0.5, grime: 0.4, panelDepth: 3, roughPaint: 0.36, metalPaint: 0.58, normalStrength: 1.15 },
     },
     body: { scale: 1.12, torsoW: 0.95, torsoH: 0.9, headSize: 1.0, armLen: 1.0, legLen: 1.15, hipW: 0.95, bulk: 0.95 },
-    restPose: { thighL: [-38, 0, 0], thighR: [-38, 0, 0], kneeL: [66, 0, 0], kneeR: [66, 0, 0], ankleL: [-30, 0, 0], ankleR: [-30, 0, 0] },
-    stats: { hp: 900, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06 },
+    // velociraptor stance: whole spine pitched forward over deeply-bent
+    // digitigrade legs, head craned back up to keep eyes on the prey
+    restPose: { torso: [27, 0, 0], head: [-25, 0, 0], thighL: [-45, 0, 0], thighR: [-45, 0, 0], kneeL: [75, 0, 0], kneeR: [75, 0, 0], ankleL: [-34, 0, 0], ankleR: [-34, 0, 0] },
+    stats: { hp: 900, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06, duck: 0.75 },
     ui: { power: 7, speed: 10, defense: 3 },
     moves: {
       light: { dmg: [32, 34, 48], knock: [4, 5, 12], range: 3.5 },
       heavy: { dmg: 80, knock: 19, range: 3.8, launch: 8 },
-      ranged: { name: 'Razor Plume', type: 'feather', dmg: 30, speed: 58, cooldown: 0.55 },
-      special: { id: 'sickleRush', name: 'Sickle Rush', cooldown: 5.5, dmg: 58, bleed: 8 },
+      ranged: { name: 'Razor Plume', type: 'feather', dmg: 30, speed: 58, cooldown: 0.55, ammo: 28 },
+      special: { id: 'sickleRush', name: 'Sickle Pounce', cooldown: 6, dmg: 62, bleed: 9, leap: 22 },
       ult: { id: 'extinction', name: 'EXTINCTION PROTOCOL', dmg: 46, hits: 4, knock: 26 },
     },
   },
@@ -306,12 +308,12 @@ export const ROSTER = [
     },
     body: { scale: 1.1, torsoW: 1.2, torsoH: 0.95, headSize: 0.7, armLen: 1.0, legLen: 1.05, hipW: 1.05, bulk: 1.05 },
     restPose: { thighL: [-30, 0, -6], thighR: [-30, 0, 6], kneeL: [55, 0, 0], kneeR: [55, 0, 0], ankleL: [-25, 0, 0], ankleR: [-25, 0, 0] },
-    stats: { hp: 1000, speed: 10.5, jump: 19, weight: 0.5, armor: 0.12 },
+    stats: { hp: 1000, speed: 10.5, jump: 19, weight: 0.5, armor: 0.12, duck: 1.0 },
     ui: { power: 6, speed: 8, defense: 5 },
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 3.0 },
       heavy: { dmg: 78, knock: 18, range: 3.3, launch: 9 },
-      ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4 },
+      ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4, ammo: 20 },
       special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 8, radius: 8 },
       ult: { id: 'royalRibbit', name: 'ROYAL RIBBIT', dmg: 190, radius: 12 },
     },

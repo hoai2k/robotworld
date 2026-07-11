@@ -70,9 +70,10 @@ export class CameraSystem {
     document.getElementById('ui-root').appendChild(this.dividerEl);
     this._dividerKind = null;
 
-    // camera->player occlusion segments (reused each frame)
+    // camera->fighter occlusion segments (reused each frame; buildings that
+    // cross any of these ghost out — the camera NEVER collides with them)
     this._segs = [];
-    for (let i = 0; i < 4; i++) this._segs.push({ from: new THREE.Vector3(), to: new THREE.Vector3() });
+    for (let i = 0; i < 8; i++) this._segs.push({ from: new THREE.Vector3(), to: new THREE.Vector3() });
   }
 
   // 'single' | 'lr' | 'tb' | '3' | '4' for a given human count
@@ -197,9 +198,19 @@ export class CameraSystem {
       const player = humans[0];
       // frame tight on the player rather than the true centroid
       _center.lerp(player.pos.clone().setY(_center.y), 0.5);
+      // HARD anchor: distant enemies may pull the frame only a few meters
+      // off the player — the player's own mech is never lost from view
+      const ox = _center.x - player.pos.x, oz = _center.z - player.pos.z;
+      const olen = Math.hypot(ox, oz);
+      if (olen > 9) {
+        _center.x = player.pos.x + (ox / olen) * 9;
+        _center.z = player.pos.z + (oz / olen) * 9;
+      }
       // hover jets can lift the player far above the ground centroid —
       // ride the frame up so a flying mech never exits the top of view
+      // (and a flying ENEMY can't drag it skyward away from us)
       _center.y = Math.max(_center.y, player.pos.y + 3);
+      _center.y = Math.min(_center.y, player.pos.y + 10);
       const enemy = player.nearestEnemy();
       if (enemy) {
         // offset direction points from the enemy toward the player (behind
@@ -251,7 +262,9 @@ export class CameraSystem {
     cam.position.set(this.cPos.x + shakeX, this.cPos.y + shakeY, this.cPos.z);
     cam.lookAt(this.cTarget.x + shakeX * 0.6, this.cTarget.y + shakeY * 0.6, this.cTarget.z);
 
-    // solo chase cam rides low — ghost buildings that hide the player
+    // solo chase cam rides low — ghost buildings that hide the PLAYER's own
+    // mech (enemies may still use cover; the camera never physically
+    // reacts to buildings, it only fades the ones hiding your character)
     if (solo) {
       const seg = this._segs[0];
       seg.from.copy(this.cPos);
@@ -278,6 +291,7 @@ export class CameraSystem {
     const kind = this.layoutKind(n);
     const layout = LAYOUTS[kind];
     const views = [];
+    const segsUsed = [];
 
     for (let i = 0; i < n; i++) {
       const f = humans[i];
@@ -315,13 +329,21 @@ export class CameraSystem {
       const enemy = f.nearestEnemy();
       let lookAhead;
       if (enemy) {
-        // lean toward the enemy's nearest image (may be across the seam)
+        // lean toward the enemy's nearest image (may be across the seam),
+        // but never further than a few meters — the chase cam stays glued
+        // to its own mech no matter how far the enemy roams
         _ray.set(
           f.pos.x + this.world.wrapDelta(enemy.pos.x - f.pos.x),
           enemy.pos.y,
           f.pos.z + this.world.wrapDelta(enemy.pos.z - f.pos.z)
         );
         lookAhead = _center.copy(f.pos).lerp(_ray, 0.22);
+        const lox = lookAhead.x - f.pos.x, loz = lookAhead.z - f.pos.z;
+        const ll = Math.hypot(lox, loz);
+        if (ll > 8) {
+          lookAhead.x = f.pos.x + (lox / ll) * 8;
+          lookAhead.z = f.pos.z + (loz / ll) * 8;
+        }
       } else {
         lookAhead = _center.copy(f.pos);
       }
@@ -329,6 +351,8 @@ export class CameraSystem {
       // jet flight: keep the look target riding with the flyer so the mech
       // doesn't graze the top of its viewport at altitude
       lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
+      // ...and a sky-bound ENEMY can't tilt the view off our own mech
+      lookAhead.y = Math.min(lookAhead.y, f.pos.y + 9);
 
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);
@@ -342,13 +366,14 @@ export class CameraSystem {
       cam.lookAt(ch.target.x, ch.target.y, ch.target.z);
       views.push({ camera: cam, ...vp });
 
-      // ghost any building between this camera and its mech
+      // ghost any building between this camera and its own mech
       const seg = this._segs[i];
       seg.from.copy(ch.pos);
       seg.to.set(f.pos.x, f.pos.y + f.height * 0.5, f.pos.z);
+      segsUsed.push(seg);
     }
     this.engine.views = views;
-    this.world.arena?.setOccluders?.(this._segs.slice(0, n));
+    this.world.arena?.setOccluders?.(segsUsed);
     this.renderDividers(kind);
   }
 

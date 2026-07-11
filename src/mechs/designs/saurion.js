@@ -114,9 +114,15 @@ export function saurion(A, D, J, anchors, def) {
   for (const side of ['L', 'R']) {
     raptorLeg(A, D, side, { bulk: 0.95 });
     const an = 'ankle' + side;
-    // huge raised chrome sickle: two angled segments faking the curve
-    A.spike(an, 'metal', 0.12 * s, 0.62 * s, { p: [0, 0.14 * s, 0.3 * s], r: [0.55, 0, 0], seg: 7 });
-    A.spike(an, 'metal', 0.08 * s, 0.52 * s, { p: [0, 0.5 * s, 0.56 * s], r: [1.25, 0, 0], seg: 7 });
+    // MASSIVE raised chrome sickle: two angled segments faking the curve —
+    // the killing claw, big enough to read from the battle camera
+    A.spike(an, 'metal', 0.17 * s, 0.95 * s, { p: [0, 0.16 * s, 0.32 * s], r: [0.5, 0, 0], seg: 7 });
+    A.spike(an, 'metal', 0.11 * s, 0.8 * s, { p: [0, 0.72 * s, 0.68 * s], r: [1.3, 0, 0], seg: 7 });
+    // flanking forward toe claws
+    for (const tx of [-1, 1]) {
+      A.spike(an, 'metal', 0.06 * s, 0.46 * s, {
+        p: [tx * 0.24 * s, -0.12 * s, 0.5 * s], r: [Math.PI / 2 - 0.3, 0, tx * 0.1], seg: 5 });
+    }
     // piston shin detail
     A.piston('knee' + side, 'metal',
       [0.12 * s, -0.2 * s, 0.1 * s], [0.1 * s, -D.shinLen * 0.85, 0.14 * s], 0.04 * s);

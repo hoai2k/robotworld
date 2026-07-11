@@ -169,7 +169,7 @@ export class DestructibleSystem {
           if (segmentHitsAabb(s.from, s.to, a, 1.5)) { hit = true; break; }
         }
       }
-      b.fadeTarget = hit ? 0.25 : 1;
+      b.fadeTarget = hit ? 0.15 : 1;
     }
   }
 
@@ -244,11 +244,49 @@ export class DestructibleSystem {
       this.world.effects.dustPuff(_p.set(chunk.x, chunk.y, chunk.z), 3, 0x9a9284);
     }
 
-    // unsupported chunks above will fall shortly
-    const above = chunk.b.grid.get(`${chunk.gx},${chunk.gy + 1},${chunk.gz}`);
-    if (above && above.alive) {
-      const below = above.gy === 0 ? true : this.hasSupport(above);
-      if (!below) this.pendingCollapse.push({ chunk: above, t: rand(0.06, 0.22) });
+    // unsupported chunks above (this one may have been their diagonal
+    // support too) will fall shortly
+    for (const [dx, dz] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const above = chunk.b.grid.get(`${chunk.gx + dx},${chunk.gy + 1},${chunk.gz + dz}`);
+      if (above && above.alive && !this.hasSupport(above)) {
+        this.pendingCollapse.push({ chunk: above, t: rand(0.06, 0.22) });
+      }
+    }
+
+    // structural integrity: a building that's lost too much of itself —
+    // or most of its ground floor — gives way and falls into rubble
+    const b = chunk.b;
+    if (!b.collapsing && b.alive > 0) {
+      const ratio = b.alive / b.chunkCount;
+      let unstable = ratio < 0.45;
+      if (!unstable && ratio < 0.9) {
+        let base = 0, base0 = 0;
+        for (const c of b.grid.values()) {
+          if (c.gy === 0) { base0++; if (c.alive) base++; }
+        }
+        unstable = base0 > 0 && base / base0 < 0.4;
+      }
+      if (unstable) this.collapseBuilding(b);
+    }
+  }
+
+  // progressive bottom-up demolition: every remaining chunk falls, floor by
+  // floor, so a gutted tower crumbles instead of hovering on nothing
+  collapseBuilding(b) {
+    if (b.collapsing) return;
+    b.collapsing = true;
+    for (const c of b.grid.values()) {
+      if (!c.alive) continue;
+      this.pendingCollapse.push({
+        chunk: c, t: 0.1 + c.gy * 0.09 + rand(0, 0.14), force: true,
+      });
+    }
+    if (this.world) {
+      this.world.audio?.play('crumbleBig');
+      this.world.effects.addShake(0.8);
+      const a = b.aabb;
+      _p.set((a.minX + a.maxX) / 2, 1, (a.minZ + a.maxZ) / 2);
+      this.world.effects.dustPuff(_p, 16, 0x9a9284);
     }
   }
 
@@ -328,24 +366,51 @@ export class DestructibleSystem {
     return destroyed;
   }
 
-  // AABB pushout for fighter capsule (2D + head check)
+  // Fighter vs buildings: horizontal AABB pushout for walls PLUS rooftop
+  // support — mechs land on and fight across exposed chunk tops.
   collideFighter(f) {
+    let support = -Infinity;
     for (const b of this.buildings) {
       if (b.alive <= 0) continue;
       const a = b.aabb;
       if (f.pos.x < a.minX - f.radius || f.pos.x > a.maxX + f.radius ||
           f.pos.z < a.minZ - f.radius || f.pos.z > a.maxZ + f.radius ||
-          f.pos.y > a.maxY) continue;
+          f.pos.y > a.maxY + 1) continue;
       for (const c of b.grid.values()) {
         if (!c.alive) continue;
-        // vertical overlap of capsule with chunk
-        if (f.pos.y > c.y + c.h / 2 || f.pos.y + f.height < c.y - c.h / 2) continue;
+        const top = c.y + c.h / 2;
         const hw = c.w / 2 + f.radius, hd = c.d / 2 + f.radius;
         const dx = f.pos.x - c.x, dz = f.pos.z - c.z;
-        if (Math.abs(dx) < hw && Math.abs(dz) < hd) {
-          const px = hw - Math.abs(dx), pz = hd - Math.abs(dz);
-          if (px < pz) { f.pos.x += Math.sign(dx || 1) * px; f.vel.x *= 0.4; }
-          else { f.pos.z += Math.sign(dz || 1) * pz; f.vel.z *= 0.4; }
+        if (Math.abs(dx) >= hw || Math.abs(dz) >= hd) continue;
+        // feet at/above an EXPOSED top while descending: that's a floor.
+        // (chunks with a live chunk directly above are wall interior — no
+        // footing, or falling mechs would stick to facades)
+        if (f.pos.y >= top - 0.9 && f.vel.y <= 0.01) {
+          const above = b.grid.get(`${c.gx},${c.gy + 1},${c.gz}`);
+          if ((!above || !above.alive) &&
+              Math.abs(dx) < c.w / 2 + f.radius * 0.4 &&
+              Math.abs(dz) < c.d / 2 + f.radius * 0.4) {
+            support = Math.max(support, top);
+          }
+          continue;
+        }
+        // vertical overlap of capsule with chunk → side pushout
+        if (f.pos.y > top || f.pos.y + f.height < c.y - c.h / 2) continue;
+        const px = hw - Math.abs(dx), pz = hd - Math.abs(dz);
+        if (px < pz) { f.pos.x += Math.sign(dx || 1) * px; f.vel.x *= 0.4; }
+        else { f.pos.z += Math.sign(dz || 1) * pz; f.vel.z *= 0.4; }
+      }
+    }
+    // stand on the highest rooftop found underfoot
+    if (support > -Infinity && f.pos.y <= support + 0.9) {
+      const fallSpeed = -f.vel.y;
+      f.pos.y = support;
+      if (f.vel.y < 0) f.vel.y = 0;
+      if (!f.grounded) {
+        f.grounded = true;
+        if (fallSpeed > 9 && this.world) {
+          this.world.effects.dustPuff(f.pos, Math.min(16, fallSpeed));
+          this.world.audio?.play('land');
         }
       }
     }
@@ -372,7 +437,7 @@ export class DestructibleSystem {
       pc.t -= dt;
       if (pc.t <= 0) {
         this.pendingCollapse.splice(i, 1);
-        if (pc.chunk.alive && !this.hasSupport(pc.chunk)) {
+        if (pc.chunk.alive && (pc.force || !this.hasSupport(pc.chunk))) {
           this.killChunk(pc.chunk, _p.set(0, -0.5, 0), true);
         }
       }

@@ -5,18 +5,18 @@ const KB1 = {
   up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
   jump: 'Space', light: 'KeyF', heavy: 'KeyG', block: 'KeyH',
   ranged: 'KeyR', special: 'KeyT', ult: 'KeyY', taunt: 'KeyB',
-  dash: 'ShiftLeft', strafe: 'KeyQ',
+  dash: 'ShiftLeft', strafe: 'KeyQ', duck: 'KeyC',
 };
 const KB2 = {
   up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
   jump: 'Numpad0', light: 'Numpad1', heavy: 'Numpad2', block: 'Numpad3',
   ranged: 'Numpad4', special: 'Numpad5', ult: 'Numpad6', taunt: 'NumpadDecimal',
-  dash: 'NumpadEnter', strafe: 'Numpad7',
+  dash: 'NumpadEnter', strafe: 'Numpad7', duck: 'Numpad8',
   // right-cluster fallbacks for keyboards without a numpad
   alt: {
     jump: 'Enter', light: 'Comma', heavy: 'Period', block: 'Slash',
     ranged: 'KeyM', special: 'KeyN', ult: 'Quote', dash: 'ShiftRight', taunt: 'Semicolon',
-    strafe: 'KeyJ',
+    strafe: 'KeyJ', duck: 'KeyK',
   },
 };
 
@@ -133,6 +133,7 @@ export class Input {
       intent.dash = kp('dash');
       intent.taunt = kp('taunt');
       intent.strafe = k('strafe');
+      intent.duck = k('duck');
     } else if (device.startsWith('pad')) {
       const i = +device[3];
       mx = this.padsCur[i].lx || 0;
@@ -154,6 +155,8 @@ export class Input {
       intent.dash = this.padPressed(i, 'RB');
       // BACK/View button — RS click would misfire while steering the camera
       intent.taunt = this.padPressed(i, 'BACK');
+      // crouch on left-stick click, the shooter-native duck
+      intent.duck = this.padHeld(i, 'LS');
     } else if (device === 'touch') {
       const t = this.touch;
       mx = t.moveX;
@@ -169,6 +172,7 @@ export class Input {
       intent.dash = t.pressed.has('dash');
       intent.taunt = t.pressed.has('taunt');
       intent.strafe = t.held.has('strafe');
+      intent.duck = t.held.has('duck');
     }
 
     // rotate into world space (camera-relative):

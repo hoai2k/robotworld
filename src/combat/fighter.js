@@ -35,6 +35,14 @@ export class Fighter {
     this.height = (this.mech.dims.hipHeight + this.mech.dims.torsoH + this.mech.dims.headSize * 2) * 1.02;
     this.hitRadius = 1.7 * s;
 
+    // ducking: hold to crouch — smaller/lower hitbox, slower movement.
+    // duckDepth 1 = a full frog squat (FROGGER), default is a half-crouch.
+    this.baseHeight = this.height;
+    this.baseHitRadius = this.hitRadius;
+    this.duckDepth = def.stats.duck ?? 0.55;
+    this.duckT = 0;
+    this.ducking = false;
+
     // kinematics
     this.pos = this.group.position;
     this.vel = new THREE.Vector3();
@@ -82,7 +90,7 @@ export class Fighter {
     this.intent = {
       moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
       ranged: false, special: false, ult: false, block: false, dash: false, taunt: false,
-      strafe: false, aimYaw: undefined,
+      strafe: false, duck: false, aimYaw: undefined,
     };
     this.plunging = false;   // aerial ground-smash riding down to impact
     this._plungeVy = 0;
@@ -569,6 +577,15 @@ export class Fighter {
     const acting = this.canAct();
     this.blocking = acting && I.block; // blocking works airborne/hovering too
 
+    // ---- duck: hold to crouch (attacks and jumps pop back up) ----
+    const wantDuck = I.duck && this.grounded && !this.blocking &&
+      (this.state === 'normal' || this.state === 'channel');
+    this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
+    this.ducking = this.duckT > 0.4;
+    const dk = this.duckT * this.duckDepth;
+    this.height = this.baseHeight * (1 - 0.42 * dk);
+    this.hitRadius = this.baseHitRadius * (1 - 0.22 * dk);
+
     if (acting && !this.blocking) {
       if (I.ult && this.ult >= 1) this.doUlt();
       else if (I.special) this.doSpecial();
@@ -673,6 +690,7 @@ export class Fighter {
       dashT: this.dashT,
       firing: this.firing,
       hovering: this.hovering,
+      duck: dk,
     });
     if (this.state !== 'channel') this.firing = false;
 
@@ -683,7 +701,8 @@ export class Fighter {
 
   applyPhysics(dt, ax, az) {
     const st = this.def.stats;
-    const speedCap = st.speed * WALK_MULT * this.speedMult() * (this.state === 'channel' ? 0.45 : 1);
+    const speedCap = st.speed * WALK_MULT * this.speedMult() *
+      (this.state === 'channel' ? 0.45 : 1) * (1 - 0.55 * this.duckT);
 
     if (this.state !== 'dash') {
       // hover jets give strong air control; plain jumps keep loose drift
@@ -778,6 +797,11 @@ export class Fighter {
     this.hovering = false;
     this.hoverFuel = this.hoverFuelMax;
     this.plunging = false;
+    this._wrap = null; // stale seam-fold offsets must not jolt the camera
+    this.duckT = 0;
+    this.ducking = false;
+    this.height = this.baseHeight;
+    this.hitRadius = this.baseHitRadius;
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this.animator.action = null;
   }

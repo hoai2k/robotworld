@@ -184,6 +184,28 @@ export class Animator {
       tgt.head[0] += -0.25 * d;
     }
 
+    // ===== duck layer =====
+    // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat
+    if (ctx.duck > 0.01) {
+      const d = ctx.duck;
+      tgt.hipsPos[1] -= d * this.D.hipHeight * 0.62;
+      tgt.thighL[0] += -0.85 * d;
+      tgt.thighR[0] += -0.85 * d;
+      tgt.kneeL[0] += 1.5 * d;
+      tgt.kneeR[0] += 1.5 * d;
+      tgt.ankleL[0] += -0.62 * d;
+      tgt.ankleR[0] += -0.62 * d;
+      tgt.torso[0] += 0.34 * d;
+      tgt.head[0] += -0.3 * d;
+      // arms tuck in, guard up
+      tgt.shoulderL[0] += -0.35 * d;
+      tgt.shoulderR[0] += -0.35 * d;
+      tgt.shoulderL[2] += 0.15 * d;
+      tgt.shoulderR[2] += -0.15 * d;
+      tgt.elbowL[0] += -0.55 * d;
+      tgt.elbowR[0] += -0.55 * d;
+    }
+
     // ===== action clip layer =====
     const act = this.action;
     if (act) {
@@ -269,9 +291,11 @@ export class Animator {
     this.mech.postAnimate?.(); // GLB rigs: retarget virtual joints onto bones
   }
 
-  // rest-pose bias: digitigrade legs keep their bend during clips
+  // rest-pose bias: digitigrade legs (and a predator's spine hunch) keep
+  // their signature bend during action clips instead of snapping upright
   restBias(jname, i) {
-    if (jname.startsWith('thigh') || jname.startsWith('knee') || jname.startsWith('ankle')) {
+    if (jname.startsWith('thigh') || jname.startsWith('knee') || jname.startsWith('ankle') ||
+        jname === 'torso' || jname === 'head') {
       return this.rest[jname][i];
     }
     return 0;
@@ -322,6 +346,33 @@ export class Animator {
       case 'colossus':
         if (J.mortars) J.mortars.rotation.x = ctx.firing ? -0.25 : Math.sin(t * 0.4) * 0.03;
         break;
+      case 'saurion': {
+        // counterbalancing raptor tail: raised at rest, whips harder and
+        // levels out as the run speeds up
+        const run = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
+        for (let i = 0; i < 3; i++) {
+          const tj = J['tail' + i];
+          if (!tj) continue;
+          tj.rotation.y = Math.sin(t * (1.7 + run * 2.8) + i * 0.85) * (0.13 + run * 0.24);
+          tj.rotation.x = 0.11 + i * 0.02 - run * 0.12 + Math.sin(t * 1.3 + i * 0.6) * 0.05;
+        }
+        break;
+      }
+      case 'frogger': {
+        // the upper slime-cannon pair are REAL arms: they shadow the lower
+        // arms' full motion (walk swing, attacks, blocks) with a slight
+        // damping + phase offset so all four limbs pump together
+        const c = this.cur;
+        for (const sd of ['L', 'R']) {
+          const sj = J['shoulder' + sd + '2'], ej = J['elbow' + sd + '2'];
+          if (!sj || !ej || !c['shoulder' + sd]) continue;
+          const sr = c['shoulder' + sd], er = c['elbow' + sd];
+          const sx = sd === 'L' ? -1 : 1;
+          sj.rotation.set(sr[0] * 0.9 - 0.06, sr[1] * 0.5, sr[2] * 0.55 - sx * 0.08);
+          ej.rotation.set(er[0] * 0.75 - 0.1, er[1] * 0.5, er[2] * 0.5);
+        }
+        break;
+      }
       case 'viper':
         if (J.bladeL && J.bladeR) {
           const flare = ctx.firing || (this.action && !this.action.fadingOut) ? 0.0 : 0.35;

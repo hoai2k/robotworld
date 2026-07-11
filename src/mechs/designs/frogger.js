@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { beveledPlate, shieldOutline, sphere, cone } from '../parts.js';
 import { decalTexture } from '../../core/pbrtex.js';
 import { baseFrame, standardArm, raptorLeg, addAnchor } from '../factory.js';
+import { addJoint } from './common.js';
 
 export function frogger(A, D, J, anchors, def) {
   const s = D.scale;
@@ -74,27 +75,35 @@ export function frogger(A, D, J, anchors, def) {
     A.ball('torso', 'dark', 0.16 * s, { p: [ex, ey + 0.18 * s, ez + 0.22 * s] }); // pupil
   }
 
-  // ================= UPPER SLIME CANNONS (arms 3 + 4) =================
+  // ================= UPPER CANNON-ARMS (arms 3 + 4) =================
+  // REAL articulated arms: shoulder2/elbow2 joint chains that the animator
+  // swings in lockstep with the lower pair (walk, attacks, blocks — all of it)
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
-    const px = sx * W * 0.6, py = chH * 0.98, pz = -0.05 * s;
-    // raised shoulder pod
-    A.facet('torso', 'accent', 0.32 * s, 0.4 * s, 0.26 * s, 0.65 * s, {
-      sides: 8, p: [px, py - 0.1 * s, pz], r: [0, 0, -sx * 0.55] });
-    // big cannon barrel riding high, angled slightly out
-    const bl = 1.7 * s;
-    const bx = px + sx * 0.42 * s, by = py + 0.38 * s;
-    A.tube('torso', 'primary', 0.19 * s, 0.23 * s, bl, {
-      p: [bx, by, pz + bl * 0.34], r: [Math.PI / 2, 0, sx * 0.08] });
+    const sh = 'shoulder' + side + '2', el2 = 'elbow' + side + '2';
+    addJoint(J, sh, 'torso', sx * W * 0.56, chH * 0.96, -0.04 * s);
+    addJoint(J, el2, sh, sx * 0.34 * s, -0.5 * s, 0.02 * s);
+    // raised shoulder pod cap over the joint
+    A.facet(sh, 'accent', 0.3 * s, 0.38 * s, 0.24 * s, 0.52 * s, {
+      sides: 8, p: [sx * 0.05 * s, 0.12 * s, 0], r: [0, 0, -sx * 0.5] });
+    // short upper-arm strut angling out+down to the elbow
+    A.tube(sh, 'frame', 0.09 * s, 0.12 * s, 0.58 * s, {
+      p: [sx * 0.17 * s, -0.25 * s, 0.01 * s], r: [0, 0, sx * 0.6] });
+    drip(sh, sx * 0.1 * s, -0.32 * s, 0.06 * s, 0.7);
+    // forearm IS the slime cannon, thrust forward from the elbow
+    const bl = 1.55 * s;
+    A.ball(el2, 'dark', 0.18 * s, { p: [0, 0, 0] }); // elbow puck
+    A.tube(el2, 'primary', 0.18 * s, 0.22 * s, bl, {
+      p: [0, 0.05 * s, bl * 0.36], r: [Math.PI / 2, 0, 0] });
     // translucent glowing core section
-    A.custom('torso', slime, new THREE.CylinderGeometry(0.21 * s, 0.21 * s, bl * 0.32, 12), {
-      p: [bx, by, pz + bl * 0.46], r: [Math.PI / 2, 0, 0] });
-    A.ring('torso', 'dark', 0.22 * s, 0.04 * s, { p: [bx, by, pz + bl * 0.66] });
+    A.custom(el2, slime, new THREE.CylinderGeometry(0.2 * s, 0.2 * s, bl * 0.3, 12), {
+      p: [0, 0.05 * s, bl * 0.5], r: [Math.PI / 2, 0, 0] });
+    A.ring(el2, 'dark', 0.21 * s, 0.04 * s, { p: [0, 0.05 * s, bl * 0.68] });
     // dripping muzzle
-    A.tube('torso', 'dark', 0.13 * s, 0.17 * s, 0.26 * s, { p: [bx, by, pz + bl * 0.92], r: [Math.PI / 2, 0, 0] });
-    drip('torso', bx, by - 0.14 * s, pz + bl * 0.95, 1.2);
-    drip('torso', bx + sx * 0.08 * s, by - 0.1 * s, pz + bl * 0.8, 0.7);
-    anchors['muzzle' + side] = addAnchor(J.torso, bx, by, pz + bl * 1.0);
+    A.tube(el2, 'dark', 0.13 * s, 0.17 * s, 0.26 * s, { p: [0, 0.05 * s, bl * 0.94], r: [Math.PI / 2, 0, 0] });
+    drip(el2, 0, -0.1 * s, bl * 0.96, 1.2);
+    drip(el2, sx * 0.08 * s, -0.06 * s, bl * 0.78, 0.7);
+    anchors['muzzle' + side] = addAnchor(J[el2], 0, 0.05 * s, bl * 1.02);
   }
 
   // ================= LOWER ARMS: SLIME-TUBE NOZZLES =================
