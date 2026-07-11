@@ -231,3 +231,10 @@ controllers via Gamepad API), AI opponents.
 - Verified: attackmatrix ALL CONNECT, 3x 120s ace soaks (4P/3P/4P, zero
   crashes), headless 2-keyboard menu flow -> battle -> F9 flip -> pause
   (screenshots viewed), vite build green.
+- 2026-07-11: Per-player cameras: each split viewport now starts directly
+  BEHIND its own player (spawn yaw + pi, verified exact) instead of a shared
+  south azimuth, and the RIGHT STICK orbits that player's camera (az/el, per
+  viewport; solo combined view feeds the look offsets). Touch drag steers the
+  touch player's own viewport in split. Taunt moved RS-click -> VIEW button
+  so stick clicks can't misfire while steering. Verified: headless orbit +
+  behind-init math checks, 2P menu flow screenshots, soak, build green.

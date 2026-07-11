@@ -181,7 +181,15 @@ export async function bootGame() {
     ? new TouchControls(input, {
         onPause: () => pauseBattle(),
         onLook: (dx, dy) => {
-          if (S.mode === 'battle' && S.battle && !S.battle.paused) S.battle.cameraSys.applyLook(dx, dy);
+          if (S.mode !== 'battle' || !S.battle || S.battle.paused) return;
+          const B = S.battle;
+          if (B.cameraSys.mode === 'split') {
+            // drag steers the touch player's own viewport
+            const h = B.humans.find((x) => x.device === 'touch');
+            if (h) B.cameraSys.applyLookFor(h.idx, dx, dy);
+          } else {
+            B.cameraSys.applyLook(dx, dy);
+          }
         },
       })
     : null;
@@ -449,6 +457,20 @@ export async function bootGame() {
   engine.onRender = (dtReal) => {
     const B = S.battle;
     if ((S.mode === 'battle' || S.mode === 'results') && B) {
+      // right stick = camera control, per player
+      if (!B.paused) {
+        for (const h of B.humans) {
+          if (!h.device.startsWith('pad')) continue;
+          const pad = input.padsCur[+h.device[3]];
+          const rx = pad.rx || 0, ry = pad.ry || 0;
+          if (B.cameraSys.mode === 'split') {
+            B.cameraSys.setLook(h.idx, rx, ry);
+          } else if (rx || ry) {
+            // solo combined view: stick feeds the shared look offsets
+            B.cameraSys.applyLook(rx * 420 * dtReal, ry * 380 * dtReal);
+          }
+        }
+      }
       B.cameraSys.update(B.paused ? 0.0001 : dtReal, B.fighters, B.humans.map((h) => h.fighter));
       world_updateCameraRef(B);
     }

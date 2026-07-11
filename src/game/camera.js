@@ -47,7 +47,8 @@ export class CameraSystem {
     this.cTarget = new THREE.Vector3(0, 4, 0);
     this.dist = 46;
 
-    // per-player chase cams
+    // per-player chase cams — each orbits its own azimuth/elevation so the
+    // view starts BEHIND that player and the right stick steers it
     this.chase = [];
     for (let i = 0; i < 4; i++) {
       this.chase.push({
@@ -55,6 +56,11 @@ export class CameraSystem {
         pos: new THREE.Vector3(),
         target: new THREE.Vector3(),
         init: false,
+        azInit: false,
+        az: Math.PI,
+        el: 0.38,
+        lookX: 0,   // right-stick input, set each frame via setLook()
+        lookY: 0,
       });
     }
 
@@ -94,6 +100,23 @@ export class CameraSystem {
     this.lookElOffset = clamp(this.lookElOffset - dy * 0.004, -0.22, 0.45);
     this.lookCd = 3.0;
     this.azInit = true; // ensure the auto base eases (never snaps) under us
+  }
+
+  // Same drag deltas, but aimed at one player's split viewport.
+  applyLookFor(humanIdx, dx, dy) {
+    const ch = this.chase[humanIdx];
+    if (!ch) return;
+    ch.az -= dx * 0.006;
+    ch.el = clamp(ch.el - dy * 0.004, 0.1, 0.78);
+  }
+
+  // Right-stick camera input for one player's split viewport; call every
+  // frame (values are consumed by updateSplit and treated as a rate).
+  setLook(humanIdx, x, y) {
+    const ch = this.chase[humanIdx];
+    if (!ch) return;
+    ch.lookX = x;
+    ch.lookY = y;
   }
 
   // fighters framed by the camera; humans get viewports when split
@@ -212,12 +235,21 @@ export class CameraSystem {
       cam.aspect = (window.innerWidth * vp.w) / (window.innerHeight * vp.h);
       cam.updateProjectionMatrix();
 
-      // chase from the shared azimuth (consistent controls), look past fighter
+      // each cam starts directly BEHIND its player (facing their spawn look
+      // direction) and orbits with that player's right stick from there
+      if (!ch.azInit) {
+        ch.azInit = true;
+        ch.az = f.yaw + Math.PI;
+        ch.el = 0.38;
+      }
+      ch.az -= ch.lookX * 2.8 * dt;
+      ch.el = clamp(ch.el + ch.lookY * 2.0 * dt, 0.1, 0.78);
+
       // stacked viewports are short — pull back a touch so mechs fit
       const dist = vp.h < 0.75 && vp.w > 0.75 ? 25 : 22;
-      const el = 0.38;
+      const el = ch.el;
       _v.set(
-        Math.sin(this.azimuth) * Math.cos(el), Math.sin(el), Math.cos(this.azimuth) * Math.cos(el)
+        Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)
       ).multiplyScalar(dist);
       const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2, 0));
       const enemy = f.nearestEnemy();

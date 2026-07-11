@@ -70,6 +70,9 @@ export class Input {
         cur.connected = true;
         cur.lx = Math.abs(gp.axes[0]) > 0.18 ? gp.axes[0] : 0;
         cur.ly = Math.abs(gp.axes[1]) > 0.18 ? gp.axes[1] : 0;
+        // right stick: per-player camera orbit
+        cur.rx = Math.abs(gp.axes[2]) > 0.18 ? gp.axes[2] : 0;
+        cur.ry = Math.abs(gp.axes[3]) > 0.18 ? gp.axes[3] : 0;
         for (const [name, idx] of Object.entries(PAD)) {
           cur[name] = !!(gp.buttons[idx] && (gp.buttons[idx].pressed || gp.buttons[idx].value > 0.45));
         }
@@ -144,7 +147,8 @@ export class Input {
       intent.special = this.padPressed(i, 'B');
       intent.ult = this.padPressed(i, 'LB');
       intent.dash = this.padPressed(i, 'RB');
-      intent.taunt = this.padPressed(i, 'RS');
+      // BACK/View button — RS click would misfire while steering the camera
+      intent.taunt = this.padPressed(i, 'BACK');
     } else if (device === 'touch') {
       const t = this.touch;
       mx = t.moveX;

@@ -82,6 +82,7 @@ export function runBattleTest() {
   engine.start();
   window.__world = world; // debug hooks
   window.__ais = ais;
+  window.__cam = cameraSys;
   window.__fighters = fighters;
   return engine;
 }
