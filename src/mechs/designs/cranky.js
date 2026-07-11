@@ -172,7 +172,7 @@ export function cranky(A, D, J, anchors, def) {
     // claw base frame: tips the whole pincer forward-down and toes it inward
     const cb = 'clawBase' + side;
     addJoint(J, cb, ha, 0, -0.06 * s, 0.08 * s);
-    J[cb].rotation.set(0.35, -sx * 0.22, 0);
+    J[cb].rotation.set(0.12, -sx * 0.1, 0);
     A.ball(cb, 'frame', 0.32 * s, {});
 
     // PROPODUS: fat orange claw-hand bulb, dark inner cheek
@@ -188,7 +188,7 @@ export function cranky(A, D, J, anchors, def) {
     A.blade(cb, 'primary', 1.3 * s, 0.66 * s, 0.42 * s, {
       p: [sx * 0.02 * s, 0.2 * s, 1.25 * s], r: [Math.PI / 2 + 0.22, 0, 0], taper: 0.28 });
     A.spike(cb, 'primary', 0.19 * s, 0.75 * s, {
-      p: [sx * 0.02 * s, -0.04 * s, 1.9 * s], r: [Math.PI / 2 + 0.75, 0, 0], seg: 8 });
+      p: [sx * 0.02 * s, 0.0 * s, 1.95 * s], r: [Math.PI / 2 + 0.5, 0, 0], seg: 8 });
     // chrome saw-teeth along the upper finger's underside
     for (let i = 0; i < 5; i++) {
       A.spike(cb, 'metal', 0.07 * s, 0.24 * s, {
@@ -208,7 +208,7 @@ export function cranky(A, D, J, anchors, def) {
     A.blade(jaw, 'frame', 1.2 * s, 0.56 * s, 0.36 * s, {
       p: [0, 0.02 * s, 0.56 * s], r: [Math.PI / 2 + 0.25, 0, 0], taper: 0.3 });
     A.spike(jaw, 'frame', 0.17 * s, 0.65 * s, {
-      p: [0, -0.25 * s, 1.16 * s], r: [Math.PI / 2 + 0.8, 0, 0], seg: 8 });
+      p: [0, -0.18 * s, 1.2 * s], r: [Math.PI / 2 + 0.55, 0, 0], seg: 8 });
     // orange shell cap on the outer (world-lower) face
     A.plate(jaw, 'primary', shieldOutline(0.6 * s, 1.05 * s, { taper: 0.6 }), 0.08 * s, {
       p: [0, 0.22 * s, 0.56 * s], r: [-1.32, 0, 0], round: 0.16 });
@@ -230,8 +230,10 @@ export function cranky(A, D, J, anchors, def) {
     // orange armor caps on the upper segments
     A.plate('thigh' + side, 'primary', shieldOutline(0.56 * s, D.thighLen * 0.62, { taper: 0.7 }), 0.08 * s, {
       p: [sx * 0.3 * s, -D.thighLen * 0.42, 0.1 * s], r: [0.08, sx * 1.0, 0], round: 0.14 });
-    A.plate('knee' + side, 'primary', shieldOutline(0.64 * s, 0.8 * s, { taper: 0.66 }), 0.1 * s, {
-      p: [0, -0.1 * s, 0.36 * s], r: [0.15, 0, 0], round: 0.14 });
+    A.plate('knee' + side, 'primary', shieldOutline(0.72 * s, 1.2 * s, { taper: 0.66 }), 0.1 * s, {
+      p: [0, -0.14 * s, 0.62 * s], r: [0.12, 0, 0], round: 0.14 });
+    A.plate('knee' + side, 'primary', shieldOutline(0.58 * s, 0.75 * s, { taper: 0.72 }), 0.08 * s, {
+      p: [0, -D.shinLen * 0.62, 0.44 * s], r: [0.02, 0, 0], round: 0.14 });
     // flat gripper foot: wide sole plate + splayed toe wedges
     A.sharpBox('ankle' + side, 'dark', [0.85 * s, 0.13 * s, 1.0 * s], { p: [0, -0.26 * s, 0.12 * s] });
     for (const tx of [-0.26, 0.26]) {

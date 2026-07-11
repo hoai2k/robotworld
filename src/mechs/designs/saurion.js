@@ -78,15 +78,15 @@ export function saurion(A, D, J, anchors, def) {
   // ================= NECK =================
   // arched dark neck segments pushing the head up-forward, raptor-style
   for (let i = 0; i < 5; i++) {
-    A.tube('torso', i % 2 ? 'dark' : 'frame', (0.2 - i * 0.02) * s, (0.23 - i * 0.02) * s, 0.3 * s, {
-      p: [0, chH * (0.94 + i * 0.08), W * (0.06 + i * 0.16)], r: [1.05 - i * 0.08, 0, 0] });
+    A.tube('torso', i % 2 ? 'dark' : 'frame', (0.25 - i * 0.02) * s, (0.28 - i * 0.02) * s, 0.36 * s, {
+      p: [0, chH * (0.94 + i * 0.08), W * (0.06 + i * 0.15)], r: [1.05 - i * 0.08, 0, 0] });
   }
   // crest feathers continuing down the BACK of the neck onto the hump
-  for (let i = 0; i < 4; i++) {
-    const t = i / 3;
-    feather('torso', (1.05 - t * 0.28) * s, (0.18 - t * 0.04) * s,
-      [0, chH * (1.06 - t * 0.14), W * (0.02 - t * 0.14)],
-      [-1.05 - t * 0.35, 0, 0], 0.06);
+  for (let i = 0; i < 6; i++) {
+    const t = i / 5;
+    feather('torso', (1.15 - t * 0.3) * s, (0.2 - t * 0.04) * s,
+      [0, chH * (1.14 - t * 0.2), W * (0.1 - t * 0.2)],
+      [-0.95 - t * 0.4, 0, 0], 0.06);
   }
 
   // ================= SHOULDER MANE + "77" PAULDRONS =================
@@ -179,26 +179,26 @@ export function saurion(A, D, J, anchors, def) {
     A.plate('head', 'accent', rhombOutline(hb * 0.5, hb * 0.36, { cut: 0.3 }), hb * 0.07, {
       p: [sx * hb * 0.42, hy - hb * 0.12, hz + hb * 0.55], r: [0, sx * (Math.PI / 2 - 0.2), 0], round: 0.2 });
   }
-  // MOHAWK CREST: two staggered rows of blade-feathers from the crown
-  // sweeping back down the neck, plus short flanking quills
-  for (let i = 0; i < 6; i++) {
-    const t = i / 5;
-    feather('head', (1.3 - t * 0.45) * s, (0.2 - t * 0.05) * s,
-      [0, hy + hb * (0.55 - t * 0.9), hz + hb * (0.3 - t * 1.5)],
-      [-0.5 - t * 0.85, 0, 0], 0.05);
+  // MOHAWK CREST: dense staggered rows of wide blade-feathers from the
+  // crown sweeping back down the neck, plus flanking quill rows
+  for (let i = 0; i < 8; i++) {
+    const t = i / 7;
+    feather('head', (1.5 - t * 0.55) * s, (0.26 - t * 0.06) * s,
+      [0, hy + hb * (0.58 - t * 1.0), hz + hb * (0.35 - t * 1.7)],
+      [-0.55 - t * 0.9, 0, 0], 0.04);
   }
-  for (let i = 0; i < 5; i++) {
-    const t = i / 4;
-    feather('head', (0.95 - t * 0.32) * s, (0.15 - t * 0.03) * s,
-      [0, hy + hb * (0.5 - t * 0.85), hz + hb * (0.5 - t * 1.5)],
-      [-0.72 - t * 0.8, 0, 0], 0.12);
+  for (let i = 0; i < 7; i++) {
+    const t = i / 6;
+    feather('head', (1.1 - t * 0.4) * s, (0.19 - t * 0.04) * s,
+      [0, hy + hb * (0.52 - t * 0.95), hz + hb * (0.55 - t * 1.7)],
+      [-0.78 - t * 0.85, 0, 0], 0.1, 'dark');
   }
   for (const sx of [-1, 1]) {
-    for (let i = 0; i < 4; i++) {
-      const t = i / 3;
-      feather('head', (0.8 - t * 0.3) * s, 0.13 * s,
-        [sx * hb * 0.3, hy + hb * (0.42 - t * 0.8), hz + hb * (0.25 - t * 1.3)],
-        [-0.6 - t * 0.7, 0, -sx * (0.35 + t * 0.15)], 0.1);
+    for (let i = 0; i < 5; i++) {
+      const t = i / 4;
+      feather('head', (1.0 - t * 0.35) * s, 0.16 * s,
+        [sx * hb * 0.32, hy + hb * (0.44 - t * 0.9), hz + hb * (0.3 - t * 1.5)],
+        [-0.62 - t * 0.75, 0, -sx * (0.4 + t * 0.15)], 0.08);
     }
   }
 
@@ -282,9 +282,9 @@ export function saurion(A, D, J, anchors, def) {
     // HUGE raised chrome SICKLE toe-claw (the killing claw): two angled
     // cone segments faking the curve, held up off the ground, inner side
     const ix = -sx * 0.05 * s;
-    A.sharpBox(an, 'dark', [0.1 * s, 0.14 * s, 0.16 * s], { p: [ix, -0.14 * s, 0.26 * s], r: [0.5, 0, 0] });
-    A.spike(an, 'metal', 0.15 * s, 0.85 * s, { p: [ix, 0.18 * s, 0.42 * s], r: [0.62, 0, 0], seg: 7 });
-    A.spike(an, 'metal', 0.1 * s, 0.75 * s, { p: [ix, 0.66 * s, 0.85 * s], r: [1.35, 0, 0], seg: 7 });
+    A.sharpBox(an, 'dark', [0.12 * s, 0.16 * s, 0.18 * s], { p: [ix, -0.12 * s, 0.26 * s], r: [0.6, 0, 0] });
+    A.spike(an, 'metal', 0.16 * s, 0.95 * s, { p: [ix, 0.16 * s, 0.52 * s], r: [0.85, 0, 0], seg: 7 });
+    A.spike(an, 'metal', 0.1 * s, 0.8 * s, { p: [ix, 0.6 * s, 1.0 * s], r: [1.5, 0, 0], seg: 7 });
     // rear dew spur
     A.spike(an, 'metal', 0.05 * s, 0.3 * s, { p: [0, -0.14 * s, -0.2 * s], r: [-2.2, 0, 0], seg: 6 });
   }
@@ -292,58 +292,62 @@ export function saurion(A, D, J, anchors, def) {
   // ================= TAIL: 3-JOINT CHAIN, DOUBLE FEATHER ROWS =================
   // ≈ body length; the animator runs a travelling S-wave down tail0→2, so
   // every blade is parented to its segment joint and rides the wave.
+  // joint POSITIONS carry a rising S (the animator owns the rotations):
+  // the tail leaves the hips level and sweeps UP toward the tip.
   const segLen = [1.3 * s, 1.2 * s, 1.1 * s];
-  addJoint(J, 'tail0', 'hips', 0, 0.26 * s, -0.5 * s);
-  addJoint(J, 'tail1', 'tail0', 0, -0.04 * s, -segLen[0]);
-  addJoint(J, 'tail2', 'tail1', 0, 0.02 * s, -segLen[1]);
+  const segRise = [0.14 * s, 0.26 * s];
+  addJoint(J, 'tail0', 'hips', 0, 0.3 * s, -0.5 * s);
+  addJoint(J, 'tail1', 'tail0', 0, segRise[0], -segLen[0]);
+  addJoint(J, 'tail2', 'tail1', 0, segRise[1], -segLen[1]);
   ['tail0', 'tail1', 'tail2'].forEach((tj, ti) => {
     const r0 = (0.26 - ti * 0.065) * s;
+    const dy = ti < 2 ? segRise[ti] : 0.3 * s;
+    const tilt = Math.atan2(dy, segLen[ti]); // aim the core at the next joint
     // smooth tapering segment core
     A.capsule(tj, 'primary', r0, segLen[ti] * 0.75, {
-      p: [0, 0, -segLen[ti] * 0.5], r: [Math.PI / 2, 0, 0], s: [1, 1, 0.85] });
+      p: [0, dy * 0.5, -segLen[ti] * 0.5], r: [Math.PI / 2 + tilt, 0, 0], s: [1, 1, 0.85] });
     A.ring(tj, 'dark', r0 * 0.95, 0.03 * s, { p: [0, 0, -0.03 * s] });
     // armored scale plates shingled along the top
     for (let k = 0; k < 3; k++) {
       const f = k / 2;
       A.plate(tj, 'accent', rhombOutline((0.34 - ti * 0.06) * s, (0.36 - ti * 0.05) * s, { cut: 0.28 }), 0.035 * s, {
-        p: [0, r0 * 0.55, -segLen[ti] * (0.16 + f * 0.6)], r: [Math.PI / 2 + 0.2, 0, 0], round: 0.15 });
+        p: [0, r0 * 0.55 + dy * f, -segLen[ti] * (0.16 + f * 0.6)], r: [Math.PI / 2 + tilt + 0.2, 0, 0], round: 0.15 });
     }
-    // DOUBLE ROW of blade-feathers: long chrome guard row over a shorter
-    // dark under-row, fanning out/back/up down each side to the tip
+    // DOUBLE ROW of blade-feathers to the tip: a tall guard row sweeping
+    // up-back (reads in profile) over a side row splaying out-back
     const n = 4;
     for (let i = 0; i <= n; i++) {
       const f = i / n;
       const z = -segLen[ti] * (0.1 + f * 0.78);
-      const grow = ti === 2 ? 1 + f * 0.35 : 1; // the tip fan flares
+      const y = dy * (0.1 + f * 0.8);
+      const grow = ti === 2 ? 1 + f * 0.4 : 1; // the tip fan flares
       for (const sx of [-1, 1]) {
-        feather(tj, (0.72 - ti * 0.06) * grow * s, 0.16 * s,
-          [sx * r0 * 0.55, r0 * 0.3, z],
-          [-0.45 - ti * 0.1, sx * (0.55 + f * 0.2), -sx * (1.0 - f * 0.15)], 0.05);
-        feather(tj, (0.48 - ti * 0.05) * grow * s, 0.12 * s,
-          [sx * r0 * 0.45, r0 * 0.5, z + 0.05 * s],
-          [-0.6 - ti * 0.1, sx * 0.45, -sx * 0.75], 0.12);
+        feather(tj, (0.95 - ti * 0.08) * grow * s, 0.2 * s,
+          [sx * r0 * 0.35, y + r0 * 0.45, z],
+          [-0.55 - f * 0.35 - ti * 0.15, 0, -sx * 0.3], 0.04);
+        feather(tj, (0.62 - ti * 0.05) * grow * s, 0.14 * s,
+          [sx * r0 * 0.55, y + r0 * 0.25, z + 0.04 * s],
+          [-0.5 - ti * 0.1, sx * 0.5, -sx * 0.95], 0.1);
       }
     }
     // red glow sliver along the top ridge
     A.sharpBox(tj, 'glowSoft', [0.03 * s, 0.03 * s, segLen[ti] * 0.5], {
-      p: [0, r0 * 0.72, -segLen[ti] * 0.45] });
+      p: [0, r0 * 0.72 + dy * 0.4, -segLen[ti] * 0.45], r: [tilt, 0, 0] });
     if (ti === 1) { // "MX-7 SAURION" plate on the tail side
       A.custom(tj, plateMat({ text: 'MX-7 SAURION', textScale: 0.13, textY: 0.52, color: '#e6e8ea' }),
         beveledPlate(rhombOutline(0.85 * s, 0.34 * s, { cut: 0.25 }), 0.04 * s, { round: 0.12 }), {
           p: [0.19 * s, -0.02 * s, -segLen[ti] * 0.5], r: [0, Math.PI / 2, 0] });
     }
   });
-  // tail tip: chrome spear + final fan of feathers
-  A.spike('tail2', 'metal', 0.07 * s, 0.6 * s, {
-    p: [0, 0, -segLen[2] - 0.24 * s], r: [-Math.PI / 2, 0, 0], seg: 6 });
+  // tail tip: chrome spear + final fan of feathers, swept up
+  A.spike('tail2', 'metal', 0.07 * s, 0.65 * s, {
+    p: [0, 0.34 * s, -segLen[2] - 0.22 * s], r: [-Math.PI / 2 + 0.32, 0, 0], seg: 6 });
   for (const sx of [-1, 1]) {
-    feather('tail2', 0.8 * s, 0.17 * s, [sx * 0.06 * s, 0.06 * s, -segLen[2] * 0.96],
-      [-0.5, sx * 0.9, -sx * 0.75], 0.04);
-    feather('tail2', 0.6 * s, 0.14 * s, [sx * 0.05 * s, 0.1 * s, -segLen[2] * 0.9],
-      [-0.85, sx * 0.6, -sx * 0.55], 0.08);
+    feather('tail2', 0.95 * s, 0.2 * s, [sx * 0.05 * s, 0.34 * s, -segLen[2] * 0.98],
+      [-1.15, 0, -sx * 0.35], 0.04);
+    feather('tail2', 0.75 * s, 0.16 * s, [sx * 0.07 * s, 0.3 * s, -segLen[2] * 0.9],
+      [-0.75, sx * 0.55, -sx * 0.7], 0.08);
   }
-
-  if (new URLSearchParams(location.search).has('showcase')) J.root.rotation.y = Math.PI * 0.55; // TEMP: side view for judging — REMOVE
 
   // razor plumes fire from the open jaws
   anchors.muzzleR = addAnchor(J.head, 0, hy - hb * 0.35, hz + hb * 2.4);
