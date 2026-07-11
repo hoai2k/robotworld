@@ -234,7 +234,10 @@ export class Arena {
         }
         if (g && g.userData.explosive) {
           const e = g.userData.explosive;
-          this.explosives.push({ group: g, x, z, r: e.r, hp: e.hp, top: e.top || 6, dead: false });
+          this.explosives.push({
+            group: g, x, z, r: e.r, bodyR: e.bodyR || e.r * 0.32,
+            hp: e.hp, top: e.top || 6, dead: false,
+          });
         }
       }
     }
@@ -272,6 +275,7 @@ export class Arena {
   pointHits(pos) { return this.destructo.pointHits(pos); }
   raySolid(origin, dir, range) { return this.destructo.raySolid(origin, dir, range); }
   setOccluders(segments) { this.destructo.setOccluders(segments); }
+  applyViewFade(cam) { this.destructo.applyViewFade(cam); }
 
   collideFighter(f) {
     // no boundary clamp — space wraps; only buildings + settled rubble push back
@@ -287,7 +291,7 @@ export class Arena {
       if (e.dead) continue;
       const dx = this.world ? this.world.wrapDelta(e.x - pos.x) : e.x - pos.x;
       const dz = this.world ? this.world.wrapDelta(e.z - pos.z) : e.z - pos.z;
-      if (dx * dx + dz * dz < (radius + e.r * 0.4) ** 2) { this.detonateExplosive(e); n++; }
+      if (dx * dx + dz * dz < (radius + e.bodyR + 1) ** 2) { this.detonateExplosive(e); n++; }
     }
     return n;
   }
@@ -298,32 +302,43 @@ export class Arena {
     const w = this.world;
     const pos = new THREE.Vector3(e.x, Math.min(3, e.top * 0.5), e.z);
     w.audio?.play('explosionBig');
-    w.effects.explosion(pos, e.r * 0.9, { color: 0xff7020 });
-    w.effects.explosion(pos.clone().setY(pos.y + 2), e.r * 0.5, { color: 0xffd050, smoke: false });
-    w.effects.addShake(0.9);
-    w.engine.addHitStop(0.07);
-    // rolling fireball glows
-    for (let i = 0; i < 14; i++) {
-      const a = rand(Math.PI * 2), rr = rand(0, e.r * 0.7);
-      w.effects.glows.emit(e.x + Math.cos(a) * rr, rand(0.5, e.top), e.z + Math.sin(a) * rr,
-        rand(-3, 3), rand(3, 9), rand(-3, 3), { life: rand(0.5, 1.1), size: rand(1.6, 3.2), color: 0xff7a20, alpha: 0.9 });
+    // MASSIVE staged fireball: ground burst, rising core, mushroom crown
+    w.effects.explosion(pos, e.r * 1.35, { color: 0xff7020 });
+    w.effects.explosion(pos.clone().setY(pos.y + 3), e.r * 0.85, { color: 0xffd050, smoke: false });
+    w.schedule(0.14, () => {
+      w.effects.explosion(new THREE.Vector3(e.x, e.top + 4, e.z), e.r * 0.7, { color: 0xff9030 });
+      w.effects.addShake(0.5);
+    });
+    w.effects.rings.spawn(new THREE.Vector3(e.x, 0, e.z),
+      { from: 1.5, to: e.r * 2.4, dur: 0.6, color: 0xffa040, y: 0.5 });
+    w.effects.addShake(1.3);
+    w.engine.addHitStop(0.09);
+    // rolling fire column: dense glows climbing well above the tank
+    for (let i = 0; i < 30; i++) {
+      const a = rand(Math.PI * 2), rr = rand(0, e.r * 0.8);
+      w.effects.glows.emit(e.x + Math.cos(a) * rr, rand(0.5, e.top + 6), e.z + Math.sin(a) * rr,
+        rand(-4, 4), rand(4, 13), rand(-4, 4),
+        { life: rand(0.6, 1.5), size: rand(2.2, 4.5), color: i % 3 ? 0xff7a20 : 0xffd050, alpha: 0.95 });
+      w.effects.smoke.emit(e.x + Math.cos(a) * rr * 0.7, rand(2, e.top + 4), e.z + Math.sin(a) * rr * 0.7,
+        rand(-1.5, 1.5), rand(3, 7), rand(-1.5, 1.5),
+        { life: rand(1.2, 2.4), size: rand(2.5, 4.5), color: 0x2c2620, alpha: 0.5, grow: 2 });
     }
-    // AoE: scorch every fighter caught in the blast, set them ablaze
+    // AoE: scorch every fighter caught in the (much wider) blast
     for (const f of w.fighters) {
       if (!f.alive) continue;
       const dx = w.wrapDelta(f.pos.x - e.x), dz = w.wrapDelta(f.pos.z - e.z);
       const d = Math.hypot(dx, dz);
-      if (d < e.r && Math.abs(f.pos.y - pos.y) < e.top + 3) {
+      if (d < e.r && Math.abs(f.pos.y - pos.y) < e.top + 6) {
         const fall = 1 - d / e.r;
-        f.takeHit(70 * Math.max(0.3, fall), null, {
-          knock: 20 * fall, launch: 9 * fall, srcPos: pos, heavy: true,
-          status: { burn: 12, burnT: 3.5 },
+        f.takeHit(95 * Math.max(0.3, fall), null, {
+          knock: 24 * fall, launch: 11 * fall, srcPos: pos, heavy: true,
+          status: { burn: 13, burnT: 3.8 },
         });
       }
     }
-    // wreck nearby building chunks and leave a burning crater
-    this.damageSphere(pos, e.r * 0.8, 160, null, true);
-    w.addFirePatch(null, new THREE.Vector3(e.x, 0, e.z), e.r * 0.55, 5, 14);
+    // wreck nearby building chunks and leave a big burning crater
+    this.damageSphere(pos, e.r * 0.85, 200, null, true);
+    w.addFirePatch(null, new THREE.Vector3(e.x, 0, e.z), e.r * 0.6, 6.5, 16);
     e.group.visible = false;
     // chain-react other tanks in range a beat later
     for (const o of this.explosives) {
@@ -339,7 +354,7 @@ export class Arena {
     if (!this.world || !this.explosives.length) return;
     for (const e of this.explosives) {
       if (e.dead) continue;
-      const contact = e.r * 0.32;
+      const contact = e.bodyR;
       let boom = false;
       for (const f of this.world.fighters) {
         if (!f.alive) continue;

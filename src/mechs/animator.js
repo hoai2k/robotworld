@@ -190,6 +190,36 @@ export class Animator {
       tgt.head[0] += -0.25 * d;
     }
 
+    // ===== quadruped amble =====
+    // Beast-frame mechs (gait: 'quad' — bulls, wolves, apes, crabs) drop
+    // onto all fours as the run picks up: frame pitches over the arms,
+    // which become pounding front legs on the opposite beat of the hinds.
+    if (grounded && speed > 0.4 && this.mech.def.gait === 'quad') {
+      const q = clamp01((ratio - 0.4) / 0.35);
+      if (q > 0.01) {
+        const ph = this.phase;
+        const fL = Math.sin(ph + 2.3), fR = Math.sin(ph + Math.PI + 2.3); // front pair leads
+        // drop and level the frame over the ground
+        tgt.hipsRot[0] += 0.5 * q;
+        tgt.hipsPos[1] += -this.D.hipHeight * 0.22 * q;
+        tgt.torso[0] += 0.18 * q;
+        tgt.head[0] += -0.6 * q;                      // eyes back on the horizon
+        // arms become front legs: reach down-forward, pounding alternately
+        tgt.shoulderL[0] = lerp(tgt.shoulderL[0], -1.35 + fL * 0.5, q);
+        tgt.shoulderR[0] = lerp(tgt.shoulderR[0], -1.35 + fR * 0.5, q);
+        tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.16, q);
+        tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.16, q);
+        tgt.elbowL[0] = lerp(tgt.elbowL[0], -0.45 - Math.max(0, fL) * 0.55, q);
+        tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.45 - Math.max(0, fR) * 0.55, q);
+        tgt.handL[0] = lerp(tgt.handL[0], 0.5, q);
+        tgt.handR[0] = lerp(tgt.handR[0], 0.5, q);
+        // hinds crouch deeper and the whole body bounds with the stride
+        tgt.kneeL[0] += 0.25 * q;
+        tgt.kneeR[0] += 0.25 * q;
+        tgt.hipsPos[1] += Math.abs(Math.sin(ph)) * 0.12 * q * this.s;
+      }
+    }
+
     // ===== duck layer =====
     // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat
     if (ctx.duck > 0.01) {

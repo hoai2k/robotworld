@@ -272,6 +272,7 @@ export class CameraSystem {
       const seg = this._segs[0];
       seg.from.copy(this.cPos);
       seg.to.set(humans[0].pos.x, humans[0].pos.y + humans[0].height * 0.5, humans[0].pos.z);
+      seg.cam = this.engine.camera; // fade applies only to this view's render
       this.world.arena?.setOccluders?.([seg]);
     } else {
       this.world.arena?.setOccluders?.([]);
@@ -363,10 +364,12 @@ export class CameraSystem {
       cam.lookAt(ch.target.x, ch.target.y, ch.target.z);
       views.push({ camera: cam, ...vp });
 
-      // ghost any building between this camera and its own mech
+      // ghost any building between this camera and its own mech — tagged
+      // with THIS view's camera so the fade renders only in this viewport
       const seg = this._segs[i];
       seg.from.copy(ch.pos);
       seg.to.set(f.pos.x, f.pos.y + f.height * 0.5, f.pos.z);
+      seg.cam = ch.camera;
       segsUsed.push(seg);
     }
     this.engine.views = views;

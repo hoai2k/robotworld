@@ -162,13 +162,25 @@ export class DestructibleSystem {
     }
   }
 
-  // fade ONE tiled copy (g: 0 = base cell, 1..8 = ghosts) of a building
-  writeFade(b, g, v) {
-    for (const chunk of b.grid.values()) {
-      if (!chunk.alive) continue;
-      this.fadeAttr.array[this.capacity * g + chunk.i] = v;
+  // Fades are PER-VIEW: each viewport only ghosts the buildings hiding ITS
+  // OWN player character. Targets/eased values live per (view, copy); the
+  // shared fade attribute is (re)stamped right before each view renders.
+  applyViewFade(cam) {
+    const v = this._viewSegs ? this._viewSegs.findIndex((s) => s.cam === cam) : -1;
+    const nCopies = 1 + this.ghostOffsets.length;
+    let touched = false;
+    for (const b of this.buildings) {
+      if (!b._everFaded) continue; // never faded for anyone: attr already 1
+      touched = true;
+      for (let g = 0; g < nCopies; g++) {
+        const val = v >= 0 && b.fadeV ? b.fadeV[v * 9 + g] : 1;
+        for (const chunk of b.grid.values()) {
+          if (!chunk.alive) continue;
+          this.fadeAttr.array[this.capacity * g + chunk.i] = val;
+        }
+      }
     }
-    this.fadeAttr.needsUpdate = true;
+    if (touched) this.fadeAttr.needsUpdate = true;
   }
 
   hideChunk(chunk) {
@@ -179,29 +191,33 @@ export class DestructibleSystem {
     }
   }
 
-  // Fade any building COPY whose AABB crosses a camera->player segment.
-  // Each of the 9 tiled copies is tested independently — a building only
-  // ghosts when THAT copy actually stands between the camera and its mech,
-  // never just because its twin across the seam does.
-  // segments: [{from: Vector3, to: Vector3}], refreshed every frame.
+  // Register this frame's camera->own-player segments, one per VIEW.
+  // Each segment carries `cam`, the camera that renders that view; fades
+  // are eased per (view, tiled copy) and stamped per view in applyViewFade,
+  // so a building only ghosts on the screen of the player it's hiding —
+  // never for another viewport where it merely covers an opponent.
+  // segments: [{from: Vector3, to: Vector3, cam}], refreshed every frame.
   setOccluders(segments) {
+    this._viewSegs = segments;
     const nCopies = 1 + this.ghostOffsets.length;
     for (const b of this.buildings) {
-      if (!b.fadeTarget) {
-        b.fadeTarget = new Float32Array(9).fill(1);
-        b.fade = new Float32Array(9).fill(1);
+      if (!b.fadeV) {
+        b.fadeV = new Float32Array(4 * 9).fill(1);       // eased, per view+copy
+        b.fadeTargetV = new Float32Array(4 * 9).fill(1); // targets
       }
       const a = b.aabb;
-      for (let g = 0; g < nCopies; g++) {
-        let hit = false;
-        if (b.alive > 0) {
-          const ox = g === 0 ? 0 : this.ghostOffsets[g - 1][0];
-          const oz = g === 0 ? 0 : this.ghostOffsets[g - 1][1];
-          for (const s of segments) {
-            if (segmentHitsAabb(s.from, s.to, a, 1.5, ox, oz)) { hit = true; break; }
+      for (let v = 0; v < 4; v++) {
+        const s = segments[v];
+        for (let g = 0; g < nCopies; g++) {
+          let hit = false;
+          if (s && b.alive > 0) {
+            const ox = g === 0 ? 0 : this.ghostOffsets[g - 1][0];
+            const oz = g === 0 ? 0 : this.ghostOffsets[g - 1][1];
+            hit = segmentHitsAabb(s.from, s.to, a, 1.5, ox, oz);
           }
+          b.fadeTargetV[v * 9 + g] = hit ? 0.15 : 1;
+          if (hit) b._everFaded = true;
         }
-        b.fadeTarget[g] = hit ? 0.15 : 1;
       }
     }
   }
@@ -552,21 +568,16 @@ export class DestructibleSystem {
   }
 
   update(dt) {
-    // camera see-through fades ease toward their targets, per tiled copy
+    // camera see-through fades ease toward their targets, per view + copy
+    // (the attribute itself is stamped per view in applyViewFade)
     const fk = 1 - Math.exp(-10 * dt);
-    const nCopies = 1 + this.ghostOffsets.length;
     for (const b of this.buildings) {
-      if (!b.fadeTarget) continue;
-      for (let g = 0; g < nCopies; g++) {
-        const target = b.fadeTarget[g];
-        const cur = b.fade[g];
-        if (Math.abs(cur - target) > 0.005) {
-          b.fade[g] = cur + (target - cur) * fk;
-          this.writeFade(b, g, b.fade[g]);
-        } else if (cur !== target) {
-          b.fade[g] = target;
-          this.writeFade(b, g, target);
-        }
+      if (!b.fadeV || !b._everFaded) continue;
+      for (let i = 0; i < 36; i++) {
+        const target = b.fadeTargetV[i];
+        const cur = b.fadeV[i];
+        if (Math.abs(cur - target) > 0.005) b.fadeV[i] = cur + (target - cur) * fk;
+        else b.fadeV[i] = target;
       }
     }
 

@@ -78,6 +78,9 @@ export class World {
   // straight across the wrap seam (the static world is ghost-tiled).
   // Restored immediately after the render — physics never sees the shift.
   applyViewWrap(camera) {
+    // per-view building see-through: stamp THIS view's fade values so a
+    // building only ghosts on the screen of the player it actually hides
+    this.arena?.applyViewFade?.(camera);
     if (!this.wrapHalf) return;
     const cx = camera.position.x, cz = camera.position.z;
     this._viewShifted = this._viewShifted || [];

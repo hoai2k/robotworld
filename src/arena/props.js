@@ -150,8 +150,9 @@ export const PROPS = {
     // FLAMMABLE hazard chevron + a warning glow: this tank goes up when hit
     const hazMat = new THREE.MeshStandardMaterial({ color: 0xffb020, emissive: 0xff5010, emissiveIntensity: 0.7, roughness: 0.5 });
     g.add(box(hazMat, r * 0.9, r * 0.55, 0.06, 0, r * 1.05, r + 0.03));
-    // register as an explosive: radius of the blast, HP before it cooks off
-    g.userData.explosive = { r: 4.4 + r * 1.7, hp: 34, cx: 0, cz: 0, top: r * 2.6 };
+    // register as an explosive: blast radius, physical body radius (touch
+    // trigger), HP before it cooks off
+    g.userData.explosive = { r: 8 + r * 2.5, bodyR: r + 0.5, hp: 34, top: r * 2.6 };
     return g;
   },
   crystal(o = {}) {

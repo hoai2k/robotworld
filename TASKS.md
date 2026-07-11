@@ -491,3 +491,27 @@ controllers via Gamepad API), AI opponents.
   enemy-based auto framing now also waits out manual look instead of
   drifting beneath the player's drag. Verified: running west converges the
   azimuth to exactly yaw+PI; a held manual look stays put while running.
+- 2026-07-11: BLASTS/GAITS/PER-VIEW FADE.
+  · TANK EXPLOSIONS bigger in every way: blast radius 8+r*2.5 (~13.5-16, was
+    ~8-10; touch trigger now uses the tank's PHYSICAL bodyR so it doesn't
+    pop from range), staged fireball (ground burst 1.35r + golden core +
+    delayed mushroom crown at top+4), expanding ground ring, 30 fire-column
+    glows + black smoke, shake 1.3, dmg 95 @center w/ knock 24 / launch 11 /
+    3.8s burn, building damage 200 @ 0.85r, fire patch 0.6r for 6.5s.
+    Verified: 35 dmg + burn at 9u (old radius barely reached).
+  · QUADRUPED AMBLE: roster gait:'quad' (TITANUS gorilla, RHINO bull,
+    FENRIR wolf, CRANKY crab) — as the run picks up (ratio>0.4→0.75 blend)
+    the frame pitches over the arms, which become pounding front legs on
+    the opposite beat of the hinds; head stays on the horizon; deeper hind
+    crouch + stride-rate bound. Layered in the locomotion pass so action
+    clips still blend over it; rhino's full-override charge gallop remains.
+    Verified: titanus knuckle-runs, fenrir lopes (screenshots).
+  · STRICTLY PER-VIEW SEE-THROUGH: fades were stamped into the ONE shared
+    fade attribute, so in split-screen a building faded for P1's camera also
+    rendered glassy in P2's viewport (where it only occluded an opponent).
+    Occluder segments now carry their view's camera; fade targets/easing are
+    per (view, tiled copy) on each building, and applyViewFade() stamps the
+    attribute in engine.onBeforeView right before EACH view renders — a
+    building is transparent only in the viewport of the player it hides.
+    Verified: same chunk reads 0.15 in view A, 1.0 in view B / unknown cams.
+  Verified: build green, attackmatrix ALL CONNECT, 4-way quad-mech ace soak.
