@@ -1,0 +1,32 @@
+ground/ground_neon_asphalt: albedo normal rough metal
+ground/ground_foundry_ironplate: albedo normal rough metal
+ground/ground_uptown_paving: albedo normal rough
+ground/ground_harbor_concrete: albedo normal rough
+ground/ground_skyterrace_roofpanel: albedo normal rough
+ground/ground_scrapyard_dirt: albedo normal rough metal
+ground/ground_quarry_rock: albedo normal rough
+ground/ground_volcano_basalt: albedo normal rough emissive
+ground/ground_frozen_snowice: albedo normal rough
+ground/ground_ruins_sandstone: albedo normal rough
+ground/ground_jungle_mossstone: albedo normal rough
+ground/ground_orbital_deck: albedo normal rough metal
+building/bldg_glass_office: albedo normal rough emissive
+building/bldg_brick_industrial: albedo normal rough emissive
+building/bldg_concrete_panel: albedo normal rough emissive
+building/bldg_steampunk_metal: albedo normal rough metal emissive
+building/bldg_roof_gravel: albedo normal rough
+prop/prop_container_steel: albedo normal rough metal
+prop/prop_rust_heavy: albedo normal rough metal
+prop/prop_brass_worn: albedo normal rough metal
+prop/prop_wood_planks: albedo normal rough
+prop/prop_concrete_barrier: albedo normal rough
+prop/prop_tarp_canvas: albedo normal rough
+prop/prop_crystal: albedo normal rough
+mech/mech_armor_clean: albedo normal rough metal
+mech/mech_armor_worn: albedo normal rough metal
+mech/mech_armor_heavy: albedo normal rough metal
+mech/mech_panels_greeble: albedo normal rough metal
+mech/mech_steel_bare: albedo normal rough metal
+mech/mech_gunmetal_dark: albedo normal rough metal
+mech/mech_joint_rubber: albedo normal rough
+mech/mech_hazard_stripes: albedo normal rough metal
