@@ -337,3 +337,12 @@ controllers via Gamepad API), AI opponents.
   the ±1-cell tiling shows. Verified: standing at the seam looking across
   shows the city + opponent exactly as if walking through; entity shift
   math exact (150.4 == expected); soak + menu flow clean.
+- 2026-07-11: CRANKY/SAURION/FROGGER design bodies sculpted (by the lead —
+  the parallel agents were stopped with the interrupted turn): crab shell
+  dome + pincers + shoulder water cannons/tanks + decor crab legs; raptor
+  skull/crest/feather fans/3-joint feathered tail/sickle toes/red seam
+  glows; frog dome-eyes/slime visor + drips/quad slime guns/webbed feet
+  (translucent MeshPhysical slime). Verified: showcase iterations viewed,
+  daylight trio lineup viewed, 15-mech attackmatrix ALL CONNECT (titanus 0
+  was test variance — reruns 58/115), 2 ace soaks with the trio, menu flow
+  clean, build green.

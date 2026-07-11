@@ -278,8 +278,8 @@ export const ROSTER = [
     // red eye/core glow, white unit decals, chrome sickle toe-claws
     colors: { primary: 0x33343a, accent: 0x17181c, glow: 0xff2418, stripes: false },
     skin: {
-      primary: { base: 0x33343a, base2: 0x27282e, metal: 0x6a6e76, wear: 0.5, grime: 0.44, panelDepth: 4, roughPaint: 0.42, metalPaint: 0.5, normalStrength: 1.25 },
-      accent: { base: 0x17181c, base2: 0x101216, metal: 0x565a62, wear: 0.5, grime: 0.44, panelDepth: 3, roughPaint: 0.4, metalPaint: 0.55, normalStrength: 1.15 },
+      primary: { base: 0x484a54, base2: 0x383a42, metal: 0x8a8f98, wear: 0.5, grime: 0.4, panelDepth: 4, roughPaint: 0.34, metalPaint: 0.62, normalStrength: 1.25 },
+      accent: { base: 0x24262c, base2: 0x1a1c22, metal: 0x6a6e76, wear: 0.5, grime: 0.4, panelDepth: 3, roughPaint: 0.36, metalPaint: 0.58, normalStrength: 1.15 },
     },
     body: { scale: 1.12, torsoW: 0.95, torsoH: 0.9, headSize: 1.0, armLen: 1.0, legLen: 1.15, hipW: 0.95, bulk: 0.95 },
     restPose: { thighL: [-38, 0, 0], thighR: [-38, 0, 0], kneeL: [66, 0, 0], kneeR: [66, 0, 0], ankleL: [-30, 0, 0], ankleR: [-30, 0, 0] },
