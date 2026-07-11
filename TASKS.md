@@ -481,3 +481,13 @@ controllers via Gamepad API), AI opponents.
     forearm carry. Verified with front-on carry + block screenshots.
   Verified: build green, attackmatrix ALL CONNECT (AI aiming untouched),
   3-way ace soak clean, logic probe 10/10 checks.
+- 2026-07-11: LAZY FOLLOW-CAM: while a mech runs roughly along its facing
+  (vel·facing > 0.3, speed > 3) and the camera control is idle, the orbit
+  azimuth damps around to sit BEHIND the character — in the solo combined
+  cam (rate 2.0; falls back to the enemy-relative framing when idle) and in
+  every split chase cam (rate scales with speed). Any right-stick input or
+  touch drag owns the camera: it suppresses the follow while held plus a
+  0.6s grace after release (3s for touch drags), and the solo cam's
+  enemy-based auto framing now also waits out manual look instead of
+  drifting beneath the player's drag. Verified: running west converges the
+  azimuth to exactly yaw+PI; a held manual look stays put while running.

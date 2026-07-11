@@ -113,6 +113,7 @@ export class CameraSystem {
     if (!ch) return;
     ch.az -= dx * 0.006;
     ch.el = clamp(ch.el - dy * 0.004, 0.1, 0.78);
+    ch.lookCd = 3.0; // manual look holds; the lazy follow stays out of it
   }
 
   // Right-stick camera input for one player's split viewport; call every
@@ -200,8 +201,20 @@ export class CameraSystem {
       // Enemies never pull the frame; the orbit azimuth alone turns the
       // view so the current threat tends to sit ahead of you.
       _center.set(player.pos.x, player.pos.y + 4, player.pos.z);
+      // LAZY FOLLOW: while running forward (velocity along the facing) and
+      // the look control is idle, ease the orbit around to sit BEHIND the
+      // character; otherwise the enemy-relative framing takes over.
+      const spd = Math.hypot(player.vel.x, player.vel.z);
+      const fwdDot = spd > 0.5
+        ? (player.vel.x * Math.sin(player.yaw) + player.vel.z * Math.cos(player.yaw)) / spd
+        : 0;
       const enemy = player.nearestEnemy();
-      if (enemy) {
+      if (this.lookCd <= 0 && spd > 3 && fwdDot > 0.3) {
+        const behind = player.yaw + Math.PI;
+        this.azimuth = this.azInit ? angleDamp(this.azimuth, behind, 2.0, dt) : behind;
+        this.azInit = true;
+      } else if (enemy && this.lookCd <= 0) {
+        // (manual look owns the view — auto framing waits until it's released)
         // offset direction points from the enemy toward the player (behind
         // them) — via the shortest wrapped path
         const behindAz = Math.atan2(
@@ -308,6 +321,20 @@ export class CameraSystem {
       }
       ch.az -= ch.lookX * 2.8 * dt;
       ch.el = clamp(ch.el + ch.lookY * 2.0 * dt, 0.1, 0.78);
+
+      // LAZY FOLLOW: while this mech runs forward and its camera stick is
+      // idle, ease the orbit around behind the character. Any stick input
+      // owns the camera (with a short grace after release so the follow
+      // doesn't fight the player's last adjustment).
+      const stickActive = Math.abs(ch.lookX) > 0.08 || Math.abs(ch.lookY) > 0.08;
+      ch.lookCd = stickActive ? 0.6 : Math.max(0, (ch.lookCd || 0) - dt);
+      const spd = Math.hypot(f.vel.x, f.vel.z);
+      if (ch.lookCd <= 0 && spd > 3 && f.alive) {
+        const fwdDot = (f.vel.x * Math.sin(f.yaw) + f.vel.z * Math.cos(f.yaw)) / spd;
+        if (fwdDot > 0.3) {
+          ch.az = angleDamp(ch.az, f.yaw + Math.PI, 1.6 * Math.min(1, spd / 10), dt);
+        }
+      }
 
       // stacked viewports are short — pull back a touch so mechs fit
       const dist = vp.h < 0.75 && vp.w > 0.75 ? 25 : 22;
