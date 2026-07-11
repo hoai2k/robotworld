@@ -5,6 +5,12 @@ import { CLIPS, UPPER_JOINTS } from './animations.js';
 import { ease, lerp, clamp, clamp01, TAU } from '../core/utils.js';
 
 const _wp = new THREE.Vector3();
+const _qa = new THREE.Quaternion();
+const _qb = new THREE.Quaternion();
+// Aegis tower shield: local rest carry, and the brace tilt applied when the
+// shield is squared to the front during a block
+const SHIELD_REST = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, -0.1, 0));
+const SHIELD_BRACE = new THREE.Quaternion().setFromEuler(new THREE.Euler(-0.1, 0, 0));
 
 const D2R = Math.PI / 180;
 const ALL_JOINTS = [
@@ -375,6 +381,25 @@ export class Animator {
       case 'colossus':
         if (J.mortars) J.mortars.rotation.x = ctx.firing ? -0.25 : Math.sin(t * 0.4) * 0.03;
         break;
+      case 'aegis': {
+        // The tower shield rides the left forearm. While BLOCKING, cancel the
+        // whole arm chain's rotation so the face presents square to the
+        // front (never upside-down/backward); otherwise it settles back to
+        // the natural forearm carry.
+        const sh = J.shield;
+        if (!sh) break;
+        const blocking = this.action && !this.action.fadingOut && this.action.clip.name === 'block';
+        if (blocking) {
+          sh.parent.updateWorldMatrix(true, false);
+          sh.parent.getWorldQuaternion(_qa).invert();          // undo arm chain
+          this.J.root.getWorldQuaternion(_qb).multiply(SHIELD_BRACE); // face mech-forward
+          _qa.multiply(_qb);
+          sh.quaternion.slerp(_qa, 1 - Math.exp(-18 * dt));
+        } else {
+          sh.quaternion.slerp(SHIELD_REST, 1 - Math.exp(-10 * dt));
+        }
+        break;
+      }
       case 'saurion': {
         // RAPTOR LOCOMOTION (researched theropod gait): the tail is a
         // travelling S-wave that wags side-to-side in time with the stride

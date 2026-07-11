@@ -287,11 +287,13 @@ export class Fighter {
     const sp = this.def.stats.speed * 4.2 * this.speedMult();
     this.vel.x = dir.x * sp;
     this.vel.z = dir.z * sp;
-    // strafe dash: keep facing a nearby enemy instead of the travel
-    // direction, so sideways dashes read as combat sidesteps
-    const e = this.nearestEnemy();
-    if (e && this.pos.distanceTo(e.pos) < 34) {
-      this.targetYaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
+    // strafe dash (AI only — players own their facing): keep facing a
+    // nearby enemy so sideways dashes read as combat sidesteps
+    if (this.isAI) {
+      const e = this.nearestEnemy();
+      if (e && this.pos.distanceTo(e.pos) < 34) {
+        this.targetYaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
+      }
     }
     this.dashCd = 0.9;
     this.dashT = 0.3;
@@ -304,6 +306,16 @@ export class Fighter {
   }
 
   faceNearestEnemyIfClose(maxDist, always = false) {
+    // HUMANS NEVER AUTO-POINT at enemies — the player does their own aiming.
+    // Aimed moves (specials/ults/beams, always=true) go where the camera
+    // points; plain melee strikes along the current facing. Only the AI
+    // snaps toward its target, as its stand-in for aiming skill.
+    if (!this.isAI) {
+      if (always && this.intent.aimYaw !== undefined) {
+        this.yaw = this.targetYaw = this.intent.aimYaw;
+      }
+      return;
+    }
     const e = this.nearestEnemy();
     if (!e) return;
     const dx = this.world.wrapDelta(e.pos.x - this.pos.x);

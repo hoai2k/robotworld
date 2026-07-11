@@ -5,11 +5,12 @@
 import * as THREE from 'three';
 import { rand, makeRng } from '../core/utils.js';
 
-// segment vs AABB (slab method), with padding
-function segmentHitsAabb(from, to, a, pad = 0) {
+// segment vs AABB (slab method), with padding and an optional XZ offset so
+// the same box can be tested at each of its wrap-ghost positions
+function segmentHitsAabb(from, to, a, pad = 0, ox = 0, oz = 0) {
   let tMin = 0, tMax = 1;
-  const lo = [a.minX - pad, a.minY - pad, a.minZ - pad];
-  const hi = [a.maxX + pad, a.maxY + pad, a.maxZ + pad];
+  const lo = [a.minX - pad + ox, a.minY - pad, a.minZ - pad + oz];
+  const hi = [a.maxX + pad + ox, a.maxY + pad, a.maxZ + pad + oz];
   const f = [from.x, from.y, from.z];
   const d = [to.x - from.x, to.y - from.y, to.z - from.z];
   for (let i = 0; i < 3; i++) {
@@ -161,11 +162,11 @@ export class DestructibleSystem {
     }
   }
 
-  writeFade(b, v) {
+  // fade ONE tiled copy (g: 0 = base cell, 1..8 = ghosts) of a building
+  writeFade(b, g, v) {
     for (const chunk of b.grid.values()) {
       if (!chunk.alive) continue;
-      this.fadeAttr.array[chunk.i] = v;
-      for (let g = 1; g <= 8; g++) this.fadeAttr.array[this.capacity * g + chunk.i] = v;
+      this.fadeAttr.array[this.capacity * g + chunk.i] = v;
     }
     this.fadeAttr.needsUpdate = true;
   }
@@ -178,18 +179,30 @@ export class DestructibleSystem {
     }
   }
 
-  // Fade any building whose AABB crosses a camera->player segment.
+  // Fade any building COPY whose AABB crosses a camera->player segment.
+  // Each of the 9 tiled copies is tested independently — a building only
+  // ghosts when THAT copy actually stands between the camera and its mech,
+  // never just because its twin across the seam does.
   // segments: [{from: Vector3, to: Vector3}], refreshed every frame.
   setOccluders(segments) {
+    const nCopies = 1 + this.ghostOffsets.length;
     for (const b of this.buildings) {
-      let hit = false;
-      if (b.alive > 0) {
-        const a = b.aabb;
-        for (const s of segments) {
-          if (segmentHitsAabb(s.from, s.to, a, 1.5)) { hit = true; break; }
-        }
+      if (!b.fadeTarget) {
+        b.fadeTarget = new Float32Array(9).fill(1);
+        b.fade = new Float32Array(9).fill(1);
       }
-      b.fadeTarget = hit ? 0.15 : 1;
+      const a = b.aabb;
+      for (let g = 0; g < nCopies; g++) {
+        let hit = false;
+        if (b.alive > 0) {
+          const ox = g === 0 ? 0 : this.ghostOffsets[g - 1][0];
+          const oz = g === 0 ? 0 : this.ghostOffsets[g - 1][1];
+          for (const s of segments) {
+            if (segmentHitsAabb(s.from, s.to, a, 1.5, ox, oz)) { hit = true; break; }
+          }
+        }
+        b.fadeTarget[g] = hit ? 0.15 : 1;
+      }
     }
   }
 
@@ -539,17 +552,21 @@ export class DestructibleSystem {
   }
 
   update(dt) {
-    // camera see-through fades ease toward their targets
+    // camera see-through fades ease toward their targets, per tiled copy
     const fk = 1 - Math.exp(-10 * dt);
+    const nCopies = 1 + this.ghostOffsets.length;
     for (const b of this.buildings) {
-      const target = b.fadeTarget ?? 1;
-      const cur = b.fade ?? 1;
-      if (Math.abs(cur - target) > 0.005) {
-        b.fade = cur + (target - cur) * fk;
-        this.writeFade(b, b.fade);
-      } else if (b.fade !== target) {
-        b.fade = target;
-        this.writeFade(b, target);
+      if (!b.fadeTarget) continue;
+      for (let g = 0; g < nCopies; g++) {
+        const target = b.fadeTarget[g];
+        const cur = b.fade[g];
+        if (Math.abs(cur - target) > 0.005) {
+          b.fade[g] = cur + (target - cur) * fk;
+          this.writeFade(b, g, b.fade[g]);
+        } else if (cur !== target) {
+          b.fade[g] = target;
+          this.writeFade(b, g, target);
+        }
       }
     }
 

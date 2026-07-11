@@ -28,14 +28,25 @@ function leadPos(f, e, t) {
 
 function aimDir(f, pitch = 0) {
   const e = f.nearestEnemy();
-  if (e) {
+  // AI seeks its target; HUMANS shoot where they're pointing, with only a
+  // vertical assist when a target is basically down the barrel
+  if (e && f.isAI) {
     const m = muzzle(f);
     const c = e.center();
     return new THREE.Vector3(
       f.world.wrapDelta(c.x - m.x), c.y - m.y, f.world.wrapDelta(c.z - m.z)
     ).normalize();
   }
-  return new THREE.Vector3(Math.sin(f.yaw), pitch, Math.cos(f.yaw)).normalize();
+  const dir = new THREE.Vector3(Math.sin(f.yaw), pitch, Math.cos(f.yaw));
+  if (e) {
+    const m = muzzle(f);
+    const c = e.center();
+    const dxw = f.world.wrapDelta(c.x - m.x), dzw = f.world.wrapDelta(c.z - m.z);
+    if (Math.abs(angleDiff(f.yaw, Math.atan2(dxw, dzw))) < 0.26) {
+      dir.y = (c.y - m.y) / (Math.hypot(dxw, dzw) || 1);
+    }
+  }
+  return dir.normalize();
 }
 
 // ============================= SPECIALS =============================
@@ -141,14 +152,19 @@ export const SPECIALS = {
     f.setState('special', dur * 0.8);
   },
 
-  // RHINO: bull rush — charges forward as long as B is HELD, up to 5s. Each
-  // fresh target it plows into gets launched; it can re-hit after a moment.
+  // RHINO: bull rush — gallops forward on all fours as long as B is HELD,
+  // up to 5s. The run ENDS the moment it connects with someone (one clean
+  // launch), or when the button is released.
   bullRush(f, sp) {
     f.animator.play('chargeLean');
     f.setState('special', 5.2); // held-charge ceiling; ended early on release
     f.world.audio?.play('charge');
     f._chargeT = 0;
-    const hitCd = new Map(); // fighter -> cooldown so a long charge can re-hit
+    const endRush = (recovery) => {
+      f._charging = false;
+      f.animator.stop();
+      f.setState('attack', recovery);
+    };
     const tick = () => {
       if (!f.alive || f.state !== 'special') { f._charging = false; return; }
       const dt = 0.05;
@@ -160,30 +176,28 @@ export const SPECIALS = {
       const spd = f.def.stats.speed * 3.1;
       f.vel.x = Math.sin(f.yaw) * spd;
       f.vel.z = Math.cos(f.yaw) * spd;
-      // gentle steer toward a nearby enemy so a long charge still tracks
-      const e0 = f.nearestEnemy();
-      if (e0 && f.pos.distanceTo(e0.pos) < 40) {
-        f.targetYaw = f.yawTo(e0);
-        f.yaw += clamp(angleDiff(f.targetYaw, f.yaw), -0.05, 0.05);
+      // gentle steer toward a nearby enemy (AI only — players aim the run)
+      if (f.isAI) {
+        const e0 = f.nearestEnemy();
+        if (e0 && f.pos.distanceTo(e0.pos) < 40) {
+          f.targetYaw = f.yawTo(e0);
+          f.yaw += clamp(angleDiff(f.targetYaw, f.yaw), -0.05, 0.05);
+        }
       }
       f.world.effects.dustPuff(f.pos, 2, 0x9a9088);
-      for (const [k, v] of hitCd) { const n = v - dt; if (n <= 0) hitCd.delete(k); else hitCd.set(k, n); }
       for (const e of f.world.fighters) {
-        if (e === f || !e.alive || hitCd.has(e)) continue;
+        if (e === f || !e.alive) continue;
         const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
         if (Math.hypot(dx, dz) < 3.6 * f.scale) {
-          hitCd.set(e, 0.6);
           e.takeHit(sp.dmg * f.dmgMult(), f, { knock: sp.knock, launch: 8, srcPos: f.pos, heavy: true });
           f.world.engine.addHitStop(0.08);
           f.world.effects.addShake(0.5);
+          endRush(0.45); // impact ends the run
+          return;
         }
       }
       if (holding) f.world.schedule(dt, tick);
-      else {
-        f._charging = false;
-        f.animator.stop();
-        f.setState('attack', 0.3); // brief recovery on release/timeout
-      }
+      else endRush(0.3); // released / timed out
     };
     f._charging = true;
     f.world.schedule(0.05, tick);
@@ -224,12 +238,15 @@ export const SPECIALS = {
     f.setState('special', 0.75);
     f.world.audio?.play('howl');
     const e = f.nearestEnemy();
-    if (e) {
-      // lead the landing point — the leap is airborne ~0.7s
+    if (e && f.isAI) {
+      // AI leads the landing point — the leap is airborne ~0.7s.
+      // Humans leap where THEY aim (doSpecial already applied aimYaw).
       const px = e.pos.x + e.vel.x * 0.5, pz = e.pos.z + e.vel.z * 0.5;
       f.yaw = f.targetYaw = Math.atan2(px - f.pos.x, pz - f.pos.z);
     }
-    const dist = e ? Math.min(sp.leap, f.pos.distanceTo(e.pos)) : sp.leap;
+    // range-clamp onto a target that's already down the aim line
+    const onLine = e && Math.abs(angleDiff(f.yaw, f.yawTo(e))) < 0.45;
+    const dist = onLine ? Math.min(sp.leap, f.pos.distanceTo(e.pos)) : sp.leap;
     f.vel.x = Math.sin(f.yaw) * dist * 1.6;
     f.vel.z = Math.cos(f.yaw) * dist * 1.6;
     f.vel.y = 12;
@@ -348,11 +365,16 @@ export const SPECIALS = {
     const T = 0.95; // airtime at vy ~16.2 under g=34
     const maxLeap = sp.leap || 44;
     let dist = maxLeap;
-    if (e) {
+    if (e && f.isAI) {
+      // AI leads the victim; humans pounce along their own aim
       const lead = leadPos(f, e, T * 0.85);
       const dx = w.wrapDelta(lead.x - f.pos.x), dz = w.wrapDelta(lead.z - f.pos.z);
       f.yaw = f.targetYaw = Math.atan2(dx, dz);
       dist = Math.min(maxLeap, Math.hypot(dx, dz));
+    } else if (e && Math.abs(angleDiff(f.yaw, f.yawTo(e))) < 0.45) {
+      // aimed at them already: shorten the leap to land ON the target
+      const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
+      dist = Math.min(maxLeap, Math.hypot(dx, dz) + e.vel.length() * 0.3);
     }
     f.vel.x = Math.sin(f.yaw) * dist / T;
     f.vel.z = Math.cos(f.yaw) * dist / T;

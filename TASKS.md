@@ -454,3 +454,30 @@ controllers via Gamepad API), AI opponents.
   foundry + harbor) clean, functional probe (charge/tank/rubble/stand-on)
   all pass, screenshots of the quad-gallop charge, tank blast embers, and a
   settled rubble pile.
+- 2026-07-11: AIM/FADE/CHARGE/SHIELD FIXES.
+  · NO AUTO-POINTING for humans: faceNearestEnemyIfClose is AI-only now —
+    aimed moves (specials/ults/beams, always=true) snap to the player's OWN
+    camera aim (aimYaw), plain melee strikes along current facing, dash no
+    longer swings a human to face the enemy. specials.aimDir(): humans fire
+    along their yaw (vertical assist only when a target is within ~15° of
+    the barrel); fenrir pounce / saurion pounce lead-aim only for AI (humans
+    leap along their aim, with a range clamp when the target is already on
+    the aim line); bullRush steering AI-only. Verified: melee leaves yaw
+    untouched; special with aimYaw faces the aim, not the enemy.
+  · TRANSPARENCY ONLY WHEN OCCLUDING: buildings were fading ghost copies —
+    writeFade stamped all 9 wrap copies whenever the base building crossed
+    the camera→player segment, so a building across the seam (nowhere near
+    the line of sight) went glassy. setOccluders now tests EACH tiled copy's
+    shifted AABB and fades copies independently (per-copy fadeTarget/fade
+    arrays; writeFade(b, g, v)). Verified: base copy fades, its 8 ghosts
+    stay solid, far segments fade nothing.
+  · BULL RUSH ENDS ON HIT: the charge stops the moment it connects (one
+    clean launch + 0.45s recovery), runs to the 5s cap only if nothing is
+    hit. Verified: hit at 0.57s ends it (63 dmg), no-target run 5.02s.
+  · AEGIS SHIELD: while blocking, the shield joint's rotation now CANCELS
+    the whole arm chain (parent world-quat inverse x root quat + brace
+    tilt, slerped) so the face presents square to the front instead of
+    turning upside-down/backward; out of block it eases back to the natural
+    forearm carry. Verified with front-on carry + block screenshots.
+  Verified: build green, attackmatrix ALL CONNECT (AI aiming untouched),
+  3-way ace soak clean, logic probe 10/10 checks.
