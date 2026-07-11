@@ -62,8 +62,8 @@ export const SPECIALS = {
           : muzzle(f);
         const d = new THREE.Vector3(rand(-0.35, 0.35), rand(0.7, 1), rand(-0.35, 0.35)).normalize();
         f.world.projectiles.spawn('missile', f, origin, d, {
-          dmg: sp.dmg * f.dmgMult(), speed: 30, splash: 2.2, color: 0xff7040,
-          homing: target, retarget: true, turnRate: 5.2, life: 4,
+          dmg: sp.dmg * f.dmgMult(), speed: 30, splash: 2.8, color: 0xff7040,
+          homing: target, retarget: true, turnRate: 4.8, life: 4,
         });
         f.world.audio?.play('missile');
       });
@@ -125,7 +125,7 @@ export const SPECIALS = {
             const origin = muzzle(f).add(new THREE.Vector3(rand(-1, 1), rand(1, 2.5), rand(-1, 1)));
             f.world.projectiles.spawn('plasma', f, origin, new THREE.Vector3(0, 1, 0), {
               dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6, color: 0xff5ce8,
-              homing: target, retarget: true, turnRate: 4.4, life: 4.5,
+              homing: target, retarget: true, turnRate: 4.0, life: 4.5,
             });
             f.world.audio?.play('plasma');
           });

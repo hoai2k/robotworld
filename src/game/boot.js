@@ -409,6 +409,7 @@ export async function bootGame() {
       audio,
       onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
+      onFullscreen: toggleFullscreen,
       splitToggle: S.battle.humans.length === 2 ? {
         label: () => S.battle.cameraSys.layout2p === 'lr' ? 'SPLIT: SIDE BY SIDE' : 'SPLIT: STACKED',
         fn: () => toggleSplitLayout(),

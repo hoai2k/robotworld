@@ -130,11 +130,12 @@ export class Animator {
       tgt.elbowR[0] += -0.25 - 0.3 * ratio * Math.max(0, sinL);
       // body dynamics
       tgt.hipsPos[1] += -Math.abs(Math.cos(ph)) * 0.16 * ratio * this.s;
+      tgt.hipsRot[0] += 0.10 * ratio;             // whole body pitches into the run
       tgt.hipsRot[1] += Math.sin(ph) * 0.09 * ratio;
       tgt.hipsRot[2] += Math.cos(ph) * 0.05 * ratio;
-      tgt.torso[0] += 0.20 * ratio;               // forward lean
+      tgt.torso[0] += 0.30 * ratio;               // stronger forward lean
       tgt.torso[1] += -Math.sin(ph) * 0.11 * ratio; // counter-rotate
-      tgt.head[0] += -0.12 * ratio;
+      tgt.head[0] += -0.22 * ratio;               // eyes stay on the horizon
     } else if (grounded) {
       // idle: breathing + weight shift + personality sway
       const b = Math.sin(this.t * 1.7);
@@ -160,6 +161,21 @@ export class Animator {
       tgt.shoulderL[0] += -0.3 * fall;
       tgt.shoulderR[0] += -0.3 * fall;
       tgt.torso[0] += 0.12 * tuck - 0.1 * fall;
+
+      if (ctx.hovering) {
+        // jet flight: pitch the whole frame forward with speed — Iron Man,
+        // not elevator. Legs trail, head stays level.
+        const h = ratio;
+        tgt.hipsRot[0] += 0.16 + 0.30 * h;
+        tgt.torso[0] += 0.08 + 0.14 * h;
+        tgt.head[0] += -0.22 - 0.2 * h;
+        tgt.thighL[0] += 0.28 * h;
+        tgt.thighR[0] += 0.38 * h;
+        tgt.kneeL[0] += 0.25 * h;
+        tgt.kneeR[0] += 0.2 * h;
+        tgt.shoulderL[2] += -0.12;
+        tgt.shoulderR[2] += 0.12;
+      }
     }
 
     if (ctx.dashT > 0) { // brief dash lean

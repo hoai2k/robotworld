@@ -261,3 +261,17 @@ controllers via Gamepad API), AI opponents.
   defaults unless the player already customized slots. Gamepads are now
   numbered by their order among CONNECTED controllers (pads at browser
   indices 1&2 read GAMEPAD 1/2, not 2/3). Verified with stubbed gamepads.
+- 2026-07-11: Missiles/camera/lean/pause polish (user request):
+  - Guided missiles easier to dodge: homing switched to LEAD pursuit with a
+    terminal COMMIT (last ~0.15s flies straight, so a timed dash sidesteps
+    it; steady strafing still gets hit); turn rates trimmed (volley 4.8,
+    starfall 4.0). Guided dmg down (volley 26->22, starfall 38->34);
+    dumb-fire ordnance up (rocket 70->82, shell 48->56, mortar 60->68,
+    barrage 45->50). attackmatrix: ALL CONNECT.
+  - Flying camera: solo frame rides up with the hovering player; split
+    chase look-target follows the flyer (worst on-screen NDC 0.33/0.52 at
+    apex, verified).
+  - Run/fly lean: stronger forward lean + whole-body pitch while running
+    (head compensates); hover flight pitches Iron-Man-forward with speed,
+    legs trailing. Verified via screenshots.
+  - Pause menu gained a FULLSCREEN item.

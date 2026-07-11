@@ -110,7 +110,7 @@ export class ProjectileSystem {
       // homing: retargeting projectiles re-acquire the nearest living enemy
       // whenever their target is gone, so pop-up volleys always curve down
       // onto someone instead of sailing into the sky.
-      if (p.retarget && (!p.homing || !p.homing.alive)) {
+      if (p.retarget && !p.committed && (!p.homing || !p.homing.alive)) {
         let best = null, bestD = Infinity;
         for (const f of world.fighters) {
           if (f === p.owner || !f.alive) continue;
@@ -119,10 +119,21 @@ export class ProjectileSystem {
         }
         p.homing = best;
       }
-      if (p.homing && p.homing.alive) {
-        _v.copy(p.homing.center()).sub(p.mesh.position).normalize();
+      if (p.homing && p.homing.alive && !p.committed) {
+        _v.copy(p.homing.center());
         const sp = p.vel.length();
-        p.vel.normalize().lerp(_v, clamp(p.turnRate * dt, 0, 1)).normalize().multiplyScalar(sp);
+        const dist = _v.distanceTo(p.mesh.position);
+        // terminal commit: in the last ~0.15s of flight the missile stops
+        // steering — a well-timed dash sidesteps it, casual drift doesn't
+        if (dist < Math.max(2.5, sp * 0.15)) {
+          p.committed = true;
+        } else {
+          // lead pursuit: aim at the intercept point, not the tailpipe —
+          // steady strafing gets hit, only a real direction change dodges
+          _v.addScaledVector(p.homing.vel, Math.min(dist / sp, 0.5) * 0.8);
+          _v.sub(p.mesh.position).normalize();
+          p.vel.normalize().lerp(_v, clamp(p.turnRate * dt, 0, 1)).normalize().multiplyScalar(sp);
+        }
       }
       if (p.gravity) p.vel.y -= p.gravity * dt;
 

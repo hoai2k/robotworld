@@ -166,6 +166,9 @@ export class CameraSystem {
       const player = humans[0];
       // frame tight on the player rather than the true centroid
       _center.lerp(player.pos.clone().setY(_center.y), 0.5);
+      // hover jets can lift the player far above the ground centroid —
+      // ride the frame up so a flying mech never exits the top of view
+      _center.y = Math.max(_center.y, player.pos.y + 3);
       const enemy = player.nearestEnemy();
       if (enemy) {
         // offset direction points from the enemy toward the player (behind them)
@@ -269,6 +272,9 @@ export class CameraSystem {
       const enemy = f.nearestEnemy();
       const lookAhead = enemy ? _center.copy(f.pos).lerp(enemy.pos, 0.22) : _center.copy(f.pos);
       lookAhead.y += 4.5;
+      // jet flight: keep the look target riding with the flyer so the mech
+      // doesn't graze the top of its viewport at altitude
+      lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
 
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);

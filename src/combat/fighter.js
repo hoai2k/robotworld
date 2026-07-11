@@ -574,6 +574,7 @@ export class Fighter {
       vy: this.vel.y,
       dashT: this.dashT,
       firing: this.firing,
+      hovering: this.hovering,
     });
     if (this.state !== 'channel') this.firing = false;
 

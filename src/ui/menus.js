@@ -552,7 +552,7 @@ export class ArenaSelectScreen {
 
 // ---------------- PAUSE ----------------
 export class PauseScreen {
-  constructor(root, { audio, onResume, onQuit, splitToggle = null }) {
+  constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null }) {
     this.audio = audio;
     this.el = el('div', 'screen dim fade-in');
     this.el.innerHTML = `<div class="mega-title pause-title">PAUSED</div>`;
@@ -561,6 +561,7 @@ export class PauseScreen {
       { t: 'RESUME', fn: onResume },
       { t: 'CONTROLS', fn: () => this.toggleControls() },
     ];
+    if (onFullscreen) this.items.push({ t: 'FULLSCREEN', fn: onFullscreen });
     if (splitToggle) {
       this.items.push({
         t: splitToggle.label(),
