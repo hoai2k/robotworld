@@ -383,15 +383,19 @@ export class Animator {
         // stable on the prey as the body bobs and yaws.
         const run = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
         const ph = this.phase;
-        // stride-synced when moving, gentle idle sway when still
-        const wavePh = run > 0.05 ? ph * 2 : t * 1.5;
-        const amp = 0.1 + run * 0.3;
+        // predator dynamics: mid-strike the tail LASHES (fast heavy whip for
+        // balance); in a dash it stiffens straight back as a counterweight;
+        // otherwise stride-synced wave when moving, gentle sway at idle.
+        const lashing = this.action && !this.action.fadingOut && !this.action.clip.loop;
+        const dashing = (ctx.dashT || 0) > 0;
+        const wavePh = lashing ? t * 9 : run > 0.05 ? ph * 2 : t * 1.5;
+        const amp = lashing ? 0.5 : dashing ? 0.06 : 0.1 + run * 0.3;
         for (let i = 0; i < 3; i++) {
           const tj = J['tail' + i];
           if (!tj) continue;
           // each segment lags the one before → an S-curve that runs down the tail
           tj.rotation.y = Math.sin(wavePh - i * 0.8) * amp;
-          tj.rotation.x = 0.15 - run * 0.18 + Math.sin(wavePh * 0.5 - i * 0.5) * 0.05;
+          tj.rotation.x = (dashing ? 0.02 : 0.15 - run * 0.18) + Math.sin(wavePh * 0.5 - i * 0.5) * 0.05;
           tj.rotation.z = Math.cos(wavePh - i * 0.8) * amp * 0.3; // slight roll on the whip
         }
         // head stabilization: cancel the body's yaw sway + vertical bob so the
@@ -409,6 +413,20 @@ export class Animator {
         const c = this.cur;
         const run = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
         const attacking = this.action && !this.action.fadingOut && !this.action.clip.loop;
+        // FROG LEAP: airborne, the cannon arms act like a diving frog's legs —
+        // swept hard back while rising, splayed wide to brace for the landing.
+        if (ctx.grounded === false) {
+          const rise = clamp((ctx.vy || 0) / 12, -1, 1);
+          const tuck = Math.max(0, rise), fall = Math.max(0, -rise);
+          for (const sd of ['L', 'R']) {
+            const sj = J['shoulder' + sd + '2'], ej = J['elbow' + sd + '2'];
+            if (!sj || !ej) continue;
+            const sx = sd === 'L' ? -1 : 1;
+            sj.rotation.set(0.55 * tuck - 0.65 * fall, 0, sx * (0.18 * tuck - 0.38 * fall));
+            ej.rotation.set(0.35 * tuck - 0.4 * fall, 0, 0);
+          }
+          break;
+        }
         for (const sd of ['L', 'R']) {
           const sj = J['shoulder' + sd + '2'], ej = J['elbow' + sd + '2'];
           if (!sj || !ej || !c['shoulder' + sd]) continue;
@@ -433,6 +451,17 @@ export class Animator {
           const jw = J['jaw' + sd];
           if (jw) jw.rotation.x = lerp(jw.rotation.x, -gape, dt * (striking ? 22 : 8));
         }
+        // crab SCUTTLE: stride-synced shell roll + waddle yaw so the walk
+        // reads sideways-crabby (the static side-leg struts ride the hips)
+        const scut = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
+        if (scut > 0.05) {
+          J.hips.rotation.z += Math.sin(this.phase) * 0.11 * scut;
+          J.hips.rotation.y += Math.cos(this.phase) * 0.08 * scut;
+          J.torso.rotation.z -= Math.sin(this.phase) * 0.06 * scut;
+        }
+        // hydro recoil: the whole shell kicks back while the cannons fire
+        this._crankyRecoil = lerp(this._crankyRecoil || 0, ctx.firing ? 0.12 : 0, dt * (ctx.firing ? 18 : 6));
+        J.torso.rotation.x -= this._crankyRecoil;
         break;
       }
       case 'viper':
