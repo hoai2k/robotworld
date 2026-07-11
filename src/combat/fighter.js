@@ -59,7 +59,7 @@ export class Fighter {
     this.dashCd = 0;
     this.iframes = 0;
 
-    // burst weapons (gatling / flame) run on ammo, refilled at crates
+    // every ranged weapon runs on ammo, refilled at crates
     if (def.moves.ranged.ammo) {
       this.ammoMax = def.moves.ranged.ammo;
       this.ammo = this.ammoMax;
@@ -239,6 +239,9 @@ export class Fighter {
     } else {
       const clip = mv.type === 'mortar' ? 'brace' : mv.type === 'railgun' ? 'aim' : 'shoot';
       this.rangedCd = mv.cooldown;
+      // single-shot weapons spend ammo too (channel weapons decrement in
+      // their own loop) — without this they never drain and never refill
+      if (this.ammoMax !== undefined) this.ammo--;
       const dur = this.animator.play(clip, {
         onEvent: (type) => {
           if (type === 'fire') this.world.fireRanged(this, mv);

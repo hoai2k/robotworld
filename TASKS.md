@@ -369,3 +369,18 @@ controllers via Gamepad API), AI opponents.
   8u/9u vertical so the player's mech is never lost. Verified: 15-mech
   attackmatrix ALL CONNECT (saurion special 110), rooftop/duck/ammo/
   collapse functional probe green, 2 ace soaks, showcase + battle shots.
+- 2026-07-11: FOLLOW-UPS: single-shot weapons never spent ammo (only
+  channel weapons decremented) so they sat at full forever and crates
+  ignored them — doRanged now decrements on every shot (verified 26→21→
+  refill 26) · per-view cameras follow ONLY their own character: split-cam
+  look target is the player alone (no enemy lean), solo combined cam
+  centers dead-on the player (no centroid pull, max dist 34) — the mech
+  can no longer drift off-center · COLOR SCHEMES: 4 paint jobs per mech
+  (STOCK/EMBER/TIDE/MIDNIGHT via hue-force/darken of skin.primary base
+  colors + menu tint + glow; works in both texture-tint and procedural
+  paths). Cycle with X (pad) / R (kb1) / Num4·M (kb2) / 🎨 COLOR (touch)
+  in mech select — pre- or post-lock; lock-in auto-bumps duplicates so
+  same-mech players always differ (battle start re-checks, AI included);
+  swatch row on the info card, scheme name in the chips, live recolored
+  stage preview; &c1..c4 debug params. Verified: 4 titanus in 4 schemes
+  screenshot clearly distinct, attackmatrix ALL CONNECT, ace soak clean.

@@ -43,7 +43,7 @@ export class Input {
       pressed: new Set(),                     // buttons pressed this frame (edge)
     };
     // On-screen menu buttons inject edges here; consumed like keysPressed.
-    this.touchMenu = { up: false, down: false, left: false, right: false, confirm: false, back: false, pause: false };
+    this.touchMenu = { up: false, down: false, left: false, right: false, confirm: false, back: false, alt: false, pause: false };
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Tab' || (e.code === 'Space' && e.target === document.body)) e.preventDefault();
@@ -86,7 +86,7 @@ export class Input {
     this.keysPressed.clear();
     this.touch.pressed.clear();
     const m = this.touchMenu;
-    m.up = m.down = m.left = m.right = m.confirm = m.back = m.pause = false;
+    m.up = m.down = m.left = m.right = m.confirm = m.back = m.alt = m.pause = false;
   }
 
   // Called by on-screen controls to register a virtual button press/release.
@@ -236,7 +236,7 @@ export class Input {
 
   // per-player menu navigation (multi-cursor mech select), same repeat feel
   menuEventsFor(device) {
-    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, alt: false };
     const k = (c) => this.keys.has(c) || this.keysPressed.has(c);
     if (device === 'kb1') {
       ev.up = this._navRepeat(device, 'up', k('KeyW'));
@@ -245,6 +245,7 @@ export class Input {
       ev.right = this._navRepeat(device, 'right', k('KeyD'));
       ev.confirm = this.keysPressed.has('KeyF') || this.keysPressed.has('Space') || this.keysPressed.has('Enter');
       ev.back = this.keysPressed.has('KeyG') || this.keysPressed.has('Escape');
+      ev.alt = this.keysPressed.has('KeyR'); // cycle color scheme
     } else if (device === 'kb2') {
       ev.up = this._navRepeat(device, 'up', k('ArrowUp'));
       ev.down = this._navRepeat(device, 'down', k('ArrowDown'));
@@ -253,6 +254,7 @@ export class Input {
       // no plain Enter here — kb1 owns it; kb2 confirms on its own cluster
       ev.confirm = this.keysPressed.has('Numpad1') || this.keysPressed.has('Comma') || this.keysPressed.has('NumpadEnter');
       ev.back = this.keysPressed.has('Numpad2') || this.keysPressed.has('Period');
+      ev.alt = this.keysPressed.has('Numpad4') || this.keysPressed.has('KeyM'); // cycle color scheme
     } else if (device.startsWith('pad')) {
       const i = +device[3];
       ev.up = this._navRepeat(device, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6);
@@ -261,10 +263,11 @@ export class Input {
       ev.right = this._navRepeat(device, 'right', this.padHeld(i, 'DR') || this.padsCur[i].lx > 0.6);
       ev.confirm = this.padPressed(i, 'A');
       ev.back = this.padPressed(i, 'B');
+      ev.alt = this.padPressed(i, 'X'); // cycle color scheme
     } else if (device === 'touch') {
       const tm = this.touchMenu;
       ev.up = tm.up; ev.down = tm.down; ev.left = tm.left; ev.right = tm.right;
-      ev.confirm = tm.confirm; ev.back = tm.back;
+      ev.confirm = tm.confirm; ev.back = tm.back; ev.alt = tm.alt;
     }
     return ev;
   }

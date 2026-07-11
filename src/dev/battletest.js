@@ -6,7 +6,7 @@ import { Engine } from '../core/engine.js';
 import { World } from '../game/world.js';
 import { Arena } from '../arena/arena.js';
 import { THEMES_BY_ID, THEMES } from '../arena/themes.js';
-import { ROSTER_BY_ID, ROSTER } from '../mechs/roster.js';
+import { ROSTER_BY_ID, ROSTER, applyColorScheme } from '../mechs/roster.js';
 import { Fighter } from '../combat/fighter.js';
 import { AIController } from '../game/ai.js';
 import { Input } from '../game/input.js';
@@ -42,7 +42,9 @@ export function runBattleTest() {
   const fighters = [];
   const ais = [];
   ids.forEach((id, i) => {
-    const def = ROSTER_BY_ID[id] || pick(ROSTER);
+    // &c1..c4 pick a color scheme (0-3) per fighter for testing
+    const def = applyColorScheme(
+      ROSTER_BY_ID[id] || pick(ROSTER), +params.get('c' + (i + 1)) || 0);
     const f = new Fighter(world, def, {
       pos: spawns[i].pos, yaw: spawns[i].yaw, playerIndex: i, isAI: auto || i > 0,
     });

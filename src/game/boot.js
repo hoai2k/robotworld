@@ -6,7 +6,7 @@ import { Input } from './input.js';
 import { World } from './world.js';
 import { Arena } from '../arena/arena.js';
 import { THEMES_BY_ID } from '../arena/themes.js';
-import { ROSTER_BY_ID, ROSTER } from '../mechs/roster.js';
+import { ROSTER_BY_ID, ROSTER, applyColorScheme, SCHEME_COUNT } from '../mechs/roster.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { Fighter, PLAYER_COLORS } from '../combat/fighter.js';
@@ -75,7 +75,7 @@ class MenuStage {
   // one preview mech per human picker, each on a player-colored ring
   showPreviews(entries) {
     if (!entries || !entries.length) return;
-    const key = entries.map((e) => `${e.id}:${e.slotIdx}`).join('|');
+    const key = entries.map((e) => `${e.id}:${e.slotIdx}:${e.variant || 0}`).join('|');
     if (this._previewKey === key) return;
     this._previewKey = key;
     this.previewId = key;
@@ -84,7 +84,7 @@ class MenuStage {
     const cx = n === 1 ? 6.5 : 2.5;
     const spacing = 6.5;
     entries.forEach((e, i) => {
-      const mech = buildMech(ROSTER_BY_ID[e.id]);
+      const mech = buildMech(applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0));
       mech.animator = new Animator(mech);
       const x = cx + (i - (n - 1) / 2) * spacing;
       mech.group.position.set(x, 0, 0);
@@ -291,6 +291,7 @@ export async function bootGame() {
     battle: null,        // battle context
     slots: null,
     picks: null,
+    variants: null,      // color scheme per slot
     themeId: null,
     mode: 'title',
   };
@@ -336,7 +337,7 @@ export async function bootGame() {
     setScreen(new MechSelectScreen(uiRoot, {
       slots: S.slots, input, audio,
       onPreview: (entries) => S.stage?.showPreviews(entries),
-      onDone: (picks) => { S.picks = picks; goArenaSelect(); },
+      onDone: (picks, variants) => { S.picks = picks; S.variants = variants; goArenaSelect(); },
       onBack: () => goSetup(),
     }));
   }
@@ -374,11 +375,22 @@ export async function bootGame() {
     S.slots.forEach((s, i) => { if (s.kind !== 'off') active.push({ slot: s, slotIdx: i }); });
     const spawns = arena.spawnPoints(active.length);
     const fighters = [], humans = [], ais = [];
-    // build mechs up-front: GLB-backed where the model manifest has one
-    const defs = active.map((a) => ROSTER_BY_ID[S.picks[a.slotIdx]] || ROSTER[(Math.random() * 12) | 0]);
-    const mechs = await Promise.all(defs.map((d) => createMech(d)));
+    // build mechs up-front: GLB-backed where the model manifest has one.
+    // Each fighter wears its chosen paint scheme; anyone sharing a mech id
+    // with an identical scheme (e.g. random AI picks) gets auto-bumped.
+    const defs = active.map((a) => {
+      const base = ROSTER_BY_ID[S.picks[a.slotIdx]] || ROSTER[(Math.random() * ROSTER.length) | 0];
+      return { base, variant: S.variants?.[a.slotIdx] || 0 };
+    });
+    defs.forEach((d, i) => {
+      const clash = () => defs.some((o, j) =>
+        j < i && o.base.id === d.base.id && o.variant === d.variant);
+      for (let t = 0; clash() && t < SCHEME_COUNT; t++) d.variant = (d.variant + 1) % SCHEME_COUNT;
+    });
+    const finalDefs = defs.map((d) => applyColorScheme(d.base, d.variant));
+    const mechs = await Promise.all(finalDefs.map((d) => createMech(d)));
     active.forEach((a, i) => {
-      const def = defs[i];
+      const def = finalDefs[i];
       const f = new Fighter(world, def, {
         pos: spawns[i].pos, yaw: spawns[i].yaw,
         playerIndex: a.slotIdx, isAI: a.slot.kind === 'ai',

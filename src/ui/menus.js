@@ -1,6 +1,6 @@
 // Menu screens: Title → Setup → Mech Select → Arena Select → (battle) → Results.
 // Each screen builds DOM into #ui-root and consumes aggregated menu events.
-import { ROSTER } from '../mechs/roster.js';
+import { ROSTER, SCHEME_NAMES, SCHEME_COUNT, schemeSwatch } from '../mechs/roster.js';
 import { THEMES } from '../arena/themes.js';
 import { isTouchDevice } from '../core/utils.js';
 
@@ -267,10 +267,11 @@ export class MechSelectScreen {
     this.pickers = [];
     this.slots.forEach((s, i) => {
       if (s.kind === 'human') {
-        this.pickers.push({ slotIdx: i, device: s.device, cursor: this.pickers.length, locked: false });
+        this.pickers.push({ slotIdx: i, device: s.device, cursor: this.pickers.length, locked: false, variant: 0 });
       }
     });
     this.picks = new Array(4).fill(null);
+    this.variants = new Array(4).fill(0); // color scheme per slot
     this.finished = false;
     // mouse/tap drives the touch picker if present, else kb1, else the first
     this.mousePicker = this.pickers.find((p) => p.device === 'touch')
@@ -307,13 +308,14 @@ export class MechSelectScreen {
     this.el.appendChild(this.status);
     this.el.appendChild(el('div', 'hint-bar',
       this.pickers.length > 1
-        ? 'everyone picks at once!&nbsp;&nbsp;<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> unlock · back'
-        : '<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> back'));
+        ? 'everyone picks at once!&nbsp;&nbsp;<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> unlock · back'
+        : '<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> back'));
     root.appendChild(this.el);
     // On touch: tap a tile to preview, then BACK / LOCK IN drive the pick.
     if (this.touch) {
       const bar = el('div', 'touch-navbar');
       bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => this.input.touchMenuEvent('back')));
+      bar.appendChild(touchBtn('🎨 COLOR', 'nav-back', () => this.input.touchMenuEvent('alt')));
       bar.appendChild(touchBtn('LOCK IN ▶', 'nav-next', () => { if (this.mousePicker) this.lockIn(this.mousePicker); }));
       this.el.appendChild(bar);
     }
@@ -331,13 +333,29 @@ export class MechSelectScreen {
     this.renderCard();
     this.renderChips();
     this.onPreview?.(this.pickers.map((pk) => ({
-      id: ROSTER[pk.cursor].id, slotIdx: pk.slotIdx, locked: pk.locked,
+      id: ROSTER[pk.cursor].id, slotIdx: pk.slotIdx, locked: pk.locked, variant: pk.variant,
     })));
+  }
+
+  // scheme selector row: 4 swatches for the hovered mech, current one framed
+  schemeRow(m, pk) {
+    const sw = (v) => {
+      const col = '#' + schemeSwatch(m, v).toString(16).padStart(6, '0');
+      const on = pk.variant === v;
+      return `<span title="${SCHEME_NAMES[v]}" style="display:inline-block;width:15px;height:15px;border-radius:3px;
+        margin-right:5px;vertical-align:middle;background:${col};
+        border:2px solid ${on ? '#fff' : 'rgba(255,255,255,0.18)'};"></span>`;
+    };
+    let row = '';
+    for (let v = 0; v < SCHEME_COUNT; v++) row += sw(v);
+    return `<div style="margin-top:6px;font-size:11px;letter-spacing:0.14em;color:#b8d4e6;">
+      COLOR ${row}<span style="opacity:0.8;">${SCHEME_NAMES[pk.variant]}</span></div>`;
   }
 
   renderCard() {
     if (this.pickers.length === 1) {
-      const m = ROSTER[this.pickers[0].cursor];
+      const pk = this.pickers[0];
+      const m = ROSTER[pk.cursor];
       this.card.innerHTML = `
         <div class="mi-name" style="color:#${m.colors.glow.toString(16).padStart(6, '0')}">${m.icon} ${m.name}</div>
         <div class="mi-title">${m.title}</div>
@@ -350,7 +368,8 @@ export class MechSelectScreen {
         <div class="mi-moves">
           <b>RANGED</b> ${m.moves.ranged.name} &nbsp;·&nbsp; <b>SPECIAL</b> ${m.moves.special.name}<br>
           <b>ULTIMATE</b> ${m.moves.ult.name}
-        </div>`;
+        </div>
+        ${this.schemeRow(m, pk)}`;
       return;
     }
     // multi-player: one compact card per picker, tinted with player color
@@ -367,6 +386,7 @@ export class MechSelectScreen {
           <div class="mi-moves" style="margin-top:6px;">
             <b>RNG</b> ${m.moves.ranged.name} · <b>SPC</b> ${m.moves.special.name} · <b>ULT</b> ${m.moves.ult.name}
           </div>
+          ${this.schemeRow(m, pk)}
         </div>`;
     }).join('');
   }
@@ -382,7 +402,8 @@ export class MechSelectScreen {
         chip.textContent = `P${i + 1} · CPU`;
         chip.classList.add('done');
       } else if (pk?.locked) {
-        chip.textContent = `P${i + 1} ✓ ${ROSTER[pk.cursor].name}`;
+        chip.textContent = `P${i + 1} ✓ ${ROSTER[pk.cursor].name}` +
+          (pk.variant ? ` · ${SCHEME_NAMES[pk.variant]}` : '');
         chip.classList.add('done');
       } else {
         chip.textContent = `P${i + 1} PICKING...`;
@@ -399,8 +420,16 @@ export class MechSelectScreen {
 
   lockIn(pk) {
     if (pk.locked || this.finished) return;
+    // duplicate mech: auto-bump to the next free paint scheme so two
+    // players on the same robot can always tell each other apart
+    const clash = () => this.pickers.some((o) =>
+      o !== pk && o.locked && o.cursor === pk.cursor && o.variant === pk.variant);
+    for (let tries = 0; clash() && tries < SCHEME_COUNT; tries++) {
+      pk.variant = (pk.variant + 1) % SCHEME_COUNT;
+    }
     pk.locked = true;
     this.picks[pk.slotIdx] = ROSTER[pk.cursor].id;
+    this.variants[pk.slotIdx] = pk.variant;
     this.audio?.play('uiSelect');
     if (pk.device.startsWith('pad')) this.input.rumble(+pk.device[3], 0.45, 130);
     this.refresh();
@@ -420,7 +449,7 @@ export class MechSelectScreen {
       }
     });
     // brief beat so the last lock-in lands before the screen changes
-    setTimeout(() => this.onDone(this.picks), 450);
+    setTimeout(() => this.onDone(this.picks, this.variants), 450);
   }
 
   update(evAll) {
@@ -437,6 +466,7 @@ export class MechSelectScreen {
       const confirm = ev.confirm || (solo && evAll?.confirm);
       const back = ev.back || (solo && evAll?.back);
 
+      const alt = ev.alt || (solo && evAll?.alt);
       if (!pk.locked) {
         const N = ROSTER.length, cols = 4;
         let moved = false;
@@ -444,15 +474,29 @@ export class MechSelectScreen {
         if (right) { pk.cursor = (pk.cursor + 1) % N; moved = true; }
         if (up) { pk.cursor = (pk.cursor + N - cols) % N; moved = true; }
         if (down) { pk.cursor = (pk.cursor + cols) % N; moved = true; }
+        if (alt) { // cycle paint scheme
+          pk.variant = (pk.variant + 1) % SCHEME_COUNT;
+          this.variants[pk.slotIdx] = pk.variant;
+          moved = true;
+        }
         if (moved) { this.audio?.play('uiMove'); this.refresh(); }
         if (confirm) this.lockIn(pk);
         if (back) anyBack = true;
-      } else if (back) {
-        // unlock and keep picking
-        pk.locked = false;
-        this.picks[pk.slotIdx] = null;
-        this.audio?.play('uiBack');
-        this.refresh();
+      } else {
+        if (alt || left || right) {
+          // still waiting on the others: keep cycling your paint scheme
+          pk.variant = (pk.variant + 1) % SCHEME_COUNT;
+          this.variants[pk.slotIdx] = pk.variant;
+          this.audio?.play('uiMove');
+          this.refresh();
+        }
+        if (back) {
+          // unlock and keep picking
+          pk.locked = false;
+          this.picks[pk.slotIdx] = null;
+          this.audio?.play('uiBack');
+          this.refresh();
+        }
       }
     }
     // back only exits the screen when nobody has locked anything

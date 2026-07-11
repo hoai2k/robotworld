@@ -196,21 +196,10 @@ export class CameraSystem {
     }
     if (solo) {
       const player = humans[0];
-      // frame tight on the player rather than the true centroid
-      _center.lerp(player.pos.clone().setY(_center.y), 0.5);
-      // HARD anchor: distant enemies may pull the frame only a few meters
-      // off the player — the player's own mech is never lost from view
-      const ox = _center.x - player.pos.x, oz = _center.z - player.pos.z;
-      const olen = Math.hypot(ox, oz);
-      if (olen > 9) {
-        _center.x = player.pos.x + (ox / olen) * 9;
-        _center.z = player.pos.z + (oz / olen) * 9;
-      }
-      // hover jets can lift the player far above the ground centroid —
-      // ride the frame up so a flying mech never exits the top of view
-      // (and a flying ENEMY can't drag it skyward away from us)
-      _center.y = Math.max(_center.y, player.pos.y + 3);
-      _center.y = Math.min(_center.y, player.pos.y + 10);
+      // the camera frames ONLY the player's mech — dead-center, always.
+      // Enemies never pull the frame; the orbit azimuth alone turns the
+      // view so the current threat tends to sit ahead of you.
+      _center.set(player.pos.x, player.pos.y + 4, player.pos.z);
       const enemy = player.nearestEnemy();
       if (enemy) {
         // offset direction points from the enemy toward the player (behind
@@ -228,7 +217,8 @@ export class CameraSystem {
     let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95);
     // Solo: pull in close for an over-the-shoulder chase (the enemy stays
     // framed because the camera is directly behind the player, facing them).
-    if (solo) wantDist = clamp(wantDist * 0.58, 22, 46);
+    // Tight max — a distant enemy must not shrink YOUR mech into the void.
+    if (solo) wantDist = clamp(wantDist * 0.58, 22, 34);
     if (!this.init) this.dist = wantDist;
     this.dist = damp(this.dist, wantDist, 3, dt);
 
@@ -326,33 +316,13 @@ export class CameraSystem {
         Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)
       ).multiplyScalar(dist);
       const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2, 0));
-      const enemy = f.nearestEnemy();
-      let lookAhead;
-      if (enemy) {
-        // lean toward the enemy's nearest image (may be across the seam),
-        // but never further than a few meters — the chase cam stays glued
-        // to its own mech no matter how far the enemy roams
-        _ray.set(
-          f.pos.x + this.world.wrapDelta(enemy.pos.x - f.pos.x),
-          enemy.pos.y,
-          f.pos.z + this.world.wrapDelta(enemy.pos.z - f.pos.z)
-        );
-        lookAhead = _center.copy(f.pos).lerp(_ray, 0.22);
-        const lox = lookAhead.x - f.pos.x, loz = lookAhead.z - f.pos.z;
-        const ll = Math.hypot(lox, loz);
-        if (ll > 8) {
-          lookAhead.x = f.pos.x + (lox / ll) * 8;
-          lookAhead.z = f.pos.z + (loz / ll) * 8;
-        }
-      } else {
-        lookAhead = _center.copy(f.pos);
-      }
+      // the chase cam tracks ONLY its own mech — opponents never pull the
+      // frame; use the right stick to look around
+      const lookAhead = _center.copy(f.pos);
       lookAhead.y += 4.5;
       // jet flight: keep the look target riding with the flyer so the mech
       // doesn't graze the top of its viewport at altitude
       lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
-      // ...and a sky-bound ENEMY can't tilt the view off our own mech
-      lookAhead.y = Math.min(lookAhead.y, f.pos.y + 9);
 
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);
