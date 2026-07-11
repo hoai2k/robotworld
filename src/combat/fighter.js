@@ -360,19 +360,35 @@ export class Fighter {
     const dirX = this.pos.x - src.x, dirZ = this.pos.z - src.z;
     const dLen = Math.sqrt(dirX * dirX + dirZ * dirZ) || 1;
 
-    // blocking: facing the source & holding block
+    // blocking: facing the source & holding block. Two ways an attack still
+    // gets through a raised guard:
+    //   • a CROUCHING attack slips under a STANDING block (crouch to block
+    //     low yourself) — this is the core crouch dynamic
+    //   • a guard-BREAKER (Saurion) shatters the block outright, more often
+    //     than anyone else
     if (this.blocking && this.state !== 'hitstun') {
       const toSrc = Math.atan2(-dirX, -dirZ);
       if (Math.abs(angleDiff(this.yaw, toSrc)) < 1.5) {
-        dmg *= 0.12;
-        knock *= 0.35;
-        this.world.effects.blockSpark(this.center(), 0x7fd8ff);
-        this.world.audio?.play('block');
-        this.hp = Math.max(1, this.hp - dmg);
-        this.vel.x += (dirX / dLen) * knock * 0.5;
-        this.vel.z += (dirZ / dLen) * knock * 0.5;
-        this.ult = clamp01(this.ult + dmg / 3000);
-        return;
+        const low = !!(attacker && attacker.ducking);       // crouched attack
+        const gb = attacker ? (attacker.def.stats.guardBreak || 0) : 0;
+        const underGuard = low && !this.ducking;            // high block vs low hit
+        const shattered = gb > 0 && Math.random() < gb;
+        if (!underGuard && !shattered) {
+          const pass = this.def.stats.blockMult ?? 0.12;    // fraction that leaks through
+          dmg *= pass;
+          knock *= 0.25 + pass;
+          this.world.effects.blockSpark(this.center(), 0x7fd8ff);
+          this.world.audio?.play('block');
+          this.hp = Math.max(1, this.hp - dmg);
+          this.vel.x += (dirX / dLen) * knock * 0.5;
+          this.vel.z += (dirZ / dLen) * knock * 0.5;
+          this.ult = clamp01(this.ult + dmg / 3000);
+          return;
+        }
+        // guard beaten: orange spark, a jolt of extra hitstun, full damage
+        this.world.effects.blockSpark(this.center(), 0xff5a3c);
+        this.world.audio?.play(shattered ? 'hitHeavy' : 'hit');
+        if (shattered) { knock *= 1.15; heavy = true; }
       }
     }
 
@@ -580,9 +596,11 @@ export class Fighter {
     const acting = this.canAct();
     this.blocking = acting && I.block; // blocking works airborne/hovering too
 
-    // ---- duck: hold to crouch (attacks and jumps pop back up) ----
+    // ---- duck: hold to crouch. Ducking PERSISTS through an attack (so a
+    // held-duck strike lands LOW and slips under a standing block); only
+    // jumping/airborne or blocking pops you back up ----
     const wantDuck = I.duck && this.grounded && !this.blocking &&
-      (this.state === 'normal' || this.state === 'channel');
+      (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
     this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
     this.ducking = this.duckT > 0.4;
     const dk = this.duckT * this.duckDepth;

@@ -1,6 +1,6 @@
 // Per-mech special & ultimate implementations, dispatched by id from roster.
 import * as THREE from 'three';
-import { rand, clamp, clamp01 } from '../core/utils.js';
+import { rand, clamp, clamp01, angleDiff } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
 
@@ -141,32 +141,51 @@ export const SPECIALS = {
     f.setState('special', dur * 0.8);
   },
 
-  // RHINO: bull rush charge
+  // RHINO: bull rush — charges forward as long as B is HELD, up to 5s. Each
+  // fresh target it plows into gets launched; it can re-hit after a moment.
   bullRush(f, sp) {
     f.animator.play('chargeLean');
-    f.setState('special', 0.85);
+    f.setState('special', 5.2); // held-charge ceiling; ended early on release
     f.world.audio?.play('charge');
-    const victims = new Set();
-    const steps = 17;
-    for (let i = 1; i <= steps; i++) {
-      f.world.schedule(i * 0.05, () => {
-        if (!f.alive || f.state !== 'special') return;
-        const spd = f.def.stats.speed * 3.1;
-        f.vel.x = Math.sin(f.yaw) * spd;
-        f.vel.z = Math.cos(f.yaw) * spd;
-        f.world.effects.dustPuff(f.pos, 2, 0x9a9088);
-        for (const e of f.world.fighters) {
-          if (e === f || !e.alive || victims.has(e)) continue;
-          if (e.pos.distanceTo(f.pos) < 3.6 * f.scale) {
-            victims.add(e);
-            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: sp.knock, launch: 8, srcPos: f.pos, heavy: true });
-            f.world.engine.addHitStop(0.08);
-            f.world.effects.addShake(0.5);
-          }
+    f._chargeT = 0;
+    const hitCd = new Map(); // fighter -> cooldown so a long charge can re-hit
+    const tick = () => {
+      if (!f.alive || f.state !== 'special') { f._charging = false; return; }
+      const dt = 0.05;
+      f._chargeT += dt;
+      // always commit to at least a short lunge (a tap still connects), then
+      // keep charging as long as the button is held, to a 5s cap
+      const holding = (f.intent.special || f._chargeT < 0.85) && f._chargeT < 5;
+      const spd = f.def.stats.speed * 3.1;
+      f.vel.x = Math.sin(f.yaw) * spd;
+      f.vel.z = Math.cos(f.yaw) * spd;
+      // gentle steer toward a nearby enemy so a long charge still tracks
+      const e0 = f.nearestEnemy();
+      if (e0 && f.pos.distanceTo(e0.pos) < 40) {
+        f.targetYaw = f.yawTo(e0);
+        f.yaw += clamp(angleDiff(f.targetYaw, f.yaw), -0.05, 0.05);
+      }
+      f.world.effects.dustPuff(f.pos, 2, 0x9a9088);
+      for (const [k, v] of hitCd) { const n = v - dt; if (n <= 0) hitCd.delete(k); else hitCd.set(k, n); }
+      for (const e of f.world.fighters) {
+        if (e === f || !e.alive || hitCd.has(e)) continue;
+        const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
+        if (Math.hypot(dx, dz) < 3.6 * f.scale) {
+          hitCd.set(e, 0.6);
+          e.takeHit(sp.dmg * f.dmgMult(), f, { knock: sp.knock, launch: 8, srcPos: f.pos, heavy: true });
+          f.world.engine.addHitStop(0.08);
+          f.world.effects.addShake(0.5);
         }
-        if (i === steps) { f.animator.stop(); f.setState('normal'); }
-      });
-    }
+      }
+      if (holding) f.world.schedule(dt, tick);
+      else {
+        f._charging = false;
+        f.animator.stop();
+        f.setState('attack', 0.3); // brief recovery on release/timeout
+      }
+    };
+    f._charging = true;
+    f.world.schedule(0.05, tick);
   },
 
   // TEMPEST: radial static discharge
@@ -321,61 +340,52 @@ export const SPECIALS = {
     const w = f.world;
     const e = f.nearestEnemy();
     f.animator.play('lunge', { speed: 1.15 });
-    f.setState('special', 1.6);
-    f.iframes = 0.35;
+    f.setState('special', 1.8);
+    f.iframes = 0.4;
     w.audio?.play('jump');
-    // ballistic arc timed to land exactly on the victim's led position
-    const T = 0.72; // airtime at vy 12.2 under g=34
-    let dist = sp.leap || 20;
+    // long ballistic pounce — a real leap that clears distance and arcs high
+    const T = 0.95; // airtime at vy ~16.2 under g=34
+    const maxLeap = sp.leap || 44;
+    let dist = maxLeap;
     if (e) {
-      const lead = leadPos(f, e, T * 0.8);
+      const lead = leadPos(f, e, T * 0.85);
       const dx = w.wrapDelta(lead.x - f.pos.x), dz = w.wrapDelta(lead.z - f.pos.z);
       f.yaw = f.targetYaw = Math.atan2(dx, dz);
-      dist = Math.min(sp.leap || 20, Math.hypot(dx, dz));
+      dist = Math.min(maxLeap, Math.hypot(dx, dz));
     }
     f.vel.x = Math.sin(f.yaw) * dist / T;
     f.vel.z = Math.cos(f.yaw) * dist / T;
-    f.vel.y = 12.3;
+    f.vel.y = 16.2;
     f.grounded = false;
     let done = false;
     const strike = () => {
       if (done || !f.alive) return;
       if (!f.grounded) { w.schedule(0.04, strike); return; }
       done = true;
-      let clawed = false;
+      // the body crashing down is a reliable slam (bleed on contact); anyone
+      // right under the claws then eats two pinning toe-rakes
+      w.groundShockwave(f, f.pos, 5.4 * f.scale, sp.dmg * f.dmgMult(), 8, 0xff3826);
+      w.audio?.play('slash');
+      w.engine.addHitStop(0.08);
       for (const v of w.fighters) {
         if (v === f || !v.alive) continue;
         const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
-        if (Math.hypot(dx, dz) < 4.8 * f.scale && Math.abs(v.pos.y - f.pos.y) < 4.5) {
-          clawed = true;
-          v.takeHit(sp.dmg * f.dmgMult(), f, {
-            knock: 6, srcPos: f.pos, heavy: true,
-            status: { burn: sp.bleed, burnT: 2.4 },
+        if (Math.hypot(dx, dz) >= 5.4 * f.scale || Math.abs(v.pos.y - f.pos.y) >= 4.5) continue;
+        v.applyStatus({ burn: sp.bleed, burnT: 2.4 });
+        for (let k = 1; k <= 2; k++) {
+          w.schedule(0.16 * k, () => {
+            if (!f.alive || !v.alive) return;
+            const rx = w.wrapDelta(v.pos.x - f.pos.x), rz = w.wrapDelta(v.pos.z - f.pos.z);
+            if (Math.hypot(rx, rz) < 5.4 * f.scale) {
+              v.takeHit(sp.dmg * 0.35 * f.dmgMult(), f, { knock: k === 2 ? 13 : 2, srcPos: f.pos });
+              w.audio?.play('slash');
+              w.effects.impactSparks(v.center(), 0xff3826, 10, 8);
+            }
           });
-          // pinned: two fast toe-claw rakes while they stagger
-          for (let k = 1; k <= 2; k++) {
-            w.schedule(0.16 * k, () => {
-              if (!f.alive || !v.alive) return;
-              const rx = w.wrapDelta(v.pos.x - f.pos.x), rz = w.wrapDelta(v.pos.z - f.pos.z);
-              if (Math.hypot(rx, rz) < 5.2 * f.scale) {
-                v.takeHit(sp.dmg * 0.35 * f.dmgMult(), f, { knock: k === 2 ? 13 : 2, srcPos: f.pos });
-                w.audio?.play('slash');
-                w.effects.impactSparks(v.center(), 0xff3826, 10, 8);
-              }
-            });
-          }
         }
       }
-      w.effects.dustPuff(f.pos, 10);
-      w.audio?.play(clawed ? 'slash' : 'bodyfall');
-      if (clawed) {
-        w.engine.addHitStop(0.08);
-        w.effects.addShake(0.5);
-        f.animator.play('flurry', { speed: 1.4 });
-        f.setState('special', 0.4);
-      } else {
-        f.setState('normal');
-      }
+      f.animator.play('flurry', { speed: 1.4 });
+      f.setState('special', 0.4);
     };
     w.schedule(0.2, strike);
   },

@@ -384,3 +384,42 @@ controllers via Gamepad API), AI opponents.
   swatch row on the info card, scheme name in the chips, live recolored
   stage preview; &c1..c4 debug params. Verified: 4 titanus in 4 schemes
   screenshot clearly distinct, attackmatrix ALL CONNECT, ace soak clean.
+- 2026-07-11: MENU MERGE + COMBAT/MODEL BATCH.
+  · UNIFIED FIGHTER SELECT: folded the old BATTLE SETUP screen into mech
+    select. Title → one screen. Controllers auto-join on connect; any
+    unassigned pad/keyboard JOINS by pressing confirm; an ＋ADD PLAYER card
+    cycles kb1/kb2/pads/CPU-tiers/off (click), CPU cards cycle difficulty /
+    remove. Everyone picks mech + color live; B leaves (frees the slot);
+    start needs ≥2 fighters all locked. SetupScreen deleted; players-bar UI +
+    CSS added; slots round-trip so returning restores the line-up.
+  · BLOCK TIERS: per-mech blockMult (fraction that leaks past a guard) —
+    Cranky 0.04 & Rhino 0.05 strongest, Aegis 0.06, heavies ~0.09-0.10,
+    lights (Viper/Wraith) 0.20. Knock scales with it. Verified Cranky
+    blocked 4 vs 74 unblocked.
+  · CROUCH DYNAMIC: an attack thrown while DUCKING lands LOW and slips under
+    a STANDING block (full dmg); crouch yourself to block low. Duck now
+    persists through the attack while held so the strike registers as low.
+    AI crouches vs a turtling blocker. Verified 74 through / 4 blocked.
+  · SAURION GUARD-BREAK: stats.guardBreak 0.6 → its hits shatter a raised
+    guard ~60% (orange spark, extra hitstun). Verified 24/40.
+  · RHINO HELD CHARGE: bull rush now rolls as long as B is HELD (min 0.85s
+    lunge so a tap still connects), up to a 5s cap; steers toward the enemy,
+    can re-hit; ends instantly on release. AI holds it. Matrix special 126.
+  · SAURION buffs: HP 900→1080; raptor pounce leap 22→44 (doubled) with a
+    higher, longer arc + a reliable landing slam (groundShockwave) then two
+    pinning toe-claw rakes with bleed.
+  · MODELS/ANIM: Cranky's hands rebuilt as real crab claws — bulbous
+    propodus off the wrist + fixed lower finger + a hinged upper dactyl
+    (jawL/R joints the animator gapes at rest and SNAPS shut on a strike),
+    no more "held geometry". Frogger's four arms now gait as one creature:
+    the upper cannon-pair counter-swing the lower pair (alternating pump)
+    with an idle bob, not 2 arms + static props. Saurion gets researched
+    raptor locomotion: a stride-synced travelling S-wave down the tail
+    (segments phase-lagged, amp scaling with speed, raised at rest → leveling
+    behind at speed) for angular-momentum counterbalance, plus head
+    stabilization that cancels the body's yaw sway to hold the gaze level.
+  Verified: build green, attackmatrix ALL CONNECT (rhino special 126,
+  saurion 58, titanus-ranged-0 was variance → 114 on rerun), 4-way ace soak
+  clean (3 KOs, no crash), select-flow drive-through (title→pick→lock→arena),
+  functional probes for block/crouch/guardbreak/charge + tail-wave/jaw-snap,
+  showcase + battle screenshots viewed.

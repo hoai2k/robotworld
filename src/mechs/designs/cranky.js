@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { beveledPlate, shieldOutline } from '../parts.js';
 import { decalTexture } from '../../core/pbrtex.js';
 import { baseFrame, standardArm, standardLeg, addAnchor } from '../factory.js';
+import { addJoint } from './common.js';
 
 export function cranky(A, D, J, anchors, def) {
   const s = D.scale;
@@ -99,7 +100,10 @@ export function cranky(A, D, J, anchors, def) {
     anchors['muzzle' + side] = addAnchor(J.torso, bx, by, bz + bl * 0.98);
   }
 
-  // ================= ARMS -> GIANT PINCERS =================
+  // ================= ARMS -> GIANT CRAB CLAWS =================
+  // The claw IS the hand: a bulbous propodus riding straight off the wrist,
+  // a fixed lower finger and a hinged upper dactyl (the 'jaw' joint the
+  // animator snaps shut on attacks) forming a forward-opening pincer.
   for (const side of ['L', 'R']) {
     const sx = side === 'L' ? -1 : 1;
     standardArm(A, D, side, { fist: false, foreArmor: false, bulk: 1.05 });
@@ -107,24 +111,40 @@ export function cranky(A, D, J, anchors, def) {
     // forearm shell cap
     A.facet('elbow' + side, 'primary', 0.3 * s, 0.36 * s, 0.3 * s, D.foreArmLen * 0.8, {
       sides: 8, p: [0, -D.foreArmLen * 0.5, 0] });
-    // pincer body: fat oval shell
-    A.lathe(ha, 'primary', [
-      [0.15 * s, 0.18 * s], [-0.1 * s, 0.42 * s], [-0.55 * s, 0.5 * s], [-0.95 * s, 0.32 * s], [-1.15 * s, 0.1 * s],
-    ], { seg: 14, scaleX: 0.72 });
-    // fixed lower jaw
-    A.blade(ha, 'primary', 1.15 * s, 0.4 * s, 0.24 * s, {
-      p: [0, -0.95 * s, 0.28 * s], r: [0.85, 0, sx * 0.12], taper: 0.3 });
-    // upper jaw, slightly open
-    A.blade(ha, 'dark', 0.95 * s, 0.32 * s, 0.18 * s, {
-      p: [0, -0.8 * s, 0.5 * s], r: [1.35, 0, -sx * 0.1], taper: 0.32 });
-    // chrome saw teeth along both jaws
-    for (let i = 0; i < 4; i++) {
-      A.spike(ha, 'metal', 0.05 * s, 0.14 * s, {
-        p: [0, (-0.72 - i * 0.16) * s, (0.42 - i * 0.02) * s], r: [2.0, 0, 0], seg: 5 });
-      A.spike(ha, 'metal', 0.045 * s, 0.12 * s, {
-        p: [0, (-0.68 - i * 0.14) * s, (0.55 + i * 0.015) * s], r: [-1.1, 0, 0], seg: 5 });
+
+    // wrist knuckle blends the claw into the arm
+    A.ball(ha, 'frame', 0.3 * s, { p: [0, 0, 0] });
+    // PROPODUS: fat claw-hand bulb lying along the forearm's forward axis
+    // (capsules default along Y; tip them forward so the claw juts ahead)
+    A.capsule(ha, 'primary', 0.46 * s, 0.62 * s, { p: [sx * 0.05 * s, -0.16 * s, 0.34 * s], r: [Math.PI / 2 - 0.28, 0, 0] });
+    A.capsule(ha, 'primary', 0.34 * s, 0.5 * s, { p: [sx * 0.04 * s, -0.34 * s, 0.74 * s], r: [Math.PI / 2 - 0.15, 0, 0] });
+    // rust ridge along the top of the bulb
+    A.box(ha, 'accent', [0.12 * s, 0.16 * s, 0.7 * s], { p: [sx * 0.05 * s, 0.06 * s, 0.42 * s], r: [-0.2, 0, 0] });
+
+    // FIXED lower finger (dactyl) — curved to a point, opening upward
+    A.blade(ha, 'primary', 1.15 * s, 0.42 * s, 0.28 * s, {
+      p: [sx * 0.02 * s, -0.46 * s, 1.02 * s], r: [Math.PI / 2 + 0.18, 0, 0], taper: 0.16 });
+    A.spike(ha, 'primary', 0.13 * s, 0.5 * s, { p: [sx * 0.02 * s, -0.5 * s, 1.5 * s], r: [Math.PI / 2 - 0.35, 0, 0], seg: 6 });
+    // inner saw teeth on the lower finger
+    for (let i = 0; i < 5; i++) {
+      A.spike(ha, 'metal', 0.05 * s, 0.15 * s, {
+        p: [sx * 0.02 * s, -0.34 * s, (0.7 + i * 0.18) * s], r: [0, 0, 0], seg: 5 });
     }
-    anchors['claw' + side] = addAnchor(J[ha], 0, -1.0 * s, 0.4 * s);
+
+    // HINGED upper dactyl on its own joint (pivots at the front of the bulb)
+    const jaw = 'jaw' + side;
+    addJoint(J, jaw, ha, sx * 0.02 * s, 0.12 * s, 0.68 * s);
+    A.blade(jaw, 'primary', 1.0 * s, 0.38 * s, 0.24 * s, {
+      p: [0, 0.12 * s, 0.42 * s], r: [Math.PI / 2 + 0.5, 0, 0], taper: 0.18 });
+    A.spike(jaw, 'primary', 0.11 * s, 0.42 * s, { p: [0, 0.2 * s, 0.86 * s], r: [Math.PI / 2 + 0.9, 0, 0], seg: 6 });
+    for (let i = 0; i < 4; i++) {
+      A.spike(jaw, 'metal', 0.045 * s, 0.13 * s, {
+        p: [0, 0.05 * s, (0.24 + i * 0.18) * s], r: [Math.PI, 0, 0], seg: 5 });
+    }
+    // glowing hydraulic seam on the knuckle
+    A.box(ha, 'glow', [0.04 * s, 0.04 * s, 0.34 * s], { p: [sx * 0.22 * s, 0.02 * s, 0.5 * s], r: [-0.15, 0, 0] });
+
+    anchors['claw' + side] = addAnchor(J[ha], 0, -0.4 * s, 1.6 * s);
   }
 
   // ================= LEGS + DECOR CRAB LEGS =================

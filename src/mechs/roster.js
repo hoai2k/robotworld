@@ -12,7 +12,7 @@ export const ROSTER = [
       accent: { base: 0x3e4148, base2: 0x34373d, metal: 0x8a8f96, wear: 0.6, grime: 0.6, panelDepth: 3, roughPaint: 0.55, metalPaint: 0.45, normalStrength: 1.1 },
     },
     body: { scale: 1.28, torsoW: 1.25, torsoH: 1.05, headSize: 0.9, armLen: 1.15, legLen: 1.0, hipW: 1.15, bulk: 1.1 },
-    stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22 },
+    stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22, blockMult: 0.09 },
     ui: { power: 10, speed: 3, defense: 9 },
     moves: {
       light: { dmg: [46, 50, 68], knock: [6, 7, 16], range: 3.4 },
@@ -34,7 +34,7 @@ export const ROSTER = [
       accent: { base: 0x9c2f28, base2: 0x8a2822, metal: 0x8a8f96, wear: 0.48, grime: 0.42, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.3, normalStrength: 1.1 },
     },
     body: { scale: 1.16, torsoW: 1.28, torsoH: 1.0, headSize: 0.85, armLen: 0.95, legLen: 1.0, hipW: 1.1, bulk: 1.12 },
-    stats: { hp: 950, speed: 9.5, jump: 13, weight: 0.62, armor: 0.1 },
+    stats: { hp: 950, speed: 9.5, jump: 13, weight: 0.62, armor: 0.1, blockMult: 0.12 },
     ui: { power: 7, speed: 5, defense: 5 },
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 2.9 },
@@ -54,7 +54,7 @@ export const ROSTER = [
       accent: { base: 0xc9a542, base2: 0xb08d32, metal: 0x9aa0a8, wear: 0.2, grime: 0.12, panelDepth: 3, roughPaint: 0.36, metalPaint: 0.7, normalStrength: 1.0 },
     },
     body: { scale: 1.15, torsoW: 1.08, torsoH: 1.05, headSize: 0.9, armLen: 1.05, legLen: 1.05, hipW: 1.0, bulk: 1.0 },
-    stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16 },
+    stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
@@ -75,7 +75,7 @@ export const ROSTER = [
     },
     body: { scale: 1.0, torsoW: 0.85, torsoH: 0.95, headSize: 0.85, armLen: 1.05, legLen: 1.12, hipW: 0.85, bulk: 0.85 },
     restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
-    stats: { hp: 780, speed: 13.5, jump: 15.5, weight: 0.3, armor: 0 },
+    stats: { hp: 780, speed: 13.5, jump: 15.5, weight: 0.3, armor: 0, blockMult: 0.2 },
     ui: { power: 6, speed: 10, defense: 2 },
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
@@ -95,7 +95,7 @@ export const ROSTER = [
       accent: { base: 0x3e7a78, base2: 0x336562, metal: 0x9aa0a8, wear: 0.16, grime: 0.1, panelDepth: 3, roughPaint: 0.42, metalPaint: 0.4, normalStrength: 1.0 },
     },
     body: { scale: 1.05, torsoW: 0.9, torsoH: 1.05, headSize: 0.85, armLen: 1.0, legLen: 1.08, hipW: 0.88, bulk: 0.85 },
-    stats: { hp: 850, speed: 10, jump: 14, weight: 0.4, armor: 0.05 },
+    stats: { hp: 850, speed: 10, jump: 14, weight: 0.4, armor: 0.05, blockMult: 0.14 },
     ui: { power: 8, speed: 6, defense: 3 },
     moves: {
       light: { dmg: [28, 30, 42], knock: [4, 4, 10], range: 3.4 },
@@ -115,7 +115,7 @@ export const ROSTER = [
       accent: { base: 0x8c3a32, base2: 0x74302a, metal: 0x8a8f96, wear: 0.74, grime: 0.62, panelDepth: 4, roughPaint: 0.58, metalPaint: 0.42, normalStrength: 1.25 },
     },
     body: { scale: 1.22, torsoW: 1.2, torsoH: 1.0, headSize: 0.95, armLen: 1.08, legLen: 0.98, hipW: 1.12, bulk: 1.1 },
-    stats: { hp: 1150, speed: 8.2, jump: 12, weight: 0.9, armor: 0.18 },
+    stats: { hp: 1150, speed: 8.2, jump: 12, weight: 0.9, armor: 0.18, blockMult: 0.05 },
     ui: { power: 9, speed: 4, defense: 7 },
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 6, 14], range: 3.4 },
@@ -135,7 +135,7 @@ export const ROSTER = [
       accent: { base: 0x1e2740, base2: 0x181f34, metal: 0x767c86, wear: 0.34, grime: 0.22, panelDepth: 4, roughPaint: 0.46, metalPaint: 0.4, normalStrength: 1.1 },
     },
     body: { scale: 1.06, torsoW: 0.95, torsoH: 1.0, headSize: 0.85, armLen: 1.02, legLen: 1.08, hipW: 0.9, bulk: 0.9 },
-    stats: { hp: 880, speed: 11.5, jump: 15, weight: 0.42, armor: 0.04 },
+    stats: { hp: 880, speed: 11.5, jump: 15, weight: 0.42, armor: 0.04, blockMult: 0.14 },
     ui: { power: 7, speed: 8, defense: 3 },
     moves: {
       light: { dmg: [28, 30, 44], knock: [4, 4, 10], range: 3.2 },
@@ -156,7 +156,7 @@ export const ROSTER = [
     },
     body: { scale: 1.05, torsoW: 1.0, torsoH: 0.95, headSize: 0.9, armLen: 1.08, legLen: 1.1, hipW: 0.9, bulk: 0.92 },
     restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
-    stats: { hp: 900, speed: 12.5, jump: 15, weight: 0.45, armor: 0.05 },
+    stats: { hp: 900, speed: 12.5, jump: 15, weight: 0.45, armor: 0.05, blockMult: 0.13 },
     ui: { power: 7, speed: 9, defense: 3 },
     moves: {
       light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.3 },
@@ -176,7 +176,7 @@ export const ROSTER = [
       accent: { base: 0x4a4640, base2: 0x3c3934, metal: 0x7e838c, wear: 0.6, grime: 0.62, panelDepth: 3, roughPaint: 0.58, metalPaint: 0.38, normalStrength: 1.15 },
     },
     body: { scale: 1.3, torsoW: 1.3, torsoH: 1.0, headSize: 0.85, armLen: 1.05, legLen: 0.95, hipW: 1.2, bulk: 1.15 },
-    stats: { hp: 1300, speed: 6.5, jump: 11, weight: 1.0, armor: 0.24 },
+    stats: { hp: 1300, speed: 6.5, jump: 11, weight: 1.0, armor: 0.24, blockMult: 0.09 },
     ui: { power: 9, speed: 2, defense: 9 },
     moves: {
       light: { dmg: [42, 46, 62], knock: [6, 6, 14], range: 3.5 },
@@ -197,7 +197,7 @@ export const ROSTER = [
     },
     body: { scale: 1.02, torsoW: 0.85, torsoH: 1.0, headSize: 0.9, armLen: 1.05, legLen: 1.1, hipW: 0.85, bulk: 0.82 },
     restPose: { thighL: [-26, 0, 0], thighR: [-26, 0, 0], kneeL: [49, 0, 0], kneeR: [49, 0, 0], ankleL: [-23, 0, 0], ankleR: [-23, 0, 0] },
-    stats: { hp: 800, speed: 11, jump: 14, weight: 0.35, armor: 0 },
+    stats: { hp: 800, speed: 11, jump: 14, weight: 0.35, armor: 0, blockMult: 0.2 },
     ui: { power: 8, speed: 7, defense: 2 },
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.0 },
@@ -217,7 +217,7 @@ export const ROSTER = [
       accent: { base: 0x2a2624, base2: 0x201d1c, metal: 0x6e737c, wear: 0.6, grime: 0.7, panelDepth: 3, roughPaint: 0.6, metalPaint: 0.4, normalStrength: 1.2 },
     },
     body: { scale: 1.18, torsoW: 1.18, torsoH: 1.0, headSize: 0.9, armLen: 1.05, legLen: 0.98, hipW: 1.08, bulk: 1.05 },
-    stats: { hp: 1050, speed: 8.8, jump: 12.5, weight: 0.75, armor: 0.14 },
+    stats: { hp: 1050, speed: 8.8, jump: 12.5, weight: 0.75, armor: 0.14, blockMult: 0.11 },
     ui: { power: 8, speed: 4, defense: 6 },
     moves: {
       light: { dmg: [36, 38, 54], knock: [5, 5, 12], range: 3.3 },
@@ -237,7 +237,7 @@ export const ROSTER = [
       accent: { base: 0x4c5560, base2: 0x3e4650, metal: 0x8a8f96, wear: 0.44, grime: 0.3, panelDepth: 3, roughPaint: 0.52, metalPaint: 0.45, normalStrength: 1.1 },
     },
     body: { scale: 1.24, torsoW: 1.22, torsoH: 1.0, headSize: 0.9, armLen: 1.08, legLen: 0.98, hipW: 1.1, bulk: 1.08 },
-    stats: { hp: 1200, speed: 7.5, jump: 12, weight: 0.92, armor: 0.2 },
+    stats: { hp: 1200, speed: 7.5, jump: 12, weight: 0.92, armor: 0.2, blockMult: 0.10 },
     ui: { power: 8, speed: 3, defense: 8 },
     moves: {
       light: { dmg: [38, 42, 58], knock: [5, 6, 13], range: 3.4 },
@@ -260,7 +260,7 @@ export const ROSTER = [
     },
     body: { scale: 1.3, torsoW: 1.5, torsoH: 0.85, headSize: 0.6, armLen: 1.18, legLen: 0.85, hipW: 1.32, bulk: 1.25 },
     restPose: { shoulderL: [8, 0, -26], shoulderR: [8, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], thighL: [-8, 0, -8], thighR: [-8, 0, 8], kneeL: [16, 0, 0], kneeR: [16, 0, 0], ankleL: [-8, 0, 0], ankleR: [-8, 0, 0] },
-    stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26 },
+    stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26, blockMult: 0.04 },
     ui: { power: 8, speed: 3, defense: 10 },
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
@@ -285,7 +285,7 @@ export const ROSTER = [
     // velociraptor stance: whole spine pitched forward over deeply-bent
     // digitigrade legs, head craned back up to keep eyes on the prey
     restPose: { torso: [27, 0, 0], head: [-25, 0, 0], thighL: [-45, 0, 0], thighR: [-45, 0, 0], kneeL: [75, 0, 0], kneeR: [75, 0, 0], ankleL: [-34, 0, 0], ankleR: [-34, 0, 0] },
-    stats: { hp: 900, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06, duck: 0.75 },
+    stats: { hp: 1080, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06, duck: 0.75, blockMult: 0.16, guardBreak: 0.6 },
     ui: { power: 7, speed: 10, defense: 3 },
     moves: {
       light: { dmg: [32, 34, 48], knock: [4, 5, 12], range: 3.5 },
@@ -308,7 +308,7 @@ export const ROSTER = [
     },
     body: { scale: 1.1, torsoW: 1.2, torsoH: 0.95, headSize: 0.7, armLen: 1.0, legLen: 1.05, hipW: 1.05, bulk: 1.05 },
     restPose: { thighL: [-30, 0, -6], thighR: [-30, 0, 6], kneeL: [55, 0, 0], kneeR: [55, 0, 0], ankleL: [-25, 0, 0], ankleR: [-25, 0, 0] },
-    stats: { hp: 1000, speed: 10.5, jump: 19, weight: 0.5, armor: 0.12, duck: 1.0 },
+    stats: { hp: 1000, speed: 10.5, jump: 19, weight: 0.5, armor: 0.12, duck: 1.0, blockMult: 0.14 },
     ui: { power: 6, speed: 8, defense: 5 },
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 3.0 },

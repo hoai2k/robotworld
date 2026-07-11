@@ -69,191 +69,13 @@ export class TitleScreen {
   destroy() { this.el.remove(); }
 }
 
-// ---------------- BATTLE SETUP ----------------
-// 4 slots; each cycles: kb1, kb2, pads (connected), AI tiers, OFF.
-export class SetupScreen {
-  constructor(root, { input, audio, onNext, onBack, prev }) {
-    this.input = input;
-    this.audio = audio;
-    this.onNext = onNext;
-    this.onBack = onBack;
-    this.el = el('div', 'screen dim fade-in');
-    this.el.appendChild(el('div', 'screen-heading', 'BATTLE SETUP'));
-    this.grid = el('div', 'setup-grid');
-    this.el.appendChild(this.grid);
-    this.touch = isTouchDevice();
-    this.el.appendChild(el('div', 'hint-bar',
-      '<b>←→</b> player&nbsp;&nbsp;<b>↑↓</b> change&nbsp;&nbsp;<b>ENTER / A</b> continue&nbsp;&nbsp;<b>ESC / B</b> back&nbsp;&nbsp;·&nbsp;&nbsp;need at least 2 fighters'));
-    root.appendChild(this.el);
-
-    this.slots = prev || this.defaultSlots();
-    // once the player has made choices (or brought previous ones), stop
-    // auto-assigning newly connected controllers over them
-    this._touched = !!prev;
-    this._padCount = this.input.connectedPadCount();
-    this.cursor = 0;
-    this.cards = [];
-    for (let i = 0; i < 4; i++) {
-      const c = el('div', 'panel slot-card');
-      // Tap/click a card to cycle: left half = previous option, right half = next.
-      c.addEventListener('click', (e) => {
-        this.cursor = i;
-        const r = c.getBoundingClientRect();
-        this.cycle(i, (e.clientX - r.left) < r.width / 2 ? -1 : 1);
-      });
-      this.grid.appendChild(c);
-      this.cards.push(c);
-    }
-
-    if (this.touch) {
-      const bar = el('div', 'touch-navbar');
-      bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => { this.audio?.play('uiBack'); this.onBack(); }));
-      bar.appendChild(touchBtn('CONTINUE ▶', 'nav-next', () => this.tryContinue()));
-      this.el.appendChild(bar);
-    }
-    this.render();
-  }
-
-  connectedPads() {
-    const pads = [];
-    for (let i = 0; i < 4; i++) if (this.input.padConnected(i)) pads.push('pad' + i);
-    return pads;
-  }
-
-  // Controllers plugged in? They ARE the players: first two pads take the
-  // first two slots. Otherwise touch or keyboard vs one AI.
-  defaultSlots() {
-    const pads = this.connectedPads();
-    if (pads.length >= 2) {
-      return [{ kind: 'human', device: pads[0] }, { kind: 'human', device: pads[1] }, { kind: 'off' }, { kind: 'off' }];
-    }
-    if (pads.length === 1) {
-      return [{ kind: 'human', device: pads[0] }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
-    }
-    if (this.touch) {
-      return [{ kind: 'human', device: 'touch' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
-    }
-    return [{ kind: 'human', device: 'kb1' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
-  }
-
-  options() {
-    const opts = [];
-    if (this.input.touchAvailable) opts.push({ kind: 'human', device: 'touch' });
-    opts.push({ kind: 'human', device: 'kb1' }, { kind: 'human', device: 'kb2' });
-    for (let i = 0; i < 4; i++) {
-      if (this.input.padConnected(i)) opts.push({ kind: 'human', device: 'pad' + i });
-    }
-    opts.push({ kind: 'ai', diff: 'rookie' }, { kind: 'ai', diff: 'veteran' }, { kind: 'ai', diff: 'ace' }, { kind: 'off' });
-    return opts;
-  }
-
-  tryContinue() {
-    if (this.activeCount() >= 2) { this.audio?.play('uiSelect'); this.onNext(this.slots); }
-    else this.audio?.play('uiBack');
-  }
-
-  optIndex(slot) {
-    const opts = this.options();
-    return opts.findIndex((o) =>
-      o.kind === slot.kind &&
-      (o.kind !== 'human' || o.device === slot.device) &&
-      (o.kind !== 'ai' || o.diff === slot.diff));
-  }
-
-  deviceTaken(device, exceptSlot) {
-    return this.slots.some((s, i) => i !== exceptSlot && s.kind === 'human' && s.device === device);
-  }
-
-  cycle(slotIdx, dir) {
-    this._touched = true;
-    const opts = this.options();
-    let idx = this.optIndex(this.slots[slotIdx]);
-    if (idx < 0) idx = opts.length - 1;
-    for (let n = 0; n < opts.length; n++) {
-      idx = (idx + dir + opts.length) % opts.length;
-      const o = opts[idx];
-      if (o.kind === 'human' && this.deviceTaken(o.device, slotIdx)) continue;
-      this.slots[slotIdx] = { ...o };
-      break;
-    }
-    this.audio?.play('uiMove');
-    this.render();
-  }
-
-  label(s) {
-    if (s.kind === 'off') return { v: '— OFF —', sub: '' };
-    if (s.kind === 'ai') {
-      const names = { rookie: 'AI · ROOKIE', veteran: 'AI · VETERAN', ace: 'AI · ACE' };
-      return { v: names[s.diff], sub: 'computer-controlled fighter' };
-    }
-    if (s.device.startsWith('pad')) {
-      // number pads by their order among CONNECTED controllers, not their
-      // raw browser slot — two pads at indices 1 & 2 read GAMEPAD 1 & 2
-      return { v: `GAMEPAD ${this.padOrdinal(s.device)}`, sub: 'Xbox controller' };
-    }
-    const map = {
-      touch: ['TOUCH', 'On-screen joystick + buttons'],
-      kb1: ['KEYBOARD 1', 'WASD + F/G/H/R/T/Y · Space · Shift'],
-      kb2: ['KEYBOARD 2', 'Arrows + Numpad 1-6 · Num0 jump'],
-    };
-    return { v: map[s.device][0], sub: map[s.device][1] };
-  }
-
-  padOrdinal(device) {
-    const idx = +device[3];
-    let n = 0;
-    for (let i = 0; i < 4; i++) {
-      if (this.input.padConnected(i)) {
-        n++;
-        if (i === idx) return n;
-      }
-    }
-    return idx + 1; // disconnected pad: fall back to its raw slot number
-  }
-
-  render() {
-    this.slots.forEach((s, i) => {
-      const { v, sub } = this.label(s);
-      const c = this.cards[i];
-      c.classList.toggle('sel', i === this.cursor);
-      c.innerHTML = `
-        <div class="slot-label" style="color:${COLOR_CSS[i]}">PLAYER ${i + 1}</div>
-        <div class="slot-arrows">▲</div>
-        <div class="slot-value" style="color:${s.kind === 'off' ? '#4e6478' : '#fff'}">${v}</div>
-        <div class="slot-arrows">▼</div>
-        <div class="slot-sub">${sub}</div>`;
-    });
-  }
-
-  activeCount() { return this.slots.filter((s) => s.kind !== 'off').length; }
-
-  update(ev) {
-    // controllers often only register after a button press — when one shows
-    // up mid-screen, re-apply the pad defaults (unless the player already
-    // customized the slots) and refresh the ordinal labels
-    const padCount = this.input.connectedPadCount();
-    if (padCount !== this._padCount) {
-      this._padCount = padCount;
-      if (!this._touched) this.slots = this.defaultSlots();
-      this.render();
-    }
-    // cards are laid out left-to-right: ←→ picks the player, ↑↓ changes it
-    if (ev.left) { this.cursor = (this.cursor + 3) % 4; this.audio?.play('uiMove'); this.render(); }
-    if (ev.right) { this.cursor = (this.cursor + 1) % 4; this.audio?.play('uiMove'); this.render(); }
-    if (ev.up) this.cycle(this.cursor, 1);
-    if (ev.down) this.cycle(this.cursor, -1);
-    if (ev.confirm) this.tryContinue();
-    if (ev.back) { this.audio?.play('uiBack'); this.onBack(); }
-  }
-  destroy() { this.el.remove(); }
-}
-
-// ---------------- MECH SELECT ----------------
-// ALL human players pick simultaneously — each has their own colored cursor
-// and 3D preview; AI slots randomize once everyone locks in.
+// ---------------- FIGHTER SELECT (join + pick, one screen) ----------------
+// Players JOIN by connecting/pressing a controller, pressing a keyboard
+// confirm, or via the ADD PLAYER card (which can become KB / CPU / pad /
+// touch). Every joined human picks a mech + color simultaneously; CPU slots
+// randomize a mech once all humans lock in.
 export class MechSelectScreen {
-  constructor(root, { slots, input, audio, onDone, onBack, onPreview }) {
-    this.slots = slots;
+  constructor(root, { input, audio, onDone, onBack, onPreview, prev }) {
     this.input = input;
     this.audio = audio;
     this.onDone = onDone;
@@ -261,21 +83,15 @@ export class MechSelectScreen {
     this.onPreview = onPreview;
     this.touch = isTouchDevice();
     this.el = el('div', 'screen fade-in');
-    this.el.appendChild(el('div', 'screen-heading', 'CHOOSE YOUR MECH'));
+    this.el.appendChild(el('div', 'screen-heading', 'CHOOSE YOUR FIGHTER'));
 
-    // one picker per human slot, all live at once
-    this.pickers = [];
-    this.slots.forEach((s, i) => {
-      if (s.kind === 'human') {
-        this.pickers.push({ slotIdx: i, device: s.device, cursor: this.pickers.length, locked: false, variant: 0 });
-      }
-    });
+    // slot state (managed here now — the old separate setup screen is gone)
+    this.slots = prev || this.defaultSlots();
+    this.pickers = [];             // one per human slot (built by syncPickers)
     this.picks = new Array(4).fill(null);
-    this.variants = new Array(4).fill(0); // color scheme per slot
+    this.variants = new Array(4).fill(0);
     this.finished = false;
-    // mouse/tap drives the touch picker if present, else kb1, else the first
-    this.mousePicker = this.pickers.find((p) => p.device === 'touch')
-      || this.pickers.find((p) => p.device === 'kb1') || this.pickers[0];
+    this._padCount = this.input.connectedPadCount();
 
     this.grid = el('div', 'roster-grid');
     this.cells = ROSTER.map((m, i) => {
@@ -287,8 +103,6 @@ export class MechSelectScreen {
       c.addEventListener('mouseenter', () => {
         if (this.mousePicker && !this.mousePicker.locked) { this.mousePicker.cursor = i; this.refresh(); }
       });
-      // On touch, a tap previews (so you can read stats first); the LOCK IN
-      // button commits. On desktop, clicking the highlighted tile locks in.
       c.addEventListener('click', () => {
         const pk = this.mousePicker;
         if (!pk || pk.locked) return;
@@ -304,14 +118,22 @@ export class MechSelectScreen {
     this.card = el('div', 'panel mech-info-card');
     this.el.appendChild(this.card);
 
-    this.status = el('div', 'picker-status');
-    this.el.appendChild(this.status);
+    // players bar: join / device / CPU controls, one card per slot
+    this.playersBar = el('div', 'players-bar');
+    this.playerCards = [];
+    for (let i = 0; i < 4; i++) {
+      const pc = el('div', 'player-card');
+      pc.addEventListener('click', (e) => this.onCardClick(i, e));
+      this.playersBar.appendChild(pc);
+      this.playerCards.push(pc);
+    }
+    this.el.appendChild(this.playersBar);
+
     this.el.appendChild(el('div', 'hint-bar',
-      this.pickers.length > 1
-        ? 'everyone picks at once!&nbsp;&nbsp;<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> unlock · back'
-        : '<b>ARROWS / STICK</b> move&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> back'));
+      'press <b>A</b> / <b>ENTER</b> on a controller or keyboard to JOIN&nbsp;&nbsp;·&nbsp;&nbsp;' +
+      '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back'));
     root.appendChild(this.el);
-    // On touch: tap a tile to preview, then BACK / LOCK IN drive the pick.
+
     if (this.touch) {
       const bar = el('div', 'touch-navbar');
       bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => this.input.touchMenuEvent('back')));
@@ -319,7 +141,130 @@ export class MechSelectScreen {
       bar.appendChild(touchBtn('LOCK IN ▶', 'nav-next', () => { if (this.mousePicker) this.lockIn(this.mousePicker); }));
       this.el.appendChild(bar);
     }
+
+    this.syncPickers();
     this.refresh();
+  }
+
+  // ---- join / slot management (folded in from the old SetupScreen) ----
+  connectedPads() {
+    const pads = [];
+    for (let i = 0; i < 4; i++) if (this.input.padConnected(i)) pads.push('pad' + i);
+    return pads;
+  }
+
+  // Seed: connected controllers ARE players; otherwise the local keyboard/
+  // touch human + one CPU, so a lone player has an opponent to fight.
+  defaultSlots() {
+    const off = () => ({ kind: 'off' });
+    const pads = this.connectedPads();
+    if (pads.length >= 2) return [{ kind: 'human', device: pads[0] }, { kind: 'human', device: pads[1] }, off(), off()];
+    const solo = pads.length === 1 ? { kind: 'human', device: pads[0] }
+      : this.touch ? { kind: 'human', device: 'touch' } : { kind: 'human', device: 'kb1' };
+    return [solo, { kind: 'ai', diff: 'veteran' }, off(), off()];
+  }
+
+  // options the ADD PLAYER / cycle affordance walks through
+  options() {
+    const opts = [];
+    if (this.input.touchAvailable) opts.push({ kind: 'human', device: 'touch' });
+    opts.push({ kind: 'human', device: 'kb1' }, { kind: 'human', device: 'kb2' });
+    for (let i = 0; i < 4; i++) if (this.input.padConnected(i)) opts.push({ kind: 'human', device: 'pad' + i });
+    opts.push({ kind: 'ai', diff: 'rookie' }, { kind: 'ai', diff: 'veteran' }, { kind: 'ai', diff: 'ace' }, { kind: 'off' });
+    return opts;
+  }
+
+  optIndex(slot) {
+    return this.options().findIndex((o) => o.kind === slot.kind &&
+      (o.kind !== 'human' || o.device === slot.device) && (o.kind !== 'ai' || o.diff === slot.diff));
+  }
+
+  deviceTaken(device, exceptSlot) {
+    return this.slots.some((s, i) => i !== exceptSlot && s.kind === 'human' && s.device === device);
+  }
+
+  firstOff() { return this.slots.findIndex((s) => s.kind === 'off'); }
+  activeCount() { return this.slots.filter((s) => s.kind !== 'off').length; }
+
+  // cycle a slot to the next valid option (skips already-taken devices)
+  cycleSlot(i, dir = 1) {
+    const opts = this.options();
+    let idx = this.optIndex(this.slots[i]);
+    if (idx < 0) idx = opts.length - 1;
+    for (let n = 0; n < opts.length; n++) {
+      idx = (idx + dir + opts.length) % opts.length;
+      const o = opts[idx];
+      if (o.kind === 'human' && this.deviceTaken(o.device, i)) continue;
+      this.slots[i] = { ...o };
+      break;
+    }
+    this.audio?.play('uiMove');
+    this.syncPickers();
+    this.refresh();
+  }
+
+  // add a human bound to `device` in the first free slot (join-by-press)
+  joinDevice(device) {
+    if (this.deviceTaken(device, -1)) return false;
+    const slot = this.firstOff();
+    if (slot < 0) return false;
+    this.slots[slot] = { kind: 'human', device };
+    this.audio?.play('uiSelect');
+    if (device.startsWith('pad')) this.input.rumble(+device[3], 0.4, 120);
+    this.syncPickers();
+    // the picker just created should not also consume this frame's confirm
+    const pk = this.pickers.find((p) => p.slotIdx === slot);
+    if (pk) pk.justJoined = true;
+    this.refresh();
+    return true;
+  }
+
+  onCardClick(i, e) {
+    const s = this.slots[i];
+    if (s.kind === 'off') { this.cycleSlot(i, 1); return; }      // ADD PLAYER
+    if (s.kind === 'ai') {
+      // left third = prev difficulty, right third = next, else remove
+      const r = this.playerCards[i].getBoundingClientRect();
+      const f = (e.clientX - r.left) / r.width;
+      if (f < 0.33) this.cycleAiDiff(i, -1);
+      else if (f > 0.66) this.cycleAiDiff(i, 1);
+      else this.removeSlot(i);
+      return;
+    }
+    // human card click = leave (mouse users); pickers otherwise use B
+    this.removeSlot(i);
+  }
+
+  cycleAiDiff(i, dir) {
+    const order = ['rookie', 'veteran', 'ace'];
+    const cur = order.indexOf(this.slots[i].diff);
+    this.slots[i] = { kind: 'ai', diff: order[(cur + dir + 3) % 3] };
+    this.audio?.play('uiMove');
+    this.refresh();
+  }
+
+  removeSlot(i) {
+    this.slots[i] = { kind: 'off' };
+    this.audio?.play('uiBack');
+    this.syncPickers();
+    this.refresh();
+    if (this.activeCount() === 0) this.onBack();
+  }
+
+  // rebuild pickers to match the human slots, preserving per-slot state
+  syncPickers() {
+    const keep = new Map(this.pickers.map((p) => [p.slotIdx, p]));
+    this.pickers = [];
+    this.slots.forEach((s, i) => {
+      if (s.kind !== 'human') return;
+      let p = keep.get(i);
+      if (!p || p.device !== s.device) {
+        p = { slotIdx: i, device: s.device, cursor: this.pickers.length % ROSTER.length, locked: false, variant: 0 };
+      }
+      this.pickers.push(p);
+    });
+    this.mousePicker = this.pickers.find((p) => p.device === 'touch')
+      || this.pickers.find((p) => p.device === 'kb1') || this.pickers[0];
   }
 
   refresh() {
@@ -331,10 +276,50 @@ export class MechSelectScreen {
       }
     });
     this.renderCard();
-    this.renderChips();
+    this.renderPlayers();
     this.onPreview?.(this.pickers.map((pk) => ({
       id: ROSTER[pk.cursor].id, slotIdx: pk.slotIdx, locked: pk.locked, variant: pk.variant,
     })));
+  }
+
+  deviceLabel(device) {
+    if (device.startsWith('pad')) {
+      let n = 0;
+      for (let i = 0; i < 4; i++) { if (this.input.padConnected(i)) { n++; if (i === +device[3]) return `GAMEPAD ${n}`; } }
+      return `GAMEPAD ${+device[3] + 1}`;
+    }
+    return { touch: 'TOUCH', kb1: 'KEYBOARD 1', kb2: 'KEYBOARD 2' }[device] || device.toUpperCase();
+  }
+
+  // players bar: join prompts, device/CPU controls, live pick + lock state
+  renderPlayers() {
+    this.slots.forEach((s, i) => {
+      const pc = this.playerCards[i];
+      const col = COLOR_CSS[i];
+      pc.className = 'player-card';
+      if (s.kind === 'off') {
+        pc.classList.add('empty');
+        pc.style.borderColor = 'rgba(120,150,180,0.28)';
+        pc.innerHTML = `<div class="pc-role" style="color:#6f8aa2">PLAYER ${i + 1}</div>
+          <div class="pc-add">＋ ADD PLAYER</div>
+          <div class="pc-sub">press A / ENTER to join · click to add CPU / KB</div>`;
+        return;
+      }
+      pc.style.borderColor = col;
+      if (s.kind === 'ai') {
+        pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1}</div>
+          <div class="pc-dev">🤖 CPU · ${s.diff.toUpperCase()}</div>
+          <div class="pc-sub">◀ difficulty ▶ &nbsp;·&nbsp; tap center to remove</div>`;
+        return;
+      }
+      const pk = this.pickers.find((p) => p.slotIdx === i);
+      const m = ROSTER[pk.cursor];
+      const mc = '#' + m.colors.glow.toString(16).padStart(6, '0');
+      pc.classList.toggle('locked', pk.locked);
+      pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
+        <div class="pc-dev" style="color:${mc}">${m.icon} ${m.name}${pk.locked ? ' ✓' : ''}</div>
+        <div class="pc-sub">${pk.locked ? `LOCKED · ${SCHEME_NAMES[pk.variant]}` : 'picking…'}</div>`;
+    });
   }
 
   // scheme selector row: 4 swatches for the hovered mech, current one framed
@@ -391,28 +376,6 @@ export class MechSelectScreen {
     }).join('');
   }
 
-  renderChips() {
-    this.status.innerHTML = '';
-    this.slots.forEach((s, i) => {
-      if (s.kind === 'off') return;
-      const chip = el('div', 'picker-chip');
-      chip.style.borderColor = COLOR_CSS[i];
-      const pk = this.pickers.find((p) => p.slotIdx === i);
-      if (s.kind === 'ai') {
-        chip.textContent = `P${i + 1} · CPU`;
-        chip.classList.add('done');
-      } else if (pk?.locked) {
-        chip.textContent = `P${i + 1} ✓ ${ROSTER[pk.cursor].name}` +
-          (pk.variant ? ` · ${SCHEME_NAMES[pk.variant]}` : '');
-        chip.classList.add('done');
-      } else {
-        chip.textContent = `P${i + 1} PICKING...`;
-        chip.classList.add('active');
-      }
-      this.status.appendChild(chip);
-    });
-  }
-
   statRow(label, v) {
     return `<div class="stat-row"><div class="stat-label">${label}</div>
       <div class="stat-bar"><div class="stat-fill" style="width:${v * 10}%"></div></div></div>`;
@@ -433,10 +396,12 @@ export class MechSelectScreen {
     this.audio?.play('uiSelect');
     if (pk.device.startsWith('pad')) this.input.rumble(+pk.device[3], 0.45, 130);
     this.refresh();
-    if (this.pickers.every((p) => p.locked)) this.finish();
+    // everyone locked AND at least two fighters in the match → go
+    if (this.pickers.every((p) => p.locked) && this.activeCount() >= 2) this.finish();
   }
 
   finish() {
+    if (this.finished) return;
     this.finished = true;
     // AI slots pick random distinct-ish mechs
     const taken = new Set(this.picks.filter(Boolean));
@@ -448,25 +413,56 @@ export class MechSelectScreen {
         taken.add(m.id);
       }
     });
-    // brief beat so the last lock-in lands before the screen changes
-    setTimeout(() => this.onDone(this.picks, this.variants), 450);
+    // brief beat so the last lock-in lands before the screen changes;
+    // hand back the slots so returning here restores the same line-up
+    setTimeout(() => this.onDone(this.picks, this.variants, this.slots.map((s) => ({ ...s }))), 450);
+  }
+
+  // devices that could still join (not already a human slot)
+  joinCandidates() {
+    const taken = new Set(this.slots.filter((s) => s.kind === 'human').map((s) => s.device));
+    const list = [];
+    if (!taken.has('kb1')) list.push('kb1');
+    if (!taken.has('kb2')) list.push('kb2');
+    for (let i = 0; i < 4; i++) if (this.input.padConnected(i) && !taken.has('pad' + i)) list.push('pad' + i);
+    return list;
   }
 
   update(evAll) {
     if (this.finished) return;
+
+    // a freshly connected controller auto-joins the next free slot
+    const padCount = this.input.connectedPadCount();
+    if (padCount !== this._padCount) {
+      if (padCount > this._padCount) {
+        for (let i = 0; i < 4; i++) {
+          if (this.input.padConnected(i) && !this.deviceTaken('pad' + i, -1) && this.firstOff() >= 0) this.joinDevice('pad' + i);
+        }
+      }
+      this._padCount = padCount;
+      this.refresh(); // ordinal labels shift when pads come and go
+    }
+
+    // join-by-press: an unassigned device that hits confirm joins the match
+    if (this.firstOff() >= 0) {
+      for (const dev of this.joinCandidates()) {
+        if (this.input.menuEventsFor(dev).confirm) { this.joinDevice(dev); break; }
+      }
+    }
+
     const solo = this.pickers.length === 1;
-    let anyBack = false;
     for (const pk of this.pickers) {
       const ev = this.input.menuEventsFor(pk.device);
-      // the only human may navigate with any device
+      // a lone human may also drive with the shared keyboard/mouse events
       const left = ev.left || (solo && evAll?.left);
       const right = ev.right || (solo && evAll?.right);
       const up = ev.up || (solo && evAll?.up);
       const down = ev.down || (solo && evAll?.down);
-      const confirm = ev.confirm || (solo && evAll?.confirm);
+      const confirm = (ev.confirm || (solo && evAll?.confirm)) && !pk.justJoined;
       const back = ev.back || (solo && evAll?.back);
-
       const alt = ev.alt || (solo && evAll?.alt);
+      pk.justJoined = false;
+
       if (!pk.locked) {
         const N = ROSTER.length, cols = 4;
         let moved = false;
@@ -474,24 +470,20 @@ export class MechSelectScreen {
         if (right) { pk.cursor = (pk.cursor + 1) % N; moved = true; }
         if (up) { pk.cursor = (pk.cursor + N - cols) % N; moved = true; }
         if (down) { pk.cursor = (pk.cursor + cols) % N; moved = true; }
-        if (alt) { // cycle paint scheme
-          pk.variant = (pk.variant + 1) % SCHEME_COUNT;
-          this.variants[pk.slotIdx] = pk.variant;
-          moved = true;
-        }
+        if (alt) { pk.variant = (pk.variant + 1) % SCHEME_COUNT; this.variants[pk.slotIdx] = pk.variant; moved = true; }
         if (moved) { this.audio?.play('uiMove'); this.refresh(); }
         if (confirm) this.lockIn(pk);
-        if (back) anyBack = true;
+        // unlocked: back LEAVES the match (frees the slot); syncPickers
+        // mutates this.pickers, so bail out of the loop after
+        if (back) { this.removeSlot(pk.slotIdx); return; }
       } else {
         if (alt || left || right) {
-          // still waiting on the others: keep cycling your paint scheme
           pk.variant = (pk.variant + 1) % SCHEME_COUNT;
           this.variants[pk.slotIdx] = pk.variant;
           this.audio?.play('uiMove');
           this.refresh();
         }
-        if (back) {
-          // unlock and keep picking
+        if (back) { // unlock and keep picking
           pk.locked = false;
           this.picks[pk.slotIdx] = null;
           this.audio?.play('uiBack');
@@ -499,11 +491,9 @@ export class MechSelectScreen {
         }
       }
     }
-    // back only exits the screen when nobody has locked anything
-    if (anyBack && !this.pickers.some((p) => p.locked)) {
-      this.audio?.play('uiBack');
-      this.onBack();
-    }
+
+    // with zero humans left, the shared ESC/B backs out to the title
+    if (!this.pickers.length && evAll?.back) { this.audio?.play('uiBack'); this.onBack(); }
   }
   destroy() { this.el.remove(); }
 }

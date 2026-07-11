@@ -347,29 +347,62 @@ export class Animator {
         if (J.mortars) J.mortars.rotation.x = ctx.firing ? -0.25 : Math.sin(t * 0.4) * 0.03;
         break;
       case 'saurion': {
-        // counterbalancing raptor tail: raised at rest, whips harder and
-        // levels out as the run speeds up
+        // RAPTOR LOCOMOTION (researched theropod gait): the tail is a
+        // travelling S-wave that wags side-to-side in time with the stride
+        // to control angular momentum — raised at rest, whipping and
+        // leveling out with speed — while the head counter-rotates to stay
+        // stable on the prey as the body bobs and yaws.
         const run = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
+        const ph = this.phase;
+        // stride-synced when moving, gentle idle sway when still
+        const wavePh = run > 0.05 ? ph * 2 : t * 1.5;
+        const amp = 0.1 + run * 0.3;
         for (let i = 0; i < 3; i++) {
           const tj = J['tail' + i];
           if (!tj) continue;
-          tj.rotation.y = Math.sin(t * (1.7 + run * 2.8) + i * 0.85) * (0.13 + run * 0.24);
-          tj.rotation.x = 0.11 + i * 0.02 - run * 0.12 + Math.sin(t * 1.3 + i * 0.6) * 0.05;
+          // each segment lags the one before → an S-curve that runs down the tail
+          tj.rotation.y = Math.sin(wavePh - i * 0.8) * amp;
+          tj.rotation.x = 0.15 - run * 0.18 + Math.sin(wavePh * 0.5 - i * 0.5) * 0.05;
+          tj.rotation.z = Math.cos(wavePh - i * 0.8) * amp * 0.3; // slight roll on the whip
+        }
+        // head stabilization: cancel the body's yaw sway + vertical bob so the
+        // gaze holds level (real predators keep the head eerily still)
+        if (J.head) {
+          J.head.rotation.y -= Math.sin(ph) * 0.09 * run;
+          J.head.rotation.x += Math.abs(Math.sin(ph)) * 0.06 * run - 0.03 * run;
         }
         break;
       }
       case 'frogger': {
-        // the upper slime-cannon pair are REAL arms: they shadow the lower
-        // arms' full motion (walk swing, attacks, blocks) with a slight
-        // damping + phase offset so all four limbs pump together
+        // FOUR ARMS as one creature: the upper cannon-pair pump in
+        // ALTERNATION with the lower pair (counter-swing), like a galloping
+        // four-limbed body, plus an idle bob so they never read as dead props.
         const c = this.cur;
+        const run = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
+        const attacking = this.action && !this.action.fadingOut && !this.action.clip.loop;
         for (const sd of ['L', 'R']) {
           const sj = J['shoulder' + sd + '2'], ej = J['elbow' + sd + '2'];
           if (!sj || !ej || !c['shoulder' + sd]) continue;
           const sr = c['shoulder' + sd], er = c['elbow' + sd];
           const sx = sd === 'L' ? -1 : 1;
-          sj.rotation.set(sr[0] * 0.9 - 0.06, sr[1] * 0.5, sr[2] * 0.55 - sx * 0.08);
-          ej.rotation.set(er[0] * 0.75 - 0.1, er[1] * 0.5, er[2] * 0.5);
+          // counter-swing the lower arm's pitch → the 4 limbs alternate
+          const counter = -sr[0] * 0.7;
+          const idle = Math.sin(t * 1.9 + (sd === 'L' ? 0 : Math.PI)) * 0.09 * (1 - run);
+          // on an attack, the cannons rear back then punch forward with the arms
+          const thrust = attacking ? sr[0] * 0.5 : 0;
+          sj.rotation.set(counter * 0.7 + idle + thrust - 0.08, sr[1] * 0.4, sr[2] * 0.5 - sx * 0.06);
+          ej.rotation.set(er[0] * 0.6 - 0.16 - run * 0.18, er[1] * 0.4, er[2] * 0.4);
+        }
+        break;
+      }
+      case 'cranky': {
+        // crab menace: the pincers gape and breathe at rest, then SNAP shut
+        // when a strike lands
+        const striking = this.action && !this.action.fadingOut && !this.action.clip.loop;
+        const gape = striking ? 0.02 : 0.34 + Math.sin(t * 1.4) * 0.14;
+        for (const sd of ['L', 'R']) {
+          const jw = J['jaw' + sd];
+          if (jw) jw.rotation.x = lerp(jw.rotation.x, -gape, dt * (striking ? 22 : 8));
         }
         break;
       }

@@ -14,7 +14,7 @@ import { AIController } from './ai.js';
 import { CameraSystem } from './camera.js';
 import { Match } from './match.js';
 import { Hud, toast } from '../ui/hud.js';
-import { TitleScreen, SetupScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
+import { TitleScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
 import { GameAudio } from '../core/audio.js';
 import { createMech, preloadMechModels } from '../mechs/gltf.js';
 import { TouchControls } from './touch.js';
@@ -316,29 +316,19 @@ export async function bootGame() {
     audio.music('menu');
     setScreen(new TitleScreen(uiRoot, {
       audio,
-      onPlay: () => goSetup(),
+      onPlay: () => goMechSelect(),
       onFullscreen: toggleFullscreen,
     }));
   }
 
-  function goSetup() {
-    ensureStage('lineup');
-    S.mode = 'setup';
-    setScreen(new SetupScreen(uiRoot, {
-      input, audio, prev: S.slots,
-      onNext: (slots) => { S.slots = slots; goMechSelect(); },
-      onBack: () => goTitle(),
-    }));
-  }
-
   function goMechSelect() {
-    ensureStage();
+    ensureStage('lineup');
     S.mode = 'mechselect';
     setScreen(new MechSelectScreen(uiRoot, {
-      slots: S.slots, input, audio,
+      input, audio, prev: S.slots,
       onPreview: (entries) => S.stage?.showPreviews(entries),
-      onDone: (picks, variants) => { S.picks = picks; S.variants = variants; goArenaSelect(); },
-      onBack: () => goSetup(),
+      onDone: (picks, variants, slots) => { S.picks = picks; S.variants = variants; S.slots = slots; goArenaSelect(); },
+      onBack: () => goTitle(),
     }));
   }
 

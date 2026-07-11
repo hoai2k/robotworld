@@ -44,6 +44,7 @@ export class AIController {
     I.jump = I.light = I.heavy = I.special = I.ult = I.dash = I.taunt = false;
     I.ranged = false;
     I.block = false;
+    I.duck = false;
     if (!f.alive || f.controlsLocked) { I.moveX = I.moveZ = 0; return; }
 
     // retarget occasionally
@@ -128,6 +129,16 @@ export class AIController {
     }
     if (I.block) { I.moveX = I.moveZ = 0; }
 
+    // Rhino's bull rush is a HELD charge — keep the button down once it's
+    // rolling so it plows for its full duration
+    if (f.state === 'special' && f._charging) { I.special = true; return; }
+
+    // if the target is turtling behind a facing block, crouch to slip the
+    // next attack UNDER their high guard (unless we out-tier them at breaking)
+    const targetBlocking = t.blocking && dist < 7;
+    const canBreak = (f.def.stats.guardBreak || 0) > 0.3;
+    if (targetBlocking && !canBreak && Math.random() < 0.6) I.duck = true;
+
     // ---- offense ----
     if (f.canAct() && !I.block) {
       const err = Math.random() < this.d.err; // fumble: do nothing
@@ -149,6 +160,7 @@ export class AIController {
                    !(f.ammoMax !== undefined && f.ammo <= 0)) {
           // face target implicitly via fighter auto-aim
           I.ranged = true;
+          I.duck = false; // can't fire mid-crouch reliably; stand to shoot
         }
       }
     }
