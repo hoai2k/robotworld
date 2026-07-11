@@ -12,6 +12,7 @@ const BUTTONS = [
   { name: 'jump',    label: 'JMP', glyph: '⬆',  cls: 'b-jump',    hint: 'Jump' },
   { name: 'dash',    label: 'DSH', glyph: '💨', cls: 'b-dash',    hint: 'Dash' },
   { name: 'block',   label: 'BLK', glyph: '🛡', cls: 'b-block',   hint: 'Block', hold: true },
+  { name: 'duck',    label: 'DUK', glyph: '⤵',  cls: 'b-duck',    hint: 'Duck', hold: true },
   { name: 'ranged',  label: 'RNG', glyph: '🎯', cls: 'b-ranged',  hint: 'Ranged', hold: true },
   { name: 'special', label: 'SP',  glyph: '✦',  cls: 'b-special', hint: 'Special' },
   { name: 'ult',     label: 'ULT', glyph: '★',  cls: 'b-ult',     hint: 'Ultimate' },

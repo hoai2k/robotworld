@@ -77,6 +77,7 @@ ultimate charged by dealing/taking damage.
 | Special | T | Numpad 5 | B |
 | Ultimate | Y | Numpad 6 | LB |
 | Dash | Shift | Numpad Enter | RB |
+| Duck (hold) | C | Numpad 8 | L-stick click |
 | Taunt | B | Numpad . | R-stick click |
 | Pause | Esc / P | — | Start |
 

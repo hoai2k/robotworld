@@ -358,6 +358,7 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 .touch-btn.b-jump   { border-color: rgba(98,255,154,0.7); }
 .touch-btn.b-ult    { border-color: rgba(180,107,255,0.8); background: rgba(40,20,60,0.6); }
 .touch-btn.b-special{ border-color: rgba(255,120,180,0.7); }
+.touch-btn.b-duck   { border-color: rgba(174,242,60,0.7); }
 .touch-btn.hold.pressed { background: rgba(255,180,60,0.28); border-color: #ffd07a; }
 
 /* top-right mini buttons (taunt + pause) */
