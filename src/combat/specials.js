@@ -1,6 +1,6 @@
 // Per-mech special & ultimate implementations, dispatched by id from roster.
 import * as THREE from 'three';
-import { rand, clamp01 } from '../core/utils.js';
+import { rand, clamp, clamp01 } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
 
@@ -15,6 +15,14 @@ function muzzle(f, name = 'muzzleR') {
   const a = f.mech.anchors[name] || f.mech.anchors.muzzleR;
   return a.getWorldPosition(new THREE.Vector3());
 }
+// ground aim point led by the victim's current velocity, for slow drops
+// (artillery arcs, delayed pillars) that otherwise land where they WERE
+function leadPos(e, t) {
+  const p = e.pos.clone().addScaledVector(e.vel, t);
+  p.y = 0;
+  return p;
+}
+
 function aimDir(f, pitch = 0) {
   const e = f.nearestEnemy();
   if (e) {
@@ -52,10 +60,10 @@ export const SPECIALS = {
         const origin = f.mech.anchors.podL
           ? f.mech.anchors.podL.getWorldPosition(new THREE.Vector3())
           : muzzle(f);
-        const d = new THREE.Vector3(rand(-0.4, 0.4), rand(0.6, 1), rand(-0.4, 0.4)).normalize();
+        const d = new THREE.Vector3(rand(-0.35, 0.35), rand(0.7, 1), rand(-0.35, 0.35)).normalize();
         f.world.projectiles.spawn('missile', f, origin, d, {
-          dmg: sp.dmg * f.dmgMult(), speed: 26, splash: 2.2, color: 0xff7040,
-          homing: target, turnRate: 4.5, life: 4,
+          dmg: sp.dmg * f.dmgMult(), speed: 30, splash: 2.2, color: 0xff7040,
+          homing: target, retarget: true, turnRate: 5.2, life: 4,
         });
         f.world.audio?.play('missile');
       });
@@ -116,8 +124,8 @@ export const SPECIALS = {
             if (!f.alive) return;
             const origin = muzzle(f).add(new THREE.Vector3(rand(-1, 1), rand(1, 2.5), rand(-1, 1)));
             f.world.projectiles.spawn('plasma', f, origin, new THREE.Vector3(0, 1, 0), {
-              dmg: sp.dmg * f.dmgMult(), speed: 20, splash: 2.6, color: 0xff5ce8,
-              homing: target, turnRate: 3.6, life: 4.5,
+              dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6, color: 0xff5ce8,
+              homing: target, retarget: true, turnRate: 4.4, life: 4.5,
             });
             f.world.audio?.play('plasma');
           });
@@ -190,6 +198,11 @@ export const SPECIALS = {
     f.setState('special', 0.75);
     f.world.audio?.play('howl');
     const e = f.nearestEnemy();
+    if (e) {
+      // lead the landing point — the leap is airborne ~0.7s
+      const px = e.pos.x + e.vel.x * 0.5, pz = e.pos.z + e.vel.z * 0.5;
+      f.yaw = f.targetYaw = Math.atan2(px - f.pos.x, pz - f.pos.z);
+    }
     const dist = e ? Math.min(sp.leap, f.pos.distanceTo(e.pos)) : sp.leap;
     f.vel.x = Math.sin(f.yaw) * dist * 1.6;
     f.vel.z = Math.cos(f.yaw) * dist * 1.6;
@@ -212,8 +225,7 @@ export const SPECIALS = {
 
   // COLOSSUS: artillery barrage on target area
   barrage(f, sp) {
-    const e = f.nearestEnemy();
-    const target = e ? e.pos.clone() : fwd(f, 24);
+    const fallback = fwd(f, 24);
     const dur = f.animator.play('brace', {
       onEvent: (t, a) => {
         if (t === 'shake') { f.world.effects.addShake(a); return; }
@@ -222,9 +234,14 @@ export const SPECIALS = {
           f.world.schedule(0.22 * i, () => {
             if (!f.alive) return;
             const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
-            const to = target.clone().add(new THREE.Vector3(rand(-sp.radius, sp.radius) * 0.6, 0, rand(-sp.radius, sp.radius) * 0.6));
+            // re-aim EACH shell at launch, led by its own flight time —
+            // one stale aim point misses everything by the last shell
+            const arcTime = rand(1.1, 1.5);
+            const e = f.nearestEnemy();
+            const target = e ? leadPos(e, arcTime * 0.85) : fallback;
+            const to = target.clone().add(new THREE.Vector3(rand(-sp.radius, sp.radius) * 0.45, 0, rand(-sp.radius, sp.radius) * 0.45));
             f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
-              dmg: sp.dmg * f.dmgMult(), splash: 4, color: 0xffd23c, arcTo: to, arcTime: rand(1.1, 1.5),
+              dmg: sp.dmg * f.dmgMult(), splash: 4, color: 0xffd23c, arcTo: to, arcTime,
             });
             f.world.audio?.play('mortar');
             f.animator.addImpulse('torso', [-0.12, 0, 0], 30, 10);
@@ -339,7 +356,19 @@ export const ULTS = {
         f.yaw += 0.42;
         f.targetYaw = f.yaw;
         const from = muzzle(f);
-        const dir = new THREE.Vector3(Math.sin(f.yaw + rand(-0.15, 0.15)), rand(-0.04, 0.1), Math.cos(f.yaw + rand(-0.15, 0.15)));
+        // the spin pose raises the gatlings — pitch the ring down to chest
+        // height or the whole storm sails over everyone's head
+        const e = f.nearestEnemy();
+        const aimY = e ? e.center().y : 3.5;
+        const dy = clamp((aimY - from.y) / 14, -0.4, 0.08) + rand(-0.05, 0.05);
+        // every third round tracks the nearest enemy so the storm still
+        // punishes a lone circling target, not just crowds
+        let yawDir = f.yaw + rand(-0.15, 0.15);
+        if (e && i % 3 === 0) {
+          const c = e.center();
+          yawDir = Math.atan2(c.x - from.x, c.z - from.z) + rand(-0.05, 0.05);
+        }
+        const dir = new THREE.Vector3(Math.sin(yawDir), dy, Math.cos(yawDir));
         f.world.projectiles.spawn('bullet', f, from, dir, {
           dmg: u.dmg * f.dmgMult(), speed: 80, color: 0xffd080, knock: 4, life: 1.4,
         });
@@ -356,7 +385,7 @@ export const ULTS = {
       onEvent: (t) => {
         if (t !== 'fire') return;
         const e = f.nearestEnemy();
-        const target = e ? e.pos.clone() : fwd(f, 12);
+        const target = e ? leadPos(e, 0.45) : fwd(f, 12);
         f.world.audio?.play('cast');
         // warning ring, then the pillar
         f.world.effects.rings.spawn(target, { from: u.radius, to: u.radius * 0.95, dur: 0.55, color: 0x49b7ff, y: 0.4 });
@@ -522,7 +551,7 @@ export const ULTS = {
   // COLOSSUS: one apocalyptic shell
   bigBertha(f, u) {
     const e = f.nearestEnemy();
-    const target = e ? e.pos.clone() : fwd(f, 30);
+    const target = e ? leadPos(e, 1.0) : fwd(f, 30);
     const dur = f.animator.play('brace', {
       onEvent: (t, a) => {
         if (t === 'shake') { f.world.effects.addShake(0.8); return; }

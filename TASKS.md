@@ -194,3 +194,40 @@ controllers via Gamepad API), AI opponents.
   palettes/skins measured from images; visual specs archived in
   docs/canonical/SPECS.md (PNGs to be committed by user). Verified: per-mech
   idle/walk/attack, 3x ace soaks (zero crashes), menu flow, build green.
+
+## Phase 13 — Multiplayer UX + combat audit (user request, 2026-07-11)
+
+- [x] Always-split multiplayer view: removed combined<->split hysteresis; 2+
+  humans render permanent per-player viewports (solo/spectator keeps the
+  cinematic combined cam). 2P layout toggles side-by-side <-> stacked at
+  runtime (pause-menu item + F9), persisted in localStorage. Dividers per
+  layout; HUD plates repositioned into each player's viewport
+  (hud.positionPlates); chase cams ray-pull in front of buildings
+  (arena.raySolid) so a viewport is never buried in geometry.
+- [x] Controller-native menus: direction keys now match visual layout
+  (setup: LEFT/RIGHT picks the player card, UP/DOWN changes it); stick/dpad
+  and held keys auto-repeat (380ms delay / 150ms interval, Input._navRepeat);
+  sub-frame taps still register. MECH SELECT is fully simultaneous: every
+  human gets their own colored cursor, lock/unlock (A/B), per-player compact
+  info cards, multi-mech 3D previews on player-colored rings
+  (MenuStage.showPreviews); battle auto-advances 450ms after last lock.
+  kb2 no longer shares plain Enter with kb1 for confirm.
+- [x] Attack-connect audit across all 12 mechs (new tools/attackmatrix.mjs
+  forces ranged/special/ult vs a circle-strafing victim and asserts damage):
+  - missileVolley + starfall: pop-up projectiles now RETARGET the nearest
+    living enemy when their captured target dies/clears (projectiles.js
+    retarget flag) — no more skyward fireworks.
+  - bulletHurricane fired over everyone's head (muzzle y~7.2 vs target
+    center ~3.8): ring now pitches down to chest height and every 3rd round
+    tracks the nearest enemy.
+  - wave (AEGIS lance) launched too high: spawn height capped at chest level.
+  - barrage re-aims EACH shell at launch with per-shell flight-time lead;
+    mortar/bigBertha/judgment lead the victim's velocity; pounce leads its
+    landing; direct-fire ranged now leads moving targets by flight time
+    (hitscan unchanged) — strafing no longer hard-counters slow projectiles.
+  - AI: self-AoE specials/ults (groundPound, staticField, supernova,
+    backdraft, absoluteZero) gated by their radius, shard bucketed mid-range.
+  Matrix: ALL 36 attack channels connect (wraith special = cloak, by design).
+- Verified: attackmatrix ALL CONNECT, 3x 120s ace soaks (4P/3P/4P, zero
+  crashes), headless 2-keyboard menu flow -> battle -> F9 flip -> pause
+  (screenshots viewed), vite build green.

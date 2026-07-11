@@ -61,6 +61,7 @@ export class ProjectileSystem {
       color: spec.color ?? 0xffd080,
       gravity: type === 'mortar' ? 26 : 0,
       homing: spec.homing || null,
+      retarget: !!spec.retarget,
       turnRate: spec.turnRate || 3.2,
       life: spec.life ?? 3.2,
       dist: 0,
@@ -106,7 +107,18 @@ export class ProjectileSystem {
       const p = this.active[i];
       p.life -= dt;
 
-      // homing
+      // homing: retargeting projectiles re-acquire the nearest living enemy
+      // whenever their target is gone, so pop-up volleys always curve down
+      // onto someone instead of sailing into the sky.
+      if (p.retarget && (!p.homing || !p.homing.alive)) {
+        let best = null, bestD = Infinity;
+        for (const f of world.fighters) {
+          if (f === p.owner || !f.alive) continue;
+          const d = f.center().distanceToSquared(p.mesh.position);
+          if (d < bestD) { best = f; bestD = d; }
+        }
+        p.homing = best;
+      }
       if (p.homing && p.homing.alive) {
         _v.copy(p.homing.center()).sub(p.mesh.position).normalize();
         const sp = p.vel.length();

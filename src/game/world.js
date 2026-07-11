@@ -155,8 +155,17 @@ export class World {
     const from = anchors.muzzleR.getWorldPosition(new THREE.Vector3());
     const e = f.nearestEnemy();
     let dir;
-    if (e) dir = e.center().sub(from).normalize();
-    else dir = new THREE.Vector3(Math.sin(f.yaw), 0.02, Math.cos(f.yaw));
+    if (e) {
+      const aim = e.center();
+      // lead moving targets by projectile flight time (hitscan types have
+      // no speed field and skip this) — strafing no longer hard-counters
+      // every slow projectile
+      if (mv.speed) {
+        const t = Math.min(aim.distanceTo(from) / mv.speed, 1.2);
+        aim.addScaledVector(e.vel, t * 0.9);
+      }
+      dir = aim.sub(from).normalize();
+    } else dir = new THREE.Vector3(Math.sin(f.yaw), 0.02, Math.cos(f.yaw));
 
     switch (mv.type) {
       case 'gatling': {
@@ -206,6 +215,9 @@ export class World {
         this.audio?.play('dart');
         break;
       case 'wave':
+        // waves fly level, so cap the launch height at chest level — a
+        // high lance/claw muzzle would skim over every target's head
+        from.y = Math.min(from.y, f.pos.y + Math.min(f.height * 0.42, 3.6));
         this.projectiles.spawn('wave', f, from, new THREE.Vector3(dir.x, 0, dir.z).normalize(), {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: f.def.colors.glow, knock: 8, pierce: true, maxDist: 34,
         });
@@ -219,7 +231,9 @@ export class World {
         this.effects.muzzleFlash(from);
         break;
       case 'mortar': {
-        const target = e ? e.pos.clone().add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)))
+        // lead the shell by the victim's velocity so the arc lands ON them
+        const target = e
+          ? e.pos.clone().addScaledVector(e.vel, 1.15).setY(0).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)))
           : new THREE.Vector3(f.pos.x + Math.sin(f.yaw) * 25, 0, f.pos.z + Math.cos(f.yaw) * 25);
         this.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
           dmg: mv.dmg * f.dmgMult(), splash: mv.splash, color: 0xffd23c, arcTo: target, arcTime: 1.35, knock: 14, launch: 7,

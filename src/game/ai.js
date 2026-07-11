@@ -14,9 +14,15 @@ function preferredRange(def) {
   const t = def.moves.ranged.type;
   if (t === 'railgun' || t === 'mortar') return 26;
   if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning') return 16;
+  if (t === 'shard') return 14;
   if (t === 'flame') return 8;
   return 5; // brawlers
 }
+
+// self-centered AoE moves only connect up close — gate them by their radius
+// instead of the weapon's preferred range
+const SELF_AOE_SPECIALS = new Set(['groundPound', 'staticField']);
+const SELF_AOE_ULTS = new Set(['supernova', 'backdraft', 'absoluteZero']);
 
 export class AIController {
   constructor(fighter, difficulty = 'veteran') {
@@ -107,9 +113,13 @@ export class AIController {
     if (f.canAct() && !I.block) {
       const err = Math.random() < this.d.err; // fumble: do nothing
       if (!err) {
-        if (f.ult >= 1 && dist < 24 && Math.random() < dt / this.d.ultDelay) {
+        const uMv = f.def.moves.ult;
+        const ultRange = SELF_AOE_ULTS.has(uMv.id) ? (uMv.radius || 12) - 2 : 24;
+        const spMv = f.def.moves.special;
+        const spRange = SELF_AOE_SPECIALS.has(spMv.id) ? (spMv.radius || 8) - 1 : this.rangedPref * 1.6;
+        if (f.ult >= 1 && dist < ultRange && Math.random() < dt / this.d.ultDelay) {
           I.ult = true;
-        } else if (f.specialCd <= 0 && dist < this.rangedPref * 1.6 && Math.random() < dt * 1.4) {
+        } else if (f.specialCd <= 0 && dist < spRange && Math.random() < dt * 1.4) {
           I.special = true;
         } else if (melee || dist < 6) {
           if (dist < f.def.moves.light.range * f.scale + 1.2) {

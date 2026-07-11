@@ -9,7 +9,7 @@ import { THEMES_BY_ID } from '../arena/themes.js';
 import { ROSTER_BY_ID, ROSTER } from '../mechs/roster.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
-import { Fighter } from '../combat/fighter.js';
+import { Fighter, PLAYER_COLORS } from '../combat/fighter.js';
 import { AIController } from './ai.js';
 import { CameraSystem } from './camera.js';
 import { Match } from './match.js';
@@ -45,7 +45,9 @@ class MenuStage {
     this.group.add(ring);
 
     this.mechs = [];
+    this.rings = [];
     this.previewId = null;
+    this._previewKey = null;
     this.t = 0;
   }
 
@@ -61,26 +63,60 @@ class MenuStage {
       this.mechs.push(mech);
     });
     this.previewId = null;
+    this._previewKey = null;
     this.engine.camera.position.set(0, 7.5, 26);
     this.engine.camera.lookAt(0, 6, 0);
   }
 
   showPreview(id) {
-    if (this.previewId === id) return;
-    this.previewId = id;
+    this.showPreviews([{ id, slotIdx: 0 }]);
+  }
+
+  // one preview mech per human picker, each on a player-colored ring
+  showPreviews(entries) {
+    if (!entries || !entries.length) return;
+    const key = entries.map((e) => `${e.id}:${e.slotIdx}`).join('|');
+    if (this._previewKey === key) return;
+    this._previewKey = key;
+    this.previewId = key;
     this.clearMechs();
-    const mech = buildMech(ROSTER_BY_ID[id]);
-    mech.animator = new Animator(mech);
-    mech.group.position.set(6.5, 0, 0);
-    this.group.add(mech.group);
-    this.mechs.push(mech);
-    this.engine.camera.position.set(5.5, 6.5, 20);
-    this.engine.camera.lookAt(6.5, 5, 0);
+    const n = entries.length;
+    const cx = n === 1 ? 6.5 : 2.5;
+    const spacing = 6.5;
+    entries.forEach((e, i) => {
+      const mech = buildMech(ROSTER_BY_ID[e.id]);
+      mech.animator = new Animator(mech);
+      const x = cx + (i - (n - 1) / 2) * spacing;
+      mech.group.position.set(x, 0, 0);
+      this.group.add(mech.group);
+      this.mechs.push(mech);
+      if (n > 1) {
+        const ring = new THREE.Mesh(
+          new THREE.RingGeometry(2.3, 2.7, 40),
+          new THREE.MeshBasicMaterial({
+            color: PLAYER_COLORS[e.slotIdx % 4], transparent: true, opacity: 0.7, side: THREE.DoubleSide,
+          })
+        );
+        ring.rotation.x = -Math.PI / 2;
+        ring.position.set(x, 0.06, 0);
+        this.group.add(ring);
+        this.rings.push(ring);
+      }
+    });
+    const dist = n === 1 ? 20 : 18 + n * 5;
+    this.engine.camera.position.set(n === 1 ? 5.5 : cx, n > 2 ? 8 : 6.5, dist);
+    this.engine.camera.lookAt(cx, 5, 0);
   }
 
   clearMechs() {
     for (const m of this.mechs) this.group.remove(m.group);
     this.mechs = [];
+    for (const r of this.rings) {
+      this.group.remove(r);
+      r.geometry.dispose();
+      r.material.dispose();
+    }
+    this.rings = [];
   }
 
   update(dt) {
@@ -195,7 +231,19 @@ export async function bootGame() {
   }
   window.addEventListener('keydown', (e) => {
     if (e.code === 'F10') { e.preventDefault(); toggleFullscreen(); }
+    if (e.code === 'F9') { e.preventDefault(); toggleSplitLayout(); }
   });
+
+  // flip the 2-player split between side-by-side and stacked
+  function toggleSplitLayout() {
+    const B = S.battle;
+    if (!B || B.humans.length !== 2) return;
+    B.cameraSys.toggleLayout2p();
+    B.hud.positionPlates(
+      B.cameraSys.layoutKind(B.humans.length),
+      B.humans.map((h) => B.fighters.indexOf(h.fighter))
+    );
+  }
 
   // ---------------- state machine ----------------
   const S = {
@@ -248,7 +296,7 @@ export async function bootGame() {
     S.mode = 'mechselect';
     setScreen(new MechSelectScreen(uiRoot, {
       slots: S.slots, input, audio,
-      onHover: (id) => S.stage?.showPreview(id),
+      onPreview: (entries) => S.stage?.showPreviews(entries),
       onDone: (picks) => { S.picks = picks; goArenaSelect(); },
       onBack: () => goSetup(),
     }));
@@ -302,6 +350,7 @@ export async function bootGame() {
     const cameraSys = new CameraSystem(engine, world);
     const hud = new Hud(uiRoot, world);
     hud.buildPlates(fighters);
+    hud.positionPlates(cameraSys.layoutKind(humans.length), humans.map((h) => fighters.indexOf(h.fighter)));
     world.camera = engine.camera;
 
     const match = new Match({
@@ -352,6 +401,10 @@ export async function bootGame() {
       audio,
       onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
+      splitToggle: S.battle.humans.length === 2 ? {
+        label: () => S.battle.cameraSys.layout2p === 'lr' ? 'SPLIT: SIDE BY SIDE' : 'SPLIT: STACKED',
+        fn: () => toggleSplitLayout(),
+      } : null,
     }));
   }
 

@@ -54,6 +54,8 @@ export function runBattleTest() {
     humans = fighters.slice(0, Math.min(4, fighters.length));
     fighters.forEach((f, i) => f.pos.set((i % 2) * 90 - 45, 0, (i >> 1) * 60 - 30));
   }
+  const layoutParam = params.get('layout'); // lr | tb (2-human split preview)
+  if (layoutParam === 'lr' || layoutParam === 'tb') cameraSys.layout2p = layoutParam;
 
   // simple debug HUD
   const hud = document.createElement('div');

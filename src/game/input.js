@@ -32,6 +32,7 @@ export class Input {
     this.padsPrev = [{}, {}, {}, {}];
     this.padsCur = [{}, {}, {}, {}];
     this.onPadConnect = null;
+    this._navHold = new Map();      // "src:dir" -> {t0, last} for menu auto-repeat
 
     // ---- virtual touch device (on-screen controls write here) ----
     this.touchAvailable = false;             // set true when touch UI is mounted
@@ -166,25 +167,42 @@ export class Input {
     intent.moveZ = mx * sin + mz * cos;
   }
 
-  // aggregated menu nav from every device
+  // menu direction auto-repeat: fires on the rising edge, then repeats
+  // while held (delay 380ms, interval 150ms) — the console-native feel.
+  // src namespaces keep aggregated & per-device consumers independent.
+  _navRepeat(src, dir, held) {
+    const key = src + ':' + dir;
+    const now = performance.now();
+    const st = this._navHold.get(key);
+    if (!held) { if (st) this._navHold.delete(key); return false; }
+    if (!st) { this._navHold.set(key, { t0: now, last: now }); return true; }
+    if (now - st.t0 > 380 && now - st.last > 150) { st.last = now; return true; }
+    return false;
+  }
+
+  // aggregated menu nav from every device (single-consumer screens)
   menuEvents() {
     const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, pause: false, any: false };
     const anyKey = this.keysPressed.size > 0;
+    // include the per-frame edge set so a tap shorter than one frame
+    // (slow machines) still registers as held for that frame
+    const k = (c) => this.keys.has(c) || this.keysPressed.has(c);
     const kp = (c) => this.keysPressed.has(c);
-    if (kp('ArrowUp') || kp('KeyW')) ev.up = true;
-    if (kp('ArrowDown') || kp('KeyS')) ev.down = true;
-    if (kp('ArrowLeft') || kp('KeyA')) ev.left = true;
-    if (kp('ArrowRight') || kp('KeyD')) ev.right = true;
+    if (this._navRepeat('agg:kb', 'up', k('ArrowUp') || k('KeyW'))) ev.up = true;
+    if (this._navRepeat('agg:kb', 'down', k('ArrowDown') || k('KeyS'))) ev.down = true;
+    if (this._navRepeat('agg:kb', 'left', k('ArrowLeft') || k('KeyA'))) ev.left = true;
+    if (this._navRepeat('agg:kb', 'right', k('ArrowRight') || k('KeyD'))) ev.right = true;
     if (kp('Enter') || kp('Space') || kp('KeyF') || kp('Numpad1')) ev.confirm = true;
     if (kp('Escape') || kp('Backspace') || kp('KeyG') || kp('Numpad2')) ev.back = true;
     if (kp('Escape') || kp('KeyP')) ev.pause = true;
     let anyPad = false;
     for (let i = 0; i < 4; i++) {
       if (!this.padConnected(i)) continue;
-      if (this.padPressed(i, 'DU') || (this.padsCur[i].ly < -0.6 && !(this.padsPrev[i].ly < -0.6))) ev.up = true;
-      if (this.padPressed(i, 'DD') || (this.padsCur[i].ly > 0.6 && !(this.padsPrev[i].ly > 0.6))) ev.down = true;
-      if (this.padPressed(i, 'DL') || (this.padsCur[i].lx < -0.6 && !(this.padsPrev[i].lx < -0.6))) ev.left = true;
-      if (this.padPressed(i, 'DR') || (this.padsCur[i].lx > 0.6 && !(this.padsPrev[i].lx > 0.6))) ev.right = true;
+      const src = 'agg:pad' + i;
+      if (this._navRepeat(src, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6)) ev.up = true;
+      if (this._navRepeat(src, 'down', this.padHeld(i, 'DD') || this.padsCur[i].ly > 0.6)) ev.down = true;
+      if (this._navRepeat(src, 'left', this.padHeld(i, 'DL') || this.padsCur[i].lx < -0.6)) ev.left = true;
+      if (this._navRepeat(src, 'right', this.padHeld(i, 'DR') || this.padsCur[i].lx > 0.6)) ev.right = true;
       if (this.padPressed(i, 'A')) ev.confirm = true;
       if (this.padPressed(i, 'B')) ev.back = true;
       if (this.padPressed(i, 'START')) ev.pause = true;
@@ -200,29 +218,31 @@ export class Input {
     return ev;
   }
 
-  // per-player menu navigation (for multi-cursor mech select)
+  // per-player menu navigation (multi-cursor mech select), same repeat feel
   menuEventsFor(device) {
     const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false };
+    const k = (c) => this.keys.has(c) || this.keysPressed.has(c);
     if (device === 'kb1') {
-      ev.up = this.keysPressed.has('KeyW');
-      ev.down = this.keysPressed.has('KeyS');
-      ev.left = this.keysPressed.has('KeyA');
-      ev.right = this.keysPressed.has('KeyD');
+      ev.up = this._navRepeat(device, 'up', k('KeyW'));
+      ev.down = this._navRepeat(device, 'down', k('KeyS'));
+      ev.left = this._navRepeat(device, 'left', k('KeyA'));
+      ev.right = this._navRepeat(device, 'right', k('KeyD'));
       ev.confirm = this.keysPressed.has('KeyF') || this.keysPressed.has('Space') || this.keysPressed.has('Enter');
       ev.back = this.keysPressed.has('KeyG') || this.keysPressed.has('Escape');
     } else if (device === 'kb2') {
-      ev.up = this.keysPressed.has('ArrowUp');
-      ev.down = this.keysPressed.has('ArrowDown');
-      ev.left = this.keysPressed.has('ArrowLeft');
-      ev.right = this.keysPressed.has('ArrowRight');
-      ev.confirm = this.keysPressed.has('Numpad1') || this.keysPressed.has('Comma') || this.keysPressed.has('Enter');
+      ev.up = this._navRepeat(device, 'up', k('ArrowUp'));
+      ev.down = this._navRepeat(device, 'down', k('ArrowDown'));
+      ev.left = this._navRepeat(device, 'left', k('ArrowLeft'));
+      ev.right = this._navRepeat(device, 'right', k('ArrowRight'));
+      // no plain Enter here — kb1 owns it; kb2 confirms on its own cluster
+      ev.confirm = this.keysPressed.has('Numpad1') || this.keysPressed.has('Comma') || this.keysPressed.has('NumpadEnter');
       ev.back = this.keysPressed.has('Numpad2') || this.keysPressed.has('Period');
     } else if (device.startsWith('pad')) {
       const i = +device[3];
-      ev.up = this.padPressed(i, 'DU') || (this.padsCur[i].ly < -0.6 && !(this.padsPrev[i].ly < -0.6));
-      ev.down = this.padPressed(i, 'DD') || (this.padsCur[i].ly > 0.6 && !(this.padsPrev[i].ly > 0.6));
-      ev.left = this.padPressed(i, 'DL') || (this.padsCur[i].lx < -0.6 && !(this.padsPrev[i].lx < -0.6));
-      ev.right = this.padPressed(i, 'DR') || (this.padsCur[i].lx > 0.6 && !(this.padsPrev[i].lx > 0.6));
+      ev.up = this._navRepeat(device, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6);
+      ev.down = this._navRepeat(device, 'down', this.padHeld(i, 'DD') || this.padsCur[i].ly > 0.6);
+      ev.left = this._navRepeat(device, 'left', this.padHeld(i, 'DL') || this.padsCur[i].lx < -0.6);
+      ev.right = this._navRepeat(device, 'right', this.padHeld(i, 'DR') || this.padsCur[i].lx > 0.6);
       ev.confirm = this.padPressed(i, 'A');
       ev.back = this.padPressed(i, 'B');
     } else if (device === 'touch') {

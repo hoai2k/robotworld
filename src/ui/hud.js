@@ -47,28 +47,24 @@ export class Hud {
   buildPlates(fighters) {
     for (const p of this.plates) p.root.remove();
     this.plates = [];
-    const corners = [
-      'top:2.5vh;left:2vw;', 'top:2.5vh;right:2vw;',
-      'bottom:3vh;left:2vw;', 'bottom:3vh;right:2vw;',
-    ];
     fighters.forEach((f, i) => {
       const root = document.createElement('div');
       root.className = 'hud-plate';
-      root.style.cssText = corners[i % 4];
-      const right = i % 2 === 1;
       root.innerHTML = `
-        <div class="hp-head" style="${right ? 'flex-direction:row-reverse;' : ''}">
+        <div class="hp-head">
           <span class="hp-player" style="color:${COLOR_CSS[i % 4]}">${f.isAI ? 'CPU' : 'P' + (i + 1)}</span>
           <span class="hp-name">${f.def.icon} ${f.def.name}</span>
         </div>
         <div class="hud-bar hp"><div class="bar-ghost"></div><div class="bar-fill"></div></div>
         <div class="hud-bar ult"><div class="bar-fill"></div></div>
-        <div class="round-pips" style="${right ? 'justify-content:flex-end;' : ''}">
+        <div class="round-pips">
           <div class="round-pip"></div><div class="round-pip"></div>
         </div>`;
       this.el.appendChild(root);
       this.plates.push({
         root, f,
+        head: root.querySelector('.hp-head'),
+        pipsRow: root.querySelector('.round-pips'),
         hpBar: root.querySelector('.hud-bar.hp'),
         hp: root.querySelector('.hud-bar.hp .bar-fill'),
         ghost: root.querySelector('.bar-ghost'),
@@ -77,6 +73,43 @@ export class Hud {
         pips: [...root.querySelectorAll('.round-pip')],
         ghostVal: 1,
       });
+    });
+    this.positionPlates('single', []);
+  }
+
+  // place plates to match the split layout so each human's plate lives in
+  // their own viewport. kind: 'single' | 'lr' | 'tb' | '3' | '4';
+  // humanIdx: indices into the plates array that are human, in viewport order.
+  positionPlates(kind, humanIdx = []) {
+    const POS = {
+      TL: ['top:2.5vh;left:2vw;', false], TR: ['top:2.5vh;right:2vw;', true],
+      BL: ['bottom:3vh;left:2vw;', false], BR: ['bottom:3vh;right:2vw;', true],
+      ML: ['top:52vh;left:2vw;', false], MR: ['top:52vh;right:2vw;', true],
+    };
+    const HUMAN_SLOTS = { lr: ['TL', 'TR'], tb: ['TL', 'ML'], 3: ['TL', 'TR', 'ML'], 4: ['TL', 'TR', 'ML', 'MR'] };
+    const AI_SLOTS = { lr: ['BL', 'BR'], tb: ['TR', 'MR'], 3: ['MR'], 4: [] };
+    const assign = [];
+    if (kind === 'single' || !HUMAN_SLOTS[kind]) {
+      const order = ['TL', 'TR', 'BL', 'BR'];
+      this.plates.forEach((p, i) => { assign[i] = order[i % 4]; });
+    } else {
+      const hs = HUMAN_SLOTS[kind], as = AI_SLOTS[kind];
+      const spare = ['BL', 'BR', 'MR', 'TR'];
+      let h = 0, a = 0;
+      this.plates.forEach((p, i) => {
+        if (humanIdx.includes(i) && h < hs.length) {
+          assign[i] = hs[h++];
+        } else {
+          assign[i] = as[a] || spare[a % spare.length];
+          a++;
+        }
+      });
+    }
+    this.plates.forEach((p, i) => {
+      const [css, right] = POS[assign[i]];
+      p.root.style.cssText = css;
+      p.head.style.flexDirection = right ? 'row-reverse' : '';
+      p.pipsRow.style.justifyContent = right ? 'flex-end' : '';
     });
   }
 
