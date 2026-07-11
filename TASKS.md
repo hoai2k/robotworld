@@ -255,3 +255,9 @@ controllers via Gamepad API), AI opponents.
     dither-fade to 25% (per-instance aFade attribute + shader patch, eased,
     per building) for split chase cams and the solo chase cam; replaces the
     ray pull-in. Verified with staged occlusion screenshot.
+- 2026-07-11: Controller-first setup defaults: with 2+ pads connected the
+  first two player slots default to the first two controllers (1 pad ->
+  P1 pad vs AI); hot-connecting a pad on the setup screen re-applies
+  defaults unless the player already customized slots. Gamepads are now
+  numbered by their order among CONNECTED controllers (pads at browser
+  indices 1&2 read GAMEPAD 1/2, not 2/3). Verified with stubbed gamepads.

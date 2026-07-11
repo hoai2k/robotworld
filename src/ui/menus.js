@@ -86,11 +86,11 @@ export class SetupScreen {
       '<b>←→</b> player&nbsp;&nbsp;<b>↑↓</b> change&nbsp;&nbsp;<b>ENTER / A</b> continue&nbsp;&nbsp;<b>ESC / B</b> back&nbsp;&nbsp;·&nbsp;&nbsp;need at least 2 fighters'));
     root.appendChild(this.el);
 
-    // On touch: default to solo play (you vs one AI) with the on-screen pad.
-    const defaults = this.touch
-      ? [{ kind: 'human', device: 'touch' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }]
-      : [{ kind: 'human', device: 'kb1' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
-    this.slots = prev || defaults;
+    this.slots = prev || this.defaultSlots();
+    // once the player has made choices (or brought previous ones), stop
+    // auto-assigning newly connected controllers over them
+    this._touched = !!prev;
+    this._padCount = this.input.connectedPadCount();
     this.cursor = 0;
     this.cards = [];
     for (let i = 0; i < 4; i++) {
@@ -112,6 +112,28 @@ export class SetupScreen {
       this.el.appendChild(bar);
     }
     this.render();
+  }
+
+  connectedPads() {
+    const pads = [];
+    for (let i = 0; i < 4; i++) if (this.input.padConnected(i)) pads.push('pad' + i);
+    return pads;
+  }
+
+  // Controllers plugged in? They ARE the players: first two pads take the
+  // first two slots. Otherwise touch or keyboard vs one AI.
+  defaultSlots() {
+    const pads = this.connectedPads();
+    if (pads.length >= 2) {
+      return [{ kind: 'human', device: pads[0] }, { kind: 'human', device: pads[1] }, { kind: 'off' }, { kind: 'off' }];
+    }
+    if (pads.length === 1) {
+      return [{ kind: 'human', device: pads[0] }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
+    }
+    if (this.touch) {
+      return [{ kind: 'human', device: 'touch' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
+    }
+    return [{ kind: 'human', device: 'kb1' }, { kind: 'ai', diff: 'veteran' }, { kind: 'off' }, { kind: 'off' }];
   }
 
   options() {
@@ -143,6 +165,7 @@ export class SetupScreen {
   }
 
   cycle(slotIdx, dir) {
+    this._touched = true;
     const opts = this.options();
     let idx = this.optIndex(this.slots[slotIdx]);
     if (idx < 0) idx = opts.length - 1;
@@ -163,14 +186,29 @@ export class SetupScreen {
       const names = { rookie: 'AI · ROOKIE', veteran: 'AI · VETERAN', ace: 'AI · ACE' };
       return { v: names[s.diff], sub: 'computer-controlled fighter' };
     }
+    if (s.device.startsWith('pad')) {
+      // number pads by their order among CONNECTED controllers, not their
+      // raw browser slot — two pads at indices 1 & 2 read GAMEPAD 1 & 2
+      return { v: `GAMEPAD ${this.padOrdinal(s.device)}`, sub: 'Xbox controller' };
+    }
     const map = {
       touch: ['TOUCH', 'On-screen joystick + buttons'],
       kb1: ['KEYBOARD 1', 'WASD + F/G/H/R/T/Y · Space · Shift'],
       kb2: ['KEYBOARD 2', 'Arrows + Numpad 1-6 · Num0 jump'],
-      pad0: ['GAMEPAD 1', 'Xbox controller'], pad1: ['GAMEPAD 2', 'Xbox controller'],
-      pad2: ['GAMEPAD 3', 'Xbox controller'], pad3: ['GAMEPAD 4', 'Xbox controller'],
     };
     return { v: map[s.device][0], sub: map[s.device][1] };
+  }
+
+  padOrdinal(device) {
+    const idx = +device[3];
+    let n = 0;
+    for (let i = 0; i < 4; i++) {
+      if (this.input.padConnected(i)) {
+        n++;
+        if (i === idx) return n;
+      }
+    }
+    return idx + 1; // disconnected pad: fall back to its raw slot number
   }
 
   render() {
@@ -190,6 +228,15 @@ export class SetupScreen {
   activeCount() { return this.slots.filter((s) => s.kind !== 'off').length; }
 
   update(ev) {
+    // controllers often only register after a button press — when one shows
+    // up mid-screen, re-apply the pad defaults (unless the player already
+    // customized the slots) and refresh the ordinal labels
+    const padCount = this.input.connectedPadCount();
+    if (padCount !== this._padCount) {
+      this._padCount = padCount;
+      if (!this._touched) this.slots = this.defaultSlots();
+      this.render();
+    }
     // cards are laid out left-to-right: ←→ picks the player, ↑↓ changes it
     if (ev.left) { this.cursor = (this.cursor + 3) % 4; this.audio?.play('uiMove'); this.render(); }
     if (ev.right) { this.cursor = (this.cursor + 1) % 4; this.audio?.play('uiMove'); this.render(); }
