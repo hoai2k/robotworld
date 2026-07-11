@@ -39,13 +39,21 @@ for (const id of MECHS) {
       clearIntents(vic);
       w.clearTransient();
     }
-    function step(secs, drive) {
+    function step(secs, drive, motion = 'strafe') {
       for (let i = 0; i < secs * 60; i++) {
-        // victim strafes in a circle — moving-target realism
         const dx = vic.pos.x - atk.pos.x, dz = vic.pos.z - atk.pos.z;
         const len = Math.hypot(dx, dz) || 1;
-        vic.intent.moveX = (-dz / len) * 0.8;
-        vic.intent.moveZ = (dx / len) * 0.8;
+        if (motion === 'strafe') {
+          // victim circles — homing/AoE must still connect
+          vic.intent.moveX = (-dz / len) * 0.8;
+          vic.intent.moveZ = (dx / len) * 0.8;
+        } else {
+          // victim closes in without dodging — direct fire is skill-aimed
+          // now (no auto-aim), so we test aim correctness, not tracking
+          const dir = len > 8 ? -0.5 : 0;
+          vic.intent.moveX = (dx / len) * dir;
+          vic.intent.moveZ = (dz / len) * dir;
+        }
         vic.intent.block = false;
         drive?.(i);
         w.update(DT);
@@ -56,7 +64,7 @@ for (const id of MECHS) {
     const out = {};
     // ranged for 4s at weapon-appropriate distance (flame is a short cone)
     reset(atk.def.moves.ranged.type === 'flame' ? 8 : 18);
-    step(4, () => { atk.intent.ranged = true; });
+    step(4, () => { atk.intent.ranged = true; }, 'approach');
     out.ranged = dmgDone();
     // special at close + mid range, take the better connect
     const spDmg = [];

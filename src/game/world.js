@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { Effects } from '../combat/effects.js';
 import { ProjectileSystem } from '../combat/projectiles.js';
-import { rand } from '../core/utils.js';
+import { rand, clamp } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
 
@@ -154,18 +154,22 @@ export class World {
     const anchors = f.mech.anchors;
     const from = anchors.muzzleR.getWorldPosition(new THREE.Vector3());
     const e = f.nearestEnemy();
-    let dir;
+    // Aim strictly along the mech's facing — no horizontal auto-aim.
+    // (Humans fire where the camera points; the AI squares up first.)
+    // Only VERTICAL assist remains: when an enemy is roughly down the
+    // barrel, the shot pitches to their height so airborne/short targets
+    // aren't unhittable with yaw-only controls.
+    const dir = new THREE.Vector3(Math.sin(f.yaw), 0.02, Math.cos(f.yaw));
+    let barrelDot = -1, flatDist = 0;
     if (e) {
-      const aim = e.center();
-      // lead moving targets by projectile flight time (hitscan types have
-      // no speed field and skip this) — strafing no longer hard-counters
-      // every slow projectile
-      if (mv.speed) {
-        const t = Math.min(aim.distanceTo(from) / mv.speed, 1.2);
-        aim.addScaledVector(e.vel, t * 0.9);
+      const to = e.center().sub(from);
+      flatDist = Math.hypot(to.x, to.z) || 1;
+      barrelDot = (to.x / flatDist) * dir.x + (to.z / flatDist) * dir.z;
+      if (barrelDot > 0.86) {
+        dir.y = clamp(to.y / flatDist, -0.7, 0.7);
+        dir.normalize();
       }
-      dir = aim.sub(from).normalize();
-    } else dir = new THREE.Vector3(Math.sin(f.yaw), 0.02, Math.cos(f.yaw));
+    }
 
     switch (mv.type) {
       case 'gatling': {
@@ -231,10 +235,13 @@ export class World {
         this.effects.muzzleFlash(from);
         break;
       case 'mortar': {
-        // lead the shell by the victim's velocity so the arc lands ON them
-        const target = e
-          ? e.pos.clone().addScaledVector(e.vel, 1.15).setY(0).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)))
-          : new THREE.Vector3(f.pos.x + Math.sin(f.yaw) * 25, 0, f.pos.z + Math.cos(f.yaw) * 25);
+        // lob along the facing; if an enemy is down the barrel, range the
+        // arc to their distance (with velocity lead) — direction stays manual
+        const lobDist = barrelDot > 0.8 ? flatDist : 25;
+        const target = new THREE.Vector3(
+          f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
+        ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
+        if (e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
         this.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
           dmg: mv.dmg * f.dmgMult(), splash: mv.splash, color: 0xffd23c, arcTo: target, arcTime: 1.35, knock: 14, launch: 7,
         });

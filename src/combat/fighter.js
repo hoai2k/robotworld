@@ -76,7 +76,10 @@ export class Fighter {
     this.intent = {
       moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
       ranged: false, special: false, ult: false, block: false, dash: false, taunt: false,
+      strafe: false, aimYaw: undefined,
     };
+    this.plunging = false;   // aerial ground-smash riding down to impact
+    this._plungeVy = 0;
     this.alive = true;
     this.wins = 0;
     this.lastAttacker = null;
@@ -154,6 +157,17 @@ export class Fighter {
 
   doHeavy() {
     const mv = this.def.moves.heavy;
+    if (!this.grounded && this.pos.y > 2.5) {
+      // aerial ground smash: ride the swing all the way down and detonate
+      // on landing — fall speed feeds the damage
+      this.plunging = true;
+      this.hovering = false;
+      this.vel.y = Math.min(this.vel.y, -14);
+      this.animator.play('heavy', { speed: 1.5 });
+      this.setState('attack', 9); // held until impact (cleared on landing/hit)
+      this.world.audio?.play('whooshBig');
+      return;
+    }
     this.faceNearestEnemyIfClose(14);
     const dur = this.animator.play('heavy', {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
@@ -168,12 +182,22 @@ export class Fighter {
     this.comboIdx = 0;
   }
 
+  // Humans aim where the CAMERA points (no horizontal auto-aim); the AI
+  // squares up on its target as its stand-in for aiming skill.
+  faceAim() {
+    if (!this.isAI && this.intent.aimYaw !== undefined) {
+      this.yaw = this.targetYaw = this.intent.aimYaw;
+    } else {
+      this.faceNearestEnemyIfClose(60, true);
+    }
+  }
+
   doRanged() {
     const mv = this.def.moves.ranged;
     if (this.rangedCd > 0) return;
     this.uncloak();
     const isChannel = mv.type === 'gatling' || mv.type === 'flame';
-    this.faceNearestEnemyIfClose(60, true);
+    this.faceAim();
 
     if (isChannel) {
       if (!this.animator.isPlaying('shootLoop')) this.animator.play('shootLoop');
@@ -260,6 +284,10 @@ export class Fighter {
     if (type === 'shake') { this.world.effects.addShake(arg || 0.4); return; }
     if (type !== 'hit') return;
     this.uncloak();
+    // kinetic bonus: real momentum behind a punch (dash, dive) hits harder
+    const mom = Math.hypot(this.vel.x, this.vel.y, this.vel.z);
+    const momMult = 1 + Math.min(0.7, Math.max(0, mom - 8) * 0.045);
+    atk = { ...atk, dmg: atk.dmg * momMult, knock: (atk.knock || 8) * (0.7 + 0.3 * momMult) };
     const reach = atk.range || 3.5;
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
     const cz = this.pos.z + Math.cos(this.yaw) * reach * 0.75;
@@ -473,9 +501,30 @@ export class Fighter {
         break;
     }
 
+    // ---- aerial plunge: heavy smash rides down to the ground ----
+    if (this.plunging) {
+      if (!this.alive || this.state !== 'attack') {
+        this.plunging = false;
+      } else if (this.grounded) {
+        this.plunging = false;
+        const mv = this.def.moves.heavy;
+        const fall = Math.abs(this._plungeVy);
+        const dmg = mv.dmg * (1 + Math.min(0.9, fall * 0.02)) * this.dmgMult();
+        this.world.groundShockwave(this, this.pos, mv.range * this.scale * 1.6, dmg, mv.knock, 0xffc060);
+        this.world.effects.addShake(0.7);
+        this.world.engine.addHitStop(0.08);
+        this.world.audio?.play('slam');
+        this.animator.play('groundPound', { speed: 2.2 });
+        this.setState('attack', 0.35);
+      } else {
+        this.vel.y -= 55 * dt;          // slam acceleration
+        this._plungeVy = this.vel.y;    // captured before landing zeroes it
+      }
+    }
+
     // ---- intents ----
     const acting = this.canAct();
-    this.blocking = acting && I.block && this.grounded;
+    this.blocking = acting && I.block; // blocking works airborne/hovering too
 
     if (acting && !this.blocking) {
       if (I.ult && this.ult >= 1) this.doUlt();
@@ -512,15 +561,17 @@ export class Fighter {
           this.rangedCd = this.def.moves.ranged.cooldown;
           this.world.fireRanged(this, this.def.moves.ranged);
         }
-        this.faceNearestEnemyIfClose(50, true);
+        this.faceAim();
       }
     }
     if (this.state === 'normal') this.queuedLight = false;
 
     // ---- hover jets ----
     if (this.hovering) {
-      const wantHover = I.jumpHeld && this.hoverFuel > 0 && !this.grounded &&
-        (this.state === 'normal' || this.state === 'channel');
+      // attacks don't cut the jets — punch, shoot and block mid-flight
+      // (the aerial plunge is the exception: it's a controlled fall)
+      const wantHover = I.jumpHeld && this.hoverFuel > 0 && !this.grounded && !this.plunging &&
+        (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
       if (wantHover) {
         this.hoverFuel = Math.max(0, this.hoverFuel - dt);
         // thrust counters gravity and climbs toward the mech's rise cap
@@ -554,7 +605,10 @@ export class Fighter {
       ax = I.moveX; az = I.moveZ;
       const len = Math.hypot(ax, az);
       if (len > 1) { ax /= len; az /= len; }
-      if (len > 0.15 && this.state !== 'channel') {
+      if (I.strafe && I.aimYaw !== undefined) {
+        // strafe lock: face where the camera points, glide sideways
+        this.targetYaw = I.aimYaw;
+      } else if (len > 0.15 && this.state !== 'channel') {
         this.targetYaw = Math.atan2(ax, az);
       }
     }
@@ -666,6 +720,7 @@ export class Fighter {
     this.comboIdx = 0;
     this.hovering = false;
     this.hoverFuel = this.hoverFuelMax;
+    this.plunging = false;
     this.animator.action = null;
   }
 }

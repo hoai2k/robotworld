@@ -175,6 +175,34 @@ export async function bootGame() {
   window.addEventListener('pointerdown', resumeAudio);
   window.addEventListener('keydown', resumeAudio);
 
+  // ---- sound on/off: corner button on menus, mirrored in the pause menu ----
+  let muted = false;
+  try { muted = localStorage.getItem('rw.muted') === '1'; } catch (e) { /* ok */ }
+  const muteBtn = document.createElement('div');
+  muteBtn.id = 'mute-btn';
+  muteBtn.title = 'sound on/off';
+  muteBtn.style.cssText =
+    'position:absolute;right:16px;bottom:14px;z-index:40;cursor:pointer;font-size:26px;' +
+    'opacity:0.8;user-select:none;text-shadow:0 2px 6px #000;pointer-events:auto;';
+  uiRoot.appendChild(muteBtn);
+  function setMuted(m) {
+    muted = m;
+    try { localStorage.setItem('rw.muted', m ? '1' : '0'); } catch (e) { /* ok */ }
+    audio.setSfxVolume(muted ? 0 : 0.8);
+    audio.setMusicVolume(muted ? 0 : 0.35);
+    muteBtn.textContent = muted ? '🔇' : '🔊';
+  }
+  muteBtn.addEventListener('click', () => setMuted(!muted));
+  setMuted(muted);
+  let muteVisible = true;
+  function updateMuteBtn() {
+    const show = !(S.mode === 'battle' && S.battle && !S.battle.paused);
+    if (show !== muteVisible) {
+      muteVisible = show;
+      muteBtn.style.display = show ? '' : 'none';
+    }
+  }
+
   // On-screen touch controls (phones/tablets). Mounting sets input.touchAvailable,
   // which unlocks the TOUCH device option on the setup screen.
   const touchControls = isTouchDevice()
@@ -410,6 +438,10 @@ export async function bootGame() {
       onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
       onFullscreen: toggleFullscreen,
+      soundToggle: {
+        label: () => (muted ? 'SOUND: OFF' : 'SOUND: ON'),
+        fn: () => setMuted(!muted),
+      },
       splitToggle: S.battle.humans.length === 2 ? {
         label: () => S.battle.cameraSys.layout2p === 'lr' ? 'SPLIT: SIDE BY SIDE' : 'SPLIT: STACKED',
         fn: () => toggleSplitLayout(),
@@ -447,6 +479,7 @@ export async function bootGame() {
       S.stage?.update(dt);
       S.screen?.update(input.menuEvents());
     }
+    updateMuteBtn();
     input.endFrame();
   };
 

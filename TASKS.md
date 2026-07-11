@@ -275,3 +275,25 @@ controllers via Gamepad API), AI opponents.
     (head compensates); hover flight pitches Iron-Man-forward with speed,
     legs trailing. Verified via screenshots.
   - Pause menu gained a FULLSCREEN item.
+- 2026-07-11: Combat control overhaul (user request):
+  - Punches angle inward toward the centerline (shoulder-z cross-body aim)
+    so wide-armed mechs connect visually.
+  - Kinetic momentum bonus: melee dmg/knock scale with attacker speed above
+    walking pace (up to +70%) — dash-punches and dive hits reward momentum.
+  - Aerial heavy = PLUNGE: the smash rides down (accelerated fall) and
+    detonates a ground shockwave on landing, damage scaling with fall speed.
+  - Fly-fighting: attacks and blocking work while hovering (jets stay lit
+    through attack state); blocking no longer requires being grounded.
+  - Aiming: NO horizontal auto-aim on ranged fire — humans fire where the
+    camera points (intent.aimYaw), AI squares up to its target as its aiming
+    model; only vertical assist remains when an enemy is down the barrel
+    (dot>0.86). Mortar ranges its arc to the barrel target. Homing stays
+    exclusive to B-button specials (missile volley / starfall).
+  - Strafe-lock button: hold LB (kb1 Q / kb2 Num7) to face the camera aim
+    while moving sideways. ULT moved to D-pad UP (D-pad up no longer moves).
+  - Sound toggle: speaker button bottom-right on all menus + pause; SOUND
+    ON/OFF item in pause menu; persisted (rw.muted).
+  - attackmatrix updated: ranged tested vs an approaching victim (aim
+    correctness) since strafing now legitimately dodges dumb-fire; specials/
+    ults still tested vs circle-strafe. ALL CONNECT; 2 soaks clean; hover-
+    attack/air-block/plunge/strafe-lock all verified headlessly.

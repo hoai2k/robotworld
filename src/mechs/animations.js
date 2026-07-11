@@ -57,8 +57,8 @@ const CLIPS_RAW = {
     dur: 0.42,
     keys: [
       { t: 0, pose: { torso: [6, -22, -6], hipsRot: [0, -10, 0], shoulderL: [-30, 8, -18], elbowL: [-108, 0, 0], shoulderR: [10, 0, 18], head: [0, 10, 0] } },
-      { t: 0.13, ease: 'outBack', pose: { torso: [10, 26, 8], hipsRot: [0, 14, 0], hipsPos: [0, -0.12, 0], shoulderL: [-98, -14, 6], elbowL: [-4, 0, 0], shoulderR: [18, 0, 26], head: [0, -12, 0] } },
-      { t: 0.24, ease: 'inOutQuad', pose: { torso: [7, 18, 5], hipsRot: [0, 10, 0], shoulderL: [-84, -10, 2], elbowL: [-24, 0, 0] } },
+      { t: 0.13, ease: 'outBack', pose: { torso: [10, 26, 8], hipsRot: [0, 14, 0], hipsPos: [0, -0.12, 0], shoulderL: [-98, -14, 24], elbowL: [-4, 0, 0], shoulderR: [18, 0, 26], head: [0, -12, 0] } },
+      { t: 0.24, ease: 'inOutQuad', pose: { torso: [7, 18, 5], hipsRot: [0, 10, 0], shoulderL: [-84, -10, 18], elbowL: [-24, 0, 0] } },
       { t: 0.42, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.11, type: 'sfx', arg: 'whoosh' }, { t: 0.13, type: 'hit', arg: 0 }],
@@ -67,8 +67,8 @@ const CLIPS_RAW = {
     dur: 0.46,
     keys: [
       { t: 0, pose: { torso: [7, 24, 6], hipsRot: [0, 12, 0], shoulderR: [-35, -8, 20], elbowR: [-112, 0, 0], shoulderL: [12, 0, -20], head: [0, -10, 0] } },
-      { t: 0.15, ease: 'outBack', pose: { torso: [10, -30, -8], hipsRot: [0, -16, 0], hipsPos: [0, -0.14, 0], shoulderR: [-100, 14, -6], elbowR: [-2, 0, 0], shoulderL: [20, 0, -28], head: [0, 12, 0] } },
-      { t: 0.27, ease: 'inOutQuad', pose: { torso: [7, -20, -5], hipsRot: [0, -11, 0], shoulderR: [-86, 10, -2], elbowR: [-22, 0, 0] } },
+      { t: 0.15, ease: 'outBack', pose: { torso: [10, -30, -8], hipsRot: [0, -16, 0], hipsPos: [0, -0.14, 0], shoulderR: [-100, 14, -24], elbowR: [-2, 0, 0], shoulderL: [20, 0, -28], head: [0, 12, 0] } },
+      { t: 0.27, ease: 'inOutQuad', pose: { torso: [7, -20, -5], hipsRot: [0, -11, 0], shoulderR: [-86, 10, -18], elbowR: [-22, 0, 0] } },
       { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.13, type: 'sfx', arg: 'whoosh' }, { t: 0.15, type: 'hit', arg: 1 }],

@@ -5,17 +5,18 @@ const KB1 = {
   up: 'KeyW', down: 'KeyS', left: 'KeyA', right: 'KeyD',
   jump: 'Space', light: 'KeyF', heavy: 'KeyG', block: 'KeyH',
   ranged: 'KeyR', special: 'KeyT', ult: 'KeyY', taunt: 'KeyB',
-  dash: 'ShiftLeft',
+  dash: 'ShiftLeft', strafe: 'KeyQ',
 };
 const KB2 = {
   up: 'ArrowUp', down: 'ArrowDown', left: 'ArrowLeft', right: 'ArrowRight',
   jump: 'Numpad0', light: 'Numpad1', heavy: 'Numpad2', block: 'Numpad3',
   ranged: 'Numpad4', special: 'Numpad5', ult: 'Numpad6', taunt: 'NumpadDecimal',
-  dash: 'NumpadEnter',
+  dash: 'NumpadEnter', strafe: 'Numpad7',
   // right-cluster fallbacks for keyboards without a numpad
   alt: {
     jump: 'Enter', light: 'Comma', heavy: 'Period', block: 'Slash',
     ranged: 'KeyM', special: 'KeyN', ult: 'Quote', dash: 'ShiftRight', taunt: 'Semicolon',
+    strafe: 'KeyJ',
   },
 };
 
@@ -131,14 +132,14 @@ export class Input {
       intent.ult = kp('ult');
       intent.dash = kp('dash');
       intent.taunt = kp('taunt');
+      intent.strafe = k('strafe');
     } else if (device.startsWith('pad')) {
       const i = +device[3];
       mx = this.padsCur[i].lx || 0;
       mz = -(this.padsCur[i].ly || 0);
-      // dpad as movement fallback
+      // dpad as movement fallback (UP is the ultimate now — see below)
       if (this.padHeld(i, 'DL')) mx -= 1;
       if (this.padHeld(i, 'DR')) mx += 1;
-      if (this.padHeld(i, 'DU')) mz += 1;
       if (this.padHeld(i, 'DD')) mz -= 1;
       intent.jump = this.padPressed(i, 'A');
       intent.jumpHeld = this.padHeld(i, 'A');
@@ -147,7 +148,9 @@ export class Input {
       intent.block = this.padHeld(i, 'LT');
       intent.ranged = this.padHeld(i, 'RT');
       intent.special = this.padPressed(i, 'B');
-      intent.ult = this.padPressed(i, 'LB');
+      // LB is now strafe-lock (hold); the ultimate moved to D-pad UP
+      intent.ult = this.padPressed(i, 'DU');
+      intent.strafe = this.padHeld(i, 'LB');
       intent.dash = this.padPressed(i, 'RB');
       // BACK/View button — RS click would misfire while steering the camera
       intent.taunt = this.padPressed(i, 'BACK');
@@ -165,6 +168,7 @@ export class Input {
       intent.ult = t.pressed.has('ult');
       intent.dash = t.pressed.has('dash');
       intent.taunt = t.pressed.has('taunt');
+      intent.strafe = t.held.has('strafe');
     }
 
     // rotate into world space (camera-relative):
@@ -172,6 +176,7 @@ export class Input {
     const cos = Math.cos(camYaw), sin = Math.sin(camYaw);
     intent.moveX = -mx * cos + mz * sin;
     intent.moveZ = mx * sin + mz * cos;
+    intent.aimYaw = camYaw; // camera-based aim reference for firing/strafing
   }
 
   // menu direction auto-repeat: fires on the rising edge, then repeats
