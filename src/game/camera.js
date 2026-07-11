@@ -69,6 +69,10 @@ export class CameraSystem {
     this.dividerEl.style.cssText = 'position:absolute;inset:0;pointer-events:none;z-index:6;display:none;';
     document.getElementById('ui-root').appendChild(this.dividerEl);
     this._dividerKind = null;
+
+    // camera->player occlusion segments (reused each frame)
+    this._segs = [];
+    for (let i = 0; i < 4; i++) this._segs.push({ from: new THREE.Vector3(), to: new THREE.Vector3() });
   }
 
   // 'single' | 'lr' | 'tb' | '3' | '4' for a given human count
@@ -208,6 +212,16 @@ export class CameraSystem {
     const cam = this.engine.camera;
     cam.position.set(this.cPos.x + shakeX, this.cPos.y + shakeY, this.cPos.z);
     cam.lookAt(this.cTarget.x + shakeX * 0.6, this.cTarget.y + shakeY * 0.6, this.cTarget.z);
+
+    // solo chase cam rides low — ghost buildings that hide the player
+    if (solo) {
+      const seg = this._segs[0];
+      seg.from.copy(this.cPos);
+      seg.to.set(humans[0].pos.x, humans[0].pos.y + humans[0].height * 0.5, humans[0].pos.z);
+      this.world.arena?.setOccluders?.([seg]);
+    } else {
+      this.world.arena?.setOccluders?.([]);
+    }
   }
 
   // world-space azimuth used to make controls camera-relative
@@ -256,19 +270,6 @@ export class CameraSystem {
       const lookAhead = enemy ? _center.copy(f.pos).lerp(enemy.pos, 0.22) : _center.copy(f.pos);
       lookAhead.y += 4.5;
 
-      // split cams are permanent now — never leave one buried in a building:
-      // ray from the player toward the lens, pull in front of the first wall
-      if (this.world.arena) {
-        _ray.copy(wantPos).sub(lookAhead);
-        const rayLen = _ray.length();
-        _ray.divideScalar(rayLen || 1);
-        const hit = this.world.arena.raySolid(lookAhead, _ray, rayLen);
-        if (hit) {
-          const t = Math.max(6, hit.t - 1.6);
-          wantPos.copy(lookAhead).addScaledVector(_ray, t);
-        }
-      }
-
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);
       ch.pos.y = damp(ch.pos.y, wantPos.y, 5, dt);
@@ -280,8 +281,14 @@ export class CameraSystem {
       cam.position.set(ch.pos.x + shakeX, ch.pos.y + shakeY, ch.pos.z);
       cam.lookAt(ch.target.x, ch.target.y, ch.target.z);
       views.push({ camera: cam, ...vp });
+
+      // ghost any building between this camera and its mech
+      const seg = this._segs[i];
+      seg.from.copy(ch.pos);
+      seg.to.set(f.pos.x, f.pos.y + f.height * 0.5, f.pos.z);
     }
     this.engine.views = views;
+    this.world.arena?.setOccluders?.(this._segs.slice(0, n));
     this.renderDividers(kind);
   }
 

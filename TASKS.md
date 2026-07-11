@@ -238,3 +238,20 @@ controllers via Gamepad API), AI opponents.
   touch player's own viewport in split. Taunt moved RS-click -> VIEW button
   so stick clicks can't misfire while steering. Verified: headless orbit +
   behind-init math checks, 2P menu flow screenshots, soak, build green.
+- 2026-07-11: Movement & world feel pass (user request):
+  - Faster walks (+20% global), longer dashes (x4.2 speed, 0.3s) that STRAFE
+    (dash keeps facing a nearby enemy = combat sidesteps), higher jumps
+    (+18%), and HOVER JETS: second jump press + hold flies; lighter mechs
+    get more fuel (up to ~2.8s) and stronger climb (verified: viper apex ~39
+    vs colossus ~12); fuel refills on the ground; jet glow/smoke FX.
+  - Attack animations made dynamic: full-body twist (hipsRot), side leans,
+    deeper coils, tiptoe launches, outBack overshoot on strikes across
+    lights/heavy/shoot/casts/brace/lunge/charge/burst/flurry/spinFire/
+    groundPound/shieldBash. All durations + event times unchanged (combat
+    balance untouched). Verified via showcase screenshots.
+  - Arenas DOUBLED (bounds x2, building count x2 w/ 4 in-field cover, prop
+    rings + fog + skyline + shadow extent scaled, spawns widened to 34).
+  - Camera see-through: buildings crossing any follow-cam->mech segment
+    dither-fade to 25% (per-instance aFade attribute + shader patch, eased,
+    per building) for split chase cams and the solo chase cam; replaces the
+    ray pull-in. Verified with staged occlusion screenshot.

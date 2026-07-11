@@ -542,6 +542,7 @@ export class PauseScreen {
       <b style="color:#fff">KEYBOARD P1</b> — WASD move · SPACE jump · F light · G heavy · H block · R ranged · T special · Y ultimate · SHIFT dash · B taunt<br>
       <b style="color:#fff">KEYBOARD P2</b> — Arrows move · Num0 jump · Num1 light · Num2 heavy · Num3 block · Num4 ranged · Num5 special · Num6 ult · NumEnter dash<br>
       <b style="color:#fff">XBOX PAD</b> — L-stick move · R-stick camera · A jump · X light · Y heavy · B special · RT ranged · LT block · RB dash · LB ultimate · VIEW taunt<br>
+      <b style="color:#fff">HOVER JETS</b> — press JUMP again in mid-air and HOLD to fly (lighter mechs fly higher)<br>
       <b style="color:#fff">VIEW</b> — F9 flips the 2-player split (side-by-side ↔ stacked) · F10 fullscreen`;
     this.el.appendChild(this.controls);
     root.appendChild(this.el);

@@ -53,7 +53,7 @@ export class Arena {
     this.engine = engine;
     this.scene = engine.scene;
     this.theme = theme;
-    this.bounds = theme.bounds;
+    this.bounds = theme.bounds * 2;   // arenas doubled — more city to wreck
     this.world = null;
     this.objects = [];   // everything we added (for dispose)
     this.spinners = [];  // props with userData.spin
@@ -65,7 +65,7 @@ export class Arena {
     this.sky = makeSkyDome(theme);
     this.scene.add(this.sky);
     this.objects.push(this.sky);
-    this.scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near, theme.fog.far);
+    this.scene.fog = new THREE.Fog(theme.fog.color, theme.fog.near * 1.5, theme.fog.far * 1.5);
     this.scene.background = null;
 
     const { sun, hemi, rim } = engine;
@@ -125,7 +125,7 @@ export class Arena {
     const skyline = new THREE.Group();
     for (let i = 0; i < 40; i++) {
       const a = (i / 40) * Math.PI * 2 + rng.range(-0.05, 0.05);
-      const r = rng.range(150, 250);
+      const r = rng.range(190, 310);
       const w = rng.range(12, 30), h = rng.range(20, 90), d = rng.range(12, 30);
       const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), skyMatDark);
       m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
@@ -154,23 +154,25 @@ export class Arena {
     this.destructo = new DestructibleSystem(this.scene, chunkMats);
     this.objects.push(this.destructo.mesh, this.destructo.debris.mesh);
 
-    // ring layout: buildings frame the fight zone, a couple in-field for cover
-    const count = Math.min(theme.buildings.count, 9);
+    // ring layout: buildings frame the fight zone, several in-field for
+    // cover — counts doubled to match the doubled arena footprint
+    const count = Math.min(theme.buildings.count * 2, 16);
+    const innerCount = 4;
     const placed = [];
     for (let i = 0; i < count; i++) {
       let x, z, ok = false, tries = 0;
-      const inner = i >= count - 2;
+      const inner = i >= count - innerCount;
       while (!ok && tries++ < 40) {
         if (!inner) {
-          const a = (i / (count - 2)) * Math.PI * 2 + rng.range(-0.22, 0.22);
-          const r = rng.range(B * 0.78, B * 1.08);
+          const a = (i / (count - innerCount)) * Math.PI * 2 + rng.range(-0.18, 0.18);
+          const r = rng.range(B * 0.72, B * 1.05);
           x = Math.cos(a) * r; z = Math.sin(a) * r;
         } else {
           const a = rng.range(0, Math.PI * 2);
-          const r = rng.range(20, B * 0.55);
+          const r = rng.range(24, B * 0.55);
           x = Math.cos(a) * r; z = Math.sin(a) * r;
         }
-        ok = placed.every((p) => Math.hypot(p[0] - x, p[1] - z) > 22);
+        ok = placed.every((p) => Math.hypot(p[0] - x, p[1] - z) > 24);
       }
       if (!ok) continue;
       placed.push([x, z]);
@@ -185,7 +187,7 @@ export class Arena {
     for (const spec of theme.props || []) {
       for (let i = 0; i < spec.count; i++) {
         const a = rng.range(0, Math.PI * 2);
-        const r = rng.range(spec.ring[0], spec.ring[1]);
+        const r = rng.range(spec.ring[0], spec.ring[1]) * 1.85; // rings scaled with arena
         const x = Math.cos(a) * r, z = Math.sin(a) * r;
         let opts = Array.isArray(spec.opts) ? spec.opts[i % spec.opts.length] : { ...(spec.opts || {}) };
         opts = { ...opts, seed: rng.int(1, 99999) };
@@ -215,6 +217,7 @@ export class Arena {
   }
   pointHits(pos) { return this.destructo.pointHits(pos); }
   raySolid(origin, dir, range) { return this.destructo.raySolid(origin, dir, range); }
+  setOccluders(segments) { this.destructo.setOccluders(segments); }
 
   collideFighter(f) {
     const B = this.bounds;
@@ -225,7 +228,7 @@ export class Arena {
 
   spawnPoints(n) {
     const pts = [];
-    const r = Math.min(this.bounds * 0.55, 26);
+    const r = Math.min(this.bounds * 0.4, 34);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.PI / n;
       pts.push({

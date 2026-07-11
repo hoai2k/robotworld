@@ -1,7 +1,7 @@
 // Fighter: movement physics, combat state machine, resources, hit reactions.
 // Driven each frame by an intent (from human input or AI).
 import * as THREE from 'three';
-import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU } from '../core/utils.js';
+import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/utils.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
@@ -9,6 +9,8 @@ import { SPECIALS, ULTS } from './specials.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const GRAVITY = 34;
+const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
+const JUMP_MULT = 1.18;  // global jump boost
 
 export const PLAYER_COLORS = [0x38e8ff, 0xff4d5e, 0x62ff9a, 0xffb43c];
 
@@ -49,6 +51,15 @@ export class Fighter {
     this.dashCd = 0;
     this.iframes = 0;
 
+    // hover jets: double-tap jump and HOLD to fly. Lighter mechs get more
+    // fuel and stronger jets — the little ones really take to the air.
+    const lightness = 1 - def.stats.weight;
+    this.hoverFuelMax = 1.5 + lightness * 1.9;   // seconds of thrust
+    this.hoverFuel = this.hoverFuelMax;
+    this.hoverRise = 7 + lightness * 8;          // max climb speed
+    this.hovering = false;
+    this.jetT = 0;
+
     // state machine
     this.state = 'normal';     // normal|attack|channel|special|ult|dash|hitstun|launched|knockdown|getup|dead|intro|victory|frozen
     this.stateT = 0;
@@ -63,7 +74,7 @@ export class Fighter {
     this.status = {};
 
     this.intent = {
-      moveX: 0, moveZ: 0, jump: false, light: false, heavy: false,
+      moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
       ranged: false, special: false, ult: false, block: false, dash: false, taunt: false,
     };
     this.alive = true;
@@ -215,13 +226,19 @@ export class Fighter {
     let dir;
     if (Math.abs(ix) + Math.abs(iz) > 0.2) dir = _v.set(ix, 0, iz).normalize();
     else dir = _v.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    const sp = this.def.stats.speed * 3.4 * this.speedMult();
+    const sp = this.def.stats.speed * 4.2 * this.speedMult();
     this.vel.x = dir.x * sp;
     this.vel.z = dir.z * sp;
-    this.dashCd = 0.95;
-    this.dashT = 0.24;
-    this.iframes = Math.max(this.iframes, 0.22);
-    this.setState('dash', 0.24);
+    // strafe dash: keep facing a nearby enemy instead of the travel
+    // direction, so sideways dashes read as combat sidesteps
+    const e = this.nearestEnemy();
+    if (e && this.pos.distanceTo(e.pos) < 34) {
+      this.targetYaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
+    }
+    this.dashCd = 0.9;
+    this.dashT = 0.3;
+    this.iframes = Math.max(this.iframes, 0.26);
+    this.setState('dash', 0.3);
     this.world.audio?.play('dash');
     this.world.effects.rings.spawn(this.pos, {
       from: 0.5, to: 3.5, dur: 0.3, color: PLAYER_COLORS[this.playerIndex % 4], y: 0.4,
@@ -473,10 +490,14 @@ export class Fighter {
         this.setState('attack', this.animator.play('taunt') * 0.9);
       }
       if (I.jump && this.grounded && this.state === 'normal') {
-        this.vel.y = st.jump * (this.status.buff ? 1.1 : 1);
+        this.vel.y = st.jump * JUMP_MULT * (this.status.buff ? 1.1 : 1);
         this.grounded = false;
         this.world.audio?.play('jump');
         this.world.effects.dustPuff(this.pos, 6);
+      } else if (I.jump && !this.grounded && !this.hovering && this.hoverFuel > 0.2) {
+        // second jump press in the air ignites the hover jets
+        this.hovering = true;
+        this.world.audio?.play('jump');
       }
     } else if (this.state === 'attack' && this.queuedLight && this.stateT < 0.14) {
       // combo chain
@@ -495,6 +516,32 @@ export class Fighter {
       }
     }
     if (this.state === 'normal') this.queuedLight = false;
+
+    // ---- hover jets ----
+    if (this.hovering) {
+      const wantHover = I.jumpHeld && this.hoverFuel > 0 && !this.grounded &&
+        (this.state === 'normal' || this.state === 'channel');
+      if (wantHover) {
+        this.hoverFuel = Math.max(0, this.hoverFuel - dt);
+        // thrust counters gravity and climbs toward the mech's rise cap
+        this.vel.y = Math.min(this.vel.y + (GRAVITY + 26) * dt, this.hoverRise);
+        this.jetT -= dt;
+        if (this.jetT <= 0) {
+          this.jetT = 0.05;
+          const fx = this.world.effects;
+          fx.glows.emit(this.pos.x + rand(-0.8, 0.8) * this.scale, this.pos.y + 0.6, this.pos.z + rand(-0.8, 0.8) * this.scale,
+            0, -6, 0, { life: 0.28, size: 1.5 * this.scale, color: 0x7fd8ff, alpha: 0.85 });
+          fx.smoke.emit(this.pos.x, this.pos.y + 0.3, this.pos.z,
+            rand(-1, 1), -3, rand(-1, 1), { life: 0.5, size: 1.1 * this.scale, color: 0x445055, alpha: 0.3, grow: 2 });
+        }
+      } else {
+        this.hovering = false;
+      }
+    }
+    if (this.grounded) {
+      this.hovering = false;
+      this.hoverFuel = Math.min(this.hoverFuelMax, this.hoverFuel + dt * 0.9);
+    }
 
     // block anim
     if (this.blocking && !this.animator.isPlaying('block')) this.animator.play('block');
@@ -522,7 +569,7 @@ export class Fighter {
     const spd = Math.hypot(this.vel.x, this.vel.z);
     this.animator.update(dt, {
       speed: canMove ? spd : 0,
-      maxSpeed: st.speed,
+      maxSpeed: st.speed * WALK_MULT,
       grounded: this.grounded,
       vy: this.vel.y,
       dashT: this.dashT,
@@ -537,12 +584,13 @@ export class Fighter {
 
   applyPhysics(dt, ax, az) {
     const st = this.def.stats;
-    const speedCap = st.speed * this.speedMult() * (this.state === 'channel' ? 0.45 : 1);
-    const accel = 46 * this.speedMult();
+    const speedCap = st.speed * WALK_MULT * this.speedMult() * (this.state === 'channel' ? 0.45 : 1);
 
     if (this.state !== 'dash') {
-      this.vel.x = lerp(this.vel.x, ax * speedCap, 1 - Math.exp(-(this.grounded ? 9 : 3.2) * dt));
-      this.vel.z = lerp(this.vel.z, az * speedCap, 1 - Math.exp(-(this.grounded ? 9 : 3.2) * dt));
+      // hover jets give strong air control; plain jumps keep loose drift
+      const control = this.grounded ? 9 : this.hovering ? 6.5 : 3.2;
+      this.vel.x = lerp(this.vel.x, ax * speedCap, 1 - Math.exp(-control * dt));
+      this.vel.z = lerp(this.vel.z, az * speedCap, 1 - Math.exp(-control * dt));
     } else {
       const d = Math.max(0, 1 - 2.2 * dt);
       this.vel.x *= d; this.vel.z *= d;
@@ -615,6 +663,8 @@ export class Fighter {
     this.rangedCd = 0;
     this.iframes = 0;
     this.comboIdx = 0;
+    this.hovering = false;
+    this.hoverFuel = this.hoverFuelMax;
     this.animator.action = null;
   }
 }

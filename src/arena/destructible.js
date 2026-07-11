@@ -5,6 +5,28 @@
 import * as THREE from 'three';
 import { rand, makeRng } from '../core/utils.js';
 
+// segment vs AABB (slab method), with padding
+function segmentHitsAabb(from, to, a, pad = 0) {
+  let tMin = 0, tMax = 1;
+  const lo = [a.minX - pad, a.minY - pad, a.minZ - pad];
+  const hi = [a.maxX + pad, a.maxY + pad, a.maxZ + pad];
+  const f = [from.x, from.y, from.z];
+  const d = [to.x - from.x, to.y - from.y, to.z - from.z];
+  for (let i = 0; i < 3; i++) {
+    if (Math.abs(d[i]) < 1e-8) {
+      if (f[i] < lo[i] || f[i] > hi[i]) return false;
+    } else {
+      let t1 = (lo[i] - f[i]) / d[i];
+      let t2 = (hi[i] - f[i]) / d[i];
+      if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+      tMin = Math.max(tMin, t1);
+      tMax = Math.min(tMax, t2);
+      if (tMin > tMax) return false;
+    }
+  }
+  return true;
+}
+
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
 const _p = new THREE.Vector3();
@@ -52,6 +74,45 @@ export class DestructibleSystem {
     }
     this.pendingCollapse = []; // {chunk, t}
     this.world = null;
+
+    // ---- camera see-through: per-instance dither fade ----
+    // buildings between a follow-cam and its mech ghost to ~25% coverage so
+    // the player never loses their mech behind cover. Dithered discard (no
+    // alpha blending) keeps instancing + depth simple.
+    // NOTE: patched AFTER the debris material clone so debris stays solid.
+    this.fadeAttr = new THREE.InstancedBufferAttribute(new Float32Array(capacity).fill(1), 1);
+    this.mesh.geometry.setAttribute('aFade', this.fadeAttr);
+    const mats = Array.isArray(material) ? [...new Set(material)] : [material];
+    for (const mat of mats) {
+      mat.onBeforeCompile = (shader) => {
+        shader.vertexShader = shader.vertexShader
+          .replace('#include <common>', '#include <common>\nattribute float aFade;\nvarying float vFade;')
+          .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFade = aFade;');
+        shader.fragmentShader = shader.fragmentShader
+          .replace('#include <common>', '#include <common>\nvarying float vFade;')
+          .replace('#include <clipping_planes_fragment>', `
+    if (vFade < 0.999) {
+      float dgd = fract(sin(dot(floor(gl_FragCoord.xy), vec2(12.9898, 78.233))) * 43758.5453);
+      if (dgd > vFade) discard;
+    }
+    #include <clipping_planes_fragment>`);
+      };
+    }
+  }
+
+  // Fade any building whose AABB crosses a camera->player segment.
+  // segments: [{from: Vector3, to: Vector3}], refreshed every frame.
+  setOccluders(segments) {
+    for (const b of this.buildings) {
+      let hit = false;
+      if (b.alive > 0) {
+        const a = b.aabb;
+        for (const s of segments) {
+          if (segmentHitsAabb(s.from, s.to, a, 1.5)) { hit = true; break; }
+        }
+      }
+      b.fadeTarget = hit ? 0.25 : 1;
+    }
   }
 
   // Build a hollow tower of chunks. Returns building record.
@@ -239,6 +300,26 @@ export class DestructibleSystem {
   }
 
   update(dt) {
+    // camera see-through fades ease toward their targets
+    const fk = 1 - Math.exp(-10 * dt);
+    for (const b of this.buildings) {
+      const target = b.fadeTarget ?? 1;
+      const cur = b.fade ?? 1;
+      if (Math.abs(cur - target) > 0.005) {
+        b.fade = cur + (target - cur) * fk;
+        for (const chunk of b.grid.values()) {
+          if (chunk.alive) this.fadeAttr.array[chunk.i] = b.fade;
+        }
+        this.fadeAttr.needsUpdate = true;
+      } else if (b.fade !== target) {
+        b.fade = target;
+        for (const chunk of b.grid.values()) {
+          if (chunk.alive) this.fadeAttr.array[chunk.i] = target;
+        }
+        this.fadeAttr.needsUpdate = true;
+      }
+    }
+
     // pending collapses cascade
     for (let i = this.pendingCollapse.length - 1; i >= 0; i--) {
       const pc = this.pendingCollapse[i];

@@ -43,7 +43,7 @@ export class Engine {
     this.sun.shadow.mapSize.set(2048, 2048);
     this.sun.shadow.camera.near = 10;
     this.sun.shadow.camera.far = 320;
-    const ext = 85;
+    const ext = 135; // covers the doubled arenas corner to corner
     this.sun.shadow.camera.left = -ext;
     this.sun.shadow.camera.right = ext;
     this.sun.shadow.camera.top = ext;

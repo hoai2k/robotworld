@@ -122,6 +122,7 @@ export class Input {
       mx = (k('right') ? 1 : 0) - (k('left') ? 1 : 0);
       mz = (k('up') ? 1 : 0) - (k('down') ? 1 : 0);
       intent.jump = kp('jump');
+      intent.jumpHeld = k('jump');
       intent.light = kp('light');
       intent.heavy = kp('heavy');
       intent.block = k('block');
@@ -140,6 +141,7 @@ export class Input {
       if (this.padHeld(i, 'DU')) mz += 1;
       if (this.padHeld(i, 'DD')) mz -= 1;
       intent.jump = this.padPressed(i, 'A');
+      intent.jumpHeld = this.padHeld(i, 'A');
       intent.light = this.padPressed(i, 'X');
       intent.heavy = this.padPressed(i, 'Y');
       intent.block = this.padHeld(i, 'LT');
@@ -154,6 +156,7 @@ export class Input {
       mx = t.moveX;
       mz = t.moveZ;
       intent.jump = t.pressed.has('jump');
+      intent.jumpHeld = t.held.has('jump');
       intent.light = t.pressed.has('light');
       intent.heavy = t.pressed.has('heavy');
       intent.block = t.held.has('block');

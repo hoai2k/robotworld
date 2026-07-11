@@ -51,56 +51,58 @@ const CLIPS_RAW = {
   },
 
   // ---------- melee ----------
-  light1: { // left jab
+  // exaggerated wind-ups, full-body twist (hipsRot), side leans and outBack
+  // overshoot on the strikes — snappy anime energy instead of stiff robots.
+  light1: { // left jab — hips coil right, whip left through the punch
     dur: 0.42,
     keys: [
-      { t: 0, pose: { torso: [4, -14, 0], shoulderL: [-25, 0, -12], elbowL: [-95, 0, 0], head: [0, 6, 0] } },
-      { t: 0.13, ease: 'outCubic', pose: { torso: [6, 20, 0], shoulderL: [-92, -8, 0], elbowL: [-8, 0, 0], head: [0, -8, 0] } },
-      { t: 0.24, ease: 'inOutQuad', pose: { torso: [5, 16, 0], shoulderL: [-80, -6, 0], elbowL: [-25, 0, 0] } },
-      { t: 0.42, ease: 'inOutQuad', pose: { torso: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], head: [0, 0, 0] } },
+      { t: 0, pose: { torso: [6, -22, -6], hipsRot: [0, -10, 0], shoulderL: [-30, 8, -18], elbowL: [-108, 0, 0], shoulderR: [10, 0, 18], head: [0, 10, 0] } },
+      { t: 0.13, ease: 'outBack', pose: { torso: [10, 26, 8], hipsRot: [0, 14, 0], hipsPos: [0, -0.12, 0], shoulderL: [-98, -14, 6], elbowL: [-4, 0, 0], shoulderR: [18, 0, 26], head: [0, -12, 0] } },
+      { t: 0.24, ease: 'inOutQuad', pose: { torso: [7, 18, 5], hipsRot: [0, 10, 0], shoulderL: [-84, -10, 2], elbowL: [-24, 0, 0] } },
+      { t: 0.42, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.11, type: 'sfx', arg: 'whoosh' }, { t: 0.13, type: 'hit', arg: 0 }],
   },
-  light2: { // right cross
+  light2: { // right cross — bigger counter-twist, shoulders thrown through
     dur: 0.46,
     keys: [
-      { t: 0, pose: { torso: [5, 16, 0], shoulderR: [-30, 0, 14], elbowR: [-100, 0, 0], head: [0, -6, 0] } },
-      { t: 0.15, ease: 'outCubic', pose: { torso: [7, -24, 0], shoulderR: [-94, 8, 0], elbowR: [-6, 0, 0], head: [0, 8, 0] } },
-      { t: 0.27, ease: 'inOutQuad', pose: { torso: [5, -18, 0], shoulderR: [-82, 6, 0], elbowR: [-24, 0, 0] } },
-      { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], head: [0, 0, 0] } },
+      { t: 0, pose: { torso: [7, 24, 6], hipsRot: [0, 12, 0], shoulderR: [-35, -8, 20], elbowR: [-112, 0, 0], shoulderL: [12, 0, -20], head: [0, -10, 0] } },
+      { t: 0.15, ease: 'outBack', pose: { torso: [10, -30, -8], hipsRot: [0, -16, 0], hipsPos: [0, -0.14, 0], shoulderR: [-100, 14, -6], elbowR: [-2, 0, 0], shoulderL: [20, 0, -28], head: [0, 12, 0] } },
+      { t: 0.27, ease: 'inOutQuad', pose: { torso: [7, -20, -5], hipsRot: [0, -11, 0], shoulderR: [-86, 10, -2], elbowR: [-22, 0, 0] } },
+      { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.13, type: 'sfx', arg: 'whoosh' }, { t: 0.15, type: 'hit', arg: 1 }],
   },
-  light3: { // rising uppercut (launcher)
+  light3: { // rising uppercut — deep coil, launch onto tiptoes, arm at full stretch
     dur: 0.62,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.18, ease: 'inOutQuad', pose: { hipsPos: [0, -0.5, 0], torso: [22, 14, 0], shoulderR: [15, 0, 10], elbowR: [-115, 0, 0], kneeL: [40, 0, 0], kneeR: [40, 0, 0], thighL: [-20, 0, 0], thighR: [-20, 0, 0] } },
-      { t: 0.32, ease: 'outCubic', pose: { hipsPos: [0, 0.12, 0], torso: [-16, -18, 0], shoulderR: [-128, 6, 0], elbowR: [-28, 0, 0], head: [-10, 0, 0], kneeL: [5, 0, 0], kneeR: [5, 0, 0], thighL: [3, 0, 0], thighR: [3, 0, 0] } },
-      { t: 0.62, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], head: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+      { t: 0.18, ease: 'inOutCubic', pose: { hipsPos: [0, -0.7, 0], hipsRot: [0, 16, 0], torso: [30, 20, -10], head: [8, -8, 0], shoulderR: [22, 0, 14], elbowR: [-130, 0, 0], shoulderL: [-20, 0, -30], elbowL: [-40, 0, 0], kneeL: [55, 0, 0], kneeR: [55, 0, 0], thighL: [-28, 0, 0], thighR: [-28, 0, 0] } },
+      { t: 0.32, ease: 'outBack', pose: { hipsPos: [0, 0.35, 0], hipsRot: [0, -14, 0], torso: [-24, -22, 8], head: [-14, 6, 0], shoulderR: [-150, 10, 6], elbowR: [-10, 0, 0], shoulderL: [10, 0, -36], elbowL: [-60, 0, 0], kneeL: [4, 0, 0], kneeR: [12, 0, 0], thighL: [6, 0, 0], thighR: [-8, 0, 0], ankleL: [22, 0, 0], ankleR: [22, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], head: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.27, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'hit', arg: 2 }],
   },
-  heavy: { // two-hand overhead smash
+  heavy: { // two-hand overhead smash — huge arch back, body hurled into the slam
     dur: 0.98,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.34, ease: 'inOutCubic', pose: { hipsPos: [0, -0.25, 0], torso: [-18, 0, 0], head: [-14, 0, 0], shoulderL: [-155, 0, -18], shoulderR: [-155, 0, 18], elbowL: [-45, 0, 0], elbowR: [-45, 0, 0] } },
-      { t: 0.52, ease: 'inCubic', pose: { hipsPos: [0, -0.55, 0], torso: [38, 0, 0], head: [10, 0, 0], shoulderL: [-55, 0, -8], shoulderR: [-55, 0, 8], elbowL: [-10, 0, 0], elbowR: [-10, 0, 0], kneeL: [35, 0, 0], kneeR: [35, 0, 0], thighL: [-18, 0, 0], thighR: [-18, 0, 0] } },
-      { t: 0.7, ease: 'inOutQuad', pose: { hipsPos: [0, -0.4, 0] } },
-      { t: 0.98, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+      { t: 0.34, ease: 'inOutCubic', pose: { hipsPos: [0, -0.3, 0], hipsRot: [-8, 8, 0], torso: [-28, 6, -6], head: [-18, 0, 0], shoulderL: [-172, 0, -26], shoulderR: [-172, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], kneeL: [18, 0, 0], kneeR: [18, 0, 0], thighL: [-8, 0, 0], thighR: [-8, 0, 0] } },
+      { t: 0.52, ease: 'inCubic', pose: { hipsPos: [0, -0.72, 0], hipsRot: [12, -6, 0], torso: [52, -6, 4], head: [14, 0, 0], shoulderL: [-48, 0, -6], shoulderR: [-48, 0, 6], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], kneeL: [48, 0, 0], kneeR: [48, 0, 0], thighL: [-26, 0, 0], thighR: [-26, 0, 0], ankleL: [-20, 0, 0], ankleR: [-20, 0, 0] } },
+      { t: 0.7, ease: 'outQuad', pose: { hipsPos: [0, -0.5, 0], torso: [44, -4, 3] } },
+      { t: 0.98, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.46, type: 'sfx', arg: 'whooshBig' }, { t: 0.52, type: 'hit', arg: 0 }, { t: 0.54, type: 'shake', arg: 0.5 }],
   },
 
   // ---------- ranged / channel ----------
-  shoot: { // single right-arm shot
+  shoot: { // single right-arm shot — sharper side profile, real recoil kick
     dur: 0.5, upper: true,
     keys: [
-      { t: 0, pose: { shoulderR: [-88, 0, 4], elbowR: [-4, 0, 0], torso: [2, -12, 0], head: [0, 6, 0] } },
-      { t: 0.12, ease: 'outQuad', pose: { shoulderR: [-99, 0, 4], elbowR: [-14, 0, 0], torso: [0, -8, 0] } },
-      { t: 0.3, ease: 'outQuad', pose: { shoulderR: [-88, 0, 4], elbowR: [-6, 0, 0] } },
-      { t: 0.5, ease: 'inOutQuad', pose: { shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], torso: [0, 0, 0], head: [0, 0, 0] } },
+      { t: 0, pose: { shoulderR: [-90, 0, 4], elbowR: [-4, 0, 0], shoulderL: [8, 0, -18], torso: [4, -18, -5], head: [0, 10, 0] } },
+      { t: 0.12, ease: 'outBack', pose: { shoulderR: [-104, 0, 6], elbowR: [-18, 0, 0], torso: [-3, -11, -2], head: [-4, 7, 0] } },
+      { t: 0.3, ease: 'outQuad', pose: { shoulderR: [-88, 0, 4], elbowR: [-6, 0, 0], torso: [3, -15, -4] } },
+      { t: 0.5, ease: 'inOutQuad', pose: { shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], torso: [0, 0, 0], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.1, type: 'fire' }],
   },
@@ -112,23 +114,23 @@ const CLIPS_RAW = {
       { t: 0.36, ease: 'inOutQuad', pose: { shoulderR: [-86, 0, 4], torso: [4, -14, 0] } },
     ],
   },
-  castRaise: { // arms skyward — starfall / thunderfall / judgment
+  castRaise: { // arms skyward — deep coil then a full-body arch on release
     dur: 0.95,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.3, ease: 'inOutCubic', pose: { hipsPos: [0, -0.3, 0], torso: [10, 0, 0], head: [8, 0, 0], shoulderL: [-40, 0, -20], shoulderR: [-40, 0, 20], elbowL: [-60, 0, 0], elbowR: [-60, 0, 0] } },
-      { t: 0.52, ease: 'outBack', pose: { hipsPos: [0, 0.05, 0], torso: [-14, 0, 0], head: [-18, 0, 0], shoulderL: [-168, 0, -14], shoulderR: [-168, 0, 14], elbowL: [-10, 0, 0], elbowR: [-10, 0, 0] } },
-      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0] } },
+      { t: 0.3, ease: 'inOutCubic', pose: { hipsPos: [0, -0.45, 0], torso: [16, 0, -8], head: [10, 0, 0], shoulderL: [-50, 0, -26], shoulderR: [-50, 0, 26], elbowL: [-75, 0, 0], elbowR: [-75, 0, 0], kneeL: [35, 0, 0], kneeR: [35, 0, 0], thighL: [-18, 0, 0], thighR: [-18, 0, 0] } },
+      { t: 0.52, ease: 'outBack', pose: { hipsPos: [0, 0.18, 0], hipsRot: [-8, 0, 0], torso: [-22, 0, 6], head: [-24, 0, 0], shoulderL: [-175, 0, -20], shoulderR: [-175, 0, 20], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], kneeL: [4, 0, 0], kneeR: [4, 0, 0], thighL: [2, 0, 0], thighR: [2, 0, 0] } },
+      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
     ],
     events: [{ t: 0.5, type: 'fire' }, { t: 0.5, type: 'sfx', arg: 'cast' }],
   },
-  brace: { // artillery firing stance
+  brace: { // artillery stance — wide stagger, torso rocked hard by the recoil
     dur: 0.95,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.3, ease: 'inOutCubic', pose: { hipsPos: [0, -0.45, 0], torso: [-16, 0, 0], head: [-10, 0, 0], thighL: [-30, 0, 0], thighR: [12, 0, 0], kneeL: [45, 0, 0], kneeR: [30, 0, 0], shoulderL: [-35, 0, -14], shoulderR: [-35, 0, 14], elbowL: [-40, 0, 0], elbowR: [-40, 0, 0] } },
-      { t: 0.55, ease: 'outQuad', pose: { hipsPos: [0, -0.55, 0], torso: [-22, 0, 0] } },
-      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0] } },
+      { t: 0.3, ease: 'inOutCubic', pose: { hipsPos: [0, -0.5, 0], hipsRot: [0, -12, 0], torso: [-20, 10, -5], head: [-12, 0, 0], thighL: [-42, 0, 0], thighR: [18, 0, 0], kneeL: [55, 0, 0], kneeR: [38, 0, 0], shoulderL: [-40, 0, -18], shoulderR: [-40, 0, 18], elbowL: [-45, 0, 0], elbowR: [-45, 0, 0] } },
+      { t: 0.55, ease: 'outBack', pose: { hipsPos: [0, -0.68, 0], torso: [-30, 12, -7], head: [-16, 0, 0] } },
+      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0] } },
     ],
     events: [{ t: 0.5, type: 'fire' }, { t: 0.52, type: 'shake', arg: 0.4 }],
   },
@@ -198,66 +200,66 @@ const CLIPS_RAW = {
     dur: 0.9,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.28, ease: 'inOutCubic', pose: { hipsPos: [0, 0.1, 0], torso: [-20, 0, 0], head: [-14, 0, 0], shoulderL: [-160, 0, -22], shoulderR: [-160, 0, 22], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0] } },
-      { t: 0.46, ease: 'inCubic', pose: { hipsPos: [0, -0.85, 0], torso: [45, 0, 0], head: [15, 0, 0], shoulderL: [-40, 0, -10], shoulderR: [-40, 0, 10], elbowL: [-5, 0, 0], elbowR: [-5, 0, 0], kneeL: [60, 0, 0], kneeR: [60, 0, 0], thighL: [-30, 0, 0], thighR: [-30, 0, 0], ankleL: [-25, 0, 0], ankleR: [-25, 0, 0] } },
-      { t: 0.62, ease: 'inOutQuad', pose: { hipsPos: [0, -0.7, 0] } },
-      { t: 0.9, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
+      { t: 0.28, ease: 'inOutCubic', pose: { hipsPos: [0, 0.22, 0], hipsRot: [-6, 0, 0], torso: [-26, 0, 0], head: [-18, 0, 0], shoulderL: [-168, 0, -28], shoulderR: [-168, 0, 28], elbowL: [-26, 0, 0], elbowR: [-26, 0, 0] } },
+      { t: 0.46, ease: 'inCubic', pose: { hipsPos: [0, -1.0, 0], hipsRot: [14, 0, 0], torso: [52, 0, 0], head: [18, 0, 0], shoulderL: [-45, 0, -12], shoulderR: [-45, 0, 12], elbowL: [-4, 0, 0], elbowR: [-4, 0, 0], kneeL: [70, 0, 0], kneeR: [70, 0, 0], thighL: [-36, 0, 0], thighR: [-36, 0, 0], ankleL: [-30, 0, 0], ankleR: [-30, 0, 0] } },
+      { t: 0.62, ease: 'outQuad', pose: { hipsPos: [0, -0.8, 0] } },
+      { t: 0.9, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.44, type: 'fire' }, { t: 0.46, type: 'shake', arg: 0.8 }],
   },
   shieldBash: {
     dur: 0.58,
     keys: [
-      { t: 0, pose: { torso: [4, 18, 0], shoulderL: [-35, 0, -18], elbowL: [-80, 0, 0] } },
-      { t: 0.18, ease: 'outCubic', pose: { torso: [8, -22, 0], shoulderL: [-85, -20, -5], elbowL: [-30, 0, 0], head: [0, 10, 0] } },
-      { t: 0.34, ease: 'inOutQuad', pose: { torso: [6, -16, 0] } },
-      { t: 0.58, ease: 'inOutQuad', pose: { torso: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], head: [0, 0, 0] } },
+      { t: 0, pose: { torso: [6, 26, -6], hipsRot: [0, 12, 0], shoulderL: [-40, 0, -24], elbowL: [-90, 0, 0], head: [0, -8, 0] } },
+      { t: 0.18, ease: 'outBack', pose: { torso: [10, -30, 8], hipsRot: [0, -14, 0], hipsPos: [0, -0.15, 0], shoulderL: [-92, -24, -2], elbowL: [-22, 0, 0], head: [0, 12, 0] } },
+      { t: 0.34, ease: 'inOutQuad', pose: { torso: [7, -20, 5] } },
+      { t: 0.58, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], head: [0, 0, 0] } },
     ],
     events: [{ t: 0.16, type: 'hit', arg: 0 }, { t: 0.16, type: 'sfx', arg: 'whooshBig' }],
   },
-  lunge: { // dash-stab: phantom strike / pounce (root motion from combat)
+  lunge: { // dash-stab — body thrown flat, arms speared, trailing leg at full stretch
     dur: 0.6, hold: false,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.12, ease: 'outCubic', pose: { torso: [32, 0, 0], head: [-15, 0, 0], shoulderL: [-95, 0, -8], shoulderR: [-95, 0, 8], elbowL: [-10, 0, 0], elbowR: [-10, 0, 0], thighL: [-40, 0, 0], thighR: [25, 0, 0], kneeL: [50, 0, 0], kneeR: [70, 0, 0], hipsPos: [0, -0.4, 0] } },
-      { t: 0.42, ease: 'inOutQuad', pose: { torso: [26, 0, 0] } },
-      { t: 0.6, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], hipsPos: [0, 0, 0] } },
+      { t: 0.12, ease: 'outCubic', pose: { torso: [42, 0, -8], head: [-22, 0, 0], hipsRot: [12, 0, 0], shoulderL: [-108, 0, -10], shoulderR: [-108, 0, 10], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], thighL: [-52, 0, 0], thighR: [34, 0, 0], kneeL: [55, 0, 0], kneeR: [82, 0, 0], ankleR: [30, 0, 0], hipsPos: [0, -0.5, 0] } },
+      { t: 0.42, ease: 'inOutQuad', pose: { torso: [32, 0, -5], hipsRot: [8, 0, 0] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], hipsRot: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0], hipsPos: [0, 0, 0] } },
     ],
     events: [{ t: 0.1, type: 'sfx', arg: 'dash' }],
   },
-  chargeLean: { // bull rush / stampede loop
+  chargeLean: { // bull rush / stampede loop — lower, hungrier, swaying with effort
     dur: 0.5, loop: true,
     keys: [
-      { t: 0, pose: { torso: [42, 0, 0], head: [-20, 0, 0], shoulderL: [30, 0, -28], shoulderR: [30, 0, 28], elbowL: [-25, 0, 0], elbowR: [-25, 0, 0], hipsPos: [0, -0.35, 0] } },
-      { t: 0.25, ease: 'inOutQuad', pose: { torso: [45, 0, 2], hipsPos: [0, -0.42, 0] } },
-      { t: 0.5, ease: 'inOutQuad', pose: { torso: [42, 0, 0], hipsPos: [0, -0.35, 0] } },
+      { t: 0, pose: { torso: [50, 4, -4], head: [-26, 0, 0], hipsRot: [8, 0, 0], shoulderL: [36, 0, -34], shoulderR: [36, 0, 34], elbowL: [-20, 0, 0], elbowR: [-20, 0, 0], hipsPos: [0, -0.42, 0] } },
+      { t: 0.25, ease: 'inOutQuad', pose: { torso: [54, -4, 4], hipsPos: [0, -0.5, 0], head: [-28, 0, 0] } },
+      { t: 0.5, ease: 'inOutQuad', pose: { torso: [50, 4, -4], hipsPos: [0, -0.42, 0], head: [-26, 0, 0] } },
     ],
   },
-  burst: { // nova / static field / backdraft / absolute zero
+  burst: { // nova / static field / backdraft / absolute zero — coil tight, detonate open
     dur: 0.78,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.26, ease: 'inOutCubic', pose: { hipsPos: [0, -0.55, 0], torso: [22, 0, 0], head: [14, 0, 0], shoulderL: [-55, 40, -5], shoulderR: [-55, -40, 5], elbowL: [-120, 0, 0], elbowR: [-120, 0, 0], kneeL: [45, 0, 0], kneeR: [45, 0, 0], thighL: [-22, 0, 0], thighR: [-22, 0, 0] } },
-      { t: 0.44, ease: 'outBack', pose: { hipsPos: [0, 0.12, 0], torso: [-18, 0, 0], head: [-16, 0, 0], shoulderL: [-25, 0, -75], shoulderR: [-25, 0, 75], elbowL: [-5, 0, 0], elbowR: [-5, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
-      { t: 0.78, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0] } },
+      { t: 0.26, ease: 'inOutCubic', pose: { hipsPos: [0, -0.7, 0], hipsRot: [6, 0, 0], torso: [30, 0, 0], head: [18, 0, 0], shoulderL: [-60, 45, -4], shoulderR: [-60, -45, 4], elbowL: [-130, 0, 0], elbowR: [-130, 0, 0], kneeL: [55, 0, 0], kneeR: [55, 0, 0], thighL: [-28, 0, 0], thighR: [-28, 0, 0] } },
+      { t: 0.44, ease: 'outBack', pose: { hipsPos: [0, 0.3, 0], hipsRot: [-10, 0, 0], torso: [-26, 0, 0], head: [-22, 0, 0], shoulderL: [-30, 0, -88], shoulderR: [-30, 0, 88], elbowL: [-2, 0, 0], elbowR: [-2, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+      { t: 0.78, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0] } },
     ],
     events: [{ t: 0.42, type: 'fire' }, { t: 0.44, type: 'shake', arg: 0.7 }],
   },
-  flurry: { // serpent storm / wild hunt claw loop
+  flurry: { // serpent storm / wild hunt claw loop — wide slashing arcs, hips whipping
     dur: 0.44, loop: true,
     keys: [
-      { t: 0, pose: { torso: [10, 26, 0], shoulderL: [-105, -20, 0], elbowL: [-15, 0, 0], shoulderR: [-20, 0, 20], elbowR: [-90, 0, 0], head: [0, -10, 0] } },
-      { t: 0.22, ease: 'outCubic', pose: { torso: [10, -26, 0], shoulderR: [-105, 20, 0], elbowR: [-15, 0, 0], shoulderL: [-20, 0, -20], elbowL: [-90, 0, 0], head: [0, 10, 0] } },
-      { t: 0.44, ease: 'outCubic', pose: { torso: [10, 26, 0], shoulderL: [-105, -20, 0], elbowL: [-15, 0, 0], shoulderR: [-20, 0, 20], elbowR: [-90, 0, 0], head: [0, -10, 0] } },
+      { t: 0, pose: { torso: [12, 34, -10], hipsRot: [0, 12, 0], shoulderL: [-112, -26, 4], elbowL: [-8, 0, 0], shoulderR: [-24, 0, 26], elbowR: [-96, 0, 0], head: [0, -14, 0] } },
+      { t: 0.22, ease: 'outBack', pose: { torso: [12, -34, 10], hipsRot: [0, -12, 0], shoulderR: [-112, 26, -4], elbowR: [-8, 0, 0], shoulderL: [-24, 0, -26], elbowL: [-96, 0, 0], head: [0, 14, 0] } },
+      { t: 0.44, ease: 'outBack', pose: { torso: [12, 34, -10], hipsRot: [0, 12, 0], shoulderL: [-112, -26, 4], elbowL: [-8, 0, 0], shoulderR: [-24, 0, 26], elbowR: [-96, 0, 0], head: [0, -14, 0] } },
     ],
     events: [{ t: 0.05, type: 'hit', arg: 0 }, { t: 0.27, type: 'hit', arg: 0 }],
   },
-  spinFire: { // bullet hurricane (root spun by combat)
+  spinFire: { // bullet hurricane (root spun by combat) — leaning into the storm
     dur: 0.6, loop: true,
     keys: [
-      { t: 0, pose: { shoulderL: [-80, 0, -12], shoulderR: [-80, 0, 12], elbowL: [-10, 0, 0], elbowR: [-10, 0, 0], hipsPos: [0, -0.3, 0], torso: [8, 0, 0], kneeL: [30, 0, 0], kneeR: [30, 0, 0], thighL: [-15, 0, 0], thighR: [-15, 0, 0] } },
-      { t: 0.3, ease: 'inOutQuad', pose: { torso: [10, 0, 3] } },
-      { t: 0.6, ease: 'inOutQuad', pose: { torso: [8, 0, 0] } },
+      { t: 0, pose: { shoulderL: [-84, 0, -14], shoulderR: [-84, 0, 14], elbowL: [-8, 0, 0], elbowR: [-8, 0, 0], hipsPos: [0, -0.38, 0], torso: [10, 0, -6], head: [-6, 0, 0], kneeL: [36, 0, 0], kneeR: [36, 0, 0], thighL: [-18, 0, 0], thighR: [-18, 0, 0] } },
+      { t: 0.3, ease: 'inOutQuad', pose: { torso: [13, 0, 6], hipsPos: [0, -0.3, 0] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { torso: [10, 0, -6], hipsPos: [0, -0.38, 0] } },
     ],
   },
   spray: { // flame / napalm sweep channel
