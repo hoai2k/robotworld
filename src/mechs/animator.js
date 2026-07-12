@@ -115,11 +115,14 @@ export class Animator {
     const grounded = ctx.grounded !== false;
 
     if (grounded && speed > 0.4) {
-      // gait: stride freq from speed; heavier mechs stride slower
-      const strideLen = 2.1 * this.s * (0.8 + 0.5 * ratio);
-      this.phase += (speed / strideLen) * TAU * dt * 0.5;
-      const ph = this.phase;
       const swing = (0.42 + 0.4 * ratio);
+      // FOOT-PLANT CADENCE: the stance foot's backward sweep speed is
+      // legReach * swing * dφ/dt at mid-stance — advance the gait phase so
+      // that equals the actual ground speed. Feet plant and push off one
+      // spot per step instead of skating under a canned walk cycle.
+      const legReach = (this.D.thighLen + this.D.shinLen) * 0.92;
+      this.phase += Math.min(14, speed / Math.max(0.2, legReach * swing)) * dt;
+      const ph = this.phase;
       const sinL = Math.sin(ph), sinR = Math.sin(ph + Math.PI);
 
       tgt.thighL[0] += -swing * sinL;
@@ -196,39 +199,43 @@ export class Animator {
       tgt.head[0] += -0.25 * d;
     }
 
-    // ===== quadruped amble =====
-    // Beast-frame mechs (gait: 'quad' — bulls, wolves, apes, crabs) drop
-    // onto all fours as the run picks up: frame pitches over the arms,
-    // which become pounding front legs on the opposite beat of the hinds.
+    // ===== quadruped lope (gait: 'quad' — FENRIR the wolf) =====
+    // A canine transverse gallop: both HINDS drive together and push off
+    // while both FRONTS (the arms) reach far forward, catch the ground and
+    // pull through, a half-cycle later. The spine gathers and extends with
+    // the bound — the classic wolf-run silhouette.
     if (grounded && speed > 0.4 && this.mech.def.gait === 'quad') {
       const q = clamp01((ratio - 0.4) / 0.35);
       if (q > 0.01) {
-        const ph = this.phase;
-        const fL = Math.sin(ph + 2.3), fR = Math.sin(ph + Math.PI + 2.3); // front pair leads
-        // drop and level the frame over the ground
-        tgt.hipsRot[0] += 0.5 * q;
-        tgt.hipsPos[1] += -this.D.hipHeight * 0.22 * q;
-        tgt.torso[0] += 0.18 * q;
-        tgt.head[0] += -0.6 * q;                      // eyes back on the horizon
-        // arms become front legs: reach down-forward, pounding alternately
-        tgt.shoulderL[0] = lerp(tgt.shoulderL[0], -1.35 + fL * 0.5, q);
-        tgt.shoulderR[0] = lerp(tgt.shoulderR[0], -1.35 + fR * 0.5, q);
-        tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.16, q);
-        tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.16, q);
-        tgt.elbowL[0] = lerp(tgt.elbowL[0], -0.45 - Math.max(0, fL) * 0.55, q);
-        tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.45 - Math.max(0, fR) * 0.55, q);
-        tgt.handL[0] = lerp(tgt.handL[0], 0.5, q);
-        tgt.handR[0] = lerp(tgt.handR[0], 0.5, q);
-        // hind legs: deeply bent and ARTICULATED — big cyclic knee flexion
-        // on the gather, ankle snap on the drive, real haunches not stilts
-        const hL = Math.sin(ph), hR = Math.sin(ph + Math.PI);
-        tgt.thighL[0] += hL * 0.3 * q;
-        tgt.thighR[0] += hR * 0.3 * q;
-        tgt.kneeL[0] += (0.5 + Math.max(0, hL) * 0.6) * q;
-        tgt.kneeR[0] += (0.5 + Math.max(0, hR) * 0.6) * q;
-        tgt.ankleL[0] += (-0.28 - Math.max(0, -hL) * 0.55) * q;  // push-off snap
-        tgt.ankleR[0] += (-0.28 - Math.max(0, -hR) * 0.55) * q;
-        tgt.hipsPos[1] += Math.abs(Math.sin(ph)) * 0.14 * q * this.s;
+        const g = this.phase;
+        const hind = Math.sin(g), hind2 = Math.sin(g + 0.4);       // hinds near-in-phase
+        const front = Math.sin(g + 2.0), front2 = Math.sin(g + 2.45); // fronts lead by ~half cycle
+        const gather = Math.sin(g + 1.0);                          // spine flex cycle
+        // frame drops level; spine arches on the gather, stretches on the drive
+        tgt.hipsRot[0] += (0.5 + gather * 0.08) * q;
+        tgt.hipsPos[1] += (-this.D.hipHeight * 0.22 + Math.abs(hind) * 0.16 * this.s) * q;
+        tgt.torso[0] += (0.14 + gather * 0.16) * q;
+        tgt.head[0] += (-0.58 - gather * 0.1) * q;   // eyes pinned on the horizon
+        // FRONTS: reach far forward extended, then fold and rake through
+        const reachL = -1.15 - Math.max(0, front) * 0.85 + Math.min(0, front) * 0.35;
+        const reachR = -1.15 - Math.max(0, front2) * 0.85 + Math.min(0, front2) * 0.35;
+        tgt.shoulderL[0] = lerp(tgt.shoulderL[0], reachL, q);
+        tgt.shoulderR[0] = lerp(tgt.shoulderR[0], reachR, q);
+        tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.14, q);
+        tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.14, q);
+        // elbow EXTENDS on the reach, folds hard on the pull-through
+        tgt.elbowL[0] = lerp(tgt.elbowL[0], -0.15 - Math.max(0, -front) * 1.0, q);
+        tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.15 - Math.max(0, -front2) * 1.0, q);
+        tgt.handL[0] = lerp(tgt.handL[0], 0.45, q);
+        tgt.handR[0] = lerp(tgt.handR[0], 0.45, q);
+        // HINDS: drive together — big sweep, deep gathering flexion under
+        // the body, ankle snap on the push-off
+        tgt.thighL[0] += hind * 0.42 * q;
+        tgt.thighR[0] += hind2 * 0.42 * q;
+        tgt.kneeL[0] += (0.45 + Math.max(0, hind) * 0.75) * q;
+        tgt.kneeR[0] += (0.45 + Math.max(0, hind2) * 0.75) * q;
+        tgt.ankleL[0] += (-0.25 - Math.max(0, -hind) * 0.6) * q;
+        tgt.ankleR[0] += (-0.25 - Math.max(0, -hind2) * 0.6) * q;
       }
     }
 

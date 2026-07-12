@@ -567,3 +567,26 @@ controllers via Gamepad API), AI opponents.
   Verified: 16-mech attackmatrix ALL CONNECT (jerry ranged up to 34 with
   the flatter flea launch), ace soak clean, walk screenshots (fenrir
   gathered haunches, titanus biped stride) viewed.
+- 2026-07-11: FOOT PLANTING + WOLF LOPE + GAIT ASSIGNMENTS.
+  · NO MORE SKATING: gait phase used a canned stride length, so foot sweep
+    speed never matched translation (titanus mid-stance slide ~7.6 u/s).
+    Cadence is now derived from geometry — dφ/dt = speed / (legReach·swing)
+    with legReach = (thighLen+shinLen)·0.92 — anchoring the stance foot's
+    backward sweep to exact ground speed. Measured mid-stance foot speed:
+    titanus 0.6 vs body 8.6 (93% planted), viper 1.6 vs 16.2. Steps now
+    plant and push from one spot; cadence also scales naturally with leg
+    length. (Capped at 14 rad/s.)
+  · FENRIR WOLF LOPE: the generic quad amble became a canine transverse
+    gallop — both hinds drive TOGETHER (near-in-phase, deep gathering knee
+    flexion, ankle snap) while both fronts lead by ~half a cycle, reaching
+    far forward EXTENDED (elbow straightens on the reach, folds on the
+    pull-through), with a spine gather/extend cycle riding the bound.
+  · Gait assignments: CRANKY and RHINO are bipeds again for normal running
+    (rhino keeps the all-fours gallop during his bull-rush charge); FENRIR
+    is now the only gait:'quad' mech.
+  · TEMPEST DE-STIFFENED: he had no restPose (dead-straight legs). Athletic
+    rest crouch added (thigh -13 / knee 24 / ankle -11) — combined with the
+    stance-bend + toe-off from the previous pass, his walk reads sprung.
+  Verified: measured foot-plant numbers above, walk screenshots (fenrir
+  reach-extended lope, tempest bent-knee stride), 16-mech attackmatrix ALL
+  CONNECT, 3-way ace soak clean.

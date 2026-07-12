@@ -117,7 +117,6 @@ export const ROSTER = [
     body: { scale: 1.22, torsoW: 1.2, torsoH: 1.0, headSize: 0.95, armLen: 1.08, legLen: 0.98, hipW: 1.12, bulk: 1.1 },
     stats: { hp: 1150, speed: 8.2, jump: 12, weight: 0.9, armor: 0.18, blockMult: 0.05 },
     ui: { power: 9, speed: 4, defense: 7 },
-    gait: 'quad', // drops to all fours and ambles at a run
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 6, 14], range: 3.4 },
       heavy: { dmg: 95, knock: 24, range: 3.8, launch: 9 },
@@ -136,6 +135,8 @@ export const ROSTER = [
       accent: { base: 0x1e2740, base2: 0x181f34, metal: 0x767c86, wear: 0.34, grime: 0.22, panelDepth: 4, roughPaint: 0.46, metalPaint: 0.4, normalStrength: 1.1 },
     },
     body: { scale: 1.06, torsoW: 0.95, torsoH: 1.0, headSize: 0.85, armLen: 1.02, legLen: 1.08, hipW: 0.9, bulk: 0.9 },
+    // light athletic crouch — dead-straight legs read stiff in motion
+    restPose: { thighL: [-13, 0, 0], thighR: [-13, 0, 0], kneeL: [24, 0, 0], kneeR: [24, 0, 0], ankleL: [-11, 0, 0], ankleR: [-11, 0, 0] },
     stats: { hp: 880, speed: 11.5, jump: 15, weight: 0.42, armor: 0.04, blockMult: 0.14 },
     ui: { power: 7, speed: 8, defense: 3 },
     moves: {
@@ -159,7 +160,7 @@ export const ROSTER = [
     restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
     stats: { hp: 900, speed: 12.5, jump: 15, weight: 0.45, armor: 0.05, blockMult: 0.13 },
     ui: { power: 7, speed: 9, defense: 3 },
-    gait: 'quad', // drops to all fours and ambles at a run
+    gait: 'quad', // wolf lope: fronts reach, hinds drive together
     moves: {
       light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.3 },
       heavy: { dmg: 76, knock: 18, range: 3.7, launch: 8 },
@@ -264,7 +265,6 @@ export const ROSTER = [
     restPose: { shoulderL: [8, 0, -26], shoulderR: [8, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], thighL: [-8, 0, -8], thighR: [-8, 0, 8], kneeL: [16, 0, 0], kneeR: [16, 0, 0], ankleL: [-8, 0, 0], ankleR: [-8, 0, 0] },
     stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26, blockMult: 0.04 },
     ui: { power: 8, speed: 3, defense: 10 },
-    gait: 'quad', // drops to all fours and ambles at a run
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
