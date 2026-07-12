@@ -435,6 +435,24 @@ export const SPECIALS = {
     }
   },
 
+  // JERRY: both cannons cough up a scattering burst of live robo-shrimp
+  // fleas that hop off hunting on their own
+  fleaSwarm(f, sp) {
+    const dur = f.animator.play('shoot');
+    f.setState('special', Math.min(dur, 0.8));
+    for (let i = 0; i < sp.count; i++) {
+      f.world.schedule(0.09 * i, () => {
+        if (!f.alive) return;
+        const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+        const a = f.yaw + rand(-0.55, 0.55);
+        f.world.fleas.spawn(f, from, new THREE.Vector3(Math.sin(a), 0.55, Math.cos(a)), {
+          dmg: sp.dmg * f.dmgMult(),
+        });
+        f.world.effects.muzzleFlash(from);
+      });
+    }
+  },
+
   // GLACIER: cryo beam channel
   freezeBeam(f, sp) {
     f.animator.play('shootLoop');
@@ -874,6 +892,55 @@ export const ULTS = {
         } else f.world.schedule(0.04, land);
       };
       f.world.schedule(0.1, land);
+    });
+  },
+
+  // JERRY: spring-crouch, colossal leap, and a landing quake that empties
+  // the whole nest — a ring of biting fleas swarms out of the impact
+  tidalPlague(f, u) {
+    f.setState('ult', 2.6);
+    f.iframes = 1.3;
+    f.world.audio?.play('powerup');
+    f.duckT = 1; // slam into the spring-crouch tell
+    f.world.schedule(0.24, () => {
+      if (!f.alive) return;
+      f.vel.y = 34;
+      f.grounded = false;
+      f.animator.play('launched');
+      const e = f.nearestEnemy();
+      if (e && f.isAI) {
+        const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
+        f.vel.x = dx / 1.3;
+        f.vel.z = dz / 1.3;
+      } else {
+        f.vel.x = Math.sin(f.yaw) * 12;
+        f.vel.z = Math.cos(f.yaw) * 12;
+      }
+      f.world.schedule(0.75, () => {
+        if (!f.alive) return;
+        f.vel.y = -55;
+        f.animator.play('groundPound', { speed: 1.8 });
+        const land = () => {
+          if (!f.alive) return;
+          if (f.grounded) {
+            const w = f.world;
+            w.groundShockwave(f, f.pos, u.radius, u.dmg * f.dmgMult(), 20, 0xff5030, true);
+            w.effects.explosion(f.pos, u.radius * 0.6, { color: 0xc86a4a });
+            w.effects.addShake(1.4);
+            w.engine.addHitStop(0.13);
+            w.audio?.play('explosionBig');
+            // the nest empties: fleas burst outward in a hungry ring
+            for (let i = 0; i < u.count; i++) {
+              const a = (i / u.count) * Math.PI * 2 + rand(-0.25, 0.25);
+              w.fleas.spawn(f, f.center(), new THREE.Vector3(Math.sin(a), 0.85, Math.cos(a)), {
+                dmg: (u.fleaDmg || 24) * f.dmgMult(),
+              });
+            }
+            f.setState('normal');
+          } else f.world.schedule(0.04, land);
+        };
+        f.world.schedule(0.1, land);
+      });
     });
   },
 

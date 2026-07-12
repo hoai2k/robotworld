@@ -198,3 +198,21 @@ ending in nozzle guns (also dripping). Black mech joints/frame between lime
 armor plates; small hazard chevrons. Powerful crouched digitigrade legs w/
 translucent slime shin sections; HUGE webbed 3-toed feet (translucent toe
 tips). Glossy, clean-ish (wear 0.42), everything oozing lime gunk.
+
+## JERRY — mech_jerry.png (The Tide-Bringer)
+Giant robo-SHRIMP on grasshopper legs. Read: huge bulging segmented
+carapace torso-head in weathered coral pink (0xb9816b / 0xa5583c, wear
+~0.66) over black mech frame (0x35291f); olive seam bands at the shell
+segment steps; white JERRY nameplate + chevron sigil front-center; pointed
+serrated rostrum aimed down-forward; red bead eyes on stalks; two long
+whip antennae sweeping up-back (+ short whiskers under the rostrum); a
+NEST of six little segmented claw-arms wriggling under the chest; two
+enormous forearm cannon pods with dark bores + red glow rings and live
+robo-shrimp fleas crawling out of the muzzles; four-legged read: two
+thick coral grasshopper femurs with spring pistons + long segmented
+spur-rowed tibias to small clawed feet, plus a rear pair of thin strut
+legs. Powers: flea pods (living ammo that hops erratically, attaches,
+bites 3s, pops), Brine Swarm (6-flea burst), TIDAL PLAGUE (spring-crouch
+mega-leap, landing quake + ring of 10 fleas). Signature motion: nervous
+antenna snaps, arm-nest ripple (flares when firing), sharp head cocks,
+rear-strut creep; jump is crouch-then-launch (jumpWindup 0.18, jump 24).

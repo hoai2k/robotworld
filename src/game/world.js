@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Effects } from '../combat/effects.js';
 import { ProjectileSystem } from '../combat/projectiles.js';
+import { FleaSystem } from '../combat/fleas.js';
 import { rand, clamp } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
@@ -31,6 +32,7 @@ export class World {
     this.audio = audio;
     this.effects = new Effects(this.scene);
     this.projectiles = new ProjectileSystem(this.scene, this);
+    this.fleas = new FleaSystem(this.scene, this); // JERRY's living ammo
     this.events = new Emitter();
     this.fighters = [];
     this.arena = null;
@@ -95,6 +97,7 @@ export class World {
     };
     for (const f of this.fighters) shift(f.group);
     for (const p of this.projectiles.active) shift(p.mesh);
+    for (const fl of this.fleas.active) shift(fl.mesh);
     for (const p of this.pickups) shift(p.mesh);
   }
 
@@ -189,6 +192,7 @@ export class World {
     }
     for (const f of this.fighters) f.update(dt);
     this.projectiles.update(dt);
+    this.fleas.update(dt);
     this.effects.update(dt);
     this.arena?.update(dt);
     this.updatePickups(dt);
@@ -421,6 +425,10 @@ export class World {
         });
         this.audio?.play('dart');
         break;
+      case 'flea': // JERRY: launches a live robo-shrimp flea that hunts on foot
+        this.fleas.spawn(f, from, dir, { dmg: mv.dmg * f.dmgMult() });
+        this.effects.muzzleFlash(from);
+        break;
       case 'slime': // FROGGER: sticky gunk bolt, slows on hit
         this.projectiles.spawn('plasma', f, from, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0x9ade2a, knock: 8,
@@ -438,5 +446,6 @@ export class World {
     this.iceBlocks.length = 0;
     for (const p of this.projectiles.active) p.mesh.visible = false;
     this.projectiles.active.length = 0;
+    this.fleas.clear();
   }
 }

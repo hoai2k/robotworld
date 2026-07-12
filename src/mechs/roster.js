@@ -322,6 +322,31 @@ export const ROSTER = [
       ult: { id: 'royalRibbit', name: 'ROYAL RIBBIT', dmg: 190, radius: 12 },
     },
   },
+  {
+    id: 'jerry', name: 'JERRY', title: 'The Tide-Bringer', icon: '\u{1F990}', seed: 179,
+    blurb: 'Dredged from a flooded aquaculture lab, JERRY is a colony pretending to be a mech. The cannons are full of something alive. He would like you to hold still.',
+    quotes: { win: '"*wet clicking* ...the swarm is fed. For now."', intro: '"They\u2019re hungry. I\u2019m generous."' },
+    // canonical image: weathered coral-pink shrimp carapace over black mech
+    // frame, olive seam bands, red bead eyes / cannon bores, rusty wear
+    colors: { primary: 0xb9816b, accent: 0x35291f, glow: 0xff2818, stripes: false },
+    skin: {
+      primary: { base: 0xb9816b, base2: 0xa5583c, metal: 0x6e6258, wear: 0.66, grime: 0.58, panelDepth: 4, roughPaint: 0.58, metalPaint: 0.24, normalStrength: 1.3 },
+      accent: { base: 0x35291f, base2: 0x271e17, metal: 0x6e6258, wear: 0.55, grime: 0.55, panelDepth: 3, roughPaint: 0.55, metalPaint: 0.4, normalStrength: 1.2 },
+    },
+    body: { scale: 1.22, torsoW: 1.15, torsoH: 1.15, headSize: 0.75, armLen: 0.95, legLen: 1.28, hipW: 1.18, bulk: 0.95 },
+    // grasshopper crouch: legs splayed wide, deeply folded, ready to spring
+    restPose: { torso: [14, 0, 0], head: [-8, 0, 0], shoulderL: [-30, 0, -14], shoulderR: [-30, 0, 14], elbowL: [22, 0, 0], elbowR: [22, 0, 0], thighL: [-26, 0, -24], thighR: [-26, 0, 24], kneeL: [58, 0, 4], kneeR: [58, 0, -4], ankleL: [-30, 0, 20], ankleR: [-30, 0, -20] },
+    // jumpWindup: he CROUCHES first, then launches — highest jump in the game
+    stats: { hp: 980, speed: 9.8, jump: 24, jumpWindup: 0.18, weight: 0.45, armor: 0.08, duck: 0.9, blockMult: 0.15 },
+    ui: { power: 6, speed: 8, defense: 4 },
+    moves: {
+      light: { dmg: [28, 30, 44], knock: [4, 4, 10], range: 3.4 },
+      heavy: { dmg: 76, knock: 18, range: 3.6, launch: 8 },
+      ranged: { name: 'Flea Pod', type: 'flea', dmg: 34, speed: 26, cooldown: 0.95, ammo: 14 },
+      special: { id: 'fleaSwarm', name: 'Brine Swarm', cooldown: 7.5, dmg: 26, count: 6 },
+      ult: { id: 'tidalPlague', name: 'TIDAL PLAGUE', dmg: 150, radius: 11, count: 10, fleaDmg: 24 },
+    },
+  },
 ];
 
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((m) => [m.id, m]));

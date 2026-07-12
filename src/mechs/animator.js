@@ -519,6 +519,52 @@ export class Animator {
         J.torso.rotation.x -= this._crankyRecoil;
         break;
       }
+      case 'jerry': {
+        // NERVOUS CRUSTACEAN. Nothing about Jerry moves smoothly:
+        // • antennae hold dead still, then SNAP to a new angle (randomized
+        //   timer) like a startled insect re-aiming its sensors
+        // • the little claw-arm nest ripples in a wave down the segments,
+        //   and flares wide open while the cannons fire
+        // • the head cocks in sharp little tilts on the same nerve timer
+        // • the rear strut-legs creep in counter-phase with the stride
+        this._nerveT = (this._nerveT ?? 0) - dt;
+        if (this._nerveT <= 0) {
+          this._nerveT = 0.4 + Math.random() * 1.5;
+          this._antL = { x: -0.7 + Math.random() * 1.0, z: 0.15 + Math.random() * 0.65 };
+          this._antR = { x: -0.7 + Math.random() * 1.0, z: -0.15 - Math.random() * 0.65 };
+          this._cock = (Math.random() - 0.5) * 0.34;
+        }
+        const snap = 1 - Math.exp(-24 * dt); // fast ease = twitch, not sway
+        if (J.antL && this._antL) {
+          J.antL.rotation.x += (this._antL.x - J.antL.rotation.x) * snap;
+          J.antL.rotation.z += (this._antL.z - J.antL.rotation.z) * snap;
+        }
+        if (J.antR && this._antR) {
+          J.antR.rotation.x += (this._antR.x - J.antR.rotation.x) * snap;
+          J.antR.rotation.z += (this._antR.z - J.antR.rotation.z) * snap;
+        }
+        tgt.head[2] += this._cock ?? 0;
+        // arm-nest ripple
+        const flare = ctx.firing ? 0.55 : 0;
+        for (let i = 0; i < 3; i++) {
+          for (const sd of ['L', 'R']) {
+            const aj = J['armS' + i + sd];
+            if (!aj) continue;
+            const sx = sd === 'L' ? -1 : 1;
+            aj.rotation.x = -0.25 + Math.sin(t * 3.4 - i * 1.15 + (sx > 0 ? 0.7 : 0)) * 0.3;
+            aj.rotation.z = sx * (-0.3 - flare) + Math.cos(t * 2.7 - i * 0.9) * 0.14 * sx;
+          }
+        }
+        // rear struts creep against the stride; twitchy scrabble in the air
+        const mov = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
+        for (const sd of ['L', 'R']) {
+          const dj = J['legD' + sd];
+          if (!dj) continue;
+          if (!ctx.grounded) dj.rotation.x = Math.sin(t * 14 + (sd === 'L' ? 0 : 2)) * 0.2;
+          else dj.rotation.x = Math.sin(this.phase + (sd === 'L' ? Math.PI : 0)) * 0.16 * mov;
+        }
+        break;
+      }
       case 'viper':
         if (J.bladeL && J.bladeR) {
           const flare = ctx.firing || (this.action && !this.action.fadingOut) ? 0.0 : 0.35;

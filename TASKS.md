@@ -515,3 +515,32 @@ controllers via Gamepad API), AI opponents.
     building is transparent only in the viewport of the player it hides.
     Verified: same chunk reads 0.15 in view A, 1.0 in view B / unknown cams.
   Verified: build green, attackmatrix ALL CONNECT, 4-way quad-mech ace soak.
+- 2026-07-11: NEW MECH — JERRY (16th fighter), from docs/canonical/
+  mech_jerry.png. Giant robo-shrimp on grasshopper legs: bulging stepped
+  carapace lathe w/ olive seam bands + shingled back plates, serrated
+  rostrum, stalk eyes, joint-driven whip antennae, a 6-arm wriggling claw
+  nest (armS0-2 L/R joints), forearm cannon pods with red bores + live
+  flea critters at the muzzles, wide-splayed grasshopper legs (spring
+  pistons, segmented spur tibias) + rear strut pair (legD joints).
+  · FLEA SYSTEM (src/combat/fleas.js): his ammo is ALIVE. Fired fleas fly
+    an arc; on a miss they land, twitch through a nervous pause, then hop
+    erratically (scatter-steered toward prey, tightening as they close),
+    squash/stretch on land/launch. On contact they ATTACH to the victim,
+    ride the body wriggling, bite for exactly 3s (burn-style drain, ult
+    gain for Jerry, red spark ticks), then pop. Wander life 6.5s (paused
+    while attached). Wired: world.fleas (update/clearTransient/view-wrap
+    shift), fireRanged 'flea', AI range 14, matrix roster.
+  · Moves: Flea Pod ranged (ammo 14), Brine Swarm special (6 fleas),
+    TIDAL PLAGUE ult (spring-crouch → 34-vel mega-leap → landing quake +
+    ring of 10 fleas).
+  · CROUCH-THEN-LAUNCH: stats.jumpWindup (0.18s) — generic spring-loader
+    in fighter.js: jump press slams duckT to full crouch, then releases a
+    jump-24 launch (highest in the game).
+  · CREEPY SIGNATURE: randomized nerve timer SNAPS antennae to new angles
+    (fast-ease twitch, never sway), head cocks in sharp tilts, the claw
+    nest ripples in a wave down the segments and flares while firing,
+    rear struts creep against the stride and scrabble mid-air.
+  Verified: showcase iterations viewed (rest + walk), functional probe
+  (windup 0.18s/full crouch/peak 11.6; flea attach→34 full bite; miss →
+  4 hops zig-zag to prey → attach; swarm 6; ult ring 10), 16-mech
+  attackmatrix ALL CONNECT, 2 ace soaks clean, battle screenshot.

@@ -614,6 +614,24 @@ export class Fighter {
     const wantDuck = I.duck && this.grounded && !this.blocking &&
       (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
     this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
+
+    // ---- spring-loaded jump (JERRY): slam into a deep crouch first, then
+    // launch — the wind-up is the tell, the leap is enormous ----
+    if (this._jumpCharge) {
+      this._jumpCharge -= dt;
+      this.duckT = Math.min(1, this.duckT + dt / 0.06);
+      if (this._jumpCharge <= 0) {
+        this._jumpCharge = 0;
+        if (this.grounded && this.alive) {
+          this.vel.y = st.jump * JUMP_MULT * (this.status.buff ? 1.1 : 1);
+          this.grounded = false;
+          this.world.audio?.play('jump');
+          this.world.effects.dustPuff(this.pos, 10);
+          this.world.effects.rings.spawn(this.pos, { from: 0.6, to: 4.5, dur: 0.35, color: 0xff6a40, y: 0.3 });
+        }
+      }
+    }
+
     this.ducking = this.duckT > 0.4;
     const dk = this.duckT * this.duckDepth;
     this.height = this.baseHeight * (1 - 0.42 * dk);
@@ -632,10 +650,15 @@ export class Fighter {
         this.setState('attack', this.animator.play('taunt') * 0.9);
       }
       if (I.jump && this.grounded && this.state === 'normal') {
-        this.vel.y = st.jump * JUMP_MULT * (this.status.buff ? 1.1 : 1);
-        this.grounded = false;
-        this.world.audio?.play('jump');
-        this.world.effects.dustPuff(this.pos, 6);
+        if (st.jumpWindup) {
+          // spring-loader: crouch first, launch when the wind-up expires
+          if (!this._jumpCharge) this._jumpCharge = st.jumpWindup;
+        } else {
+          this.vel.y = st.jump * JUMP_MULT * (this.status.buff ? 1.1 : 1);
+          this.grounded = false;
+          this.world.audio?.play('jump');
+          this.world.effects.dustPuff(this.pos, 6);
+        }
       } else if (I.jump && !this.grounded && !this.hovering && this.hoverFuel > 0.2) {
         // second jump press in the air ignites the hover jets
         this.hovering = true;
@@ -832,6 +855,7 @@ export class Fighter {
     this.hoverFuel = this.hoverFuelMax;
     this.plunging = false;
     this._wrap = null; // stale seam-fold offsets must not jolt the camera
+    this._jumpCharge = 0;
     this.duckT = 0;
     this.ducking = false;
     this.height = this.baseHeight;
