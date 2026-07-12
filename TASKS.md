@@ -835,3 +835,38 @@ controllers via Gamepad API), AI opponents.
   finisher firing on the KO, colossus/saurion demo frame reviews (lift +
   slam beats, saurion riding the fallen mech mid-bite), per-mech videos
   captured via tools stepping (delivered separately).
+
+45. FINISHER ITERATION V2 — contact-true, wilder, choosable ✅
+  · Every hit now LANDS and every big hit BASHES the corpse around:
+    new Finisher.vicBash (bounce arc + slide + spin) and trackCenter
+    (camera glued to wherever the body ends up).
+  · TITANUS/COLOSSUS chase the wreck between quake-pounds (winner
+    re-squares to 2.0×scale from the LIVE body each frame — probe shows
+    exact smash range at all 3 impacts) and each pound punts it away.
+  · SAURION crouches low: special perch dropped to 0.32×height, deeper
+    biteLatch crouch, and the finisher ride ends glued to the fallen
+    chest at ~1.1u (was floating at 1.5+ above).
+  · JERRY: THE PLAGUE — 10 thrown + ~150 cling fleas in ten waves
+    blanket the victim (FleaSystem clingTo/clingT cosmetic latch mode,
+    tolerates corpses), thrashing until they collapse under the swarm.
+  · WRAITH: soul off the chain — baked additive spectre (makeSpectre/
+    dropSpectre) rakes THROUGH the victim 4× back and forth on a side
+    profile cam, then re-forms and rails the wreck.
+  · Dialed up the rest: viper 5-blink cage + air-tracking cam, vulcan
+    walking shred-back, aegis pillar launch + crash, nova stars bash 3
+    directions, rhino wide banking turn + SECOND trample, tempest 5
+    jolting bolts, fenrir circular corpse-drag + fling, glacier statue
+    skitters away shedding ice, cranky tracking clamps + 14u geyser
+    launch, frogger true pancake squash (scale restore in end()).
+  · Body-slam bug: fighter separation now skips _carry/cinePuppet pairs
+    (carrier was shoved backwards through the whole lift).
+  · NOVA halo glows on BOTH faces (back inlay torus) so the owner sees
+    the alignment pulse from behind.
+  · ?debug=finisher now routes to the demo (main.js) + WIN/VIC/MAP
+    dropdown chooser reloads straight into any configuration.
+  Verified: build green; paused-engine probes (colossus smash range =
+  2×scale ×3, saurion rideY 1.1, jerry 157 fleas/147 attached, wraith
+  spectre 0→11→0→11→0, rhino double-trample trace, frogger squash
+  0.42→1.0); 16-mech attackmatrix ALL CONNECT (jerry flake rerun ✓);
+  ace soak crash-free; chooser UI screenshot reviewed; 16 videos
+  re-captured and delivered.

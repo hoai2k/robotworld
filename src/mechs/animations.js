@@ -306,9 +306,9 @@ const CLIPS_RAW = {
     // values are deltas over his raptor rest pose)
     dur: 0.36, loop: true,
     keys: [
-      { t: 0, pose: { torso: [14, 0, 0], head: [-12, 0, 0], shoulderL: [26, 0, -22], shoulderR: [26, 0, 22], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], thighL: [-16, 0, -10], thighR: [-16, 0, 10], kneeL: [26, 0, 0], kneeR: [26, 0, 0], ankleL: [-14, 0, 0], ankleR: [-14, 0, 0], hipsRot: [14, 0, 0], hipsPos: [0, -0.25, 0] } },
-      { t: 0.16, ease: 'inCubic', pose: { torso: [26, 0, 0], head: [38, 0, 0], hipsRot: [18, 0, 0], hipsPos: [0, -0.34, 0] } },
-      { t: 0.36, ease: 'outCubic', pose: { torso: [14, 0, 0], head: [-12, 0, 0], hipsRot: [14, 0, 0], hipsPos: [0, -0.25, 0] } },
+      { t: 0, pose: { torso: [22, 0, 0], head: [-14, 0, 0], shoulderL: [26, 0, -22], shoulderR: [26, 0, 22], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], thighL: [-24, 0, -10], thighR: [-24, 0, 10], kneeL: [40, 0, 0], kneeR: [40, 0, 0], ankleL: [-20, 0, 0], ankleR: [-20, 0, 0], hipsRot: [20, 0, 0], hipsPos: [0, -0.55, 0] } },
+      { t: 0.16, ease: 'inCubic', pose: { torso: [38, 0, 0], head: [55, 0, 0], hipsRot: [26, 0, 0], hipsPos: [0, -0.68, 0] } },
+      { t: 0.36, ease: 'outCubic', pose: { torso: [22, 0, 0], head: [-14, 0, 0], hipsRot: [20, 0, 0], hipsPos: [0, -0.55, 0] } },
     ],
   },
   grabReach: { // COLOSSUS: both hands lunge out low to seize the target

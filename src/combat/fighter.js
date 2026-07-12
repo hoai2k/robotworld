@@ -949,6 +949,9 @@ export class Fighter {
     // fighter-fighter push out (nearest image across the seam)
     for (const f of this.world.fighters) {
       if (f === this || !f.alive) continue;
+      // carried/cinematic bodies are stacked ON others by design — the 2D
+      // separation would shove the carrier backward through the whole lift
+      if (f._carry || this._carry || f.cinePuppet || this.cinePuppet) continue;
       const dx = this.world.wrapDelta(this.pos.x - f.pos.x);
       const dz = this.world.wrapDelta(this.pos.z - f.pos.z);
       const rr = this.radius + f.radius;

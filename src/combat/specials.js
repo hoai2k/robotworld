@@ -683,7 +683,7 @@ export const SPECIALS = {
       const perch = () => {
         f.pos.x = prey.pos.x - Math.sin(ang) * prey.hitRadius * 0.4;
         f.pos.z = prey.pos.z - Math.cos(ang) * prey.hitRadius * 0.4;
-        f.pos.y = prey.pos.y + prey.height * 0.55;
+        f.pos.y = prey.pos.y + prey.height * 0.32; // crouched INTO them, jaws in range
         f.vel.set(0, 0, 0);
         f.grounded = false;
         f.yaw = f.targetYaw = ang;

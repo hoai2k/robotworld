@@ -146,6 +146,8 @@ export function nova(A, D, J, anchors, def) {
     // glowSoft emissive)
     A.part('halo', 'glowSoft', new THREE.TorusGeometry(hR, 0.075 * s, 8, 26, arc), {
       p: [0, 0, 0.045 * s], r: [0, 0, start], s: [1, 1, 0.55] });
+    A.part('halo', 'glowSoft', new THREE.TorusGeometry(hR, 0.075 * s, 8, 26, arc), {
+      p: [0, 0, -0.045 * s], r: [0, 0, start], s: [1, 1, 0.55] }); // back face too
     // gold trim arcs along both edges
     A.part('halo', 'brass', new THREE.TorusGeometry(hR + 0.19 * s, 0.022 * s, 6, 26, arc), {
       r: [0, 0, start], s: [1, 1, 0.8] });

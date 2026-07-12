@@ -74,6 +74,38 @@ export function runBattleTest() {
   // can be judged with the p1/p2/battle params
   const demo = params.get('finisherdemo') === '1' || params.get('debug') === 'finisher';
   let demoT = demo ? 1.6 : 0;
+  if (demo) {
+    // tiny chooser: pick winner / victim / arena, reload straight into that
+    // finisher configuration
+    const bar = document.createElement('div');
+    bar.style.cssText = 'position:absolute;top:10px;right:10px;z-index:30;display:flex;gap:6px;align-items:center;font:12px monospace;color:#8fe8ff;text-shadow:0 1px 2px #000';
+    const mkSel = (label, opts, cur) => {
+      const sel = document.createElement('select');
+      sel.style.cssText = 'background:#0b1420;color:#8fe8ff;border:1px solid #2a4a60;border-radius:4px;font:12px monospace;padding:2px 4px';
+      for (const o of opts) {
+        const el = document.createElement('option');
+        el.value = o.id;
+        el.textContent = `${label} ${o.name || o.id}`;
+        if (o.id === cur) el.selected = true;
+        sel.appendChild(el);
+      }
+      bar.appendChild(sel);
+      return sel;
+    };
+    const s1 = mkSel('WIN:', ROSTER, ids[0]);
+    const s2 = mkSel('VIC:', ROSTER, ids[1] || 'aegis');
+    const sa = mkSel('MAP:', THEMES, themeId);
+    const go = () => {
+      const q = new URLSearchParams(location.search);
+      q.set('p1', s1.value);
+      q.set('p2', s2.value);
+      q.set('battle', sa.value);
+      q.set('finisherdemo', '1');
+      location.search = q.toString();
+    };
+    for (const s of [s1, s2, sa]) s.addEventListener('change', go);
+    document.getElementById('ui-root').appendChild(bar);
+  }
   world.events.on('ko', ({ fighter, attacker }) => {
     const alive = fighters.filter((f) => f.alive);
     if (world.finisher || !attacker || !attacker.alive) return;

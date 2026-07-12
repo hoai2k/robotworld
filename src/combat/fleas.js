@@ -65,8 +65,10 @@ export class FleaSystem {
     return mesh;
   }
 
-  // dmg = TOTAL bite damage over the 3s attachment
-  spawn(owner, origin, dir, { dmg = 30, life = 6.5 } = {}) {
+  // dmg = TOTAL bite damage over the 3s attachment.
+  // opts.clingTo: cosmetic mode — latch straight onto that fighter (works
+  // on corpses, deals nothing, pops after opts.clingT) for swarm scenes.
+  spawn(owner, origin, dir, { dmg = 30, life = 6.5, clingTo = null, clingT = 3 } = {}) {
     const mesh = this.obtain();
     mesh.position.copy(origin);
     const f = {
@@ -80,7 +82,20 @@ export class FleaSystem {
       attachT: 0,
       biteTick: 0,
       offA: 0, offR: 0, offY: 0,
+      cosmetic: false,
     };
+    if (clingTo) {
+      f.cosmetic = true;
+      f.dmg = 0;
+      f.state = 'attached';
+      f.victim = clingTo;
+      f.attachT = clingT;
+      f.life = clingT + 2;
+      f.offA = rand(Math.PI * 2);
+      f.offR = clingTo.hitRadius * rand(0.4, 0.95);
+      f.offY = clingTo.height * rand(0.05, 0.95);
+      f.vel.set(0, 0, 0);
+    }
     f.vel.y += 3; // slight pop out of the cannon — flat enough to hit direct
     this.active.push(f);
     this.world.audio?.play('dart');
@@ -171,7 +186,7 @@ export class FleaSystem {
         if (f.pauseT <= 0) this.hop(f);
       } else if (f.state === 'attached') {
         const v = f.victim;
-        if (!v || !v.alive) { dead = true; }
+        if (!v || (!v.alive && !f.cosmetic)) { dead = true; }
         else {
           f.attachT -= dt;
           // ride the victim's body, wriggling
@@ -186,9 +201,9 @@ export class FleaSystem {
           const wig = 1 + Math.sin(f.twitchSeed * 2) * 0.12;
           f.mesh.scale.set(wig, 2 - wig, wig);
           // bite: steady drain (burn-style so it can't be iframe-shrugged)
-          const dps = f.dmg / 3.0;
+          const dps = f.cosmetic ? 0 : f.dmg / 3.0;
           v.hp -= dps * dt;
-          v.lastAttacker = f.owner;
+          if (!f.cosmetic) v.lastAttacker = f.owner;
           if (f.owner) f.owner.ult = clamp01(f.owner.ult + (dps * dt) / (f.owner.maxHp * 2.6));
           f.biteTick -= dt;
           if (f.biteTick <= 0) {
