@@ -258,6 +258,20 @@ export function buildMech(def) {
   const design = DESIGNS[def.id];
   if (!design) throw new Error('No design for mech ' + def.id);
   design(A, D, joints, anchors, def);
+  // shoulder axles: chest geometry varies per design and on narrower frames
+  // the arm socket floats clear of the body — bridge every shoulder joint
+  // to the torso with a short axle + collar + fixed socket ball so the arm
+  // always reads attached, whatever the design's chest width
+  for (const side of ['L', 'R']) {
+    const sx = side === 'L' ? -1 : 1;
+    const shy = D.torsoH * 0.82;             // shoulder joint height (buildRig)
+    const len = D.shoulderW * 0.8;
+    A.tube('torso', 'frame', 0.1 * D.scale * D.bulk, 0.13 * D.scale * D.bulk, len, {
+      p: [sx * (D.shoulderW - len / 2), shy, 0], r: [0, 0, Math.PI / 2] });
+    A.ring('torso', 'dark', 0.155 * D.scale * D.bulk, 0.032 * D.scale, {
+      p: [sx * (D.shoulderW - 0.2 * D.scale), shy, 0], r: [0, Math.PI / 2, 0] });
+    A.ball('torso', 'frame', 0.17 * D.scale * D.bulk, { p: [sx * D.shoulderW, shy, 0] });
+  }
   A.build(joints, materials);
 
   // ensure default anchors exist

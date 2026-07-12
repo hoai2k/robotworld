@@ -716,3 +716,13 @@ controllers via Gamepad API), AI opponents.
   h = v²/2g). Verified: attackmatrix ALL CONNECT (jerry ranged 34 /
   special 26-41 — attach reliability held despite the longer, floatier
   arcs; titanus ranged flake passed on rerun at 114).
+- 2026-07-12: SHOULDER SOCKETS — several designs (Glacier among them) had
+  chest geometry narrower than the rig's shoulder joint offset, leaving
+  the arms floating free of the body. buildMech now bridges EVERY mech's
+  shoulder joints to the torso automatically: a tapered axle from inside
+  the chest out to the joint, a dark collar ring, and a fixed socket ball
+  at the pivot the arm visibly rotates in (all scaled by mech scale/bulk,
+  added after the design assembles so it works for all 16 without touching
+  design files). Verified: glacier close-up (gap gone), full 16-mech
+  showcase lineup (no protruding stubs — jerry's is hidden inside his
+  carapace), slim-frame wraith close-up, build green, no page errors.
