@@ -672,3 +672,42 @@ controllers via Gamepad API), AI opponents.
   hang y=2.0 → spring → hang y=3.9), screenshots viewed (pure-white
   frozen titanus, forward torch jet, white spectre + locked wraith,
   teleport arrival, nova bright-vs-dim halo, titanus hanging mid-wall).
+- 2026-07-12: FEEDBACK PASS — aiming, Cranky, Saurion, Glacier, Fenrir.
+  · WEAPONS NEVER TURN THE MECH (humans): firing/specials/ults no longer
+    snap the body to the camera yaw — every attack goes along the mech's
+    CURRENT facing, movement owns the orientation (faceAim + the
+    faceNearestEnemyIfClose human branch are now AI-only). Verified: yaw
+    held at 0 through a full hose burst with aimYaw pinned 90° away.
+  · CRANKY HOSE: cannons stay LOW — new 'shootLow' channel clip (roster
+    channelClip) keeps the arms angled down-forward (-40°, was -86°
+    overhead) with a braced shell. Cranky's scuttle roll + hydro recoil
+    signature also actually apply now (were writing joints post-clobber).
+  · CRANKY CLAW SNAP: reworked — both claws spread WIDE to the sides then
+    CLAMP together at the centerline (shoulder yaw sweep + elbow fold),
+    instead of just raising them.
+  · SAURION SICKLE POUNCE: bird-of-prey rework. Leap is much taller
+    (vy 21, ~1.24s hang). The latch now requires coming down ON TOP of the
+    victim — contact HIGH on their body (0.35-1.6× height, tight radius)
+    while descending; he then PERCHES on their shoulders (pinned at
+    +0.55× prey height), feet clamped, hammering three fast pecks
+    ('biteLatch' reworked into a hunched gripping crouch with a rear-back /
+    strike-down head cycle), then springs off. A stooping-hawk dive
+    correction curves the fall onto strafing prey (this is what makes it
+    land). Ground landing is still a plain crouch recovery, zero damage.
+  · GLACIER CRYO BEAM: no more discrete freeze from the beam — the victim
+    is frost-WHITE for exactly as long as the beam is on them
+    (_beamWhiteT re-armed per tick, fast ramp both ways) while tick
+    flinches shake them; colors thaw right back after. Frozen-solid
+    white-out retained only for the absolute-zero ult. Verified whites
+    over the beam: [1,1,1,1,1,1,1,0.4,0,0].
+  · FENRIR SPRINT: rotary-gallop rebuild — fronts EXACTLY half a cycle
+    against the hinds (the old ~115° lead read as limping), slight rotary
+    lag inside each pair, longer stride (0.85× cadence), frame ridden low
+    with a near-constant back angle (subtle arch/heave only), fronts
+    stretch arrow-straight on the reach and fold tight on recovery, hinds
+    sweep hugely with knees gathering under the chest and an ankle snap.
+  Verified: 16-mech attackmatrix ALL CONNECT (saurion special 107 with the
+  on-top-only latch), ace soak clean (saurion/cranky/fenrir), probe
+  numerics + screenshots (yaw-hold hose with low arms, clamp launch,
+  saurion perched on aegis at y 3.8 pecking, beam-white timeline, four
+  gallop phases with a level back).

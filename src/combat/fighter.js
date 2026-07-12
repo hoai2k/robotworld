@@ -208,14 +208,11 @@ export class Fighter {
     this.comboIdx = 0;
   }
 
-  // Humans aim where the CAMERA points (no horizontal auto-aim); the AI
-  // squares up on its target as its stand-in for aiming skill.
+  // Firing NEVER turns a human's mech — the shot goes wherever the mech is
+  // already facing (movement owns the facing). Only the AI squares up on
+  // its target, as its stand-in for aiming skill.
   faceAim() {
-    if (!this.isAI && this.intent.aimYaw !== undefined) {
-      this.yaw = this.targetYaw = this.intent.aimYaw;
-    } else {
-      this.faceNearestEnemyIfClose(60, true);
-    }
+    if (this.isAI) this.faceNearestEnemyIfClose(60, true);
   }
 
   doRanged() {
@@ -231,7 +228,8 @@ export class Fighter {
     this.faceAim();
 
     if (isChannel) {
-      if (!this.animator.isPlaying('shootLoop')) this.animator.play('shootLoop');
+      const cclip = this.def.channelClip || 'shootLoop';
+      if (!this.animator.isPlaying(cclip)) this.animator.play(cclip);
       this.setState('channel', 0.1);
       this.firing = true;
       this.rangedCd = mv.cooldown;
@@ -310,16 +308,11 @@ export class Fighter {
   }
 
   faceNearestEnemyIfClose(maxDist, always = false) {
-    // HUMANS NEVER AUTO-POINT at enemies — the player does their own aiming.
-    // Aimed moves (specials/ults/beams, always=true) go where the camera
-    // points; plain melee strikes along the current facing. Only the AI
-    // snaps toward its target, as its stand-in for aiming skill.
-    if (!this.isAI) {
-      if (always && this.intent.aimYaw !== undefined) {
-        this.yaw = this.targetYaw = this.intent.aimYaw;
-      }
-      return;
-    }
+    // HUMANS NEVER TURN when using a weapon — every attack (melee, ranged,
+    // special, ult) fires along the mech's CURRENT facing; movement owns
+    // the orientation. Only the AI snaps toward its target, as its
+    // stand-in for aiming skill.
+    if (!this.isAI) return;
     const e = this.nearestEnemy();
     if (!e) return;
     const dx = this.world.wrapDelta(e.pos.x - this.pos.x);
@@ -582,14 +575,15 @@ export class Fighter {
       }
     }
 
-    if (this._refreezeCd > 0) this._refreezeCd -= dt;
-    // freeze white-out: the whole body blanks to frost-white while frozen,
-    // then the colors thaw back in over half a second
-    const wantWhite = this.state === 'frozen' ? 1 : 0;
+    // frost white-out: the whole body blanks to white while the cryo beam
+    // is ON them (_beamWhiteT is re-armed by every beam tick) or while
+    // frozen solid (ult), then the colors thaw straight back in
+    if (this._beamWhiteT > 0) this._beamWhiteT -= dt;
+    const wantWhite = this.state === 'frozen' || this._beamWhiteT > 0 ? 1 : 0;
     if (wantWhite || this._whiteW > 0.001) {
       this._whiteW = wantWhite
-        ? Math.min(1, (this._whiteW || 0) + dt * 9)
-        : Math.max(0, (this._whiteW || 0) - dt * 2.4);
+        ? Math.min(1, (this._whiteW || 0) + dt * 12)
+        : Math.max(0, (this._whiteW || 0) - dt * 4);
       this.applyWhiteout(this._whiteW);
     }
 

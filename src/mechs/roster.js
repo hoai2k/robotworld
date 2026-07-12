@@ -266,6 +266,7 @@ export const ROSTER = [
     stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26, blockMult: 0.04 },
     ui: { power: 8, speed: 3, defense: 10 },
     heavyClip: 'clawSnap', // giant pincer SNAP, not a pound
+    channelClip: 'shootLow', // hose cannons fire from the hip, never raised
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },

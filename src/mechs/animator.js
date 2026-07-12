@@ -199,43 +199,46 @@ export class Animator {
       tgt.head[0] += -0.25 * d;
     }
 
-    // ===== quadruped lope (gait: 'quad' — FENRIR the wolf) =====
-    // A canine transverse gallop: both HINDS drive together and push off
-    // while both FRONTS (the arms) reach far forward, catch the ground and
-    // pull through, a half-cycle later. The spine gathers and extends with
-    // the bound — the classic wolf-run silhouette.
+    // ===== quadruped gallop (gait: 'quad' — FENRIR the wolf) =====
+    // A sprinting-wolf rotary gallop: the two HINDS drive as a pair EXACTLY
+    // half a cycle against the two FRONTS (a slight rotary lag inside each
+    // pair), the spine ARCHES as the hinds swing under the body and
+    // EXTENDS flat as they fire, and the whole frame rides low with a
+    // suspension rise on the flight phase.
     if (grounded && speed > 0.4 && this.mech.def.gait === 'quad') {
       const q = clamp01((ratio - 0.4) / 0.35);
       if (q > 0.01) {
-        const g = this.phase;
-        const hind = Math.sin(g), hind2 = Math.sin(g + 0.4);       // hinds near-in-phase
-        const front = Math.sin(g + 2.0), front2 = Math.sin(g + 2.45); // fronts lead by ~half cycle
-        const gather = Math.sin(g + 1.0);                          // spine flex cycle
-        // frame drops level; spine arches on the gather, stretches on the drive
-        tgt.hipsRot[0] += (0.5 + gather * 0.08) * q;
-        tgt.hipsPos[1] += (-this.D.hipHeight * 0.22 + Math.abs(hind) * 0.16 * this.s) * q;
-        tgt.torso[0] += (0.14 + gather * 0.16) * q;
-        tgt.head[0] += (-0.58 - gather * 0.1) * q;   // eyes pinned on the horizon
-        // FRONTS: reach far forward extended, then fold and rake through
-        const reachL = -1.15 - Math.max(0, front) * 0.85 + Math.min(0, front) * 0.35;
-        const reachR = -1.15 - Math.max(0, front2) * 0.85 + Math.min(0, front2) * 0.35;
+        const g = this.phase * 0.85;                 // longer gallop stride
+        const hind = Math.sin(g), hind2 = Math.sin(g + 0.3);
+        const front = Math.sin(g + Math.PI), front2 = Math.sin(g + Math.PI + 0.3);
+        const arch = Math.max(0, -hind);             // spine curls on the gather
+        const ext = Math.max(0, hind);               // and stretches on the drive
+        // long, low, LEVEL frame: the back stays near-horizontal through the
+        // whole cycle — only a subtle arch/heave rides the bound
+        tgt.hipsRot[0] += (0.6 + arch * 0.09) * q;
+        tgt.hipsPos[1] += (-this.D.hipHeight * 0.32 + ext * 0.15 * this.s) * q;
+        tgt.torso[0] += (0.1 + arch * 0.2) * q;      // curl under on the gather
+        tgt.head[0] += (-0.7 - arch * 0.16) * q;     // muzzle level, eyes forward
+        // FRONTS: stretch far out flat on the reach, fold and rake through
+        const reachL = -1.25 - Math.max(0, front) * 0.65 + Math.min(0, front) * 0.45;
+        const reachR = -1.25 - Math.max(0, front2) * 0.65 + Math.min(0, front2) * 0.45;
         tgt.shoulderL[0] = lerp(tgt.shoulderL[0], reachL, q);
         tgt.shoulderR[0] = lerp(tgt.shoulderR[0], reachR, q);
-        tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.14, q);
-        tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.14, q);
-        // elbow EXTENDS on the reach, folds hard on the pull-through
-        tgt.elbowL[0] = lerp(tgt.elbowL[0], -0.15 - Math.max(0, -front) * 1.0, q);
-        tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.15 - Math.max(0, -front2) * 1.0, q);
-        tgt.handL[0] = lerp(tgt.handL[0], 0.45, q);
-        tgt.handR[0] = lerp(tgt.handR[0], 0.45, q);
-        // HINDS: drive together — big sweep, deep gathering flexion under
-        // the body, ankle snap on the push-off
-        tgt.thighL[0] += hind * 0.42 * q;
-        tgt.thighR[0] += hind2 * 0.42 * q;
-        tgt.kneeL[0] += (0.45 + Math.max(0, hind) * 0.75) * q;
-        tgt.kneeR[0] += (0.45 + Math.max(0, hind2) * 0.75) * q;
-        tgt.ankleL[0] += (-0.25 - Math.max(0, -hind) * 0.6) * q;
-        tgt.ankleR[0] += (-0.25 - Math.max(0, -hind2) * 0.6) * q;
+        tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.1, q);
+        tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.1, q);
+        // elbow ARROW-STRAIGHT on the reach, folded tight on the recovery
+        tgt.elbowL[0] = lerp(tgt.elbowL[0], -0.1 - Math.max(0, -front) * 1.2, q);
+        tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.1 - Math.max(0, -front2) * 1.2, q);
+        tgt.handL[0] = lerp(tgt.handL[0], 0.5, q);
+        tgt.handR[0] = lerp(tgt.handR[0], 0.5, q);
+        // HINDS: the engine — huge sweep, knees folding right up under the
+        // chest on the gather, then a full-stretch fire with an ankle snap
+        tgt.thighL[0] += (-0.12 + hind * 0.62) * q;
+        tgt.thighR[0] += (-0.12 + hind2 * 0.62) * q;
+        tgt.kneeL[0] += (0.3 + Math.max(0, hind) * 1.0) * q;
+        tgt.kneeR[0] += (0.3 + Math.max(0, hind2) * 1.0) * q;
+        tgt.ankleL[0] += (-0.28 - Math.max(0, -hind) * 0.75) * q;
+        tgt.ankleR[0] += (-0.28 - Math.max(0, -hind2) * 0.75) * q;
       }
     }
 
@@ -548,16 +551,16 @@ export class Animator {
           if (jw) jw.rotation.x = lerp(jw.rotation.x, -gape, dt * (striking ? 22 : 8));
         }
         // crab SCUTTLE: stride-synced shell roll + waddle yaw so the walk
-        // reads sideways-crabby (the static side-leg struts ride the hips)
+        // reads sideways-crabby (via tgt — the smoother owns hips/torso)
         const scut = clamp01((ctx.speed || 0) / (ctx.maxSpeed || 10));
         if (scut > 0.05) {
-          J.hips.rotation.z += Math.sin(this.phase) * 0.11 * scut;
-          J.hips.rotation.y += Math.cos(this.phase) * 0.08 * scut;
-          J.torso.rotation.z -= Math.sin(this.phase) * 0.06 * scut;
+          tgt.hipsRot[2] += Math.sin(this.phase) * 0.11 * scut;
+          tgt.hipsRot[1] += Math.cos(this.phase) * 0.08 * scut;
+          tgt.torso[2] -= Math.sin(this.phase) * 0.06 * scut;
         }
         // hydro recoil: the whole shell kicks back while the cannons fire
         this._crankyRecoil = lerp(this._crankyRecoil || 0, ctx.firing ? 0.12 : 0, dt * (ctx.firing ? 18 : 6));
-        J.torso.rotation.x -= this._crankyRecoil;
+        tgt.torso[0] -= this._crankyRecoil;
         break;
       }
       case 'jerry': {

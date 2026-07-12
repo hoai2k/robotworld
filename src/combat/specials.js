@@ -533,67 +533,44 @@ export const SPECIALS = {
     f.setState('special', dur * 0.85);
   },
 
-  // SAURION: raptor pounce — a true velociraptor kill-leap. He springs with
-  // legs cocked and sickles raised; if he lands ON prey he hooks in, rides
-  // them, and bites; if he whiffs he just gathers into a crouch and recovers
+  // SAURION: raptor pounce — a HIGH bird-of-prey kill-leap. The latch only
+  // sticks if he comes down ON TOP of the victim (high on their body);
+  // then he perches on them, feet clamped in, hammering down fast pecks.
+  // Landing on dirt = just a crouch recovery, zero damage.
   sickleRush(f, sp) {
     const w = f.world;
     const e = f.nearestEnemy();
     f.animator.play('pounceLeap');
-    f.setState('special', 1.8);
+    f.setState('special', 2.2);
     f.iframes = 0.4;
     w.audio?.play('jump');
-    // long ballistic pounce — a real leap that clears distance and arcs high
-    const T = 0.95; // airtime at vy ~16.2 under g=34
+    // tall ballistic pounce — high enough to drop onto a mech's shoulders
+    const VY = 21;
+    const T = (2 * VY) / 34; // ~1.24s airtime
     const maxLeap = sp.leap || 44;
     let dist = maxLeap;
     if (e && f.isAI) {
-      // AI leads the victim; humans pounce along their own aim
+      // AI leads the victim; humans pounce along their own facing
       const lead = leadPos(f, e, T * 0.85);
       const dx = w.wrapDelta(lead.x - f.pos.x), dz = w.wrapDelta(lead.z - f.pos.z);
       f.yaw = f.targetYaw = Math.atan2(dx, dz);
       dist = Math.min(maxLeap, Math.hypot(dx, dz));
     } else if (e && Math.abs(angleDiff(f.yaw, f.yawTo(e))) < 0.45) {
-      // aimed at them already: shorten the leap to land ON the target
+      // aimed at them already: shorten the leap to come down ON the target
       const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
       dist = Math.min(maxLeap, Math.hypot(dx, dz) + e.vel.length() * 0.3);
     }
-    const vx0 = Math.sin(f.yaw) * dist / T;
-    const vz0 = Math.cos(f.yaw) * dist / T;
+    let vx0 = Math.sin(f.yaw) * dist / T;
+    let vz0 = Math.cos(f.yaw) * dist / T;
     f.vel.x = vx0;
     f.vel.z = vz0;
-    f.vel.y = 16.2;
+    f.vel.y = VY;
     f.grounded = false;
     let done = false;
-    const land = () => {
-      if (done || !f.alive) return;
-      if (!f.grounded) {
-        // hold the ballistic arc — air-control damping would otherwise bleed
-        // the horizontal velocity away and dump him far short of the prey
-        f.vel.x = vx0;
-        f.vel.z = vz0;
-        w.schedule(0.04, land);
-        return;
-      }
-      done = true;
-      // did the claws come down on anyone?
-      let prey = null, best = Infinity;
-      for (const v of w.fighters) {
-        if (v === f || !v.alive) continue;
-        const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
-        const d = Math.hypot(dx, dz);
-        if (d < 5.2 * f.scale && Math.abs(v.pos.y - f.pos.y) < 5 && d < best) { prey = v; best = d; }
-      }
-      if (!prey) {
-        // whiffed: absorb the landing in a crouch, then straighten back up
-        f.duckT = 1;
-        w.effects.dustPuff(f.pos, 3, 0x9a8f80);
-        w.audio?.play('land');
-        f.animator.stop();
-        f.setState('attack', 0.35);
-        return;
-      }
-      // KILL LEAP CONNECTED — sickles hook in, he rides the prey and bites
+
+    const latch = (prey) => {
+      // TALONS IN — he lands on their upper body and PERCHES there, feet
+      // gripping high on the frame, tearing in with quick raptor pecks
       const RIDE = 0.72;
       f.setState('special', RIDE + 0.3);
       f.iframes = 0.5;
@@ -602,27 +579,31 @@ export const SPECIALS = {
       w.engine.addHitStop(0.09);
       prey.takeHit(sp.dmg * f.dmgMult(), f, { knock: 2, srcPos: f.pos, heavy: true });
       prey.applyStatus({ burn: sp.bleed, burnT: 2.4 });
-      const ang = Math.atan2(w.wrapDelta(prey.pos.x - f.pos.x), w.wrapDelta(prey.pos.z - f.pos.z));
-      const hold = prey.hitRadius + f.hitRadius * 0.55;
+      const ang = f.yaw; // rides facing his leap direction
+      const perch = () => {
+        f.pos.x = prey.pos.x - Math.sin(ang) * prey.hitRadius * 0.4;
+        f.pos.z = prey.pos.z - Math.cos(ang) * prey.hitRadius * 0.4;
+        f.pos.y = prey.pos.y + prey.height * 0.55;
+        f.vel.set(0, 0, 0);
+        f.grounded = false;
+        f.yaw = f.targetYaw = ang;
+      };
+      perch();
       const ticks = Math.round(RIDE / 0.05);
       for (let i = 1; i <= ticks; i++) {
         w.schedule(i * 0.05, () => {
           if (!f.alive || !prey.alive || f.state !== 'special') return;
-          // stay clamped onto them wherever the struggle carries the pair
-          f.pos.x = prey.pos.x - Math.sin(ang) * hold;
-          f.pos.z = prey.pos.z - Math.cos(ang) * hold;
-          f.vel.set(0, 0, 0);
-          f.yaw = f.targetYaw = ang;
+          perch(); // stay perched wherever the struggle carries them
         });
       }
-      // two ripping bites while attached
-      for (const bt of [0.24, 0.48]) {
+      // three fast pecking strikes while riding
+      for (const bt of [0.2, 0.42, 0.62]) {
         w.schedule(bt, () => {
           if (!f.alive || !prey.alive) return;
-          prey.takeHit(sp.dmg * 0.3 * f.dmgMult(), f, { knock: 1.5, srcPos: f.pos });
+          prey.takeHit(sp.dmg * 0.22 * f.dmgMult(), f, { knock: 1, srcPos: f.pos });
           w.audio?.play('slash');
           w.effects.impactSparks(prey.center(), 0xff3826, 10, 8);
-          f.animator.addImpulse('head', [0.35, 0, 0], 26, 9);
+          f.animator.addImpulse('head', [0.4, 0, 0], 26, 9);
         });
       }
       // kick off the carcass and spring clear
@@ -630,15 +611,68 @@ export const SPECIALS = {
         if (!f.alive) return;
         f.animator.stop();
         if (f.state === 'special') {
-          f.vel.x = -Math.sin(f.yaw) * 9;
-          f.vel.z = -Math.cos(f.yaw) * 9;
+          f.vel.x = -Math.sin(f.yaw) * 8;
+          f.vel.z = -Math.cos(f.yaw) * 8;
           f.vel.y = 9;
           f.grounded = false;
           f.setState('normal');
         }
       });
     };
-    w.schedule(0.2, land);
+
+    const hunt = () => {
+      if (done || !f.alive) return;
+      // once he's cresting/descending, look for a victim UNDER the claws —
+      // the latch requires hitting them HIGH on the body, riding down on top
+      if (f.vel.y < 4) {
+        let dive = null, diveD = Infinity;
+        for (const v of w.fighters) {
+          if (v === f || !v.alive) continue;
+          const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
+          const dh = Math.hypot(dx, dz);
+          const relY = f.pos.y - v.pos.y;
+          if (dh < v.hitRadius + 2.0 * f.scale &&
+              relY > v.height * 0.35 && relY < v.height * 1.6) {
+            done = true;
+            latch(v);
+            return;
+          }
+          // candidate for the dive correction below
+          if (dh < 26 && dh < diveD &&
+              Math.abs(angleDiff(Math.atan2(dx, dz), Math.atan2(vx0, vz0))) < 0.9) {
+            dive = v;
+            diveD = dh;
+          }
+        }
+        // stooping-hawk correction: he curves the dive onto moving prey —
+        // this is what makes the pounce actually CONNECT on a strafing bot
+        if (dive) {
+          const dx = w.wrapDelta(dive.pos.x - f.pos.x), dz = w.wrapDelta(dive.pos.z - f.pos.z);
+          const drop = f.pos.y - (dive.pos.y + dive.height * 0.8);
+          const tRem = Math.max(0.12, drop / Math.max(6, -f.vel.y));
+          vx0 += (dx / tRem - vx0) * 0.22;
+          vz0 += (dz / tRem - vz0) * 0.22;
+          const sp2 = Math.hypot(vx0, vz0);
+          if (sp2 > 40) { vx0 *= 40 / sp2; vz0 *= 40 / sp2; }
+        }
+      }
+      if (f.grounded) {
+        // came down on dirt: absorb the landing in a crouch, stand back up
+        done = true;
+        f.duckT = 1;
+        w.effects.dustPuff(f.pos, 3, 0x9a8f80);
+        w.audio?.play('land');
+        f.animator.stop();
+        f.setState('attack', 0.35);
+        return;
+      }
+      // hold the ballistic arc — air-control damping would otherwise bleed
+      // the horizontal velocity away and dump him far short of the prey
+      f.vel.x = vx0;
+      f.vel.z = vz0;
+      w.schedule(0.04, hunt);
+    };
+    w.schedule(0.12, hunt);
   },
 
   // FROGGER: all four gunk guns lob a sticky mortar carpet
@@ -704,14 +738,13 @@ export const SPECIALS = {
           if (t > 0 && t < 26) {
             const closest = from.clone().addScaledVector(dir, t);
             if (closest.distanceTo(c) < e.hitRadius + 1.2) {
-              // first contact FREEZES them solid for a beat (whole body
-              // whites out, then thaws back to color); while the re-freeze
-              // grace runs they're merely slowed
-              const canFreeze = e.state !== 'frozen' && !(e._refreezeCd > 0);
-              if (canFreeze) e._refreezeCd = 1.8;
+              // iced over: the whole body stays frost-WHITE for exactly as
+              // long as the beam is on them (thaws right back after), while
+              // the tick flinches shake them and the slow bogs them down
+              e._beamWhiteT = 0.18;
               e.takeHit(sp.dmg * f.dmgMult(), f, {
                 knock: 1, srcPos: from, silent: true,
-                status: canFreeze ? { freeze: 0.55 } : { slow: sp.slow, slowT: 1.2 },
+                status: { slow: sp.slow, slowT: 1.2 },
               });
             }
           }

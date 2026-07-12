@@ -114,6 +114,15 @@ const CLIPS_RAW = {
       { t: 0.36, ease: 'inOutQuad', pose: { shoulderR: [-86, 0, 4], torso: [4, -14, 0] } },
     ],
   },
+  shootLow: { // hip-level channel (CRANKY's hose cannons): arms level/DOWN,
+    // shell braced low — never raised overhead
+    dur: 0.4, upper: true, loop: true,
+    keys: [
+      { t: 0, pose: { shoulderL: [-38, 14, -14], shoulderR: [-38, -14, 14], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], torso: [10, 0, 0], head: [-6, 0, 0], hipsPos: [0, -0.12, 0] } },
+      { t: 0.2, ease: 'inOutQuad', pose: { torso: [12, 0, 0], shoulderL: [-42, 14, -14], shoulderR: [-42, -14, 14] } },
+      { t: 0.4, ease: 'inOutQuad', pose: { torso: [10, 0, 0], shoulderL: [-38, 14, -14], shoulderR: [-38, -14, 14] } },
+    ],
+  },
   castRaise: { // arms skyward — deep coil then a full-body arch on release
     dur: 0.95,
     keys: [
@@ -270,13 +279,14 @@ const CLIPS_RAW = {
       { t: 0.9, ease: 'inOutQuad', pose: { torso: [6, 8, 0], shoulderR: [-84, -14, 4], shoulderL: [-84, 14, -4] } },
     ],
   },
-  clawSnap: { // CRANKY heavy — claws spread WIDE apart, then scissor shut in one violent snap
+  clawSnap: { // CRANKY heavy — both claws spread WIDE to the sides, then
+    // CLAMP together at the centerline like one giant pincer
     dur: 0.55,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.16, ease: 'outCubic', pose: { torso: [6, 14, 0], head: [-6, 0, 0], shoulderL: [-26, 0, -38], shoulderR: [-26, 0, 38], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], hipsPos: [0, -0.06, 0] } },
-      { t: 0.3, ease: 'inCubic', pose: { torso: [14, -8, 0], head: [4, 0, 0], shoulderL: [-78, 0, 6], shoulderR: [-78, 0, -6], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], hipsPos: [0, -0.1, 0.14] } },
-      { t: 0.42, ease: 'outQuad', pose: { torso: [12, -6, 0] } },
+      { t: 0.16, ease: 'outCubic', pose: { torso: [6, 0, 0], head: [-6, 0, 0], shoulderL: [-52, -34, -34], shoulderR: [-52, 34, 34], elbowL: [-14, 0, 0], elbowR: [-14, 0, 0], hipsPos: [0, -0.06, 0] } },
+      { t: 0.3, ease: 'inCubic', pose: { torso: [12, 0, 0], head: [2, 0, 0], shoulderL: [-64, 40, 10], shoulderR: [-64, -40, -10], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], hipsPos: [0, -0.1, 0.14] } },
+      { t: 0.42, ease: 'outQuad', pose: { torso: [10, 0, 0] } },
       { t: 0.55, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], hipsPos: [0, 0, 0] } },
     ],
     events: [{ t: 0.28, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'hit', arg: 0 }, { t: 0.31, type: 'sfx', arg: 'block' }, { t: 0.32, type: 'shake', arg: 0.5 }],
@@ -290,12 +300,15 @@ const CLIPS_RAW = {
       { t: 0.22, ease: 'outCubic', pose: { torso: [10, 0, 0], head: [-10, 0, 0], shoulderL: [40, 0, -30], shoulderR: [40, 0, 30], elbowL: [-20, 0, 0], elbowR: [-20, 0, 0], thighL: [-28, 0, -4], thighR: [-28, 0, 4], kneeL: [24, 0, 0], kneeR: [24, 0, 0], ankleL: [-22, 0, 0], ankleR: [-22, 0, 0], hipsRot: [16, 0, 0] } },
     ],
   },
-  biteLatch: { // SAURION riding pinned prey — hunched over it, jaws working, claws hooked in
-    dur: 0.5, loop: true,
+  biteLatch: { // SAURION perched ON TOP of prey — legs clenched in a deep
+    // gripping crouch (talons in), body hunched low over them, head rearing
+    // back then HAMMERING down in fast bird-of-prey pecks (leg/torso/head
+    // values are deltas over his raptor rest pose)
+    dur: 0.36, loop: true,
     keys: [
-      { t: 0, pose: { torso: [16, 0, 0], head: [4, 0, 0], shoulderL: [-70, 0, 14], shoulderR: [-70, 0, -14], elbowL: [-46, 0, 0], elbowR: [-46, 0, 0], hipsRot: [10, 0, 0] } },
-      { t: 0.25, ease: 'inCubic', pose: { torso: [24, 0, 0], head: [22, 0, 0], shoulderL: [-74, 0, 14], shoulderR: [-74, 0, -14], elbowL: [-50, 0, 0], elbowR: [-50, 0, 0], hipsRot: [12, 0, 0] } },
-      { t: 0.5, ease: 'outCubic', pose: { torso: [16, 0, 0], head: [4, 0, 0], shoulderL: [-70, 0, 14], shoulderR: [-70, 0, -14], elbowL: [-46, 0, 0], elbowR: [-46, 0, 0], hipsRot: [10, 0, 0] } },
+      { t: 0, pose: { torso: [14, 0, 0], head: [-12, 0, 0], shoulderL: [26, 0, -22], shoulderR: [26, 0, 22], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], thighL: [-16, 0, -10], thighR: [-16, 0, 10], kneeL: [26, 0, 0], kneeR: [26, 0, 0], ankleL: [-14, 0, 0], ankleR: [-14, 0, 0], hipsRot: [14, 0, 0], hipsPos: [0, -0.25, 0] } },
+      { t: 0.16, ease: 'inCubic', pose: { torso: [26, 0, 0], head: [38, 0, 0], hipsRot: [18, 0, 0], hipsPos: [0, -0.34, 0] } },
+      { t: 0.36, ease: 'outCubic', pose: { torso: [14, 0, 0], head: [-12, 0, 0], hipsRot: [14, 0, 0], hipsPos: [0, -0.25, 0] } },
     ],
   },
   hangGrab: { // wall grab — punch hand locked onto the building, body hanging, legs braced
