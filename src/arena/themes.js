@@ -201,6 +201,7 @@ export const THEMES = [
     ground: { color: 0x93aec4, road: false, accent: 0x53c8ff },
     buildings: { count: 8, tints: [0x98a4b0, 0x8894a0, 0xa4b0bc], styles: [3, 2], hRange: [3, 6], glow: true },
     props: [
+      { name: 'campfire', ring: [12, 30], count: 3 },
       { name: 'aurora', ring: [0, 6], count: 1 },
       { name: 'radarDome', ring: [30, 42], count: 2 },
       { name: 'crystal', ring: [30, 50], count: 7, opts: { mat: 'ice', maxH: 5 } },
@@ -223,6 +224,7 @@ export const THEMES = [
     ground: { color: 0xb08f62, road: false, accent: 0x2ee6c8 },
     buildings: { count: 7, tints: [0xbf9d6c, 0xb08c5c, 0xc8a878, 0xa89268], styles: [1], hRange: [3, 6], glow: false },
     props: [
+      { name: 'campfire', ring: [12, 30], count: 3 },
       { name: 'brokenStatue', ring: [28, 40], count: 2 },
       { name: 'obelisk', ring: [30, 46], count: 3 },
       { name: 'sarcophagus', ring: [28, 42], count: 3 },
@@ -245,6 +247,7 @@ export const THEMES = [
     ground: { color: 0x53643a, road: false, accent: 0x62ff9a },
     buildings: { count: 6, tints: [0x93987c, 0x83886c, 0x8c9670], styles: [1], hRange: [3, 5], glow: false },
     props: [
+      { name: 'campfire', ring: [12, 30], count: 3 },
       { name: 'canopyTree', ring: [30, 52], count: 6 },
       { name: 'stoneIdol', ring: [28, 40], count: 2 },
       { name: 'vineColumn', ring: [26, 44], count: 5 },

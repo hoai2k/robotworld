@@ -726,3 +726,24 @@ controllers via Gamepad API), AI opponents.
   design files). Verified: glacier close-up (gap gone), full 16-mech
   showcase lineup (no protruding stubs — jerry's is hidden inside his
   carapace), slim-frame wraith close-up, build green, no page errors.
+- 2026-07-12: ARENA HAZARDS + GEYSER BLOWOUT.
+  · SPIKE HAZARDS: obsidian spike clusters (volcano) now CUT — any bot
+    walking into a cluster takes 14 contact damage and gets SHOVED hard
+    back out (knock 20 + outward velocity + brief launch, 0.8s per-bot
+    re-hit cooldown, sparks + slash). Generic registry: props tag
+    userData.spikes, arena.updateHazards ticks them.
+  · CAMPFIRES: new stone-ring campfire prop (crossed logs, ember bed,
+    small flame) placed in ruins/jungle/frozen (3 each). ATTACKING one —
+    melee or any blast (hook in arena.damageSphere) — flares it into a
+    7s burning ground patch (13 dps) with a flare-up fountain + ring +
+    flame sfx; it can be re-lit after burning out. Verified: one punch
+    lit it, a bot walking through burned for 66.
+  · CRANKY GEYSER: radius DOUBLED 5.5 → 11, and the eruption now opens
+    with a brief HUGE fountain — 60 tall fast jets (vy 24-40) across the
+    whole area on top of the existing column pulses (beam column width
+    capped so it stays a column). Verified: victim 9 units off the aim
+    line still launched.
+  Verified: 16-mech attackmatrix ALL CONNECT, volcano ace soak clean
+  (spike hazards live), probe numerics (spike dmg 12 + shove to 6.9u at
+  23 u/s; campfire lit + patch + walk-through burn; off-axis geyser
+  launch), screenshots viewed (geyser blowout column, lit campfire).

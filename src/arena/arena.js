@@ -75,6 +75,8 @@ export class Arena {
     this.spinners = [];  // props with userData.spin
     this.steamSpots = [];
     this.explosives = []; // fuel tanks etc. that cook off when hit
+    this.spikes = [];      // ground spike clusters: contact damage + shove
+    this.campfires = [];   // attack one and it flares into a fire patch
     this.ambientT = 0;
     const rng = makeRng(seed * 31 + theme.id.length * 77);
 
@@ -239,6 +241,10 @@ export class Arena {
             hp: e.hp, top: e.top || 6, dead: false,
           });
         }
+        if (g && g.userData.spikes) this.spikes.push({ x, z, r: g.userData.spikes.r });
+        if (g && g.userData.campfire) {
+          this.campfires.push({ group: g, x, z, r: g.userData.campfire.r, litT: 0 });
+        }
       }
     }
     // ghost copies of the props in the 8 neighbor cells (static)
@@ -274,7 +280,30 @@ export class Arena {
   }
 
   damageSphere(pos, radius, dmg, dir = null, structural = false) {
+    this.igniteCampfires(pos, radius + 1.2);
     return this.destructo.damageSphere(pos, radius, dmg, dir, structural);
+  }
+
+  // ---- campfires: any strike near one flares it into a burning patch ----
+  igniteCampfires(pos, radius) {
+    const w = this.world;
+    if (!w || !this.campfires.length) return;
+    for (const cf of this.campfires) {
+      if (cf.litT > 0) continue;
+      const dx = w.wrapDelta(pos.x - cf.x), dz = w.wrapDelta(pos.z - cf.z);
+      if (Math.hypot(dx, dz) > radius + cf.r) continue;
+      cf.litT = 7.5;
+      w.addFirePatch(null, new THREE.Vector3(cf.x, 0, cf.z), 3.4, 7, 13);
+      // flare-up show
+      for (let i = 0; i < 14; i++) {
+        const a = rand(Math.PI * 2), rr = rand(0, 1.6);
+        w.effects.glows.emit(cf.x + Math.cos(a) * rr, rand(0.3, 1.5), cf.z + Math.sin(a) * rr,
+          Math.cos(a) * rand(1, 3), rand(6, 13), Math.sin(a) * rand(1, 3),
+          { life: rand(0.4, 0.8), size: rand(1.2, 2.2), color: i % 3 ? 0xff7a20 : 0xffd23c, alpha: 0.95, drag: 0.8 });
+      }
+      w.effects.rings.spawn(new THREE.Vector3(cf.x, 0, cf.z), { from: 0.5, to: 5, dur: 0.4, color: 0xff7a20, y: 0.3 });
+      w.audio?.play('flame');
+    }
   }
   pointHits(pos) { return this.destructo.pointHits(pos); }
   raySolid(origin, dir, range) { return this.destructo.raySolid(origin, dir, range); }
@@ -375,6 +404,39 @@ export class Arena {
     }
   }
 
+  // ---- ground hazards ----
+  // spike clusters cut and SHOVE anyone who walks into them; campfire lit
+  // timers burn down so a fire can be re-lit after it dies out
+  updateHazards(dt) {
+    const w = this.world;
+    if (!w) return;
+    for (const cf of this.campfires) {
+      if (cf.litT > 0) cf.litT -= dt;
+    }
+    if (!this.spikes.length) return;
+    for (const f of w.fighters) {
+      if (!f.alive || f.pos.y > 2.5) continue;
+      if (f._spikeCd > 0) { f._spikeCd -= dt; continue; }
+      for (const sp of this.spikes) {
+        const dx = w.wrapDelta(f.pos.x - sp.x), dz = w.wrapDelta(f.pos.z - sp.z);
+        const d = Math.hypot(dx, dz);
+        if (d >= sp.r + f.radius * 0.5) continue;
+        f._spikeCd = 0.8;
+        // shove OUT of the cluster, away from its center
+        const nx = d > 0.01 ? dx / d : 1, nz = d > 0.01 ? dz / d : 0;
+        f.takeHit(14, null, {
+          knock: 20, launch: 5,
+          srcPos: new THREE.Vector3(sp.x, 0, sp.z),
+        });
+        f.vel.x += nx * 10;
+        f.vel.z += nz * 10;
+        w.effects.impactSparks(f.center(), 0xff5030, 10, 8);
+        w.audio?.play('slash');
+        break;
+      }
+    }
+  }
+
   spawnPoints(n) {
     const pts = [];
     const r = Math.min(this.bounds * 0.4, 34);
@@ -391,6 +453,7 @@ export class Arena {
   update(dt) {
     this.destructo.update(dt);
     this.updateExplosives();
+    this.updateHazards(dt);
     for (const g of this.spinners) g.rotation.z += g.userData.spin * dt;
 
     // ambient particles

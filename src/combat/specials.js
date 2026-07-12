@@ -489,8 +489,16 @@ export const SPECIALS = {
         w.schedule(WARN, () => {
           const top = target.clone();
           top.y += 27;
-          w.effects.beams.spawn(target, top, { radius: sp.radius * 0.45, dur: 0.6, color: 0x8fdcff });
-          w.effects.rings.spawn(target, { from: 1, to: sp.radius * 2.6, dur: 0.5, color: 0xbfe8ff, y: 0.4 });
+          w.effects.beams.spawn(target, top, { radius: Math.min(3.4, sp.radius * 0.45), dur: 0.6, color: 0x8fdcff });
+          w.effects.rings.spawn(target, { from: 1, to: sp.radius * 2.2, dur: 0.5, color: 0xbfe8ff, y: 0.4 });
+          // the blowout: one brief, HUGE fountain — tall fast jets across
+          // the whole (doubled) eruption area
+          for (let i = 0; i < 60; i++) {
+            const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.6;
+            w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
+              Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
+              { life: rand(0.8, 1.4), size: rand(1.6, 3.2), color: i % 4 ? 0xaee8ff : 0xffffff, alpha: 0.95, gravity: 26, drag: 0.35 });
+          }
           // main jet: dense fast water particles rocketing up the column core,
           // fired in three quick pulses so the column stays solid for longer
           for (const delay of [0, 0.14, 0.3]) {

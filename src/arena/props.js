@@ -629,6 +629,8 @@ export const PROPS = {
   },
   obsidianSpikes(o = {}) {
     // Cluster of razor black glass shards with embers at their feet.
+    // A HAZARD: walking into the cluster cuts and shoves bots back
+    // (arena registers it via userData.spikes).
     const g = new THREE.Group();
     const rng = makeRng(o.seed || (Math.random() * 1e6) | 0);
     const n = o.n || rng.int(4, 6);
@@ -643,6 +645,31 @@ export const PROPS = {
     for (let i = 0; i < 2; i++) {
       g.add(box(M.glowLava, rng.range(0.4, 0.8), 0.16, rng.range(0.4, 0.8), rng.range(-2, 2), 0.08, rng.range(-2, 2), rng.range(0, 3)));
     }
+    g.userData.spikes = { r: 3.4 };
+    return g;
+  },
+
+  campfire(o = {}) {
+    // Stone-ringed campfire: crossed logs over glowing embers. Attack it
+    // and it flares into a burning ground patch (userData.campfire).
+    const g = new THREE.Group();
+    const rng = makeRng(o.seed || (Math.random() * 1e6) | 0);
+    for (let i = 0; i < 9; i++) {
+      const a = (i / 9) * Math.PI * 2 + rng.range(-0.12, 0.12);
+      const st = box(M.concrete, rng.range(0.5, 0.8), rng.range(0.4, 0.6), rng.range(0.5, 0.7),
+        Math.cos(a) * 1.8, 0.22, Math.sin(a) * 1.8, rng.range(0, 3));
+      g.add(st);
+    }
+    for (let i = 0; i < 4; i++) {
+      const log = cyl(M.wood, 0.16, 0.2, 2.4, 0, 0.45, 0, 7);
+      log.rotation.set(rng.range(-0.25, 0.25) + Math.PI / 2.4, (i / 4) * Math.PI * 2, 0);
+      g.add(log);
+    }
+    g.add(cyl(M.glowLava, 0.85, 1.0, 0.24, 0, 0.12, 0, 12));
+    const flame = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.2, 7), M.glowWarm);
+    flame.position.y = 0.9;
+    g.add(flame);
+    g.userData.campfire = { r: 2.2 };
     return g;
   },
 
