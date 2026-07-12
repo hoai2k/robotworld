@@ -145,6 +145,8 @@ export class Fighter {
   dmgMult() {
     let m = 1;
     if (this.status.buff) m *= this.status.buff.dmg;
+    // NOVA: every attack surges while her halo burns at apex alignment
+    if (this.def.id === 'nova') m *= 1 + 0.35 * (this.animator?.novaGlow || 0);
     return m;
   }
 
@@ -239,7 +241,8 @@ export class Fighter {
       // twin-cannon mechs alternate sides shot to shot (mirrored animation)
       if (mv.type === 'mortar' && this.mech.anchors.muzzleL) this._altSide = !this._altSide;
       const clip = mv.type === 'mortar' ? (this._altSide ? 'braceL' : 'brace')
-        : mv.type === 'railgun' ? 'aim' : 'shoot';
+        : mv.type === 'railgun' ? 'aim'
+        : mv.type === 'groundpound' ? 'groundPound' : 'shoot';
       this.rangedCd = mv.cooldown;
       // single-shot weapons spend ammo too (channel weapons decrement in
       // their own loop) — without this they never drain and never refill
@@ -677,6 +680,35 @@ export class Fighter {
       }
     }
 
+    // ---- carried: hoisted overhead by a grab-and-throw. Pinned every
+    // FRAME (schedule-tick pinning let gravity sag between ticks = jiggle)
+    // and the rise itself is a smoothstep, not a teleport ----
+    if (this._carry) {
+      const c = this._carry;
+      const carrier = c.by;
+      c.t -= dt;
+      if (!this.alive || !carrier.alive || carrier.state !== 'special' || c.t <= 0) {
+        this._carry = null; // thrown (the special clears us) or lift broken
+      } else {
+        c.riseT = Math.min(1, (c.riseT || 0) + dt / 0.24);
+        const k = c.riseT * c.riseT * (3 - 2 * c.riseT); // smoothstep hoist
+        const tx = carrier.pos.x + Math.sin(carrier.yaw) * 0.4 * carrier.scale;
+        const tz = carrier.pos.z + Math.cos(carrier.yaw) * 0.4 * carrier.scale;
+        const ty = carrier.height + 0.6;
+        this.pos.x = c.x0 + (tx - c.x0) * k;
+        this.pos.y = c.y0 + (ty - c.y0) * k;
+        this.pos.z = c.z0 + (tz - c.z0) * k;
+        this.vel.set(0, 0, 0);
+        this.grounded = false;
+        // rolled flat ACROSS the press as it rises (wrestling body slam)
+        this.yaw = this.targetYaw = carrier.yaw + Math.PI / 2;
+        this.group.rotation.y = this.yaw;
+        this.group.rotation.x += (-1.45 * k - this.group.rotation.x) * Math.min(1, dt * 10);
+        this.animator.update(dt, { speed: 0, grounded: false, vy: 0 });
+        return;
+      }
+    }
+
     // ---- aerial plunge: heavy smash rides down to the ground ----
     if (this.plunging) {
       if (!this.alive || this.state !== 'attack') {
@@ -942,6 +974,7 @@ export class Fighter {
     this.hp = this.maxHp;
     this.alive = true;
     this.hanging = null;
+    this._carry = null;
     this.group.rotation.set(0, yaw, 0); // clear any carry/slam roll
     if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
     this.pos.copy(pos);

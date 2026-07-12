@@ -141,8 +141,10 @@ export function nova(A, D, J, anchors, def) {
     // white body panel: flattened partial torus
     A.part('halo', 'primary', new THREE.TorusGeometry(hR, 0.18 * s, 8, 26, arc), {
       r: [0, 0, start], s: [1, 1, 0.3] });
-    // teal inlay riding the front face
-    A.part('halo', 'accent', new THREE.TorusGeometry(hR, 0.075 * s, 8, 26, arc), {
+    // glow inlay riding the front face — this is the strip that SURGES
+    // when the crescents sweep through apex alignment (animator drives
+    // glowSoft emissive)
+    A.part('halo', 'glowSoft', new THREE.TorusGeometry(hR, 0.075 * s, 8, 26, arc), {
       p: [0, 0, 0.045 * s], r: [0, 0, start], s: [1, 1, 0.55] });
     // gold trim arcs along both edges
     A.part('halo', 'brass', new THREE.TorusGeometry(hR + 0.19 * s, 0.022 * s, 6, 26, arc), {
@@ -153,7 +155,7 @@ export function nova(A, D, J, anchors, def) {
     for (const ang of [start, start + arc]) {
       const tp = [Math.cos(ang) * hR, Math.sin(ang) * hR, 0];
       A.ball('halo', 'brass', 0.075 * s, { p: tp, seg: 10 });
-      A.ball('halo', 'glowSoft', 0.045 * s, { p: [tp[0], tp[1], 0.06 * s], seg: 8 });
+      A.ball('halo', 'glowSoft', 0.09 * s, { p: [tp[0], tp[1], 0.06 * s], seg: 8 });
     }
   }
 

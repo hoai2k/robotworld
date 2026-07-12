@@ -31,6 +31,7 @@ export function runShowcase(which) {
   const defs = single ? ROSTER.filter((m) => m.id === which) : ROSTER;
 
   const mechs = [];
+  window.__showcaseMechs = mechs; // probe hook
   const spacing = 8.5;
   defs.forEach((def, i) => {
     const mech = buildMech(def);

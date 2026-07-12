@@ -17,8 +17,8 @@ export const ROSTER = [
     moves: {
       light: { dmg: [46, 50, 68], knock: [6, 7, 16], range: 3.4 },
       heavy: { dmg: 105, knock: 26, range: 3.8, launch: 9 },
-      ranged: { name: 'Rocket Fist', type: 'rocket', dmg: 82, speed: 32, cooldown: 1.6, splash: 4.5, ammo: 12 },
-      special: { id: 'groundPound', name: 'Seismic Slam', cooldown: 7, dmg: 85, radius: 9, knock: 24 },
+      ranged: { name: 'Seismic Slam', type: 'groundpound', dmg: 52, cooldown: 1.6, radius: 9, knock: 18 },
+      special: { id: 'grabThrow', name: 'Skyline Slam', cooldown: 8, dmg: 88, range: 4.2, throw: 32, radius: 5 },
       ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
     },
   },

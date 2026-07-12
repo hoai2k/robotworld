@@ -140,9 +140,11 @@ export const SPECIALS = {
           f.world.schedule(0.14 * i, () => {
             if (!f.alive) return;
             const origin = muzzle(f).add(new THREE.Vector3(rand(-1, 1), rand(1, 2.5), rand(-1, 1)));
+            const g = f.animator?.novaGlow || 0;
             f.world.projectiles.spawn('plasma', f, origin, new THREE.Vector3(0, 1, 0), {
-              dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6, color: 0xff5ce8,
+              dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6 * (1 + 0.4 * g), color: 0xff5ce8,
               homing: target, retarget: true, turnRate: 4.0, life: 4.5,
+              size: 1 + 0.7 * g,
             });
             f.world.audio?.play('plasma');
           });
@@ -339,7 +341,9 @@ export const SPECIALS = {
         f.setState('attack', 0.35);
         return;
       }
-      // GOT ONE — hoist them overhead
+      // GOT ONE — hoist them overhead. The victim's own update pins them
+      // every FRAME via the carried state (smoothstep rise — the old
+      // 0.05s schedule-tick pinning let gravity sag between ticks: jiggle)
       const LIFT = 0.55;
       f.animator.play('liftHold');
       w.engine.addHitStop(0.06);
@@ -347,36 +351,26 @@ export const SPECIALS = {
       prey.setState('launched', 3);
       prey.animator.play('launched');
       prey.iframes = LIFT + 0.2; // the cargo can't be sniped mid-lift
-      const overhead = () => {
-        prey.pos.x = f.pos.x + Math.sin(f.yaw) * 0.4 * f.scale;
-        prey.pos.z = f.pos.z + Math.cos(f.yaw) * 0.4 * f.scale;
-        prey.pos.y = f.height + 0.6;
-        prey.vel.set(0, 0, 0);
-        prey.grounded = false;
-        // wrestling press: the body is laid ACROSS the lift, rolled flat
-        // onto its side over Colossus's head
-        prey.yaw = prey.targetYaw = f.yaw + Math.PI / 2;
-        const r = prey.group.rotation;
-        r.x += (-1.45 - r.x) * 0.3;
+      prey.grounded = false;
+      prey._carry = {
+        by: f, t: LIFT + 0.4,
+        x0: prey.pos.x, y0: prey.pos.y, z0: prey.pos.z, riseT: 0,
       };
-      overhead(); // pin NOW — a grounded frame would trip launched->knockdown
-      const ticks = Math.round(LIFT / 0.05);
-      for (let i = 0; i <= ticks; i++) {
-        w.schedule(i * 0.05, () => {
-          if (!f.alive || !prey.alive || f.state !== 'special') {
-            prey.group.rotation.x = 0; // lift broken: unwind the slam roll
-            return;
-          }
-          overhead();
-        });
-      }
       // THE THROW — far and flat
       w.schedule(LIFT + 0.02, () => {
-        if (!f.alive || f.state !== 'special') { prey.group.rotation.x = 0; return; }
+        if (!f.alive || f.state !== 'special') {
+          prey._carry = null;
+          prey.group.rotation.x = 0; // lift broken: unwind the slam roll
+          return;
+        }
         f.animator.play('throwHeave');
         f.setState('special', 0.5);
         if (prey.alive) {
-          overhead();
+          prey._carry = null;
+          prey.pos.x = f.pos.x + Math.sin(f.yaw) * 0.4 * f.scale;
+          prey.pos.z = f.pos.z + Math.cos(f.yaw) * 0.4 * f.scale;
+          prey.pos.y = f.height + 0.6;
+          prey.grounded = false;
           prey.iframes = 0; // the throw itself always lands
           prey.takeHit(sp.dmg * 0.7 * f.dmgMult(), f, { knock: 0, srcPos: f.pos, heavy: true });
           prey.setState('launched', 3);

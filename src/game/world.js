@@ -360,7 +360,7 @@ export class World {
         // bigger and hotter (novaGlow 0..1 from the animator)
         const g = f.animator?.novaGlow || 0;
         this.projectiles.spawn('plasma', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult() * (1 + 0.35 * g), speed: mv.speed,
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed,
           splash: mv.splash * (1 + 0.45 * g), color: 0xff5ce8, knock: 10 + 4 * g,
           size: 1 + 0.75 * g,
         });
@@ -484,6 +484,10 @@ export class World {
         this.effects.muzzleFlash(from);
         break;
       }
+      case 'groundpound': // TITANUS: the RT is a point-blank seismic quake
+        this.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
+        this.audio?.play('slam');
+        break;
       case 'feather': // SAURION: razor blade-feathers
         this.projectiles.spawn('shard', f, from, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9aa0a8, knock: 5,

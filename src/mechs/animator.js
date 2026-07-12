@@ -408,8 +408,8 @@ export class Animator {
           const g = 0.5 + 0.5 * Math.cos(2 * J.halo.rotation.z);
           this.novaGlow = g;
           const mats = this.mech.materials;
-          if (mats?.glowSoft) mats.glowSoft.emissiveIntensity = 1.1 * (0.45 + 1.7 * g);
-          if (mats?.glow2) mats.glow2.emissiveIntensity = 2.4 * (0.55 + 1.1 * g);
+          if (mats?.glowSoft) mats.glowSoft.emissiveIntensity = 0.35 + 3.6 * g * g;
+          if (mats?.glow2) mats.glow2.emissiveIntensity = 2.4 * (0.5 + 1.2 * g);
         }
         break;
       case 'rhino': {

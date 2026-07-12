@@ -775,3 +775,29 @@ controllers via Gamepad API), AI opponents.
   soak clean (colossus/glacier), probe numerics + screenshots (dark axle
   bridging glacier's pauldrons at rest and mid-walk, viper carried flat
   overhead, roll 0 after landing).
+- 2026-07-12: NOVA HALO FIXED + TITANUS SLAM KIT + SMOOTH CARRY.
+  · NOVA HALO GLOW, ACTUALLY VISIBLE: the pulse was firing but the only
+    halo geometry in the pulsing bucket was four TINY tip gems — the
+    crescent bodies were plain white/teal, so the "glow" read as nothing.
+    The crescent inlay arcs are now glowSoft strips (the ring itself
+    surges), tip gems doubled in size, and the pulse curve hardened to
+    0.35 + 3.6·g² (near-dark trough 0.36 → blazing 3.7+ at apex). Power
+    now rides dmgMult so ALL her attacks (melee, plasma, starfall) hit
+    +35% at full alignment; plasma/starfall orbs also swell in size.
+    Verified: apex screenshot (both crescents aligned at the top, blazing
+    magenta) vs trough (dim strips), intensity 0.36 → 3.72.
+  · TITANUS: special B is now SKYLINE SLAM (the same grab → overhead
+    body-slam carry → far throw as Colossus, 88 dmg), and RT became his
+    old Seismic Slam ground pound (52 dmg, radius 9, knock 18, 1.6s cd,
+    NO ammo — it's a quake, not a projectile; AI brawls at range 4).
+    Side effect: the flaky titanus-ranged matrix case (rocket) is gone.
+  · SMOOTH CARRY: the lift jiggle came from 0.05s schedule-tick pinning —
+    gravity sagged the victim between ticks and each tick snapped them
+    back. Victims now carry a per-frame _carry state handled in their own
+    update: smoothstep hoist from the grab point up to overhead (~0.24s,
+    no teleport pop), per-frame pin + roll-flat blend, auto-release on
+    carrier death/state break. Verified y-trace over the lift: monotonic
+    0 → 8.1 with ZERO downward dips.
+  Verified: 16-mech attackmatrix ALL CONNECT (titanus ranged 30 pound /
+  special 74 slam; nova special 88 with swollen orbs), ace soak clean
+  (titanus/nova), screenshots viewed (blazing vs dim halo, titanus press).
