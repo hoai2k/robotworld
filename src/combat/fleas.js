@@ -106,7 +106,7 @@ export class FleaSystem {
       heading = Math.atan2(best.dx, best.dz) + rand(-1, 1) * (d > 14 ? 0.85 : 0.35);
       power = clamp01(d / 22) * rand(0.75, 1.1);
     }
-    const vy = rand(10, 16);
+    const vy = rand(14, 23); // 2x hop height — springy leaps that clear mech torsos
     const sp = 6 + 15 * power;
     f.vel.set(Math.sin(heading) * sp, vy, Math.cos(heading) * sp);
     f.state = 'air';

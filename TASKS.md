@@ -711,3 +711,8 @@ controllers via Gamepad API), AI opponents.
   numerics + screenshots (yaw-hold hose with low arms, clamp launch,
   saurion perched on aegis at y 3.8 pecking, beam-white timeline, four
   gallop phases with a level back).
+- 2026-07-12: Jerry's fleas hop 2x higher — ground-hop launch vy 10-16 →
+  14-23 (peak height doubles; velocity scales by √2, not 2, since
+  h = v²/2g). Verified: attackmatrix ALL CONNECT (jerry ranged 34 /
+  special 26-41 — attach reliability held despite the longer, floatier
+  arcs; titanus ranged flake passed on rerun at 114).
