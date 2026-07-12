@@ -124,18 +124,24 @@ export class Animator {
 
       tgt.thighL[0] += -swing * sinL;
       tgt.thighR[0] += -swing * sinR;
-      tgt.kneeL[0] += (0.55 + 0.5 * ratio) * Math.max(0, Math.sin(ph + 1.05));
-      tgt.kneeR[0] += (0.55 + 0.5 * ratio) * Math.max(0, Math.sin(ph + Math.PI + 1.05));
-      tgt.ankleL[0] += swing * 0.5 * sinL - 0.1 * ratio;
-      tgt.ankleR[0] += swing * 0.5 * sinR - 0.1 * ratio;
+      // springy legs, not stilts: a soft stance bend that never locks the
+      // knee, a bigger swing-phase lift, and a plantar-flex TOE-OFF as the
+      // trailing leg leaves the ground — the mech pushes itself forward
+      const stanceBend = 0.14 + 0.14 * ratio;
+      tgt.kneeL[0] += stanceBend + (0.7 + 0.65 * ratio) * Math.max(0, Math.sin(ph + 1.05));
+      tgt.kneeR[0] += stanceBend + (0.7 + 0.65 * ratio) * Math.max(0, Math.sin(ph + Math.PI + 1.05));
+      const pushL = Math.max(0, -Math.sin(ph - 0.45));          // trailing-leg push
+      const pushR = Math.max(0, -Math.sin(ph + Math.PI - 0.45));
+      tgt.ankleL[0] += swing * 0.5 * sinL - 0.1 * ratio - (0.4 + 0.4 * ratio) * pushL;
+      tgt.ankleR[0] += swing * 0.5 * sinR - 0.1 * ratio - (0.4 + 0.4 * ratio) * pushR;
       // counter-swing arms
       const armSwing = swing * 0.75;
       tgt.shoulderL[0] += armSwing * sinR;
       tgt.shoulderR[0] += armSwing * sinL;
       tgt.elbowL[0] += -0.25 - 0.3 * ratio * Math.max(0, sinR);
       tgt.elbowR[0] += -0.25 - 0.3 * ratio * Math.max(0, sinL);
-      // body dynamics
-      tgt.hipsPos[1] += -Math.abs(Math.cos(ph)) * 0.16 * ratio * this.s;
+      // body dynamics — bob rides the push-off beat
+      tgt.hipsPos[1] += -Math.abs(Math.cos(ph)) * 0.19 * ratio * this.s;
       tgt.hipsRot[0] += 0.10 * ratio;             // whole body pitches into the run
       tgt.hipsRot[1] += Math.sin(ph) * 0.09 * ratio;
       tgt.hipsRot[2] += Math.cos(ph) * 0.05 * ratio;
@@ -213,10 +219,16 @@ export class Animator {
         tgt.elbowR[0] = lerp(tgt.elbowR[0], -0.45 - Math.max(0, fR) * 0.55, q);
         tgt.handL[0] = lerp(tgt.handL[0], 0.5, q);
         tgt.handR[0] = lerp(tgt.handR[0], 0.5, q);
-        // hinds crouch deeper and the whole body bounds with the stride
-        tgt.kneeL[0] += 0.25 * q;
-        tgt.kneeR[0] += 0.25 * q;
-        tgt.hipsPos[1] += Math.abs(Math.sin(ph)) * 0.12 * q * this.s;
+        // hind legs: deeply bent and ARTICULATED — big cyclic knee flexion
+        // on the gather, ankle snap on the drive, real haunches not stilts
+        const hL = Math.sin(ph), hR = Math.sin(ph + Math.PI);
+        tgt.thighL[0] += hL * 0.3 * q;
+        tgt.thighR[0] += hR * 0.3 * q;
+        tgt.kneeL[0] += (0.5 + Math.max(0, hL) * 0.6) * q;
+        tgt.kneeR[0] += (0.5 + Math.max(0, hR) * 0.6) * q;
+        tgt.ankleL[0] += (-0.28 - Math.max(0, -hL) * 0.55) * q;  // push-off snap
+        tgt.ankleR[0] += (-0.28 - Math.max(0, -hR) * 0.55) * q;
+        tgt.hipsPos[1] += Math.abs(Math.sin(ph)) * 0.14 * q * this.s;
       }
     }
 

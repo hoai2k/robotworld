@@ -3,7 +3,7 @@
 // mid-fight flipping between full and split. The 2-player split can be
 // side-by-side or stacked, toggled at runtime (pause menu / F9).
 import * as THREE from 'three';
-import { clamp, lerp, damp, angleDamp } from '../core/utils.js';
+import { clamp, lerp, damp, angleDamp, angleDiff } from '../core/utils.js';
 
 const _v = new THREE.Vector3();
 const _center = new THREE.Vector3();
@@ -73,7 +73,14 @@ export class CameraSystem {
     // camera->fighter occlusion segments (reused each frame; buildings that
     // cross any of these ghost out — the camera NEVER collides with them)
     this._segs = [];
-    for (let i = 0; i < 8; i++) this._segs.push({ from: new THREE.Vector3(), to: new THREE.Vector3() });
+    for (let i = 0; i < 8; i++) {
+      this._segs.push({
+        from: new THREE.Vector3(),
+        // whole-body samples: center, both flanks, head, feet — a building
+        // must block ALL of them before it fades
+        targets: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()],
+      });
+    }
   }
 
   // 'single' | 'lr' | 'tb' | '3' | '4' for a given human count
@@ -123,6 +130,21 @@ export class CameraSystem {
     if (!ch) return;
     ch.lookX = x;
     ch.lookY = y;
+  }
+
+  // spread a segment's occlusion samples across the fighter's whole body
+  fillSegTargets(seg, camPos, f) {
+    let dx = f.pos.x - camPos.x, dz = f.pos.z - camPos.z;
+    const L = Math.hypot(dx, dz) || 1;
+    dx /= L; dz /= L;
+    const rx = -dz, rz = dx;                 // view-perpendicular (XZ)
+    const r = f.hitRadius * 0.85;
+    const midY = f.pos.y + f.height * 0.55;
+    seg.targets[0].set(f.pos.x, midY, f.pos.z);
+    seg.targets[1].set(f.pos.x + rx * r, midY, f.pos.z + rz * r);
+    seg.targets[2].set(f.pos.x - rx * r, midY, f.pos.z - rz * r);
+    seg.targets[3].set(f.pos.x, f.pos.y + f.height, f.pos.z);
+    seg.targets[4].set(f.pos.x, f.pos.y + 0.5, f.pos.z);
   }
 
   // fighters framed by the camera; humans get viewports when split
@@ -201,17 +223,21 @@ export class CameraSystem {
       // Enemies never pull the frame; the orbit azimuth alone turns the
       // view so the current threat tends to sit ahead of you.
       _center.set(player.pos.x, player.pos.y + 4, player.pos.z);
-      // LAZY FOLLOW: while running forward (velocity along the facing) and
-      // the look control is idle, ease the orbit around to sit BEHIND the
-      // character; otherwise the enemy-relative framing takes over.
+      // LAZY FOLLOW, both ways: while running (velocity along the facing)
+      // and the look control is idle, ease the orbit to the mech's BACK —
+      // or, if they're charging AT the camera, hold the FRONT view instead
+      // of swinging 180° around them. Hysteresis biased toward the
+      // back-view (moving away is the default read).
       const spd = Math.hypot(player.vel.x, player.vel.z);
       const fwdDot = spd > 0.5
         ? (player.vel.x * Math.sin(player.yaw) + player.vel.z * Math.cos(player.yaw)) / spd
         : 0;
       const enemy = player.nearestEnemy();
       if (this.lookCd <= 0 && spd > 3 && fwdDot > 0.3) {
-        const behind = player.yaw + Math.PI;
-        this.azimuth = this.azInit ? angleDamp(this.azimuth, behind, 2.0, dt) : behind;
+        const dBehind = Math.abs(angleDiff(this.azimuth, player.yaw + Math.PI));
+        this._followFront = dBehind > (this._followFront ? 1.25 : 2.15);
+        const followAz = this._followFront ? player.yaw : player.yaw + Math.PI;
+        this.azimuth = this.azInit ? angleDamp(this.azimuth, followAz, 2.0, dt) : followAz;
         this.azInit = true;
       } else if (enemy && this.lookCd <= 0) {
         // (manual look owns the view — auto framing waits until it's released)
@@ -271,7 +297,7 @@ export class CameraSystem {
     if (solo) {
       const seg = this._segs[0];
       seg.from.copy(this.cPos);
-      seg.to.set(humans[0].pos.x, humans[0].pos.y + humans[0].height * 0.5, humans[0].pos.z);
+      this.fillSegTargets(seg, this.cPos, humans[0]);
       seg.cam = this.engine.camera; // fade applies only to this view's render
       this.world.arena?.setOccluders?.([seg]);
     } else {
@@ -323,17 +349,21 @@ export class CameraSystem {
       ch.az -= ch.lookX * 2.8 * dt;
       ch.el = clamp(ch.el + ch.lookY * 2.0 * dt, 0.1, 0.78);
 
-      // LAZY FOLLOW: while this mech runs forward and its camera stick is
-      // idle, ease the orbit around behind the character. Any stick input
-      // owns the camera (with a short grace after release so the follow
-      // doesn't fight the player's last adjustment).
+      // LAZY FOLLOW, both ways: while this mech runs and its camera stick
+      // is idle, ease the orbit to the character's BACK — unless they're
+      // running AT the camera, in which case hold the FRONT view rather
+      // than whipping 180° around (hysteresis biased toward the back view).
+      // Any stick input owns the camera, with a short grace after release.
       const stickActive = Math.abs(ch.lookX) > 0.08 || Math.abs(ch.lookY) > 0.08;
       ch.lookCd = stickActive ? 0.6 : Math.max(0, (ch.lookCd || 0) - dt);
       const spd = Math.hypot(f.vel.x, f.vel.z);
       if (ch.lookCd <= 0 && spd > 3 && f.alive) {
         const fwdDot = (f.vel.x * Math.sin(f.yaw) + f.vel.z * Math.cos(f.yaw)) / spd;
         if (fwdDot > 0.3) {
-          ch.az = angleDamp(ch.az, f.yaw + Math.PI, 1.6 * Math.min(1, spd / 10), dt);
+          const dBehind = Math.abs(angleDiff(ch.az, f.yaw + Math.PI));
+          ch.followFront = dBehind > (ch.followFront ? 1.25 : 2.15);
+          const followAz = ch.followFront ? f.yaw : f.yaw + Math.PI;
+          ch.az = angleDamp(ch.az, followAz, 1.6 * Math.min(1, spd / 10), dt);
         }
       }
 
@@ -368,7 +398,7 @@ export class CameraSystem {
       // with THIS view's camera so the fade renders only in this viewport
       const seg = this._segs[i];
       seg.from.copy(ch.pos);
-      seg.to.set(f.pos.x, f.pos.y + f.height * 0.5, f.pos.z);
+      this.fillSegTargets(seg, ch.pos, f);
       seg.cam = ch.camera;
       segsUsed.push(seg);
     }

@@ -191,12 +191,14 @@ export class DestructibleSystem {
     }
   }
 
-  // Register this frame's camera->own-player segments, one per VIEW.
-  // Each segment carries `cam`, the camera that renders that view; fades
-  // are eased per (view, tiled copy) and stamped per view in applyViewFade,
-  // so a building only ghosts on the screen of the player it's hiding —
-  // never for another viewport where it merely covers an opponent.
-  // segments: [{from: Vector3, to: Vector3, cam}], refreshed every frame.
+  // Register this frame's camera->own-player occlusion probes, one per VIEW.
+  // Each entry carries `cam` (the camera that renders that view) and a set
+  // of `targets` — sample points spread across the player's WHOLE body
+  // (head, feet, both flanks). A building copy only fades when it blocks
+  // EVERY sample: standing next to it, or clipping one shoulder behind a
+  // corner, keeps it solid. Fades ease per (view, tiled copy) and are
+  // stamped per view in applyViewFade.
+  // segments: [{from: Vector3, targets: [Vector3...], cam}], per frame.
   setOccluders(segments) {
     this._viewSegs = segments;
     const nCopies = 1 + this.ghostOffsets.length;
@@ -213,7 +215,11 @@ export class DestructibleSystem {
           if (s && b.alive > 0) {
             const ox = g === 0 ? 0 : this.ghostOffsets[g - 1][0];
             const oz = g === 0 ? 0 : this.ghostOffsets[g - 1][1];
-            hit = segmentHitsAabb(s.from, s.to, a, 1.5, ox, oz);
+            const pts = s.targets || [s.to];
+            hit = true;
+            for (const pt of pts) {
+              if (!segmentHitsAabb(s.from, pt, a, 0.3, ox, oz)) { hit = false; break; }
+            }
           }
           b.fadeTargetV[v * 9 + g] = hit ? 0.15 : 1;
           if (hit) b._everFaded = true;

@@ -544,3 +544,26 @@ controllers via Gamepad API), AI opponents.
   (windup 0.18s/full crouch/peak 11.6; flea attach→34 full bite; miss →
   4 hops zig-zag to prey → attach; swarm 6; ult ring 10), 16-mech
   attackmatrix ALL CONNECT, 2 ace soaks clean, battle screenshot.
+- 2026-07-11: OCCLUSION STRICTNESS + TWO-WAY FOLLOW + GAIT SPRING.
+  · FULL-BODY OCCLUSION TEST: a touched/grazed building was fading because
+    ONE center segment (pad 1.5) clipped its padded AABB. Occlusion probes
+    now carry 5 samples spread across the whole mech (center, both flanks,
+    head, feet; pad 0.3) and a building copy fades only when it blocks
+    EVERY sample — touching it, or clipping one shoulder behind a corner,
+    keeps it solid. Verified: touch=1.0, corner-graze=1.0, full block=0.15.
+  · TWO-WAY LAZY FOLLOW: the follow now reads the mech as moving AWAY or
+    TOWARD the camera. Away → damps to the back view as before; charging AT
+    the camera (beyond ~123°) → holds/damps to the FRONT view instead of
+    whipping 180° around. Hysteresis (enter 2.15 rad / stay 1.25 rad)
+    biases toward the back view; flipping run direction snaps the target
+    naturally. Both solo + split cams. Verified front view while running at
+    the cam, back view after turning away.
+  · GAITS: TITANUS is a biped again (quad flag removed — rhino/fenrir/
+    cranky keep it). Quad amble hind legs now properly articulated: cyclic
+    thigh drive, deep gathering knee flexion (0.5+0.6 on the beat) and an
+    ankle push-off snap. Biped walk de-stiffened: soft stance knee bend
+    (never locked), bigger swing-phase knee lift, and a trailing-leg
+    plantar-flex TOE-OFF so mechs push off the ground; bob rides the beat.
+  Verified: 16-mech attackmatrix ALL CONNECT (jerry ranged up to 34 with
+  the flatter flea launch), ace soak clean, walk screenshots (fenrir
+  gathered haunches, titanus biped stride) viewed.

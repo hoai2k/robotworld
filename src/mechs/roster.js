@@ -14,7 +14,6 @@ export const ROSTER = [
     body: { scale: 1.28, torsoW: 1.25, torsoH: 1.05, headSize: 0.9, armLen: 1.15, legLen: 1.0, hipW: 1.15, bulk: 1.1 },
     stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22, blockMult: 0.09 },
     ui: { power: 10, speed: 3, defense: 9 },
-    gait: 'quad', // drops to all fours and ambles at a run
     moves: {
       light: { dmg: [46, 50, 68], knock: [6, 7, 16], range: 3.4 },
       heavy: { dmg: 105, knock: 26, range: 3.8, launch: 9 },
