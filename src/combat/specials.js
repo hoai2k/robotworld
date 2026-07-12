@@ -342,12 +342,103 @@ export const SPECIALS = {
     f.setState('special', dur * 0.85);
   },
 
-  // WRAITH: cloak
+  // WRAITH: cloak (legacy — Ghost Protocol now uses ghostWalk below)
   cloak(f, sp) {
     f.status.cloak = { t: sp.duration, spd: sp.speedBoost };
     f.setOpacity(0.16);
     f.world.audio?.play('cloak');
     f.world.effects.rings.spawn(f.pos, { from: 3, to: 0.5, dur: 0.4, color: 0xff3838, y: f.height * 0.5 });
+  },
+
+  // WRAITH: Ghost Protocol — projects a white spectre of his body that
+  // glides forward hurting everything it passes through for as long as B is
+  // HELD (the robot stands locked); on release he teleports INTO the ghost:
+  // his player sees a zip forward, everyone else sees the spectre solidify
+  ghostWalk(f, sp) {
+    const w = f.world;
+    f.setState('special', (sp.duration || 5) + 0.4);
+    f.animator.play('aim', { speed: 0.5 });
+    w.audio?.play('cloak');
+
+    // build the spectre: bake the current pose into a throwaway shell whose
+    // meshes carry the live world matrices, then glide the shell forward
+    const gmat = new THREE.MeshBasicMaterial({
+      color: 0xdfefff, transparent: true, opacity: 0.34,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const ghost = new THREE.Group();
+    f.mech.group.updateWorldMatrix(true, true);
+    f.mech.group.traverse((o) => {
+      if (!o.isMesh) return;
+      const m = new THREE.Mesh(o.geometry, gmat);
+      m.matrixAutoUpdate = false;
+      m.matrix.copy(o.matrixWorld);
+      ghost.add(m);
+    });
+    w.scene.add(ghost);
+    w.effects.rings.spawn(f.pos, { from: 3, to: 0.5, dur: 0.4, color: 0xbfe8ff, y: f.height * 0.5 });
+
+    const dirX = Math.sin(f.yaw), dirZ = Math.cos(f.yaw);
+    const ox = f.pos.x, oz = f.pos.z; // spectre walks from the CAST spot —
+    // even if the body gets shoved mid-channel, he teleports to the ghost
+    const speed = sp.speed || 17;
+    let traveled = 0;
+    let t = 0;
+    const victims = new Set();
+    f._charging = true; // reuses the AI hold-the-button behavior
+    const gx = () => ox + dirX * traveled;
+    const gz = () => oz + dirZ * traveled;
+
+    const finish = () => {
+      f._charging = false;
+      // the spectre solidifies — the robot zips into its position
+      const tx = gx(), tz = gz();
+      w.effects.dashTrail(f.pos, 0xbfe8ff, f.scale * 1.6);
+      f.pos.x = tx;
+      f.pos.z = tz;
+      w.effects.dashTrail(f.pos, 0xbfe8ff, f.scale * 1.6);
+      w.effects.rings.spawn(f.pos, { from: 0.5, to: 4, dur: 0.35, color: 0xbfe8ff, y: 1 });
+      w.audio?.play('dash');
+      w.scene.remove(ghost);
+      gmat.dispose();
+      f.iframes = 0.35; // re-materialize grace
+      f.animator.stop();
+      f.setState('attack', 0.25);
+    };
+
+    const tick = () => {
+      if (!f.alive || f.state !== 'special') {
+        f._charging = false;
+        w.scene.remove(ghost);
+        gmat.dispose();
+        return;
+      }
+      const dt = 0.05;
+      t += dt;
+      // min commit so a tap still projects a short walk; hold extends to cap
+      const holding = (f.intent.specialHeld || t < 0.9) && t < (sp.duration || 5) && traveled < 58;
+      f.vel.x = 0;
+      f.vel.z = 0;
+      traveled += speed * dt;
+      ghost.position.set(dirX * traveled, 0, dirZ * traveled);
+      // spectral wake
+      w.effects.glows.emit(gx() + rand(-0.5, 0.5), f.pos.y + rand(1, f.height * 0.8), gz() + rand(-0.5, 0.5),
+        0, 1.5, 0, { life: 0.35, size: rand(1, 1.8), color: 0xbfe8ff, alpha: 0.55 });
+      // the spectre rips through anyone it overlaps
+      for (const e2 of w.fighters) {
+        if (e2 === f || !e2.alive || victims.has(e2)) continue;
+        const dx = w.wrapDelta(e2.pos.x - gx()), dz = w.wrapDelta(e2.pos.z - gz());
+        if (Math.hypot(dx, dz) < 3.4 * f.scale && Math.abs(e2.pos.y - f.pos.y) < 4) {
+          victims.add(e2);
+          e2.takeHit(sp.dmg * f.dmgMult(), f, { knock: 6, srcPos: new THREE.Vector3(gx(), e2.pos.y, gz()) });
+          w.effects.impactSparks(e2.center(), 0xbfe8ff, 12, 8);
+          w.audio?.play('slash');
+        }
+      }
+      if (holding) w.schedule(dt, tick);
+      else finish();
+    };
+    w.schedule(0.05, tick);
   },
 
   // INFERNO: napalm carpet
@@ -613,7 +704,15 @@ export const SPECIALS = {
           if (t > 0 && t < 26) {
             const closest = from.clone().addScaledVector(dir, t);
             if (closest.distanceTo(c) < e.hitRadius + 1.2) {
-              e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 1, srcPos: from, status: { slow: sp.slow, slowT: 1.2 }, silent: true });
+              // first contact FREEZES them solid for a beat (whole body
+              // whites out, then thaws back to color); while the re-freeze
+              // grace runs they're merely slowed
+              const canFreeze = e.state !== 'frozen' && !(e._refreezeCd > 0);
+              if (canFreeze) e._refreezeCd = 1.8;
+              e.takeHit(sp.dmg * f.dmgMult(), f, {
+                knock: 1, srcPos: from, silent: true,
+                status: canFreeze ? { freeze: 0.55 } : { slow: sp.slow, slowT: 1.2 },
+              });
             }
           }
         }

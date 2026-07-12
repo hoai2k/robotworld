@@ -17,6 +17,18 @@ const VISUALS = {
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
   mortar: { geo: () => new THREE.SphereGeometry(0.42, 8, 6), trail: 'smoke' },
   shard: { geo: () => new THREE.ConeGeometry(0.22, 1.3, 5), rot: true, trail: 'glow' },
+  bat: { // WRAITH: flat bat silhouette — nose +Z, wings spread on X; flaps in update()
+    geo: () => {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+        0, 0, 0.34, -0.72, 0.05, -0.1, -0.16, 0, -0.34,
+        0, 0, 0.34, 0.16, 0, -0.34, 0.72, 0.05, -0.1,
+        -0.16, 0, -0.34, 0.16, 0, -0.34, 0, 0, 0.34,
+      ]), 3));
+      return g;
+    },
+    doubleSide: true, flap: true, faceVel: true, trail: 'glow', normalBlend: true,
+  },
 };
 
 export class ProjectileSystem {
@@ -34,13 +46,17 @@ export class ProjectileSystem {
     if (!mesh) {
       const vis = VISUALS[type];
       mesh = new THREE.Mesh(vis.geo(), new THREE.MeshBasicMaterial({
-        transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+        transparent: true, depthWrite: false,
+        // dark bodies (bats) need normal blending — additive dark = invisible
+        blending: vis.normalBlend ? THREE.NormalBlending : THREE.AdditiveBlending,
       }));
       mesh.userData.vis = vis;
+      if (vis.doubleSide) mesh.material.side = THREE.DoubleSide;
       this.scene.add(mesh);
     }
     mesh.material.color.set(color);
     mesh.material.opacity = 1;
+    mesh.scale.set(1, 1, 1);
     mesh.visible = true;
     return mesh;
   }
@@ -72,7 +88,11 @@ export class ProjectileSystem {
       trailT: 0,
       launch: spec.launch || 0,
       status: spec.status || null,
+      size: spec.size || 1,
+      wobble: spec.wobble || 0,
+      age: rand(0, 6.28), // desyncs flap/wobble phase across a swarm
     };
+    if (p.size !== 1) p.mesh.scale.multiplyScalar(p.size);
     if (spec.arcTo) {
       // ballistic solve toward a ground target
       const dt = spec.arcTime || 1.4;
@@ -151,10 +171,28 @@ export class ProjectileSystem {
         p.mesh.position.x = world.wrapCoord(p.mesh.position.x);
         p.mesh.position.z = world.wrapCoord(p.mesh.position.z);
       }
+      p.age += dt;
+      // erratic hunting wobble (bats): steer the velocity in a figure-8
+      // jitter without losing overall speed
+      if (p.wobble) {
+        const sp = p.vel.length();
+        p.vel.x += Math.sin(p.age * 11) * p.wobble * sp * dt;
+        p.vel.y += Math.cos(p.age * 7.3) * p.wobble * sp * 0.5 * dt;
+        p.vel.z += Math.cos(p.age * 11) * p.wobble * sp * dt;
+        p.vel.normalize().multiplyScalar(sp);
+      }
       if (p.mesh.userData.vis.rot || p.gravity) this.orient(p);
+      if (p.mesh.userData.vis.faceVel) {
+        _dir.copy(p.vel).normalize();
+        p.mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), _dir);
+      }
       if (p.mesh.userData.vis.pulse) {
-        const s = 1 + Math.sin(performance.now() * 0.02) * 0.15;
+        const s = (1 + Math.sin(performance.now() * 0.02) * 0.15) * p.size;
         p.mesh.scale.set(s, s, s);
+      }
+      if (p.mesh.userData.vis.flap) {
+        const fl = Math.abs(Math.sin(p.age * 16));
+        p.mesh.scale.set((0.55 + 0.65 * fl) * p.size, p.size, p.size);
       }
 
       // trails

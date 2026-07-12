@@ -125,6 +125,7 @@ export class Input {
       intent.jump = kp('jump');
       intent.jumpHeld = k('jump');
       intent.light = kp('light');
+      intent.lightHeld = k('light');
       intent.heavy = kp('heavy');
       intent.block = k('block');
       intent.ranged = k('ranged');
@@ -146,6 +147,7 @@ export class Input {
       intent.jump = this.padPressed(i, 'A');
       intent.jumpHeld = this.padHeld(i, 'A');
       intent.light = this.padPressed(i, 'X');
+      intent.lightHeld = this.padHeld(i, 'X');
       intent.heavy = this.padPressed(i, 'Y');
       intent.block = this.padHeld(i, 'LT');
       intent.ranged = this.padHeld(i, 'RT');
@@ -166,6 +168,7 @@ export class Input {
       intent.jump = t.pressed.has('jump');
       intent.jumpHeld = t.held.has('jump');
       intent.light = t.pressed.has('light');
+      intent.lightHeld = t.held.has('light');
       intent.heavy = t.pressed.has('heavy');
       intent.block = t.held.has('block');
       intent.ranged = t.held.has('ranged');

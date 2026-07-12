@@ -269,6 +269,10 @@ export class Arena {
   }
 
   // ---- combat services ----
+  grabProbe(px, py, pz) {
+    return this.destructo.grabProbe(px, py, pz);
+  }
+
   damageSphere(pos, radius, dmg, dir = null, structural = false) {
     return this.destructo.damageSphere(pos, radius, dmg, dir, structural);
   }

@@ -2,8 +2,8 @@
 // a live circling victim and report damage actually dealt. Catches "projectile
 // sails into the sky / lands where the target was" bugs.
 //   node tools/attackmatrix.mjs [baseUrl]        (default http://localhost:5173)
-// Non-damaging by design: wraith special (cloak), fenrir ult (buff — damage
-// only lands if the victim is close when the spin triggers).
+// Non-damaging by design: fenrir ult (buff — damage only lands if the
+// victim is close when the spin triggers).
 import { chromium } from 'playwright-core';
 
 const base = process.argv[2] || 'http://localhost:5173';
@@ -97,7 +97,7 @@ for (const id of MECHS) {
   console.log(`${id.padEnd(9)} ranged:${String(r.ranged).padStart(4)}  special:${String(r.special).padStart(4)}  ult:${String(r.ult).padStart(4)}`);
 }
 
-const expectZero = new Set(['wraith:special']);
+const expectZero = new Set(); // every kit deals damage now (wraith ghost-walk included)
 let fails = 0;
 for (const r of rows) {
   for (const cat of ['ranged', 'special', 'ult']) {

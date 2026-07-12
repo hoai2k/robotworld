@@ -8,6 +8,7 @@ import { SPECIALS, ULTS } from './specials.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
+const _white = new THREE.Color(0xf4faff);
 const GRAVITY = 34;
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
@@ -237,7 +238,10 @@ export class Fighter {
       if (this.ammoMax !== undefined) this.ammo--;
       this.world.fireRanged(this, mv);
     } else {
-      const clip = mv.type === 'mortar' ? 'brace' : mv.type === 'railgun' ? 'aim' : 'shoot';
+      // twin-cannon mechs alternate sides shot to shot (mirrored animation)
+      if (mv.type === 'mortar' && this.mech.anchors.muzzleL) this._altSide = !this._altSide;
+      const clip = mv.type === 'mortar' ? (this._altSide ? 'braceL' : 'brace')
+        : mv.type === 'railgun' ? 'aim' : 'shoot';
       this.rangedCd = mv.cooldown;
       // single-shot weapons spend ammo too (channel weapons decrement in
       // their own loop) — without this they never drain and never refill
@@ -340,6 +344,14 @@ export class Fighter {
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
     const cz = this.pos.z + Math.cos(this.yaw) * reach * 0.75;
     const cy = this.pos.y + this.height * 0.5;
+    // an airborne punch HELD when the fist meets a building face becomes a
+    // WALL GRAB instead of a strike — jump, punch-hold, hang, jump again:
+    // that's how mechs climb
+    if (!this.grounded && !this.isAI && this.intent.lightHeld && !atk.heavy &&
+        this.world.arena?.grabProbe) {
+      const g = this.world.arena.grabProbe(cx, cy, cz);
+      if (g) { this.startHang(g); return; }
+    }
     let hitAny = false;
     for (const f of this.world.fighters) {
       if (f === this || !f.alive) continue;
@@ -361,6 +373,35 @@ export class Fighter {
       this.world.engine.addHitStop(atk.heavy ? 0.09 : 0.045);
       this.world.effects.addShake(atk.heavy ? 0.5 : 0.2);
     }
+  }
+
+  // ================= wall grab =================
+  // latch onto a building face at the fist's contact point and hang there
+  startHang(g) {
+    const faceYaw = Math.atan2(-g.nx, -g.nz); // face INTO the wall
+    this.hanging = {
+      chunk: g.chunk, nx: g.nx, nz: g.nz, faceYaw,
+      // body hangs flush against the face, gripping fist overhead
+      x: g.x + g.nx * (this.radius + 0.3),
+      y: Math.max(0.3, g.y - this.height * 0.62),
+      z: g.z + g.nz * (this.radius + 0.3),
+    };
+    this.pos.set(this.hanging.x, this.hanging.y, this.hanging.z);
+    this.vel.set(0, 0, 0);
+    this.plunging = false;
+    this.hovering = false;
+    this.grounded = false;
+    this.comboIdx = 0;
+    this.yaw = this.targetYaw = faceYaw;
+    this.setState('normal');
+    this.animator.play('hangGrab');
+    this.world.audio?.play('servo');
+    this.world.effects.dustPuff(_v.set(g.x, g.y, g.z), 4, 0xa8a8a8);
+  }
+
+  endHang() {
+    this.hanging = null;
+    this.animator.stop(0.12);
   }
 
   // ================= damage =================
@@ -420,6 +461,11 @@ export class Fighter {
 
     if (this.hp <= 0) { this.die(attacker); return; }
 
+    // frozen solid: no knockback and no flinch — the ice holds them in
+    // place (whether this very hit froze them or they were already iced),
+    // otherwise the next beam tick would knock them straight out of frozen
+    if (this.state === 'frozen') return;
+
     // knockback & reactions (weight resists)
     const resist = 1 - this.def.stats.weight * 0.45;
     const kb = knock * resist;
@@ -448,6 +494,26 @@ export class Fighter {
       this.setState('frozen', st.freeze);
       this.animator.stop(0.05);
       this.world.freezeOverlay?.(this, st.freeze);
+    }
+  }
+
+  // lerp every body material toward frost-white (w=1 fully iced over);
+  // w=0 restores the exact original colors. Emissive does the heavy
+  // lifting so even textured panels blank out.
+  applyWhiteout(w) {
+    if (!this._matBase) {
+      this._matBase = [];
+      for (const m of Object.values(this.mech.materials)) {
+        if (!m || !m.color) continue;
+        this._matBase.push({
+          m, color: m.color.clone(),
+          emissive: m.emissive ? m.emissive.clone() : null,
+        });
+      }
+    }
+    for (const b of this._matBase) {
+      b.m.color.copy(b.color).lerp(_white, w);
+      if (b.emissive) b.m.emissive.copy(b.emissive).lerp(_white, w * 0.85);
     }
   }
 
@@ -516,6 +582,17 @@ export class Fighter {
       }
     }
 
+    if (this._refreezeCd > 0) this._refreezeCd -= dt;
+    // freeze white-out: the whole body blanks to frost-white while frozen,
+    // then the colors thaw back in over half a second
+    const wantWhite = this.state === 'frozen' ? 1 : 0;
+    if (wantWhite || this._whiteW > 0.001) {
+      this._whiteW = wantWhite
+        ? Math.min(1, (this._whiteW || 0) + dt * 9)
+        : Math.max(0, (this._whiteW || 0) - dt * 2.4);
+      this.applyWhiteout(this._whiteW);
+    }
+
     if (!this.alive) {
       this.applyPhysics(dt, 0, 0);
       this.animator.update(dt, { speed: 0, grounded: this.grounded, dead: true });
@@ -581,6 +658,34 @@ export class Fighter {
       case 'getup':
         if (this.stateT <= 0) this.setState('normal');
         break;
+    }
+
+    // ---- wall hang: pinned to a building face by a held airborne punch.
+    // Release drops, jump springs off the wall (punch-hold again mid-air to
+    // grab higher — that's the climb loop), losing the wall knocks you off.
+    if (this.hanging) {
+      const h = this.hanging;
+      if ((h.chunk && !h.chunk.alive) || this.state !== 'normal') {
+        this.endHang();
+      } else if (I.jump) {
+        this.endHang();
+        this.vel.y = this.def.stats.jump * JUMP_MULT;
+        this.vel.x = h.nx * 4;
+        this.vel.z = h.nz * 4;
+        this.grounded = false;
+        this.world.audio?.play('jump');
+        this.world.effects.dustPuff(this.pos, 5);
+      } else if (!I.lightHeld) {
+        this.endHang();
+      } else {
+        this.pos.set(h.x, h.y, h.z);
+        this.vel.set(0, 0, 0);
+        this.grounded = false;
+        this.yaw = this.targetYaw = h.faceYaw;
+        this.group.rotation.y = this.yaw;
+        this.animator.update(dt, { speed: 0, grounded: true, vy: 0 });
+        return;
+      }
     }
 
     // ---- aerial plunge: heavy smash rides down to the ground ----
@@ -840,6 +945,8 @@ export class Fighter {
   resetForRound(pos, yaw) {
     this.hp = this.maxHp;
     this.alive = true;
+    this.hanging = null;
+    if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
     this.pos.copy(pos);
     this.vel.set(0, 0, 0);
     this.yaw = this.targetYaw = yaw;

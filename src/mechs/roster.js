@@ -205,8 +205,8 @@ export const ROSTER = [
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.0 },
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
-      ranged: { name: 'Longshot', type: 'railgun', dmg: 85, cooldown: 1.9, ammo: 10 },
-      special: { id: 'cloak', name: 'Ghost Protocol', cooldown: 9, duration: 4, speedBoost: 1.3 },
+      ranged: { name: 'Night Swarm', type: 'bats', dmg: 26, count: 3, speed: 24, cooldown: 1.5, ammo: 12 },
+      special: { id: 'ghostWalk', name: 'Ghost Protocol', cooldown: 9, dmg: 60, speed: 17, duration: 5 },
       ult: { id: 'deadeye', name: 'DEADEYE', dmg: 110, shots: 3 },
     },
   },

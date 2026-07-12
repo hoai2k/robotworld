@@ -329,7 +329,13 @@ export class World {
         break;
       }
       case 'flame': {
-        this.effects.flameCone(from, dir, 0xff7a20);
+        // roaring double cone: wide orange wash + a hot fast yellow core,
+        // plus a bright throat glow riding the jet
+        this.effects.flameCone(from, dir, 0xff7a20, 0.26, 34);
+        this.effects.flameCone(from, dir, 0xffd23c, 0.11, 46);
+        this.effects.glows.emit(from.x + dir.x * 1.2, from.y + dir.y * 1.2, from.z + dir.z * 1.2,
+          dir.x * 30, dir.y * 30, dir.z * 30,
+          { life: 0.28, size: 2.4, color: 0xffe9a0, alpha: 0.95, drag: 1.4, grow: 2.2 });
         this.audio?.play('flame');
         // cone tick damage
         for (const t of this.fighters) {
@@ -349,12 +355,20 @@ export class World {
         this.audio?.play('missile');
         this.effects.muzzleFlash(from);
         break;
-      case 'plasma':
+      case 'plasma': {
+        // NOVA: shots fired while the halo glows at apex alignment come out
+        // bigger and hotter (novaGlow 0..1 from the animator)
+        const g = f.animator?.novaGlow || 0;
         this.projectiles.spawn('plasma', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0xff5ce8, knock: 10,
+          dmg: mv.dmg * f.dmgMult() * (1 + 0.35 * g), speed: mv.speed,
+          splash: mv.splash * (1 + 0.45 * g), color: 0xff5ce8, knock: 10 + 4 * g,
+          size: 1 + 0.75 * g,
         });
         this.audio?.play('plasma');
+        if (g > 0.65) this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
+          { life: 0.25, size: 3 + 2 * g, color: 0xff5ce8, alpha: 0.9 });
         break;
+      }
       case 'dart':
         this.projectiles.spawn('dart', f, from, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x6cff5c, knock: 4,
@@ -386,7 +400,10 @@ export class World {
           f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
         ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
         if (e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
-        this.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
+        // twin cannons trade shots — doRanged toggled the side + mirrored clip
+        const mFrom = f._altSide && anchors.muzzleL
+          ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
+        this.projectiles.spawn('mortar', f, mFrom, new THREE.Vector3(0, 1, 0), {
           dmg: mv.dmg * f.dmgMult(), splash: mv.splash, color: 0xffd23c, arcTo: target, arcTime: 1.35, knock: 14, launch: 7,
         });
         this.audio?.play('mortar');
@@ -450,6 +467,21 @@ export class World {
               { life: 0.3, size: rand(1, 1.8), color: 0xd8f2ff, alpha: 0.85, gravity: 18 });
           }
         }
+        break;
+      }
+      case 'bats': { // WRAITH: a swarm of hunting bats fans out and homes in
+        const target = e && f.isAI ? e : (e && barrelDot > 0.6 ? e : null);
+        for (let i = 0; i < (mv.count || 3); i++) {
+          const a = f.yaw + (i - ((mv.count || 3) - 1) / 2) * 0.22;
+          const bd = new THREE.Vector3(Math.sin(a), dir.y + 0.04, Math.cos(a));
+          this.projectiles.spawn('bat', f, from, bd, {
+            dmg: mv.dmg * f.dmgMult(), speed: (mv.speed || 24) * rand(0.9, 1.1),
+            color: 0x8a2030, knock: 4, life: 3.2, wobble: 1.1,
+            homing: target, retarget: !!target, turnRate: 2.4,
+          });
+        }
+        this.audio?.play('howl', { vol: 0.4, pitch: 1.6 });
+        this.effects.muzzleFlash(from);
         break;
       }
       case 'feather': // SAURION: razor blade-feathers

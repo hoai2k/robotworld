@@ -298,7 +298,32 @@ const CLIPS_RAW = {
       { t: 0.5, ease: 'outCubic', pose: { torso: [16, 0, 0], head: [4, 0, 0], shoulderL: [-70, 0, 14], shoulderR: [-70, 0, -14], elbowL: [-46, 0, 0], elbowR: [-46, 0, 0], hipsRot: [10, 0, 0] } },
     ],
   },
+  hangGrab: { // wall grab — punch hand locked onto the building, body hanging, legs braced
+    dur: 0.25, hold: true,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.25, ease: 'outQuad', pose: { shoulderL: [-160, 0, -12], elbowL: [-16, 0, 0], shoulderR: [-42, 0, 24], elbowR: [-68, 0, 0], torso: [10, 0, -6], head: [-16, 0, 0], thighL: [-26, 0, -6], thighR: [-40, 0, 8], kneeL: [42, 0, 0], kneeR: [60, 0, 0], ankleL: [-14, 0, 0], ankleR: [-22, 0, 0], hipsRot: [6, 0, 0] } },
+    ],
+  },
 };
+
+// mirror a raw clip left<->right: swap L/R joint names, negate the y/z
+// rotation components, and flip hipsPos.x — used to author one-sided
+// attacks once and fire them from either arm
+function mirrorRaw(raw) {
+  const swap = (j) => (j.endsWith('L') ? j.slice(0, -1) + 'R' : j.endsWith('R') ? j.slice(0, -1) + 'L' : j);
+  return {
+    ...raw,
+    keys: raw.keys.map((k) => {
+      const pose = {};
+      for (const [j, v] of Object.entries(k.pose)) {
+        pose[swap(j)] = j === 'hipsPos' ? [-v[0], v[1], v[2]] : [v[0], -v[1], -v[2]];
+      }
+      return { ...k, pose };
+    }),
+  };
+}
+CLIPS_RAW.braceL = mirrorRaw(CLIPS_RAW.brace); // colossus fires the OTHER cannon
 
 // ---------- compile: degrees -> radians, sparse per-joint tracks ----------
 const D2R = Math.PI / 180;

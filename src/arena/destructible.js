@@ -468,6 +468,32 @@ export class DestructibleSystem {
 
   // Fighter vs buildings: horizontal AABB pushout for walls PLUS rooftop
   // support — mechs land on and fight across exposed chunk tops.
+  // is there a solid building face at this world point? Returns the chunk
+  // plus the outward push normal so a fighter can hang from it (wall grab /
+  // climbing). pad = how far outside a face still counts as touching it.
+  grabProbe(px, py, pz, pad = 0.7) {
+    for (const b of this.buildings) {
+      if (b.alive <= 0) continue;
+      const a = b.aabb;
+      if (px < a.minX - pad || px > a.maxX + pad ||
+          pz < a.minZ - pad || pz > a.maxZ + pad ||
+          py < 0 || py > a.maxY + 1) continue;
+      for (const c of b.grid.values()) {
+        if (!c.alive) continue;
+        const dx = px - c.x, dz = pz - c.z;
+        if (Math.abs(dx) > c.w / 2 + pad || Math.abs(dz) > c.d / 2 + pad ||
+            Math.abs(py - c.y) > c.h / 2 + 0.5) continue;
+        // outward normal along the shallower horizontal penetration axis
+        const ox = c.w / 2 + pad - Math.abs(dx), oz = c.d / 2 + pad - Math.abs(dz);
+        let nx = 0, nz = 0;
+        if (ox < oz) nx = Math.sign(dx || 1);
+        else nz = Math.sign(dz || 1);
+        return { chunk: c, nx, nz, x: px, y: py, z: pz };
+      }
+    }
+    return null;
+  }
+
   collideFighter(f) {
     let support = -Infinity;
     for (const b of this.buildings) {

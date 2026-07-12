@@ -625,3 +625,50 @@ controllers via Gamepad API), AI opponents.
   cranky/saurion), screenshots of every rework viewed (storm cloud + down
   bolts, geyser warn rings + column launching titanus, hose spray + soak
   splash, snap launching titanus, latch ride, whiff crouch with 0 dmg).
+- 2026-07-12: CHARACTER KIT PASS — six feature reworks.
+  · GLACIER CRYO BEAM: first beam contact FREEZES the victim solid for
+    0.55s — the whole body blanks to frost-white (per-material color +
+    emissive lerp, exact originals restored) then thaws back over ~0.5s;
+    a 1.8s re-freeze grace means sustained beam slows instead of
+    perma-locking. takeHit no longer knocks a frozen victim out of the
+    frozen state (the next beam tick used to instantly break its own ice).
+  · INFERNO FLAMETHROWER: the bell nozzles point along the hand's +Z, so
+    the channel pose tipped the torch skyward — the wrist now counter-
+    pitches while firing (via tgt, smoothed) so the torch aims straight
+    down the fire line; flames beefed to a wide orange wash + hot fast
+    yellow core + bright throat glow.
+  · WRAITH: ranged is NIGHT SWARM — 3 flapping bat silhouettes (new 'bat'
+    projectile: flat double-sided wings, flap scale cycle, figure-8 hunt
+    wobble, homing when down the barrel, normal blending so the dark
+    bodies actually show). Ghost Protocol is a real GHOST WALK: a baked
+    white additive spectre of his current pose glides forward as long as B
+    is held (body locked, min 0.9s commit, 5s / 58-unit cap), ripping
+    through anyone it overlaps (60 dmg once each); on release he teleports
+    INTO the spectre (dash trails + ring + 0.35s grace). attackmatrix
+    expectZero emptied — wraith special now deals damage.
+  · COLOSSUS: mortar shots alternate left/right cannon with a MIRRORED
+    brace animation (new mirrorRaw() clip transform → 'braceL'; fireRanged
+    lobs from the matching muzzle).
+  · NOVA: the broken halo's glow SWELLS toward apex alignment and dims
+    past it (cos cycle on halo spin, driving glowSoft/glow2 emissive);
+    while lit her plasma lances fire bigger and hotter (up to +35% dmg,
+    +45% splash, +75% projectile size at full glow).
+  · WALL GRAB + CLIMB (all mechs): an airborne punch HELD (X) when the
+    fist meets a building face GRABS the wall instead of cracking it —
+    the mech hangs (hangGrab pose, gravity off), drops on release, gets
+    knocked off if hit or if the chunk dies, and JUMP springs off the
+    wall so punch-hold again grabs higher: jump → grab → jump → grab
+    climbing. New lightHeld intent (kb/pad/touch), destructible.grabProbe
+    face query, fighter hang state.
+  · Fixed latent animator bug: signature-case writes to standard joints
+    were clobbered by applyPose (smoothing owns them) — Rhino's bull-rush
+    all-fours gallop now actually applies, written into tgt.
+  Verified: 16-mech attackmatrix ALL CONNECT (wraith special 50 was
+  expectZero, ranged 176-198 bats, nova ranged 133 glow-boosted, colossus
+  109/112 alternating), ace soak clean (wraith/glacier/inferno), probe
+  numerics (freeze state + white 1.0 mid-freeze and 0.2 decaying after,
+  handRx 1.55 while flaming, 3 bats in flight, ghost glide pos lock + 50
+  dmg + teleport to spectre, _altSide toggling shot to shot, climb log
+  hang y=2.0 → spring → hang y=3.9), screenshots viewed (pure-white
+  frozen titanus, forward torch jet, white spectre + locked wraith,
+  teleport arrival, nova bright-vs-dim halo, titanus hanging mid-wall).

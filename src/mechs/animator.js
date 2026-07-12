@@ -384,35 +384,57 @@ export class Animator {
         if (J.gatlingL) J.gatlingL.rotation.z -= this.spinVel * dt;
         break;
       }
+      case 'inferno': {
+        // the flamethrower bells point along the hand's +Z, so raising the
+        // arm for the channel tips the torch SKYWARD — counter-pitch the
+        // wrist while firing so the torch aims straight down the fire line
+        // (written into tgt: the smoothing layer owns the standard joints)
+        this._torchT = ctx.firing ? 0.22 : Math.max(0, (this._torchT || 0) - dt);
+        if (this._torchT > 0) {
+          tgt.handR[0] += 1.55;
+          tgt.handL[0] += 0.7; // support arm half-follows
+        }
+        break;
+      }
       case 'nova':
-        if (J.halo) J.halo.rotation.z += dt * (0.9 + (ctx.firing ? 4 : 0));
+        // the broken halo spins; its glow SWELLS as the crescents sweep
+        // toward apex alignment and dims past it. While lit, her whole glow
+        // kit brightens and her shots grow (novaGlow is read by fireRanged).
+        if (J.halo) {
+          J.halo.rotation.z += dt * (0.9 + (ctx.firing ? 4 : 0));
+          const g = 0.5 + 0.5 * Math.cos(2 * J.halo.rotation.z);
+          this.novaGlow = g;
+          const mats = this.mech.materials;
+          if (mats?.glowSoft) mats.glowSoft.emissiveIntensity = 1.1 * (0.45 + 1.7 * g);
+          if (mats?.glow2) mats.glow2.emissiveIntensity = 2.4 * (0.55 + 1.1 * g);
+        }
         break;
       case 'rhino': {
         // BULL RUSH: drop onto all fours and gallop like a charging beast.
-        // Overrides the biped pose while the charge is rolling.
+        // Overrides the biped pose while the charge is rolling. (Written
+        // into tgt — direct joint writes here get clobbered by applyPose.)
         if (ctx.charging) {
           const g = this.phase * 2.4;         // fast gallop cycle
           const fL = Math.sin(g), fR = Math.sin(g + Math.PI);
-          const hips = J.hips, D = this.D;
           // pitch the whole frame down over the front limbs, ride low
-          hips.rotation.x = 0.95;
-          hips.position.y = D.hipHeight * 0.5 + (this.groundOffset || 0);
-          if (J.torso) J.torso.rotation.set(0.45, 0, 0);
-          if (J.head) J.head.rotation.set(-1.15, 0, 0); // head up, eyes forward
+          tgt.hipsRot = [0.95, 0, 0];
+          tgt.hipsPos = [0, -this.D.hipHeight * 0.5, 0];
+          tgt.torso = [0.45, 0, 0];
+          tgt.head = [-1.15, 0, 0]; // head up, eyes forward
           // FRONT legs = the arms, reaching to the ground and pounding
-          J.shoulderL.rotation.set(-1.5 + fL * 0.6, 0, -0.18);
-          J.shoulderR.rotation.set(-1.5 + fR * 0.6, 0, 0.18);
-          J.elbowL.rotation.set(-0.5 - Math.max(0, fL) * 0.6, 0, 0);
-          J.elbowR.rotation.set(-0.5 - Math.max(0, fR) * 0.6, 0, 0);
-          if (J.handL) J.handL.rotation.set(0.5, 0, 0);
-          if (J.handR) J.handR.rotation.set(0.5, 0, 0);
+          tgt.shoulderL = [-1.5 + fL * 0.6, 0, -0.18];
+          tgt.shoulderR = [-1.5 + fR * 0.6, 0, 0.18];
+          tgt.elbowL = [-0.5 - Math.max(0, fL) * 0.6, 0, 0];
+          tgt.elbowR = [-0.5 - Math.max(0, fR) * 0.6, 0, 0];
+          tgt.handL = [0.5, 0, 0];
+          tgt.handR = [0.5, 0, 0];
           // BACK legs gallop on the opposite phase
-          J.thighL.rotation.set(-0.2 + fR * 0.7, 0, 0);
-          J.thighR.rotation.set(-0.2 + fL * 0.7, 0, 0);
-          J.kneeL.rotation.set(0.5 + Math.max(0, -fR) * 0.7, 0, 0);
-          J.kneeR.rotation.set(0.5 + Math.max(0, -fL) * 0.7, 0, 0);
-          J.ankleL.rotation.set(-0.35, 0, 0);
-          J.ankleR.rotation.set(-0.35, 0, 0);
+          tgt.thighL = [-0.2 + fR * 0.7, 0, 0];
+          tgt.thighR = [-0.2 + fL * 0.7, 0, 0];
+          tgt.kneeL = [0.5 + Math.max(0, -fR) * 0.7, 0, 0];
+          tgt.kneeR = [0.5 + Math.max(0, -fL) * 0.7, 0, 0];
+          tgt.ankleL = [-0.35, 0, 0];
+          tgt.ankleR = [-0.35, 0, 0];
         }
         break;
       }
