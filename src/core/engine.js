@@ -105,7 +105,13 @@ export class Engine {
       this._last = now;
       dtReal = clamp(dtReal, 0, 1 / 20);
 
-      if (this.paused) { this._render(); return; } // capture: sim via step()
+      if (this.paused) {
+        // capture: sim advances via step(); render just often enough to
+        // keep the compositor fed (step() renders every real frame)
+        this._pausedSkip = ((this._pausedSkip || 0) + 1) % 8;
+        if (this._pausedSkip === 0) this._render();
+        return;
+      }
 
       let dt = dtReal * this.timeScale;
       if (this.hitStop > 0) {
