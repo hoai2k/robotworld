@@ -311,6 +311,29 @@ const CLIPS_RAW = {
       { t: 0.36, ease: 'outCubic', pose: { torso: [14, 0, 0], head: [-12, 0, 0], hipsRot: [14, 0, 0], hipsPos: [0, -0.25, 0] } },
     ],
   },
+  grabReach: { // COLOSSUS: both hands lunge out low to seize the target
+    dur: 0.3, hold: true,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.14, ease: 'outCubic', pose: { torso: [22, 0, 0], head: [-10, 0, 0], shoulderL: [-78, 12, -6], shoulderR: [-78, -12, 6], elbowL: [-16, 0, 0], elbowR: [-16, 0, 0], hipsPos: [0, -0.22, 0], hipsRot: [8, 0, 0] } },
+    ],
+  },
+  liftHold: { // hoisting the catch overhead — arms drive straight up, back sets
+    dur: 0.45, hold: true,
+    keys: [
+      { t: 0, pose: { torso: [18, 0, 0], shoulderL: [-95, 0, -10], shoulderR: [-95, 0, 10], elbowL: [-20, 0, 0], elbowR: [-20, 0, 0], hipsPos: [0, -0.2, 0] } },
+      { t: 0.45, ease: 'outBack', pose: { torso: [-10, 0, 0], head: [-16, 0, 0], shoulderL: [-172, 0, -8], shoulderR: [-172, 0, 8], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], hipsPos: [0, 0.1, 0], hipsRot: [-4, 0, 0] } },
+    ],
+  },
+  throwHeave: { // the launch: whole frame whips forward, arms hurl down the line
+    dur: 0.5,
+    keys: [
+      { t: 0, pose: { torso: [-10, 0, 0], head: [-16, 0, 0], shoulderL: [-172, 0, -8], shoulderR: [-172, 0, 8], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], hipsPos: [0, 0.1, 0] } },
+      { t: 0.16, ease: 'inCubic', pose: { torso: [34, 0, 0], head: [6, 0, 0], shoulderL: [-58, 0, -10], shoulderR: [-58, 0, 10], elbowL: [-14, 0, 0], elbowR: [-14, 0, 0], hipsPos: [0, -0.3, 0.1], hipsRot: [10, 0, 0] } },
+      { t: 0.5, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], hipsPos: [0, 0, 0], hipsRot: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.1, type: 'sfx', arg: 'whooshBig' }, { t: 0.16, type: 'shake', arg: 0.5 }],
+  },
   hangGrab: { // wall grab — punch hand locked onto the building, body hanging, legs braced
     dur: 0.25, hold: true,
     keys: [

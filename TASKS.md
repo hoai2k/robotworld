@@ -747,3 +747,31 @@ controllers via Gamepad API), AI opponents.
   (spike hazards live), probe numerics (spike dmg 12 + shove to 6.9u at
   23 u/s; campfire lit + patch + walk-through burn; off-axis geyser
   launch), screenshots viewed (geyser blowout column, lit campfire).
+- 2026-07-12: SHOULDER AXLES v2 + COLOSSUS SKYLINE TOSS + GRAB FEEL.
+  · SHOULDER CONNECTORS FIXED FOR REAL: six designs push their shoulder
+    joints wider than the rig default (glacier +0.55s — why his arms still
+    floated; also rhino/inferno/colossus/aegis/fenrir, cranky moves y/z).
+    The factory axle now reads each joint's ACTUAL post-design position
+    and bridges it to the torso with a DARK cylindrical axle + collar +
+    socket ball. Verified: glacier close-up + mid-walk-swing shot, gap
+    closed on both.
+  · COLOSSUS SPECIAL → SKYLINE TOSS (grab & throw): replaces Fire Mission.
+    He seizes a bot in his front cone (4.5·scale reach), hoists them
+    OVERHEAD — laid flat ACROSS the press on their side, wrestling
+    body-slam style (rolled -1.45 rad, perpendicular to his facing, new
+    grabReach/liftHold/throwHeave clips) — then HURLS them far (36 u/s
+    held through flight against air drag; ~23 units open-field, or a
+    satisfying wall smack). 85 dmg split grab/throw; cargo has i-frames
+    mid-lift; the slam roll unwinds on landing/interrupt. Whiff = short
+    recovery. AI gates it at melee range (SELF_AOE set).
+  · WALL GRAB v2: grabbing no longer snaps position or facing — the mech
+    freezes EXACTLY where and how the punch connected (fist may intersect
+    the wall: that's the grip). Releasing grants a 0.35s coyote window
+    where a mid-air jump still fires — so climbing flows as jump, grab,
+    release, jump, grab. Verified: grab with yaw unchanged, release,
+    air-jump, re-grab 2.7 units higher.
+  Verified: 16-mech attackmatrix ALL CONNECT (colossus special 71 via the
+  grab; titanus-ranged/jerry-special known flakes passed on rerun), ace
+  soak clean (colossus/glacier), probe numerics + screenshots (dark axle
+  bridging glacier's pauldrons at rest and mid-walk, viper carried flat
+  overhead, roll 0 after landing).

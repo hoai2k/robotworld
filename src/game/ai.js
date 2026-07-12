@@ -21,7 +21,7 @@ function preferredRange(def) {
 
 // self-centered AoE moves only connect up close — gate them by their radius
 // instead of the weapon's preferred range
-const SELF_AOE_SPECIALS = new Set(['groundPound', 'staticField']);
+const SELF_AOE_SPECIALS = new Set(['groundPound', 'staticField', 'grabThrow']);
 const SELF_AOE_ULTS = new Set(['supernova', 'backdraft', 'absoluteZero']);
 
 export class AIController {

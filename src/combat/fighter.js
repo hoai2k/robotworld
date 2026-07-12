@@ -369,23 +369,19 @@ export class Fighter {
   }
 
   // ================= wall grab =================
-  // latch onto a building face at the fist's contact point and hang there
+  // latch onto a building face at the fist's contact point and hang there —
+  // frozen EXACTLY where and how the punch connected (no snap, no turn; the
+  // fist may intersect the wall, that's the grip)
   startHang(g) {
-    const faceYaw = Math.atan2(-g.nx, -g.nz); // face INTO the wall
     this.hanging = {
-      chunk: g.chunk, nx: g.nx, nz: g.nz, faceYaw,
-      // body hangs flush against the face, gripping fist overhead
-      x: g.x + g.nx * (this.radius + 0.3),
-      y: Math.max(0.3, g.y - this.height * 0.62),
-      z: g.z + g.nz * (this.radius + 0.3),
+      chunk: g.chunk, nx: g.nx, nz: g.nz,
+      x: this.pos.x, y: this.pos.y, z: this.pos.z,
     };
-    this.pos.set(this.hanging.x, this.hanging.y, this.hanging.z);
     this.vel.set(0, 0, 0);
     this.plunging = false;
     this.hovering = false;
     this.grounded = false;
     this.comboIdx = 0;
-    this.yaw = this.targetYaw = faceYaw;
     this.setState('normal');
     this.animator.play('hangGrab');
     this.world.audio?.play('servo');
@@ -394,6 +390,7 @@ export class Fighter {
 
   endHang() {
     this.hanging = null;
+    this._hangCoyote = 0.35; // short grace: a jump still fires just after letting go
     this.animator.stop(0.12);
   }
 
@@ -675,8 +672,6 @@ export class Fighter {
         this.pos.set(h.x, h.y, h.z);
         this.vel.set(0, 0, 0);
         this.grounded = false;
-        this.yaw = this.targetYaw = h.faceYaw;
-        this.group.rotation.y = this.yaw;
         this.animator.update(dt, { speed: 0, grounded: true, vy: 0 });
         return;
       }
@@ -710,6 +705,7 @@ export class Fighter {
     // ---- duck: hold to crouch. Ducking PERSISTS through an attack (so a
     // held-duck strike lands LOW and slips under a standing block); only
     // jumping/airborne or blocking pops you back up ----
+    if (this._hangCoyote > 0) this._hangCoyote -= dt;
     const wantDuck = I.duck && this.grounded && !this.blocking &&
       (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
     this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
@@ -758,6 +754,12 @@ export class Fighter {
           this.world.audio?.play('jump');
           this.world.effects.dustPuff(this.pos, 6);
         }
+      } else if (I.jump && !this.grounded && this._hangCoyote > 0 && this.state === 'normal') {
+        // just let go of a wall: for a beat, a jump still fires in mid-air —
+        // that's the release-then-jump climbing rhythm
+        this._hangCoyote = 0;
+        this.vel.y = st.jump * JUMP_MULT * (this.status.buff ? 1.1 : 1);
+        this.world.audio?.play('jump');
       } else if (I.jump && !this.grounded && !this.hovering && this.hoverFuel > 0.2) {
         // second jump press in the air ignites the hover jets
         this.hovering = true;
@@ -940,6 +942,7 @@ export class Fighter {
     this.hp = this.maxHp;
     this.alive = true;
     this.hanging = null;
+    this.group.rotation.set(0, yaw, 0); // clear any carry/slam roll
     if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
     this.pos.copy(pos);
     this.vel.set(0, 0, 0);

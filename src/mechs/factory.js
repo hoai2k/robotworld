@@ -258,19 +258,20 @@ export function buildMech(def) {
   const design = DESIGNS[def.id];
   if (!design) throw new Error('No design for mech ' + def.id);
   design(A, D, joints, anchors, def);
-  // shoulder axles: chest geometry varies per design and on narrower frames
-  // the arm socket floats clear of the body — bridge every shoulder joint
-  // to the torso with a short axle + collar + fixed socket ball so the arm
-  // always reads attached, whatever the design's chest width
+  // shoulder axles: chest geometry varies per design, and many designs push
+  // the shoulder JOINTS wider than the rig default (glacier +0.55s, rhino,
+  // inferno, ...) — so bridge each joint's ACTUAL post-design position to
+  // the torso with a dark cylindrical axle + collar + fixed socket ball so
+  // the arm always reads attached, whatever the design did
   for (const side of ['L', 'R']) {
-    const sx = side === 'L' ? -1 : 1;
-    const shy = D.torsoH * 0.82;             // shoulder joint height (buildRig)
-    const len = D.shoulderW * 0.8;
-    A.tube('torso', 'frame', 0.1 * D.scale * D.bulk, 0.13 * D.scale * D.bulk, len, {
-      p: [sx * (D.shoulderW - len / 2), shy, 0], r: [0, 0, Math.PI / 2] });
-    A.ring('torso', 'dark', 0.155 * D.scale * D.bulk, 0.032 * D.scale, {
-      p: [sx * (D.shoulderW - 0.2 * D.scale), shy, 0], r: [0, Math.PI / 2, 0] });
-    A.ball('torso', 'frame', 0.17 * D.scale * D.bulk, { p: [sx * D.shoulderW, shy, 0] });
+    const jp = joints['shoulder' + side].position; // in torso space
+    const sxn = Math.sign(jp.x) || 1;
+    const len = Math.abs(jp.x) * 0.85;
+    A.tube('torso', 'dark', 0.11 * D.scale * D.bulk, 0.13 * D.scale * D.bulk, len, {
+      p: [jp.x - sxn * len / 2, jp.y, jp.z], r: [0, 0, Math.PI / 2] });
+    A.ring('torso', 'dark', 0.16 * D.scale * D.bulk, 0.032 * D.scale, {
+      p: [jp.x - sxn * 0.24 * D.scale, jp.y, jp.z], r: [0, Math.PI / 2, 0] });
+    A.ball('torso', 'frame', 0.18 * D.scale * D.bulk, { p: [jp.x, jp.y, jp.z] });
   }
   A.build(joints, materials);
 

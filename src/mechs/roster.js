@@ -185,7 +185,7 @@ export const ROSTER = [
       light: { dmg: [42, 46, 62], knock: [6, 6, 14], range: 3.5 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
       ranged: { name: 'Mortar Lob', type: 'mortar', dmg: 68, speed: 30, cooldown: 1.7, splash: 5.5, ammo: 10 },
-      special: { id: 'barrage', name: 'Fire Mission', cooldown: 8, dmg: 50, count: 5, radius: 9 },
+      special: { id: 'grabThrow', name: 'Skyline Toss', cooldown: 8, dmg: 85, range: 4.5, throw: 36, radius: 5 },
       ult: { id: 'bigBertha', name: 'BIG BERTHA', dmg: 240, radius: 15 },
     },
   },

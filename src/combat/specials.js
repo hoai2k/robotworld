@@ -313,7 +313,105 @@ export const SPECIALS = {
     f.world.schedule(0.25, check);
   },
 
-  // COLOSSUS: artillery barrage on target area
+  // COLOSSUS: seize the nearest bot in front of him, hoist them clean over
+  // his head, and HURL them across the arena
+  grabThrow(f, sp) {
+    const w = f.world;
+    f.animator.play('grabReach');
+    f.setState('special', 1.6);
+    w.audio?.play('servo');
+    w.schedule(0.2, () => {
+      if (!f.alive || f.state !== 'special') return;
+      // whoever's in the hands: close, in the front cone, near ground level
+      let prey = null, best = Infinity;
+      for (const v of w.fighters) {
+        if (v === f || !v.alive || v.iframes > 0) continue;
+        const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
+        const d = Math.hypot(dx, dz);
+        if (d > (sp.range || 4.5) * f.scale + v.hitRadius) continue;
+        if (Math.abs(angleDiff(f.yaw, Math.atan2(dx, dz))) > 0.85) continue;
+        if (Math.abs(v.pos.y - f.pos.y) > 4) continue;
+        if (d < best) { prey = v; best = d; }
+      }
+      if (!prey) {
+        // grabbed a fistful of air — recover
+        f.animator.stop();
+        f.setState('attack', 0.35);
+        return;
+      }
+      // GOT ONE — hoist them overhead
+      const LIFT = 0.55;
+      f.animator.play('liftHold');
+      w.engine.addHitStop(0.06);
+      prey.takeHit(sp.dmg * 0.3 * f.dmgMult(), f, { knock: 0, srcPos: f.pos, heavy: true, silent: true });
+      prey.setState('launched', 3);
+      prey.animator.play('launched');
+      prey.iframes = LIFT + 0.2; // the cargo can't be sniped mid-lift
+      const overhead = () => {
+        prey.pos.x = f.pos.x + Math.sin(f.yaw) * 0.4 * f.scale;
+        prey.pos.z = f.pos.z + Math.cos(f.yaw) * 0.4 * f.scale;
+        prey.pos.y = f.height + 0.6;
+        prey.vel.set(0, 0, 0);
+        prey.grounded = false;
+        // wrestling press: the body is laid ACROSS the lift, rolled flat
+        // onto its side over Colossus's head
+        prey.yaw = prey.targetYaw = f.yaw + Math.PI / 2;
+        const r = prey.group.rotation;
+        r.x += (-1.45 - r.x) * 0.3;
+      };
+      overhead(); // pin NOW — a grounded frame would trip launched->knockdown
+      const ticks = Math.round(LIFT / 0.05);
+      for (let i = 0; i <= ticks; i++) {
+        w.schedule(i * 0.05, () => {
+          if (!f.alive || !prey.alive || f.state !== 'special') {
+            prey.group.rotation.x = 0; // lift broken: unwind the slam roll
+            return;
+          }
+          overhead();
+        });
+      }
+      // THE THROW — far and flat
+      w.schedule(LIFT + 0.02, () => {
+        if (!f.alive || f.state !== 'special') { prey.group.rotation.x = 0; return; }
+        f.animator.play('throwHeave');
+        f.setState('special', 0.5);
+        if (prey.alive) {
+          overhead();
+          prey.iframes = 0; // the throw itself always lands
+          prey.takeHit(sp.dmg * 0.7 * f.dmgMult(), f, { knock: 0, srcPos: f.pos, heavy: true });
+          prey.setState('launched', 3);
+          prey.animator.play('launched');
+          const tvx = Math.sin(f.yaw) * (sp.throw || 36);
+          const tvz = Math.cos(f.yaw) * (sp.throw || 36);
+          prey.vel.x = tvx;
+          prey.vel.z = tvz;
+          prey.vel.y = 13;
+          prey.grounded = false;
+          // hold the throw momentum through the flight — air-control drag
+          // would otherwise dump them a few steps away instead of FAR.
+          // The flat body-slam roll unwinds when the flight ends.
+          let flyT = 0;
+          const fly = () => {
+            if (!prey.alive || prey.grounded || flyT > 1.3) {
+              prey.group.rotation.x = 0;
+              return;
+            }
+            flyT += 0.05;
+            prey.vel.x = tvx;
+            prey.vel.z = tvz;
+            w.schedule(0.05, fly);
+          };
+          w.schedule(0.05, fly);
+          w.audio?.play('whooshBig');
+          w.effects.addShake(0.6);
+          w.engine.addHitStop(0.1);
+        }
+        w.schedule(0.5, () => { if (f.state === 'special') f.setState('normal'); });
+      });
+    });
+  },
+
+  // COLOSSUS (legacy): artillery barrage on target area
   barrage(f, sp) {
     const fallback = fwd(f, 24);
     const dur = f.animator.play('brace', {
