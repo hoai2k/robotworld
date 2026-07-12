@@ -270,6 +270,34 @@ const CLIPS_RAW = {
       { t: 0.9, ease: 'inOutQuad', pose: { torso: [6, 8, 0], shoulderR: [-84, -14, 4], shoulderL: [-84, 14, -4] } },
     ],
   },
+  clawSnap: { // CRANKY heavy — claws spread WIDE apart, then scissor shut in one violent snap
+    dur: 0.55,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.16, ease: 'outCubic', pose: { torso: [6, 14, 0], head: [-6, 0, 0], shoulderL: [-26, 0, -38], shoulderR: [-26, 0, 38], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], hipsPos: [0, -0.06, 0] } },
+      { t: 0.3, ease: 'inCubic', pose: { torso: [14, -8, 0], head: [4, 0, 0], shoulderL: [-78, 0, 6], shoulderR: [-78, 0, -6], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], hipsPos: [0, -0.1, 0.14] } },
+      { t: 0.42, ease: 'outQuad', pose: { torso: [12, -6, 0] } },
+      { t: 0.55, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], hipsPos: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.28, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'hit', arg: 0 }, { t: 0.31, type: 'sfx', arg: 'block' }, { t: 0.32, type: 'shake', arg: 0.5 }],
+  },
+  pounceLeap: { // SAURION pounce airtime — legs cocked under the body, sickle claws
+    // raised to strike, arms swept back, head locked on prey (values are deltas
+    // over his raptor rest pose)
+    dur: 0.6, hold: true,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.22, ease: 'outCubic', pose: { torso: [10, 0, 0], head: [-10, 0, 0], shoulderL: [40, 0, -30], shoulderR: [40, 0, 30], elbowL: [-20, 0, 0], elbowR: [-20, 0, 0], thighL: [-28, 0, -4], thighR: [-28, 0, 4], kneeL: [24, 0, 0], kneeR: [24, 0, 0], ankleL: [-22, 0, 0], ankleR: [-22, 0, 0], hipsRot: [16, 0, 0] } },
+    ],
+  },
+  biteLatch: { // SAURION riding pinned prey — hunched over it, jaws working, claws hooked in
+    dur: 0.5, loop: true,
+    keys: [
+      { t: 0, pose: { torso: [16, 0, 0], head: [4, 0, 0], shoulderL: [-70, 0, 14], shoulderR: [-70, 0, -14], elbowL: [-46, 0, 0], elbowR: [-46, 0, 0], hipsRot: [10, 0, 0] } },
+      { t: 0.25, ease: 'inCubic', pose: { torso: [24, 0, 0], head: [22, 0, 0], shoulderL: [-74, 0, 14], shoulderR: [-74, 0, -14], elbowL: [-50, 0, 0], elbowR: [-50, 0, 0], hipsRot: [12, 0, 0] } },
+      { t: 0.5, ease: 'outCubic', pose: { torso: [16, 0, 0], head: [4, 0, 0], shoulderL: [-70, 0, 14], shoulderR: [-70, 0, -14], elbowL: [-46, 0, 0], elbowR: [-46, 0, 0], hipsRot: [10, 0, 0] } },
+    ],
+  },
 };
 
 // ---------- compile: degrees -> radians, sparse per-joint tracks ----------

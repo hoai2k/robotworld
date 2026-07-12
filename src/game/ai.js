@@ -13,9 +13,9 @@ export const DIFFICULTY = {
 function preferredRange(def) {
   const t = def.moves.ranged.type;
   if (t === 'railgun' || t === 'mortar') return 26;
-  if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning' || t === 'water') return 16;
+  if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning') return 16;
   if (t === 'shard' || t === 'slime' || t === 'flea') return 14;
-  if (t === 'flame') return 8;
+  if (t === 'flame' || t === 'hose') return 9;
   return 5; // brawlers (dart, wave, rocket, feather)
 }
 

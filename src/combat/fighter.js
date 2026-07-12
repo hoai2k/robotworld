@@ -194,7 +194,7 @@ export class Fighter {
       return;
     }
     this.faceNearestEnemyIfClose(14);
-    const dur = this.animator.play('heavy', {
+    const dur = this.animator.play(this.def.heavyClip || 'heavy', {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
         dmg: mv.dmg * this.dmgMult(),
         knock: mv.knock,
@@ -226,7 +226,7 @@ export class Fighter {
       return;
     }
     this.uncloak();
-    const isChannel = mv.type === 'gatling' || mv.type === 'flame';
+    const isChannel = mv.type === 'gatling' || mv.type === 'flame' || mv.type === 'hose';
     this.faceAim();
 
     if (isChannel) {

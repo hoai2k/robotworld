@@ -265,10 +265,11 @@ export const ROSTER = [
     restPose: { shoulderL: [8, 0, -26], shoulderR: [8, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], thighL: [-8, 0, -8], thighR: [-8, 0, 8], kneeL: [16, 0, 0], kneeR: [16, 0, 0], ankleL: [-8, 0, 0], ankleR: [-8, 0, 0] },
     stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26, blockMult: 0.04 },
     ui: { power: 8, speed: 3, defense: 10 },
+    heavyClip: 'clawSnap', // giant pincer SNAP, not a pound
     moves: {
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
-      ranged: { name: 'Hydro Cannon', type: 'water', dmg: 55, speed: 42, cooldown: 1.2, splash: 2.5, ammo: 14 },
+      ranged: { name: 'Hydro Hose', type: 'hose', dmg: 7, cooldown: 0.075, range: 20, ammo: 150 },
       special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 5.5, launch: 15 },
       ult: { id: 'riptide', name: 'RIPTIDE', dmg: 42, waves: 8, surgeDmg: 70, radius: 13 },
     },

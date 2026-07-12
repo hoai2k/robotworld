@@ -203,30 +203,77 @@ export const SPECIALS = {
     f.world.schedule(0.05, tick);
   },
 
-  // TEMPEST: radial static discharge
+  // TEMPEST: summons a crackling storm cell a short way in front of him —
+  // a dark cloud gathers overhead, then lightning hammers DOWN out of it at
+  // the ground and at anyone caught underneath
   staticField(f, sp) {
     const dur = f.animator.play('burst', {
       onEvent: (t) => {
         if (t !== 'fire') return;
         const w = f.world;
-        const c = f.center();
-        w.effects.rings.spawn(f.pos, { from: 1, to: sp.radius * 2, dur: 0.5, color: 0x53e8ff, y: 0.5 });
-        w.audio?.play('zap');
-        for (const e of w.fighters) {
-          if (e === f || !e.alive) continue;
-          const d = e.pos.distanceTo(f.pos);
-          if (d < sp.radius) {
-            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 14, srcPos: f.pos, status: { slow: 0.6, slowT: 1.6 } });
-            w.effects.lightning.spawn(c, e.center(), { color: 0x8fe8ff });
-          }
+        const center = fwd(f, sp.radius * 0.55);
+        center.y = 0;
+        const cloudY = 13;
+        // the storm cloud: a heavy slab of churning dark smoke hanging over
+        // the area — emitted in two waves so it lingers through the strikes
+        for (const delay of [0, 0.45]) {
+          w.schedule(delay, () => {
+            if (!f.alive) return;
+            for (let i = 0; i < 34; i++) {
+              const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.9;
+              w.effects.smoke.emit(center.x + Math.cos(a) * r, cloudY + rand(-1.4, 1.8), center.z + Math.sin(a) * r,
+                rand(-1.4, 1.4), rand(-0.3, 0.5), rand(-1.4, 1.4),
+                { life: rand(1.5, 2.3), size: rand(5, 8.5), color: 0x10141d, alpha: 0.95, grow: 1.3 });
+            }
+            // static shimmer inside the cloud
+            for (let i = 0; i < 10; i++) {
+              const a = rand(Math.PI * 2), r = rand(0, sp.radius * 0.7);
+              w.effects.glows.emit(center.x + Math.cos(a) * r, cloudY + rand(-1, 1), center.z + Math.sin(a) * r,
+                0, 0, 0, { life: rand(0.2, 0.45), size: rand(1.5, 3), color: 0x9fdcff, alpha: 0.9 });
+            }
+          });
         }
-        // coil show
+        w.effects.rings.spawn(center, { from: 1, to: sp.radius * 2, dur: 0.55, color: 0x53e8ff, y: 0.5 });
+        w.audio?.play('thunder');
+        // coil show on the caster
         for (const cn of ['coilL', 'coilR']) {
           if (f.mech.anchors[cn]) {
             const p = f.mech.anchors[cn].getWorldPosition(new THREE.Vector3());
             w.effects.lightning.spawn(p, p.clone().add(new THREE.Vector3(rand(-4, 4), rand(2, 5), rand(-4, 4))), { color: 0x8fe8ff });
           }
         }
+        // bolts hammer down over ~0.5s: every caught bot eats a strike from
+        // the cloud, plus scattered ground strikes to sell the storm
+        const bolts = [];
+        for (const e of w.fighters) {
+          if (e === f || !e.alive) continue;
+          const dx = w.wrapDelta(e.pos.x - center.x), dz = w.wrapDelta(e.pos.z - center.z);
+          if (Math.hypot(dx, dz) < sp.radius) bolts.push({ victim: e });
+        }
+        for (let i = 0; i < 7; i++) {
+          const a = rand(Math.PI * 2), r = rand(1.5, sp.radius * 0.9);
+          bolts.push({ x: center.x + Math.cos(a) * r, z: center.z + Math.sin(a) * r });
+        }
+        bolts.forEach((b, i) => {
+          w.schedule(0.05 + i * 0.08, () => {
+            if (!f.alive) return;
+            const gx = b.victim ? b.victim.pos.x : b.x;
+            const gz = b.victim ? b.victim.pos.z : b.z;
+            const top = new THREE.Vector3(gx + rand(-1, 1), cloudY, gz + rand(-1, 1));
+            const ground = new THREE.Vector3(gx, 0.1, gz);
+            // a hot beam core wrapped in two jagged arcs reads as a REAL bolt
+            w.effects.beams.spawn(top, ground, { radius: 0.22, dur: 0.16, color: 0xeaffff });
+            w.effects.lightning.spawn(top, ground, { color: 0xcfefff, dur: 0.22, jag: 3.2 });
+            w.effects.lightning.spawn(top, ground, { color: 0x9fdcff, dur: 0.26, jag: 2.2 });
+            w.effects.glows.emit(gx, 1, gz, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
+            w.effects.rings.spawn(ground, { from: 0.4, to: 4.2, dur: 0.3, color: 0x9fdcff, y: 0.25 });
+            w.audio?.play('zap');
+            w.effects.addShake(0.3);
+            if (b.victim && b.victim.alive) {
+              b.victim.takeHit(sp.dmg * f.dmgMult(), f, { knock: 14, srcPos: center, status: { slow: 0.6, slowT: 1.6 } });
+            }
+          });
+        });
       },
     });
     f.setState('special', dur * 0.85);
@@ -318,27 +365,70 @@ export const SPECIALS = {
     }
   },
 
-  // CRANKY: water column erupts under the target, launching them skyward
+  // CRANKY: water column erupts under the target — a bubbling warning patch
+  // telegraphs the spot first (evadable), then the geyser blasts skyward in
+  // a column of water particles
   geyser(f, sp) {
+    const WARN = 0.85; // telegraph long enough to sidestep
     const dur = f.animator.play('castRaise', {
       onEvent: (t) => {
         if (t !== 'fire') return;
         const w = f.world;
         const e = f.nearestEnemy();
-        const target = e ? leadPos(f, e, 1.05) : fwd(f, 14);
+        const target = e ? leadPos(f, e, WARN + 0.45) : fwd(f, 14);
         target.y = 0;
-        w.effects.rings.spawn(target, { from: sp.radius, to: sp.radius * 0.9, dur: 0.5, color: 0x4fc3ff, y: 0.3 });
         w.audio?.play('cast');
-        w.schedule(0.5, () => {
+        // ---- warning: pulsing danger rings + water bubbling out of the ground
+        for (let i = 0; i < 4; i++) {
+          w.schedule(i * 0.21, () => {
+            w.effects.rings.spawn(target, { from: 0.6, to: sp.radius * 1.5, dur: 0.34, color: 0x4fc3ff, y: 0.3 });
+          });
+        }
+        const bubbleTicks = Math.floor(WARN / 0.05);
+        for (let i = 0; i < bubbleTicks; i++) {
+          w.schedule(i * 0.05, () => {
+            const boil = 0.5 + (i / bubbleTicks); // churn harder as it primes
+            const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.8;
+            w.effects.glows.emit(target.x + Math.cos(a) * r, 0.3, target.z + Math.sin(a) * r,
+              rand(-0.5, 0.5), rand(2, 4.5) * boil, rand(-0.5, 0.5),
+              { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * boil, color: 0x9fe0ff, alpha: 0.9 });
+          });
+        }
+        // ---- eruption: roaring column of water hurled skyward
+        w.schedule(WARN, () => {
           const top = target.clone();
-          top.y += 26;
-          w.effects.beams.spawn(target, top, { radius: sp.radius * 0.5, dur: 0.55, color: 0x8fdcff });
-          for (let i = 0; i < 16; i++) {
-            w.effects.glows.emit(target.x + rand(-2.2, 2.2), rand(1, 18), target.z + rand(-2.2, 2.2),
-              0, rand(4, 10), 0, { life: rand(0.4, 0.85), size: rand(1.3, 2.6), color: 0xaee8ff, alpha: 0.85 });
+          top.y += 27;
+          w.effects.beams.spawn(target, top, { radius: sp.radius * 0.45, dur: 0.6, color: 0x8fdcff });
+          w.effects.rings.spawn(target, { from: 1, to: sp.radius * 2.6, dur: 0.5, color: 0xbfe8ff, y: 0.4 });
+          // main jet: dense fast water particles rocketing up the column core,
+          // fired in three quick pulses so the column stays solid for longer
+          for (const delay of [0, 0.14, 0.3]) {
+            w.schedule(delay, () => {
+              for (let i = 0; i < 22; i++) {
+                const a = rand(Math.PI * 2), r = rand(0, sp.radius * 0.45);
+                w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2.5), target.z + Math.sin(a) * r,
+                  Math.cos(a) * rand(0.5, 2), rand(17, 30), Math.sin(a) * rand(0.5, 2),
+                  { life: rand(0.6, 1.1), size: rand(1.4, 2.8), color: i % 3 ? 0xaee8ff : 0xffffff, alpha: 0.95, gravity: 22, drag: 0.4 });
+              }
+            });
+          }
+          // spray: wider, slower droplets fanning out of the blast
+          for (let i = 0; i < 24; i++) {
+            const a = rand(Math.PI * 2);
+            w.effects.glows.emit(target.x + Math.cos(a) * rand(0.5, 1.5), rand(1, 4), target.z + Math.sin(a) * rand(0.5, 1.5),
+              Math.cos(a) * rand(3, 8), rand(9, 18), Math.sin(a) * rand(3, 8),
+              { life: rand(0.6, 1.2), size: rand(0.8, 1.6), color: 0x8fdcff, alpha: 0.8, gravity: 26, drag: 0.3 });
+          }
+          // mist pluming off the column
+          for (let i = 0; i < 8; i++) {
+            const a = rand(Math.PI * 2);
+            w.effects.smoke.emit(target.x + Math.cos(a) * rand(0.5, 2), rand(2, 14), target.z + Math.sin(a) * rand(0.5, 2),
+              Math.cos(a) * rand(1, 2.5), rand(2, 5), Math.sin(a) * rand(1, 2.5),
+              { life: rand(0.7, 1.2), size: rand(2, 3.5), color: 0xcfeaff, alpha: 0.35, grow: 1.6 });
           }
           w.audio?.play('wave');
-          w.effects.addShake(0.6);
+          w.audio?.play('explosionBig');
+          w.effects.addShake(0.8);
           for (const v of w.fighters) {
             if (v === f || !v.alive) continue;
             const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);
@@ -352,12 +442,13 @@ export const SPECIALS = {
     f.setState('special', dur * 0.85);
   },
 
-  // SAURION: raptor pounce — leaps ONTO the victim and rakes with the toe
-  // sickles, pinning them for two follow-up slashes that leave them bleeding
+  // SAURION: raptor pounce — a true velociraptor kill-leap. He springs with
+  // legs cocked and sickles raised; if he lands ON prey he hooks in, rides
+  // them, and bites; if he whiffs he just gathers into a crouch and recovers
   sickleRush(f, sp) {
     const w = f.world;
     const e = f.nearestEnemy();
-    f.animator.play('lunge', { speed: 1.15 });
+    f.animator.play('pounceLeap');
     f.setState('special', 1.8);
     f.iframes = 0.4;
     w.audio?.play('jump');
@@ -376,41 +467,87 @@ export const SPECIALS = {
       const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
       dist = Math.min(maxLeap, Math.hypot(dx, dz) + e.vel.length() * 0.3);
     }
-    f.vel.x = Math.sin(f.yaw) * dist / T;
-    f.vel.z = Math.cos(f.yaw) * dist / T;
+    const vx0 = Math.sin(f.yaw) * dist / T;
+    const vz0 = Math.cos(f.yaw) * dist / T;
+    f.vel.x = vx0;
+    f.vel.z = vz0;
     f.vel.y = 16.2;
     f.grounded = false;
     let done = false;
-    const strike = () => {
+    const land = () => {
       if (done || !f.alive) return;
-      if (!f.grounded) { w.schedule(0.04, strike); return; }
+      if (!f.grounded) {
+        // hold the ballistic arc — air-control damping would otherwise bleed
+        // the horizontal velocity away and dump him far short of the prey
+        f.vel.x = vx0;
+        f.vel.z = vz0;
+        w.schedule(0.04, land);
+        return;
+      }
       done = true;
-      // the body crashing down is a reliable slam (bleed on contact); anyone
-      // right under the claws then eats two pinning toe-rakes
-      w.groundShockwave(f, f.pos, 5.4 * f.scale, sp.dmg * f.dmgMult(), 8, 0xff3826);
-      w.audio?.play('slash');
-      w.engine.addHitStop(0.08);
+      // did the claws come down on anyone?
+      let prey = null, best = Infinity;
       for (const v of w.fighters) {
         if (v === f || !v.alive) continue;
         const dx = w.wrapDelta(v.pos.x - f.pos.x), dz = w.wrapDelta(v.pos.z - f.pos.z);
-        if (Math.hypot(dx, dz) >= 5.4 * f.scale || Math.abs(v.pos.y - f.pos.y) >= 4.5) continue;
-        v.applyStatus({ burn: sp.bleed, burnT: 2.4 });
-        for (let k = 1; k <= 2; k++) {
-          w.schedule(0.16 * k, () => {
-            if (!f.alive || !v.alive) return;
-            const rx = w.wrapDelta(v.pos.x - f.pos.x), rz = w.wrapDelta(v.pos.z - f.pos.z);
-            if (Math.hypot(rx, rz) < 5.4 * f.scale) {
-              v.takeHit(sp.dmg * 0.35 * f.dmgMult(), f, { knock: k === 2 ? 13 : 2, srcPos: f.pos });
-              w.audio?.play('slash');
-              w.effects.impactSparks(v.center(), 0xff3826, 10, 8);
-            }
-          });
-        }
+        const d = Math.hypot(dx, dz);
+        if (d < 5.2 * f.scale && Math.abs(v.pos.y - f.pos.y) < 5 && d < best) { prey = v; best = d; }
       }
-      f.animator.play('flurry', { speed: 1.4 });
-      f.setState('special', 0.4);
+      if (!prey) {
+        // whiffed: absorb the landing in a crouch, then straighten back up
+        f.duckT = 1;
+        w.effects.dustPuff(f.pos, 3, 0x9a8f80);
+        w.audio?.play('land');
+        f.animator.stop();
+        f.setState('attack', 0.35);
+        return;
+      }
+      // KILL LEAP CONNECTED — sickles hook in, he rides the prey and bites
+      const RIDE = 0.72;
+      f.setState('special', RIDE + 0.3);
+      f.iframes = 0.5;
+      f.animator.play('biteLatch');
+      w.audio?.play('slash');
+      w.engine.addHitStop(0.09);
+      prey.takeHit(sp.dmg * f.dmgMult(), f, { knock: 2, srcPos: f.pos, heavy: true });
+      prey.applyStatus({ burn: sp.bleed, burnT: 2.4 });
+      const ang = Math.atan2(w.wrapDelta(prey.pos.x - f.pos.x), w.wrapDelta(prey.pos.z - f.pos.z));
+      const hold = prey.hitRadius + f.hitRadius * 0.55;
+      const ticks = Math.round(RIDE / 0.05);
+      for (let i = 1; i <= ticks; i++) {
+        w.schedule(i * 0.05, () => {
+          if (!f.alive || !prey.alive || f.state !== 'special') return;
+          // stay clamped onto them wherever the struggle carries the pair
+          f.pos.x = prey.pos.x - Math.sin(ang) * hold;
+          f.pos.z = prey.pos.z - Math.cos(ang) * hold;
+          f.vel.set(0, 0, 0);
+          f.yaw = f.targetYaw = ang;
+        });
+      }
+      // two ripping bites while attached
+      for (const bt of [0.24, 0.48]) {
+        w.schedule(bt, () => {
+          if (!f.alive || !prey.alive) return;
+          prey.takeHit(sp.dmg * 0.3 * f.dmgMult(), f, { knock: 1.5, srcPos: f.pos });
+          w.audio?.play('slash');
+          w.effects.impactSparks(prey.center(), 0xff3826, 10, 8);
+          f.animator.addImpulse('head', [0.35, 0, 0], 26, 9);
+        });
+      }
+      // kick off the carcass and spring clear
+      w.schedule(RIDE, () => {
+        if (!f.alive) return;
+        f.animator.stop();
+        if (f.state === 'special') {
+          f.vel.x = -Math.sin(f.yaw) * 9;
+          f.vel.z = -Math.cos(f.yaw) * 9;
+          f.vel.y = 9;
+          f.grounded = false;
+          f.setState('normal');
+        }
+      });
     };
-    w.schedule(0.2, strike);
+    w.schedule(0.2, land);
   },
 
   // FROGGER: all four gunk guns lob a sticky mortar carpet

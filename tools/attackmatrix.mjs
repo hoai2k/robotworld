@@ -64,7 +64,7 @@ for (const id of MECHS) {
 
     const out = {};
     // ranged for 4s at weapon-appropriate distance (flame is a short cone)
-    reset(atk.def.moves.ranged.type === 'flame' ? 8 : 18);
+    reset(['flame', 'hose'].includes(atk.def.moves.ranged.type) ? 8 : 18);
     step(4, () => { atk.intent.ranged = true; }, 'approach');
     out.ranged = dmgDone();
     // special at close + mid range, take the better connect

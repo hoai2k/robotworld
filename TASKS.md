@@ -590,3 +590,38 @@ controllers via Gamepad API), AI opponents.
   Verified: measured foot-plant numbers above, walk screenshots (fenrir
   reach-extended lope, tempest bent-knee stride), 16-mech attackmatrix ALL
   CONNECT, 3-way ace soak clean.
+- 2026-07-12: MOVE FLAVOR PASS — five signature-move reworks.
+  · TEMPEST STATIC OVERLOAD: recentered a little in FRONT of him
+    (fwd radius·0.55). A heavy dark storm cloud gathers overhead (two waves
+    of churning smoke at y≈13) and visible lightning hammers DOWN out of it:
+    every bot caught in the area eats a strike (same 70 dmg + slow), plus 7
+    scattered ground strikes. Each bolt = hot beam core + two jagged arcs +
+    impact flash + ground ring.
+  · CRANKY GEYSER: now telegraphed — 0.85s warning at the target spot
+    (expanding pulse rings + ground-boil bubbles that churn harder as it
+    primes) so the opponent can evade, THEN the eruption: water column of
+    ~66 upward droplets in three pulses + fan spray + mist plume + launch
+    (same numbers, aimed with the longer lead).
+  · CRANKY RANGED → HYDRO HOSE: continuous firehose channel from his water
+    cannons (type 'hose', 7 dmg/tick @ 0.075s cd, range 20, ammo 150,
+    knock-shove 3.4). Ticks alternate muzzleL/muzzleR so both arms blast; a
+    drooping jet beam + pressurized droplets + splash on the soaked victim.
+  · CRANKY HEAVY → CLAW SNAP: new 'clawSnap' clip (roster heavyClip) —
+    claws spread WIDE then scissor shut in one violent snap (hit + metallic
+    clack + shake at the snap). Jaw signature still gnashes through it.
+  · SAURION SICKLE POUNCE → true raptor kill-leap: new 'pounceLeap' airtime
+    pose (legs cocked under the body, sickles raised, arms swept back) and
+    the ballistic arc is now REAL — the land-poll re-asserts vx/vz each
+    tick because air-control damping was bleeding the leap to ~30% of its
+    distance (lands 4.3 of 14 units; found via trace). On landing: prey
+    within 5.2·scale → LATCH: he rides them for 0.72s pinned at claw range
+    ('biteLatch' loop, head-snap impulses), initial 62 heavy hit + bleed,
+    two ripping bites (0.3×), then kicks off backward and springs clear.
+    NO prey → he just gathers into a crouch (duckT), dust puff, and stands
+    back up — zero whiff damage.
+  Verified: 16-mech attackmatrix ALL CONNECT (saurion special 106 with the
+  all-or-nothing latch; cranky hose 288 @ test dist 8; known flaky titanus
+  ranged / jerry special passed on rerun), 3-way ace soak clean (tempest/
+  cranky/saurion), screenshots of every rework viewed (storm cloud + down
+  bolts, geyser warn rings + column launching titanus, hose spray + soak
+  splash, snap launching titanus, latch ride, whiff crouch with 0 dmg).
