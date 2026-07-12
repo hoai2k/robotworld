@@ -105,6 +105,8 @@ export class Engine {
       this._last = now;
       dtReal = clamp(dtReal, 0, 1 / 20);
 
+      if (this.paused) { this._render(); return; } // capture: sim via step()
+
       let dt = dtReal * this.timeScale;
       if (this.hitStop > 0) {
         this.hitStop -= dtReal;
@@ -115,6 +117,13 @@ export class Engine {
       if (this.onUpdate) this.onUpdate(dt);
       if (this.onRender) this.onRender(dtReal);
 
+      this._render();
+    };
+    requestAnimationFrame(tick);
+  }
+
+  _render() {
+    {
       if (this.views && this.views.length > 1) {
         // split-screen: direct scissored renders (post FX skipped here)
         const W = window.innerWidth, H = window.innerHeight;
@@ -137,11 +146,27 @@ export class Engine {
         this.composer.render();
         this.onAfterView?.();
       }
-    };
-    requestAnimationFrame(tick);
+    }
   }
 
   addHitStop(seconds) {
     this.hitStop = Math.max(this.hitStop, seconds);
+  }
+
+  // capture mode: RAF keeps presenting frames (so screenshots don't stall)
+  // but the sim only advances through step()
+  step(dtReal = 1 / 30) {
+    const n = Math.max(1, Math.ceil(dtReal / (1 / 30)));
+    for (let i = 0; i < n; i++) {
+      let dt = (dtReal / n) * this.timeScale;
+      if (this.hitStop > 0) {
+        this.hitStop -= dtReal / n;
+        dt *= 0.05;
+      }
+      this.elapsed += dt;
+      if (this.onUpdate) this.onUpdate(dt);
+      if (this.onRender) this.onRender(dtReal / n);
+    }
+    this._render();
   }
 }

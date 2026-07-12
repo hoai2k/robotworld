@@ -801,3 +801,37 @@ controllers via Gamepad API), AI opponents.
   Verified: 16-mech attackmatrix ALL CONNECT (titanus ranged 30 pound /
   special 74 slam; nova special 88 with swollen orbs), ace soak clean
   (titanus/nova), screenshots viewed (blazing vs dim halo, titanus press).
+- 2026-07-12: CINEMATIC KO FINISHERS (~7s) + enable_finishers config.
+  · When a round is won by a KILL (never on timeout), the winner and the
+    corpse become cinePuppets and a per-mech execution plays on a
+    locked-off cinematic camera before the normal round-end flow resumes
+    (match state 'finisher'; K.O. sting up front, no double slow-mo).
+  · Finisher system (src/game/finisher.js): tiny timeline — at() one-shot
+    beats, hold() per-frame spans (approach glides, carries, topples,
+    camera orbits; later holds win). Camera shots orbit the action center
+    and every distance scales with the combatants' stature. Shared beats:
+    approach stride, spark/shake/hit-stop hits, victim flinch/knockdown,
+    finale burst, hero-pose triumph shot.
+  · 16 bespoke scenes. Highlights: COLOSSUS/TITANUS hoist the corpse
+    overhead, hurl it down and quake it flat under three slams before
+    reaching to the sky; SAURION leaps onto the face, rides them down
+    under a 7-bite frenzy, springs off, looks around and grooms; GLACIER
+    freeze-whites them and shatters the statue; RHINO gallops straight
+    through; WRAITH uncloaks behind them for a railgun execution as bats
+    spiral out; NOVA drops three stars under a blazing pinned halo; VIPER
+    blink-flurries all four sides; TEMPEST pins them under his storm;
+    FENRIR mauls and howls; CRANKY triple-clamps then geysers the wreck
+    skyward; INFERNO immolates; VULCAN shreds point-blank; AEGIS bashes
+    then calls the judgment pillar; FROGGER gunk-barrage + squash-hop;
+    JERRY empties the flea nest onto the corpse.
+  · CONFIG.enable_finishers (src/core/config.js), URL ?finishers=0 off.
+  · PREVIEW MODE: ?finisherdemo=1 (alias ?debug=finisher) on the battle
+    harness loops P1 executing P2 forever — pick robot/enemy/arena via
+    the usual p1/p2/battle params. The dev harness also fires real
+    finishers on last-kill KOs.
+  · Engine capture mode for tooling: engine.paused + engine.step(dt)
+    steps the sim deterministically while RAF keeps presenting.
+  Verified: 16-mech attackmatrix ALL CONNECT, ace soak clean WITH the
+  finisher firing on the KO, colossus/saurion demo frame reviews (lift +
+  slam beats, saurion riding the fallen mech mid-bite), per-mech videos
+  captured via tools stepping (delivered separately).

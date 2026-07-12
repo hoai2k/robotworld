@@ -8,4 +8,7 @@ export const CONFIG = {
   // use the generated PBR texture pack (src/textures/) for robots, grounds
   // and buildings; anything missing falls back to procedural automatically
   useTextures: params.get('textures') !== '0',
+  // ~7s cinematic KO finisher when a round is won by a kill (never on a
+  // timeout). ?finishers=0 disables at load time.
+  enable_finishers: params.get('finishers') !== '0',
 };

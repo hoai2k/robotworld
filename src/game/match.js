@@ -1,5 +1,6 @@
 // Match orchestration: best-of-3 rounds, intros, KO slow-mo, timeouts.
 import { clamp01 } from '../core/utils.js';
+import { CONFIG } from '../core/config.js';
 
 const ROUND_TIME = 99;
 const WINS_NEEDED = 2;
@@ -15,7 +16,7 @@ export class Match {
     this.state = 'idle';
     this.stateT = 0;
     this.timeLeft = ROUND_TIME;
-    this.unsub = world.events.on('ko', () => this.checkRoundEnd());
+    this.unsub = world.events.on('ko', (e) => this.onKO(e));
     this.pendingWinner = null;
   }
 
@@ -45,21 +46,36 @@ export class Match {
     this.hud.callout(`${talker.def.name}: ${talker.def.quotes.intro}`);
   }
 
-  checkRoundEnd() {
+  onKO({ fighter, attacker }) {
     if (this.state !== 'fight') return;
     const alive = this.fighters.filter((f) => f.alive);
-    if (alive.length <= 1) {
-      this.endRound(alive[0] || null, 'K.O.!');
+    if (alive.length > 1) return;
+    const winner = alive[0] || null;
+    // won by a KILL (not timeout) and the survivor threw it: cinematic
+    // finisher first, then the normal round-end flow
+    if (CONFIG.enable_finishers && winner && attacker === winner) {
+      this.state = 'finisher';
+      this.engine.timeScale = 1;
+      this.hud.announce('K.O.!', false, '#ff4d5e');
+      this.world.audio?.play('stingKO');
+      for (const f of this.fighters) f.controlsLocked = true;
+      this.world.startFinisher(winner, fighter, () => {
+        this.endRound(winner, 'K.O.!', true);
+      });
+      return;
     }
+    this.endRound(winner, 'K.O.!');
   }
 
-  endRound(winner, banner) {
+  endRound(winner, banner, afterFinisher = false) {
     this.state = 'roundEnd';
-    this.stateT = 3.2;
+    this.stateT = afterFinisher ? 2.4 : 3.2;
     this.pendingWinner = winner;
-    this.engine.timeScale = 0.25;          // dramatic slow-mo
-    this.hud.announce(banner, false, banner === 'K.O.!' ? '#ff4d5e' : null);
-    this.world.audio?.play('stingKO');
+    if (!afterFinisher) {
+      this.engine.timeScale = 0.25;        // dramatic slow-mo
+      this.hud.announce(banner, false, banner === 'K.O.!' ? '#ff4d5e' : null);
+      this.world.audio?.play('stingKO');   // (the finisher already sold it)
+    }
     if (winner) winner.wins++;
   }
 

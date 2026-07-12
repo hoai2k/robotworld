@@ -1,6 +1,7 @@
 // World: binds engine, arena, fighters, projectiles, FX, audio. Owns the
 // scheduler, ranged-fire dispatch, explosions and area effects.
 import * as THREE from 'three';
+import { Finisher } from './finisher.js';
 import { Effects } from '../combat/effects.js';
 import { ProjectileSystem } from '../combat/projectiles.js';
 import { FleaSystem } from '../combat/fleas.js';
@@ -182,6 +183,7 @@ export class World {
 
   update(dt) {
     this.time += dt;
+    if (this.finisher) this.finisher.update(dt);
     // scheduler
     for (let i = this.tasks.length - 1; i >= 0; i--) {
       if (this.tasks[i].t <= this.time) {
@@ -506,6 +508,11 @@ export class World {
         this.audio?.play('plasma');
         break;
     }
+  }
+
+
+  startFinisher(winner, victim, onDone) {
+    this.finisher = new Finisher(this, winner, victim, onDone);
   }
 
   clearTransient() {

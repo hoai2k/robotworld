@@ -149,6 +149,18 @@ export class CameraSystem {
 
   // fighters framed by the camera; humans get viewports when split
   update(dtReal, fighters, humans) {
+    // cinematic finisher owns every camera while it runs
+    const fin = this.world.finisher;
+    if (fin) {
+      const cams = this.engine.views && this.engine.views.length > 1
+        ? this.engine.views.map((v) => v.camera) : [this.engine.camera];
+      for (const c of cams) {
+        c.position.copy(fin.cam.pos);
+        c.lookAt(fin.cam.look);
+      }
+      return;
+    }
+
     const alive = fighters.filter((f) => f.alive);
     const framed = alive.length ? alive : fighters;
     if (!framed.length) return;

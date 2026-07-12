@@ -545,6 +545,7 @@ export class Fighter {
 
   // ================= per-frame =================
   update(dt) {
+    if (this.cinePuppet) return; // a cinematic finisher owns this body
     const st = this.def.stats;
     const I = this.intent;
     this.stateT -= dt;
@@ -975,6 +976,7 @@ export class Fighter {
     this.alive = true;
     this.hanging = null;
     this._carry = null;
+    this.cinePuppet = false;
     this.group.rotation.set(0, yaw, 0); // clear any carry/slam roll
     if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
     this.pos.copy(pos);

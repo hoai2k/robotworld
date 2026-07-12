@@ -12,6 +12,7 @@ import { AIController } from '../game/ai.js';
 import { Input } from '../game/input.js';
 import { CameraSystem } from '../game/camera.js';
 import { pick } from '../core/utils.js';
+import { CONFIG } from '../core/config.js';
 
 export function runBattleTest() {
   const params = new URLSearchParams(location.search);
@@ -67,11 +68,46 @@ export function runBattleTest() {
   hud.style.cssText = 'position:absolute;top:10px;left:10px;color:#8fe8ff;font:13px monospace;z-index:20;white-space:pre;text-shadow:0 1px 2px #000';
   document.getElementById('ui-root').appendChild(hud);
 
+  // finishers fire here too (the real Match wires its own) — and
+  // ?finisherdemo=1 (alias ?debug=finisher) turns the page into a looping
+  // finisher preview: P1 executes P2 over and over so each mech's scene
+  // can be judged with the p1/p2/battle params
+  const demo = params.get('finisherdemo') === '1' || params.get('debug') === 'finisher';
+  let demoT = demo ? 1.6 : 0;
+  world.events.on('ko', ({ fighter, attacker }) => {
+    const alive = fighters.filter((f) => f.alive);
+    if (world.finisher || !attacker || !attacker.alive) return;
+    if (!CONFIG.enable_finishers && !demo) return;
+    if (!demo && alive.length > 1) return; // real KO finisher: last kill only
+    for (const f of fighters) f.controlsLocked = true;
+    world.startFinisher(attacker, fighter, () => {
+      if (demo) demoT = 2.2; // stay locked; breathe, then run it again
+      else for (const f of fighters) f.controlsLocked = false;
+    });
+  });
+
   engine.onUpdate = (dt) => {
     input.poll();
     if (!auto && fighters[0].alive) {
       const yawIn = cameraSys.inputYawFor(fighters[0], 0);
       input.readIntent('kb1', fighters[0].intent, yawIn);
+    }
+    if (demo && !world.finisher) {
+      demoT -= dt;
+      if (demoT <= 0) {
+        demoT = 999;
+        const [a, v] = fighters;
+        const sp = arena.spawnPoints(2);
+        a.resetForRound(sp[0].pos, sp[0].yaw);
+        v.resetForRound(sp[1].pos, sp[1].yaw);
+        // stand them a stage-width apart, then P1 lands the killing blow
+        v.pos.set(a.pos.x + Math.sin(a.yaw) * 9, 0, a.pos.z + Math.cos(a.yaw) * 9);
+        a.controlsLocked = v.controlsLocked = true; // pure stage, no AI brawl
+        v.hp = 1;
+        v.iframes = 0;
+        v.blocking = false;
+        v.takeHit(9999, a, { srcPos: a.pos });
+      }
     }
     for (const ai of ais) ai.update(dt);
     world.update(dt);
