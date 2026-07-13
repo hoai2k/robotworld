@@ -9,6 +9,7 @@ import { SPECIALS, ULTS } from './specials.js';
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
 const _palmTmp = new THREE.Vector3();
+const _palmTmp2 = new THREE.Vector3();
 const _carryTmp = new THREE.Vector3();
 const _carryOff = new THREE.Vector3();
 const _white = new THREE.Color(0xf4faff);
@@ -128,6 +129,37 @@ export class Fighter {
     out.sub(_carryOff);
     out.y += 0.24 * this.scale; // palms cradle UNDER the torso
     return out;
+  }
+
+  // IK-lite palm press: pull the hands in until they touch the carried
+  // body instead of hovering at the rig's natural width. Runs AFTER the
+  // animator pose each frame (direct joint writes would otherwise be
+  // clobbered); the inward roll direction is re-probed every frame since
+  // it flips as the arms sweep from reach to overhead.
+  clampPalmsTo(prey) {
+    const J = this.mech.joints;
+    if (!(J.handL && J.handR && J.shoulderL && J.shoulderR)) return;
+    const want = Math.max(0.9, prey.hitRadius * 1.05);
+    const meas = () =>
+      J.handL.getWorldPosition(_palmTmp).distanceTo(J.handR.getWorldPosition(_palmTmp2));
+    const d0 = meas();
+    const inward = (sh) => {
+      sh.rotation.z += 0.06;
+      const d = meas();
+      sh.rotation.z -= 0.06;
+      return d < d0 ? 1 : -1;
+    };
+    const dL = inward(J.shoulderL), dR = inward(J.shoulderR);
+    let fix = this._palmFix || 0;
+    J.shoulderL.rotation.z += dL * fix;
+    J.shoulderR.rotation.z += dR * fix;
+    const sep = meas();
+    const arm = (this.mech.dims.upperArmLen || 1.5) + (this.mech.dims.foreArmLen || 1.5);
+    const step = clamp((sep - want) / (2 * arm), -0.12, 0.12); // servo rate
+    const nfix = clamp(fix + step, 0, 1.0);
+    J.shoulderL.rotation.z += dL * (nfix - fix);
+    J.shoulderR.rotation.z += dR * (nfix - fix);
+    this._palmFix = nfix;
   }
 
   // nearest living enemy (through the arena seam when wrapping)
@@ -716,11 +748,13 @@ export class Fighter {
       if (!this.alive || !carrier.alive || carrier.state !== 'special' || c.t <= 0) {
         this._carry = null; // thrown (the special clears us) or lift broken
       } else {
-        c.riseT = Math.min(1, (c.riseT || 0) + dt / 0.24);
-        const k = c.riseT * c.riseT * (3 - 2 * c.riseT); // smoothstep hoist
-        // ride the carrier's ACTUAL palms (liftHold swings them overhead),
-        // so the body visibly rests in the hands instead of floating
+        // snap INTO the hands fast (0.12s), then ride the palms' own sweep
+        // up — the liftHold arm swing IS the lift trajectory, so body and
+        // hands stay in constant contact the whole way
+        c.riseT = Math.min(1, (c.riseT || 0) + dt / 0.12);
+        const k = c.riseT * c.riseT * (3 - 2 * c.riseT); // smoothstep grip
         const tp = carrier.carryPoint(this, _carryTmp);
+        carrier._palmPrey = this; // carrier's post-pose palm press hooks on
         this.pos.x = c.x0 + (tp.x - c.x0) * k;
         this.pos.y = c.y0 + (tp.y - c.y0) * k;
         this.pos.z = c.z0 + (tp.z - c.z0) * k;
@@ -908,6 +942,13 @@ export class Fighter {
       duck: dk,
       charging: this._charging,
     });
+    // palm press must land after the pose is applied (else clobbered)
+    if (this._palmPrey) {
+      this.clampPalmsTo(this._palmPrey);
+      this._palmPrey = null;
+    } else {
+      this._palmFix = 0;
+    }
     if (this.state !== 'channel') this.firing = false;
 
     // face target yaw

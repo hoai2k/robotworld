@@ -18,6 +18,20 @@ const ALL_JOINTS = [
   'thighL', 'thighR', 'kneeL', 'kneeR', 'ankleL', 'ankleR',
 ];
 
+// wrist counter-pitch for mechs whose hand hardware (gatling pods, torch
+// bells, pincers) extends along the hand's +Z: as the arm chain raises, the
+// hardware would pitch skyward, so the wrist rolls back by the raise amount
+// — capped near 90° so fully-raised arms read as hardware STRETCHED along
+// the arm line rather than a broken wrist. At rest (arms down) it's a no-op.
+function levelHands(tgt) {
+  for (const side of ['L', 'R']) {
+    const raise = -(tgt['shoulder' + side][0] + tgt['elbow' + side][0] * 0.5);
+    if (raise > 0.05) {
+      tgt['hand' + side][0] += Math.min(1.62, raise);
+    }
+  }
+}
+
 function sampleTrack(track, t) {
   if (t <= track[0].t) return track[0].v;
   const last = track[track.length - 1];
@@ -385,18 +399,14 @@ export class Animator {
         this.spinVel = ctx.firing ? Math.min(this.spinVel + dt * 40, 28) : Math.max(this.spinVel - dt * 18, 0);
         if (J.gatlingR) J.gatlingR.rotation.z += this.spinVel * dt;
         if (J.gatlingL) J.gatlingL.rotation.z -= this.spinVel * dt;
+        levelHands(tgt); // gatling pods track the aim line as the arms rise
         break;
       }
       case 'inferno': {
         // the flamethrower bells point along the hand's +Z, so raising the
-        // arm for the channel tips the torch SKYWARD — counter-pitch the
-        // wrist while firing so the torch aims straight down the fire line
-        // (written into tgt: the smoothing layer owns the standard joints)
-        this._torchT = ctx.firing ? 0.22 : Math.max(0, (this._torchT || 0) - dt);
-        if (this._torchT > 0) {
-          tgt.handR[0] += 1.55;
-          tgt.handL[0] += 0.7; // support arm half-follows
-        }
+        // arm tips the torch SKYWARD — the wrist counter-pitch keeps it
+        // aimed down the fire line whatever the arms are doing
+        levelHands(tgt);
         break;
       }
       case 'nova':
@@ -413,31 +423,30 @@ export class Animator {
         }
         break;
       case 'rhino': {
-        // BULL RUSH: drop onto all fours and gallop like a charging beast.
-        // Overrides the biped pose while the charge is rolling. (Written
-        // into tgt — direct joint writes here get clobbered by applyPose.)
+        // BULL RUSH: stays on two legs but the whole frame pitches HARD
+        // over the horn — a linebacker sprint, fists pumping, head up the
+        // runway. (Written into tgt — direct writes get clobbered.)
         if (ctx.charging) {
-          const g = this.phase * 2.4;         // fast gallop cycle
+          const g = this.phase * 2.2;         // driving sprint cycle
           const fL = Math.sin(g), fR = Math.sin(g + Math.PI);
-          // pitch the whole frame down over the front limbs, ride low
-          tgt.hipsRot = [0.95, 0, 0];
-          tgt.hipsPos = [0, -this.D.hipHeight * 0.5, 0];
-          tgt.torso = [0.45, 0, 0];
-          tgt.head = [-1.15, 0, 0]; // head up, eyes forward
-          // FRONT legs = the arms, reaching to the ground and pounding
-          tgt.shoulderL = [-1.5 + fL * 0.6, 0, -0.18];
-          tgt.shoulderR = [-1.5 + fR * 0.6, 0, 0.18];
-          tgt.elbowL = [-0.5 - Math.max(0, fL) * 0.6, 0, 0];
-          tgt.elbowR = [-0.5 - Math.max(0, fR) * 0.6, 0, 0];
-          tgt.handL = [0.5, 0, 0];
-          tgt.handR = [0.5, 0, 0];
-          // BACK legs gallop on the opposite phase
-          tgt.thighL = [-0.2 + fR * 0.7, 0, 0];
-          tgt.thighR = [-0.2 + fL * 0.7, 0, 0];
-          tgt.kneeL = [0.5 + Math.max(0, -fR) * 0.7, 0, 0];
-          tgt.kneeR = [0.5 + Math.max(0, -fL) * 0.7, 0, 0];
-          tgt.ankleL = [-0.35, 0, 0];
-          tgt.ankleR = [-0.35, 0, 0];
+          tgt.hipsRot = [0.5, 0, 0];          // heavy forward lean...
+          tgt.hipsPos = [0, -this.D.hipHeight * 0.22, 0];
+          tgt.torso = [0.55, 0, 0];           // ...chest down over the horn
+          tgt.head = [-0.8, 0, 0];            // eyes forward
+          // arms tucked and PUMPING with the stride
+          tgt.shoulderL = [-0.4 + fL * 0.9, 0, -0.14];
+          tgt.shoulderR = [-0.4 + fR * 0.9, 0, 0.14];
+          tgt.elbowL = [-1.2, 0, 0];
+          tgt.elbowR = [-1.2, 0, 0];
+          tgt.handL = [0.2, 0, 0];
+          tgt.handR = [0.2, 0, 0];
+          // legs drive on the opposite phase, long and low
+          tgt.thighL = [-0.5 + fR * 0.85, 0, 0];
+          tgt.thighR = [-0.5 + fL * 0.85, 0, 0];
+          tgt.kneeL = [0.6 + Math.max(0, -fR) * 0.8, 0, 0];
+          tgt.kneeR = [0.6 + Math.max(0, -fL) * 0.8, 0, 0];
+          tgt.ankleL = [-0.3, 0, 0];
+          tgt.ankleR = [-0.3, 0, 0];
         }
         break;
       }
@@ -561,6 +570,9 @@ export class Animator {
         // hydro recoil: the whole shell kicks back while the cannons fire
         this._crankyRecoil = lerp(this._crankyRecoil || 0, ctx.firing ? 0.12 : 0, dt * (ctx.firing ? 18 : 6));
         tgt.torso[0] -= this._crankyRecoil;
+        // raised arms STRETCH the pincers out along the arm line instead
+        // of leaving them at the resting 90° wrist crook
+        levelHands(tgt);
         break;
       }
       case 'jerry': {

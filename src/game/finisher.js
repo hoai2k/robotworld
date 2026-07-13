@@ -196,6 +196,12 @@ export class Finisher {
     for (const h of this.holds) {
       if (this.t >= h.t0 && this.t <= h.t1) {
         h.fn(clamp01((this.t - h.t0) / Math.max(1e-4, h.t1 - h.t0)), dt);
+      } else if (this.t > h.t1 && !h.closed) {
+        // frames land BETWEEN t1-eps and t1, so a span could end at k≈0.97
+        // and freeze mid-arc (bodies left floating). Every hold gets one
+        // guaranteed k=1 tick when its span passes.
+        h.closed = true;
+        h.fn(1, dt);
       }
     }
     // puppets animate outside the fighter state machine; a hold may have
@@ -203,6 +209,13 @@ export class Finisher {
     this.win.animator.update(dt, this.winCtx || { speed: 0, grounded: true });
     this.winCtx = null;
     this.vic.animator.update(dt, { speed: 0, grounded: true });
+    // carry spans stage a palm press: runs post-pose or it gets clobbered
+    if (this._palmVic) {
+      this.win.clampPalmsTo(this._palmVic);
+      this._palmVic = null;
+    } else {
+      this.win._palmFix = 0;
+    }
     this.win.group.rotation.y = this.win.yaw;
     if (this.t >= this.dur) this.end();
   }
@@ -217,6 +230,8 @@ export class Finisher {
     this.vic.group.rotation.x = 0;
     this.vic.group.rotation.z = 0;
     this.vic.group.scale.set(1, 1, 1);
+    this.vic.pos.y = 0; // dead ON the dirt, never hovering over it
+    if (this.win.pos.y < 1.2) this.win.pos.y = 0;
     this.vic.animator.play('dead'); // stays where the finisher left them
     this.w.finisher = null;
     this.onDone?.();
@@ -256,19 +271,21 @@ const SCRIPTS = {
     F.approach(0.2, 1.0, 3.2);
     F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
     F.at(1.45, () => { win.animator.play('liftHold'); vic.animator.play('launched'); F.beat('whooshBig', 0.3, 0); });
-    // hauled up INTO the palms — the body rides the actual lift-swing of
-    // the hands and rests in them at the top
+    // seized at the END of the reach (hands low, body rolled into them),
+    // then the body rides the liftHold arm-swing itself all the way up —
+    // constant contact, with the palm press squeezing onto the torso
     let cx, cy2, cz;
-    F.hold(1.45, 2.3, (k) => {
+    F.hold(1.28, 2.55, (k, dt) => {
       if (cx === undefined) { cx = vic.pos.x; cy2 = vic.pos.y; cz = vic.pos.z; }
-      const e = smooth(k);
+      const grip = smooth(Math.min(1, k / 0.16)); // in the hands within ~0.2s
       const tp = win.carryPoint(vic, _ct);
-      vic.pos.x = cx + (tp.x - cx) * e;
-      vic.pos.y = cy2 + (tp.y - cy2) * e;
-      vic.pos.z = cz + (tp.z - cz) * e;
+      vic.pos.x = cx + (tp.x - cx) * grip;
+      vic.pos.y = cy2 + (tp.y - cy2) * grip;
+      vic.pos.z = cz + (tp.z - cz) * grip;
       vic.yaw = vic.targetYaw = win.yaw + Math.PI / 2;
       vic.group.rotation.y = vic.yaw;
-      vic.group.rotation.x = -1.45 * e;
+      vic.group.rotation.x = -1.45 * grip;
+      F._palmVic = vic;
     });
     F.camShot(1.3, 2.6, { dist: 9.5, h: 7, az0: 3.5, az1: 3.1, lookH: 7 });
     F.at(2.55, () => win.animator.play('throwHeave'));
@@ -475,71 +492,86 @@ const SCRIPTS = {
     F.triumph(5.05);
   },
 
-  // AEGIS: shield bash skids them across the dirt, then the sky-pillar of
-  // judgment BLASTS the body skyward before it crashes back down
+  // AEGIS: plants himself, reaches up to the heavens — and the sky ANSWERS:
+  // ten spears of light hammer down all over the mark until nothing stands
   aegis(F) {
     const { win, vic, w } = F;
-    F.approach(0.2, 1.0, 3.2);
-    F.at(1.15, () => win.animator.play('shieldBash'));
-    F.at(1.35, () => { F.beat('whooshBig', 0.7, 0.09); F.sparks(18, 12, 0x49b7ff); F.vicDown(); });
-    F.vicBash(1.36, F.axis, 2.2, 0.9, 0.8);
-    F.trackCenter(1.4, 5.0, 5);
-    F.at(2.1, () => { win.animator.play('castRaise'); w.audio?.play('cast'); });
-    F.at(2.6, () => {
-      w.effects.rings.spawn(vic.pos, { from: 5, to: 4.5, dur: 0.8, color: 0x49b7ff, y: 0.4 });
+    F.approach(0.2, 1.0, 5.5);
+    F.at(1.15, () => { win.animator.play('castRaise'); w.audio?.play('cast'); });
+    F.at(1.5, () => {
+      w.effects.rings.spawn(win.pos, { from: 0.5, to: 6, dur: 0.6, color: 0x49b7ff, y: 0.4 });
+      w.audio?.play('charge');
     });
-    F.at(3.5, () => {
-      const top = vic.pos.clone(); top.y += 60;
-      w.effects.beams.spawn(top, vic.pos, { radius: 2.6, dur: 0.9, color: 0xbfe8ff });
-      w.effects.explosion(vic.center(), 5, { color: 0x9fd8ff });
-      F.beat('beam', 1.1, 0.12);
-      vic.animator.play('launched');
-    });
-    // the pillar hurls them up; they crash back down in the light
-    F.hold(3.5, 4.55, (k) => {
-      vic.pos.y = Math.sin(Math.min(1, k) * Math.PI) * 9;
-      vic.group.rotation.x = -k * 3.5;
-    });
-    F.at(4.55, () => {
-      vic.group.rotation.x = 0;
-      F.vicDown();
-      F.beat('bodyfall', 0.9, 0.08);
-      w.effects.dustPuff(vic.pos, 12);
-    });
-    F.camShot(2.1, 4.5, { dist: 12, h: 3.4, az0: 2.6, az1: 2.3, lookH: 5.5 });
-    F.camShot(4.5, 5.2, { dist: 8, h: 2.6, az0: 2.9, az1: 2.6, lookH: 1.6 });
-    F.at(4.7, () => F.sparks(20, 12, 0x9fd8ff));
-    F.triumph(5.2, 'victory', 'cast');
+    // scattered azimuths, wandering in from the edges to dead-center
+    const ring = [0.4, 2.4, 4.2, 1.1, 5.3, 3.3, 0.9, 2.0, 4.8, 0];
+    for (let i = 0; i < 10; i++) {
+      F.at(2.0 + i * 0.3, () => {
+        const last = i >= 8; // the closing pair strikes square ON them
+        const r = last ? 0.3 : 0.7 + (i % 3) * 1.2;
+        const gx = vic.pos.x + Math.sin(ring[i]) * r;
+        const gz = vic.pos.z + Math.cos(ring[i]) * r;
+        const ground = new THREE.Vector3(gx, 0.1, gz);
+        const top = new THREE.Vector3(gx, 55, gz);
+        w.effects.beams.spawn(top, ground, { radius: last ? 1.7 : 0.8, dur: 0.5, color: 0xbfe8ff });
+        w.effects.glows.emit(gx, 1.2, gz, 0, 0, 0, { life: 0.3, size: last ? 7 : 4.5, color: 0x9fd8ff, alpha: 1 });
+        w.effects.explosion(new THREE.Vector3(gx, 0.8, gz), last ? 4 : 2.2, { color: 0x9fd8ff, smoke: false });
+        F.beat('beam', last ? 1 : 0.5, last ? 0.1 : 0.04);
+        F.vicFlinch();
+      });
+    }
+    F.vicBash(2.92, F.axis + 1.2, 1.6, 0.9, 0.7);
+    F.vicBash(3.82, F.axis - 1.4, 1.6, 0.9, 0.7);
+    F.trackCenter(2.0, 5.2, 4);
+    // arms-to-the-sky hero angle, then wide for the barrage
+    F.camShot(1.05, 2.4, { dist: 11, h: 2.8, az0: 3.6, az1: 3.3, lookH: 4.5 });
+    F.camShot(2.4, 5.1, { dist: 13, h: 4.5, az0: 2.7, az1: 2.25, lookH: 3.5 });
+    F.at(5.0, () => { F.vicDown(); F.finaleBurst(0x9fd8ff); });
+    F.triumph(5.4, 'victory', 'cast');
   },
 
-  // NOVA: halo slams to apex and three falling stars each BLAST the body a
-  // different direction across the crater field
+  // NOVA: the broken halo SPINS UP faster and faster, slams to apex and
+  // IGNITES — then starfire lances converge on the mark from every
+  // direction of the compass
   nova(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.9, 8);
-    F.at(1.0, () => { win.animator.play('castRaise'); w.audio?.play('cast'); });
-    F.hold(1.0, F.dur, () => { // halo pinned blazing at apex all scene
+    F.at(1.0, () => { win.animator.play('castRaise'); w.audio?.play('charge'); });
+    // spin-up: her animator signature reads the ring angle and pulses the
+    // glow as the crescents sweep alignment — accelerating = strobing
+    F.hold(1.0, 2.4, (k, dt) => {
+      const J = win.mech.joints;
+      if (J.halo) J.halo.rotation.z += dt * (4 + 26 * k * k);
+    });
+    F.at(2.4, () => {
+      F.beat('powerup', 0.5, 0.06);
+      w.effects.rings.spawn(win.pos, { from: 0.4, to: 5.5, dur: 0.5, color: 0xff5ce8, y: win.height * 0.72 });
+    });
+    F.hold(2.4, F.dur, () => { // pinned at apex, blazing (signature maxes it)
       const J = win.mech.joints;
       if (J.halo) J.halo.rotation.z = 0;
-      if (win.mech.materials.glowSoft) win.mech.materials.glowSoft.emissiveIntensity = 3.8;
     });
-    const dirs = [0.8, -1.1, 2.4];
-    for (let i = 0; i < 3; i++) {
-      F.at(2.0 + i * 0.75, () => {
-        const p = vic.pos.clone().add(new THREE.Vector3(rand(-0.6, 0.6), 0, rand(-0.6, 0.6)));
-        const top = p.clone(); top.y += 34;
-        w.effects.beams.spawn(top, p, { radius: 0.9, dur: 0.3, color: 0xff5ce8 });
-        w.effects.explosion(vic.center(), 3.6, { color: 0xff5ce8, smoke: false });
-        F.beat('plasma', 0.6, 0.07);
-        F.sparks(16, 11, 0xff5ce8);
+    // nine lances spiral around the compass, all converging on the victim
+    for (let i = 0; i < 9; i++) {
+      F.at(2.7 + i * 0.26, () => {
+        const az = (i * 2.4) % (Math.PI * 2);
+        const c = vic.center();
+        const from = new THREE.Vector3(
+          c.x + Math.sin(az) * 20, 4 + (i % 3) * 5, c.z + Math.cos(az) * 20);
+        w.effects.beams.spawn(from, c, { radius: 0.5, dur: 0.3, color: 0xff5ce8 });
+        w.effects.explosion(c, 2.4, { color: 0xff5ce8, smoke: false });
+        F.beat('plasma', 0.5, 0.05);
+        F.sparks(12, 9, 0xff5ce8);
         F.vicFlinch();
       });
-      F.vicBash(2.05 + i * 0.75, F.axis + dirs[i], 2.0, 1.1, 0.9);
     }
-    F.trackCenter(2.0, 4.8, 5);
-    F.camShot(1.6, 4.6, { dist: 9, h: 3.6, az0: 2.2, az1: 2.9, lookH: 3.2 });
-    F.at(4.4, () => { F.vicDown(); F.finaleBurst(0xff5ce8); });
-    F.triumph(5.1, 'burst', 'powerup');
+    F.vicBash(3.24, F.axis + 1.0, 1.5, 0.9, 0.8);
+    F.vicBash(4.02, F.axis - 1.3, 1.5, 0.9, 0.8);
+    F.trackCenter(2.7, 5.3, 4);
+    // over-the-shoulder on the ring as it spins up, then wide convergence
+    F.camShot(1.0, 2.6, { dist: 12, h: 3.4, az0: 3.35, az1: 3.15, lookH: 3 });
+    F.camShot(2.6, 5.2, { dist: 13, h: 4.2, az0: 2.2, az1: 2.9, lookH: 3 });
+    F.at(5.1, () => { F.vicDown(); F.finaleBurst(0xff5ce8); });
+    F.triumph(5.5, 'burst', 'powerup');
   },
 
   // RHINO: backs off, gallops STRAIGHT THROUGH them, wheels around in a
@@ -694,46 +726,56 @@ const SCRIPTS = {
     F.triumph(4.95, 'taunt', 'howl');
   },
 
-  // WRAITH: kneels into the dark and lets the ghost off the chain — the
-  // spectre rakes THROUGH the victim four times, back and forth, before
-  // wraith re-forms and puts a single rail slug through the wreck
+  // WRAITH: hurls the ghost FORWARD through the mark, blinks to the far
+  // side, wheels around and hurls it forward again — four hunting passes
+  // (the spectre only ever flies out of him), then the rail slug
   wraith(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.75, 7);
     F.at(0.9, () => { win.animator.play('castRaise'); w.audio?.play('cloak'); });
-    F.at(1.15, () => {
-      const g = F.makeSpectre();
-      g.visible = true;
-      win.setOpacity(0.5); // the body dims while the soul hunts
-    });
-    // four raking passes: out through the victim, back through, again, again
-    const pass = (t0, back) => {
-      F.hold(t0, t0 + 0.7, (k) => {
+    F.at(1.1, () => win.setOpacity(0.5)); // half in the dark while hunting
+    const pass = (t0, i) => {
+      const side = i % 2 === 0 ? -1 : 1; // alternating launch side
+      F.at(t0 - 0.14, () => {
+        // blink to the launch side, square up on the victim
+        win.pos.x = F.center.x + Math.sin(F.axis) * 7 * side;
+        win.pos.z = F.center.z + Math.cos(F.axis) * 7 * side;
+        win.yaw = win.targetYaw = side < 0 ? F.axis : F.axis + Math.PI;
+        win.group.rotation.y = win.yaw;
+        w.effects.rings.spawn(win.pos, { from: 2.2, to: 0.4, dur: 0.3, color: 0xff3838, y: win.height * 0.5 });
+        w.audio?.play('cloak');
+        win.animator.play('aim', { speed: 1.3 });
+      });
+      F.at(t0, () => {
+        F.dropSpectre();
+        F.makeSpectre().visible = true; // baked facing the way he faces
+        w.audio?.play('howl', { vol: 0.3, pitch: 1.8 });
+      });
+      F.hold(t0, t0 + 0.6, (k) => {
         const sp = F._spectre;
         if (!sp) return;
         const e = smooth(k);
-        const a = back ? 1 - e : e;
+        // always OUT of wraith: from his side, through the mark, beyond
         sp.ghost.position.set(
-          Math.sin(F.axis) * 11 * a,
-          Math.sin(a * Math.PI) * 0.5,
-          Math.cos(F.axis) * 11 * a);
-        sp.gmat.opacity = 0.24 + 0.14 * Math.sin(k * 40);
+          Math.sin(F.axis) * 14 * e * -side,
+          Math.sin(e * Math.PI) * 0.5,
+          Math.cos(F.axis) * 14 * e * -side);
+        sp.gmat.opacity = 0.3 - e * 0.12 + 0.1 * Math.sin(k * 40);
       });
-      F.at(t0 + (back ? 0.24 : 0.38), () => {
-        F.beat('slash', 0.5, 0.06);
-        F.sparks(14, 10, 0xcfe8ff);
-        F.vicFlinch();
-        w.audio?.play('cloak');
-      });
+      F.at(t0 + 0.3, () => { F.beat('slash', 0.5, 0.06); F.sparks(14, 10, 0xcfe8ff); F.vicFlinch(); });
+      F.at(t0 + 0.62, () => F.dropSpectre());
     };
-    pass(1.3, false);
-    pass(2.15, true);
-    pass(3.0, false);
-    pass(3.85, true);
-    // side-on profile shot so the back-and-forth reads clean
-    F.camShot(0.9, 4.6, { dist: 10.5, h: 2.9, az0: 1.4, az1: 1.75, lookH: 2.5 });
-    F.at(4.6, () => {
-      F.dropSpectre();
+    pass(1.35, 0);
+    pass(2.25, 1);
+    pass(3.15, 2);
+    pass(4.05, 3);
+    // side-on profile shot so the launch-blink-launch rhythm reads clean
+    F.camShot(0.9, 4.6, { dist: 11, h: 2.9, az0: 1.4, az1: 1.75, lookH: 2.5 });
+    F.at(4.7, () => {
+      win.pos.x = F.center.x - Math.sin(F.axis) * 7;
+      win.pos.z = F.center.z - Math.cos(F.axis) * 7;
+      win.yaw = win.targetYaw = F.axis;
+      win.group.rotation.y = win.yaw;
       win.setOpacity(1);
       w.effects.rings.spawn(win.pos, { from: 3, to: 0.5, dur: 0.4, color: 0xff3838, y: win.height * 0.5 });
       w.audio?.play('cloak');
