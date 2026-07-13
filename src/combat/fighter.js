@@ -760,10 +760,13 @@ export class Fighter {
         this.pos.z = c.z0 + (tp.z - c.z0) * k;
         this.vel.set(0, 0, 0);
         this.grounded = false;
-        // rolled flat ACROSS the press as it rises (wrestling body slam)
-        this.yaw = this.targetYaw = carrier.yaw + Math.PI / 2;
-        this.group.rotation.y = this.yaw;
-        this.group.rotation.x += (-1.45 * k - this.group.rotation.x) * Math.min(1, dt * 10);
+        // rolled flat ACROSS the press: a Z-roll under the carrier's yaw
+        // lays the body along the carrier's left<->right line whatever way
+        // they face — head off one hand, legs off the other
+        this.yaw = this.targetYaw = carrier.yaw;
+        this.group.rotation.y = carrier.yaw;
+        this.group.rotation.x += (0 - this.group.rotation.x) * Math.min(1, dt * 10);
+        this.group.rotation.z += (1.45 * k - this.group.rotation.z) * Math.min(1, dt * 10);
         this.animator.update(dt, { speed: 0, grounded: false, vy: 0 });
         return;
       }

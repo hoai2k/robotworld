@@ -283,9 +283,12 @@ const SCRIPTS = {
       vic.pos.x = cx + (tp.x - cx) * grip;
       vic.pos.y = cy2 + (tp.y - cy2) * grip;
       vic.pos.z = cz + (tp.z - cz) * grip;
-      vic.yaw = vic.targetYaw = win.yaw + Math.PI / 2;
-      vic.group.rotation.y = vic.yaw;
-      vic.group.rotation.x = -1.45 * grip;
+      // Z-roll under the carrier's yaw = laid ACROSS the hands, head off
+      // one palm and legs off the other, whichever way titanus faces
+      vic.yaw = vic.targetYaw = win.yaw;
+      vic.group.rotation.y = win.yaw;
+      vic.group.rotation.x = 0;
+      vic.group.rotation.z = 1.45 * grip;
       F._palmVic = vic;
     });
     // lift shot from the FRONT quarter: the victim hangs in the hands with
@@ -302,6 +305,7 @@ const SCRIPTS = {
     F.at(2.85, () => {
       F.beat('bodyfall', 1, 0.1);
       vic.group.rotation.x = 0;
+      vic.group.rotation.z = 0;
       F.vicDown();
       F.center.set(vic.pos.x, 0, vic.pos.z);
       w.effects.dustPuff(vic.pos, 12);
@@ -346,59 +350,64 @@ const SCRIPTS = {
     // groundPound clip is the full-body artillery slam — identical intent)
   },
 
-  // SAURION: leaps onto the chest, rides them down flat to the dirt and
-  // stays CROUCHED ON the body, jackhammer-biting at face height, then
-  // springs off, looks around, grooms
+  // SAURION: leaps straight onto the THROAT, rides them down flat — the
+  // body topples pivoting under his neck-grip — and jackhammer-bites the
+  // collar, then springs off, looks around, grooms
   saurion(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.85, 7);
     F.camShot(0, 1.5, { dist: 11.5, h: 4 });
     F.at(0.95, () => { win.animator.play('pounceLeap'); w.audio?.play('jump'); });
+    const NECK = vic.height * 0.78; // collar line up the victim's body
     F.hold(0.95, 1.4, (k) => {
       const e = k;
       win.pos.x = F.center.x - Math.sin(F.axis) * 7 * (1 - e);
       win.pos.z = F.center.z - Math.cos(F.axis) * 7 * (1 - e);
-      win.pos.y = Math.sin(e * Math.PI) * 5.5 + e * vic.height * 0.55;
+      win.pos.y = Math.sin(e * Math.PI) * 5.5 + e * NECK;
     });
     F.at(1.4, () => {
       F.beat('slash', 0.7, 0.09);
       win.animator.play('biteLatch', { speed: 1.8 });
       F.vicFlinch();
     });
-    // rides them down onto their back, clinging low the whole way — ends
-    // crouched right on the fallen chest so the bites REACH
-    const rideY = Math.max(0.85, vic.height * 0.16);
+    // rides them down with the jaws LOCKED at the throat: the neck stays
+    // pinned under him at stage center and the body swings down beneath it
+    const neckOff = new THREE.Vector3();
+    const rideDown = (e, bob = 0) => {
+      neckOff.set(0, NECK, 0).applyEuler(vic.group.rotation);
+      vic.pos.x = F.center.x - neckOff.x;
+      vic.pos.z = F.center.z - neckOff.z;
+      vic.pos.y = 0;
+      win.pos.x = F.center.x;
+      win.pos.z = F.center.z;
+      win.pos.y = Math.max(0.82, neckOff.y * (1 - e) + 0.55 * e) + bob;
+      win.yaw = win.targetYaw = F.axis;
+    };
     F.hold(1.4, 2.6, (k) => {
       const e = smooth(k);
       vic.group.rotation.x = -1.5 * e;
-      vic.pos.x = F.center.x + Math.sin(F.axis) * 1.2 * e;
-      vic.pos.z = F.center.z + Math.cos(F.axis) * 1.2 * e;
-      win.pos.x = vic.pos.x;
-      win.pos.z = vic.pos.z;
-      win.pos.y = lerp(vic.height * 0.55, rideY, e);
-      win.yaw = win.targetYaw = F.axis;
+      rideDown(e);
     });
-    // stays glued on the wreck, bobbing with each bite
-    F.hold(2.6, 4.15, (k) => {
-      win.pos.x = vic.pos.x;
-      win.pos.z = vic.pos.z;
-      win.pos.y = rideY + Math.abs(Math.sin(k * 26)) * 0.22;
-      win.yaw = win.targetYaw = F.axis;
-    });
-    // low front shot: saurion's dipping head and the pinned chest fill the
-    // frame instead of his tail
+    // stays glued on the throat, bobbing with each bite
+    F.hold(2.6, 4.15, (k) => rideDown(1, Math.abs(Math.sin(k * 26)) * 0.22));
+    // low front shot: saurion's dipping head and the pinned collar fill
+    // the frame instead of his tail
     F.camShot(1.4, 4.1, { dist: 7.5, h: 2.2, az0: 0.55, az1: -0.15, lookH: 1.2 });
     for (let i = 0; i < 7; i++) {
       F.at(1.6 + i * 0.32, () => {
-        F.sparks(10, 9, 0xff3826);
+        // bite sparks fly from the THROAT, right under his strike (kept
+        // modest — the low lens sits right on top of them)
+        w.effects.impactSparks(
+          new THREE.Vector3(F.center.x, Math.max(0.9, win.pos.y + 0.25), F.center.z),
+          0xff3826, 6, 6);
         w.audio?.play('slash');
         vic.animator.addImpulse('torso', [rand(-0.3, 0.3), 0, rand(-0.2, 0.2)], 30, 11);
       });
     }
     F.at(4.15, () => { win.animator.stop(0.1); w.audio?.play('jump'); });
     F.hold(4.15, 4.6, (k) => { // springs off the carcass
-      win.pos.x = vic.pos.x - Math.sin(F.axis) * 4 * k;
-      win.pos.z = vic.pos.z - Math.cos(F.axis) * 4 * k;
+      win.pos.x = F.center.x - Math.sin(F.axis) * 4 * k;
+      win.pos.z = F.center.z - Math.cos(F.axis) * 4 * k;
       win.pos.y = Math.sin(k * Math.PI) * 2.6;
     });
     // looks around, then the grooming head-dip — as close to licking his
@@ -706,14 +715,23 @@ const SCRIPTS = {
     const { win, vic, w } = F;
     F.approach(0.2, 0.8, 8);
     F.at(0.95, () => { win.animator.play('lunge', { speed: 1.2 }); w.audio?.play('howl'); });
+    // the pounce lands SHORT of the mark — striking range, not on top of it
     F.hold(0.95, 1.35, (k) => {
-      win.pos.x = F.center.x - Math.sin(F.axis) * 8 * (1 - k);
-      win.pos.z = F.center.z - Math.cos(F.axis) * 8 * (1 - k);
+      win.pos.x = F.center.x - Math.sin(F.axis) * (8 - 5.2 * k);
+      win.pos.z = F.center.z - Math.cos(F.axis) * (8 - 5.2 * k);
       win.pos.y = Math.sin(k * Math.PI) * 3.4;
     });
     // the pounce STAGGERS them — they stay on their feet for the mauling
     F.at(1.35, () => { F.beat('slash', 0.8, 0.1); F.vicFlinch(); w.effects.dustPuff(vic.pos, 8); });
     F.at(1.5, () => win.animator.play('flurry', { speed: 1.7 }));
+    // planted at claw's reach: the victim stands IN FRONT catching the
+    // end of every swipe
+    F.hold(1.35, 2.32, () => {
+      win.pos.x = F.center.x - Math.sin(F.axis) * 2.8;
+      win.pos.z = F.center.z - Math.cos(F.axis) * 2.8;
+      win.pos.y = 0;
+      win.yaw = win.targetYaw = F.axis;
+    });
     for (let i = 0; i < 3; i++) {
       F.at(1.62 + i * 0.24, () => {
         F.sparks(11, 9, 0x6cd8ff);
@@ -724,9 +742,10 @@ const SCRIPTS = {
     // ...and only the LAST swipe puts them down
     F.at(2.28, () => { F.beat('hitHeavy', 0.7, 0.08); F.vicDown(); w.effects.dustPuff(vic.pos, 6); });
     // jaws lock and he TEARS OFF, dragging the wreck in a wide circle
+    // (circle phased so grab-point ~= where the bodies already are)
     F.hold(2.35, 3.9, (k, dt) => {
       const e = smooth(k);
-      const ang = F.axis + e * 3.6;
+      const ang = F.axis + Math.PI + e * 3.6;
       vic.pos.x = F.center.x + Math.sin(ang) * 2.2;
       vic.pos.z = F.center.z + Math.cos(ang) * 2.2;
       vic.pos.y = 0.25;
@@ -744,10 +763,11 @@ const SCRIPTS = {
     // the release: flung tumbling across the arena
     F.at(3.9, () => { F.beat('whooshBig', 0.7, 0.08); vic.animator.play('launched'); win.animator.stop(0.15); });
     F.hold(3.9, 4.65, (k) => {
-      const dir = F.axis + 3.6 + 1.35;
+      const endAng = F.axis + Math.PI + 3.6;
+      const dir = endAng + 1.35;
       const e = 1 - (1 - k) * (1 - k);
-      vic.pos.x = F.center.x + Math.sin(F.axis + 3.6) * 2.2 + Math.sin(dir) * 9 * e;
-      vic.pos.z = F.center.z + Math.cos(F.axis + 3.6) * 2.2 + Math.cos(dir) * 9 * e;
+      vic.pos.x = F.center.x + Math.sin(endAng) * 2.2 + Math.sin(dir) * 9 * e;
+      vic.pos.z = F.center.z + Math.cos(endAng) * 2.2 + Math.cos(dir) * 9 * e;
       vic.pos.y = Math.sin(Math.min(1, k) * Math.PI) * 3.2;
       vic.group.rotation.x = -1.35 - k * 4;
     });
@@ -1022,45 +1042,47 @@ const SCRIPTS = {
     F.triumph(5.1, 'taunt');
   },
 
-  // JERRY: the nest empties — wave after wave of fleas latch onto the
-  // victim until they vanish under a wriggling coral carpet, thrash, and
-  // finally collapse as the swarm picks them clean
+  // JERRY: the nest empties — he SHOOTS a hundred fleas out of his
+  // cannons, raining them over and all around the mark... and then we
+  // just watch them do what fleas do: hop in, swarm, latch, feed
   jerry(F) {
     const { win, vic, w } = F;
-    F.approach(0.2, 1.0, 6.5);
-    F.at(1.1, () => { win.animator.play('shoot'); w.audio?.play('dart'); });
-    // opening volley: a ring of thrown fleas arcing in from every side
-    F.at(1.3, () => {
-      for (let i = 0; i < 10; i++) {
-        const a = (i / 10) * Math.PI * 2;
-        w.fleas.spawn(win, vic.center(), new THREE.Vector3(Math.sin(a), 0.7, Math.cos(a)), { dmg: 0 });
-      }
-    });
-    // THE PLAGUE: ~150 more latch straight on in ten waves, bottom to top,
-    // until the whole silhouette is a squirming mass
-    for (let wv = 0; wv < 10; wv++) {
-      F.at(1.5 + wv * 0.26, () => {
-        for (let i = 0; i < 15; i++) {
-          w.fleas.spawn(win, vic.center(), new THREE.Vector3(0, 1, 0), {
-            clingTo: vic, clingT: rand(2.4, 4.8),
-          });
+    F.approach(0.2, 1.0, 8);
+    F.at(1.05, () => { win.animator.play('shootLoop'); w.audio?.play('dart'); });
+    // ten cannon bursts of ten — a spraying arc that lands fleas over,
+    // past, short and beside the victim (spawned as ORDINARY fleas; the
+    // swarm behavior is all their own)
+    for (let b = 0; b < 10; b++) {
+      F.at(1.15 + b * 0.17, () => {
+        F.winCtx = null;
+        const from = (b % 2 ? win.mech.anchors.muzzleL : win.mech.anchors.muzzleR)
+          ?.getWorldPosition(new THREE.Vector3()) || win.center();
+        const dx = w.wrapDelta(vic.pos.x - win.pos.x);
+        const dz = w.wrapDelta(vic.pos.z - win.pos.z);
+        const d = Math.hypot(dx, dz) || 1;
+        for (let i = 0; i < 10; i++) {
+          const dir = new THREE.Vector3(
+            dx / d + rand(-0.4, 0.4), rand(0.3, 0.95), dz / d + rand(-0.4, 0.4));
+          // lobbed, not fired flat: the arcs RAIN down over and around them
+          w.fleas.spawn(win, from, dir, { dmg: 0, life: rand(7, 10), speed: rand(12, 19) });
         }
-        if (wv % 2 === 0) w.audio?.play('dart');
-        vic.animator.addImpulse('torso', [rand(-0.3, 0.3), 0, rand(-0.3, 0.3)], 30, 10);
+        w.effects.muzzleFlash(from, 0xff8a60);
+        w.audio?.play('dart');
       });
     }
-    // buried alive: thrashing under the mass
-    for (let i = 0; i < 7; i++) {
-      F.at(2.0 + i * 0.45, () => {
-        F.sparks(8, 6, 0xff5030);
+    F.hold(1.1, 2.9, () => { F.winCtx = { speed: 0, grounded: true, firing: true }; });
+    // the victim staggers as the swarm crawls up them
+    for (let i = 0; i < 6; i++) {
+      F.at(2.6 + i * 0.5, () => {
         if (i % 2 === 0) F.vicFlinch();
+        vic.animator.addImpulse('torso', [rand(-0.3, 0.3), 0, rand(-0.3, 0.3)], 30, 10);
         if (Math.random() < 0.6) w.audio?.play('slash');
       });
     }
-    F.camShot(1.3, 3.1, { dist: 8.5, h: 3, az0: 2.0, az1: 2.5, lookH: 2.4 });
-    // push in CLOSE on the carpet doing its work
-    F.camShot(3.1, 5.3, { dist: 5.5, h: 2.2, az0: 2.55, az1: 2.15, lookH: 2.0 });
-    F.at(4.9, () => F.vicDown()); // finally goes down under them
+    // wide on the barrage arc, then push in CLOSE on the swarm at work
+    F.camShot(1.1, 3.0, { dist: 10.5, h: 3.6, az0: 1.9, az1: 2.45, lookH: 2.6 });
+    F.camShot(3.0, 5.3, { dist: 5.5, h: 2.2, az0: 2.55, az1: 2.15, lookH: 1.8 });
+    F.at(4.9, () => F.vicDown()); // finally collapses under them
     F.at(5.6, () => F.finaleBurst(0xc86a4a));
     F.triumph(5.7, 'taunt', 'dart');
   },

@@ -932,3 +932,32 @@ controllers via Gamepad API), AI opponents.
   column, slime splatter, thick forked bolt, cloud-ring strike); fenrir
   standing-flurry + titanus front lift frames reviewed; 16-mech
   attackmatrix ALL CONNECT; tempest-vs-cranky ace soak crash-free.
+
+48. FINISHER FEEDBACK ROUND: SPACING, SWARM, NECK BITES, SIDEWAYS SLAM ✅
+  · FENRIR plants at claw's reach (2.8u) with the victim standing IN
+    FRONT catching the end of every swipe (was overlapping them); the
+    drag circle re-phased so the grab point matches where the bodies are.
+  · JERRY now SHOOTS 100 fleas (ten alternating-cannon bursts of ten,
+    lobbed arcs raining over/around/onto the mark) and the swarm does the
+    rest on its own: fleas.spawn speed option, hop/latch treat cinePuppet
+    corpses as prey. Probe: 92/100 latched before the collapse.
+  · Attached fleas FOLLOW the victim down: cling points ride the full
+    group rotation (quaternion) AND detect knockdown/dead poses, sliding
+    down + along the now-horizontal body (carpet maxY 5.2 -> 2.4 after
+    the fall). Matches gameplay behavior everywhere.
+  · SAURION bites the NECK: finisher rides with jaws locked at the
+    collar — the neck stays pinned at stage center and the body swings
+    flat beneath it (probe: 0.00 horizontal drift from the throat);
+    bite sparks fly from the collar. Game special perch is now
+    height*0.8 - his own reach, clamped to [0.22, 0.62]*prey height —
+    bites land at the neck without contortion on any prey size.
+  · BODY SLAM is truly sideways at ANY facing: the roll moved to the
+    Z-axis under the carrier's yaw (Euler XYZ made an X-roll lie along a
+    fixed WORLD axis), so the victim lies head-off-one-palm,
+    legs-off-the-other (probe: body axis 0.00 along facing, 0.99 along
+    the hand line). Applies to the game special and the finisher; all
+    unwind paths reset the new axis.
+  Verified: build green; numeric probes above; fenrir flurry gap 2.8
+  constant; titanus sideways-lift still reviewed; 16-mech attackmatrix
+  ALL CONNECT; colossus-vs-saurion ace soak (slam + perch under AI)
+  crash-free.

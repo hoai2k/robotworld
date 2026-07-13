@@ -361,6 +361,7 @@ export const SPECIALS = {
         if (!f.alive || f.state !== 'special') {
           prey._carry = null;
           prey.group.rotation.x = 0; // lift broken: unwind the slam roll
+          prey.group.rotation.z = 0;
           return;
         }
         f.animator.play('throwHeave');
@@ -386,6 +387,7 @@ export const SPECIALS = {
           const fly = () => {
             if (!prey.alive || prey.grounded || flyT > 1.3) {
               prey.group.rotation.x = 0;
+              prey.group.rotation.z = 0;
               return;
             }
             flyT += 0.05;
@@ -687,7 +689,13 @@ export const SPECIALS = {
       const perch = () => {
         f.pos.x = prey.pos.x - Math.sin(ang) * prey.hitRadius * 0.4;
         f.pos.z = prey.pos.z - Math.cos(ang) * prey.hitRadius * 0.4;
-        f.pos.y = prey.pos.y + prey.height * 0.32; // crouched INTO them, jaws in range
+        // crouched into them with the jaws working the NECK: perch so the
+        // head-strike arc (~his own head height minus the peck dip) lands
+        // at the prey's collar — clamped so small prey don't read as
+        // contortion and giants still get bitten somewhere honest
+        f.pos.y = prey.pos.y + clamp(
+          prey.height * 0.8 - f.height * 0.35,
+          prey.height * 0.22, prey.height * 0.62);
         f.vel.set(0, 0, 0);
         f.grounded = false;
         f.yaw = f.targetYaw = ang;

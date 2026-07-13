@@ -68,13 +68,14 @@ export class FleaSystem {
   // dmg = TOTAL bite damage over the 3s attachment.
   // opts.clingTo: cosmetic mode — latch straight onto that fighter (works
   // on corpses, deals nothing, pops after opts.clingT) for swarm scenes.
-  spawn(owner, origin, dir, { dmg = 30, life = 6.5, clingTo = null, clingT = 3 } = {}) {
+  spawn(owner, origin, dir, { dmg = 30, life = 6.5, clingTo = null, clingT = 3, speed = 0 } = {}) {
     const mesh = this.obtain();
     mesh.position.copy(origin);
     const f = {
       owner, mesh, dmg,
       state: 'air',
-      vel: new THREE.Vector3(dir.x, Math.max(dir.y, 0.08), dir.z).normalize().multiplyScalar(rand(22, 27)),
+      vel: new THREE.Vector3(dir.x, Math.max(dir.y, 0.08), dir.z).normalize()
+        .multiplyScalar(speed || rand(22, 27)),
       life,
       pauseT: 0,
       twitchSeed: rand(100),
@@ -107,7 +108,9 @@ export class FleaSystem {
     const w = this.world;
     let best = null, bestD = Infinity;
     for (const e of w.fighters) {
-      if (e === f.owner || !e.alive) continue;
+      // cinePuppet corpses (finisher victims) still count as prey — the
+      // swarm scene IS them piling onto the fallen mech
+      if (e === f.owner || (!e.alive && !e.cinePuppet)) continue;
       const dx = w.wrapDelta(e.pos.x - f.mesh.position.x);
       const dz = w.wrapDelta(e.pos.z - f.mesh.position.z);
       const d = dx * dx + dz * dz;
@@ -148,9 +151,9 @@ export class FleaSystem {
         // stretch along the arc, face travel
         f.mesh.rotation.y = Math.atan2(f.vel.x, f.vel.z);
         f.mesh.rotation.x = -clamp01(f.vel.y / 18) * 0.5;
-        // latch onto any victim it touches
+        // latch onto any victim it touches (finisher corpses included)
         for (const e of w.fighters) {
-          if (e === f.owner || !e.alive) continue;
+          if (e === f.owner || (!e.alive && !e.cinePuppet)) continue;
           const c = e.center();
           const dx = w.wrapDelta(c.x - f.mesh.position.x);
           const dy = c.y - f.mesh.position.y;
@@ -186,15 +189,26 @@ export class FleaSystem {
         if (f.pauseT <= 0) this.hop(f);
       } else if (f.state === 'attached') {
         const v = f.victim;
-        if (!v || (!v.alive && !f.cosmetic)) { dead = true; }
+        if (!v || (!v.alive && !f.cosmetic && !v.cinePuppet)) { dead = true; }
         else {
           f.attachT -= dt;
-          // ride the victim's body, wriggling
-          const a = f.offA + v.yaw;
+          // ride the victim's body THROUGH its fall, wriggling. Falls come
+          // two ways: group rotation (handled by the quaternion) and the
+          // knockdown/dead POSE — for those, slide the cling point down
+          // and along the now-horizontal body so the carpet lies with it.
+          const clip = v.animator?.action?.clip?.name;
+          const lying = clip === 'knockdown' || clip === 'dead';
+          f.layT = clamp01((f.layT || 0) + (lying ? dt * 2.5 : -dt * 2.5));
+          const lay = f.layT;
+          _v.set(
+            Math.sin(f.offA) * f.offR,
+            f.offY * (1 - 0.85 * lay) + 0.3 * lay,
+            Math.cos(f.offA) * f.offR - f.offY * 0.85 * lay
+          ).applyQuaternion(v.group.quaternion);
           f.mesh.position.set(
-            v.pos.x + Math.sin(a) * f.offR,
-            v.pos.y + f.offY + Math.sin(f.twitchSeed) * 0.06,
-            v.pos.z + Math.cos(a) * f.offR
+            v.pos.x + _v.x,
+            v.pos.y + _v.y + Math.sin(f.twitchSeed) * 0.06,
+            v.pos.z + _v.z
           );
           f.twitchSeed += dt * 26;
           f.mesh.rotation.y += dt * Math.sin(f.twitchSeed * 0.7) * 3;
