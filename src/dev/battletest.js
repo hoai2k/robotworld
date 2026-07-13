@@ -78,7 +78,8 @@ export function runBattleTest() {
     // tiny chooser: pick winner / victim / arena, reload straight into that
     // finisher configuration
     const bar = document.createElement('div');
-    bar.style.cssText = 'position:absolute;top:10px;right:10px;z-index:30;display:flex;gap:6px;align-items:center;font:12px monospace;color:#8fe8ff;text-shadow:0 1px 2px #000';
+    // #ui-root swallows clicks (pointer-events:none) — opt this bar back in
+    bar.style.cssText = 'position:absolute;top:10px;right:10px;z-index:30;display:flex;gap:6px;align-items:center;font:12px monospace;color:#8fe8ff;text-shadow:0 1px 2px #000;pointer-events:auto';
     const mkSel = (label, opts, cur) => {
       const sel = document.createElement('select');
       sel.style.cssText = 'background:#0b1420;color:#8fe8ff;border:1px solid #2a4a60;border-radius:4px;font:12px monospace;padding:2px 4px';

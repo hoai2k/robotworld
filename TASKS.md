@@ -874,3 +874,23 @@ controllers via Gamepad API), AI opponents.
   rides perpendicular to the LIVE winner↔victim line (framing A/B'd on
   the titanus smash phase). Scenes are reviewed in-browser via
   ?debug=finisher (no video pass).
+
+46. FINISHER DEMO CHOOSER CLICKS + HANDS-TRUE BODY SLAM CARRY ✅
+  · #ui-root has pointer-events:none — the ?debug=finisher WIN/VIC/MAP
+    dropdowns opted back in with pointer-events:auto (clicks now work,
+    each change reloads straight into that configuration).
+  · The lifted bot now rests IN the thrower's hands, everywhere: new
+    Fighter.palmsMid (world midpoint of the handL/handR joints, works for
+    procedural + GLB rigs, overhead fallback) and Fighter.carryPoint
+    (subtracts the victim's feet→torso offset through their CURRENT
+    rotation so the torso rides the palms exactly at any roll angle).
+    Wired into the per-frame _carry pin (main-game grab-throw for
+    Titanus/Colossus), the throw release (launches straight out of the
+    palms), and the finisher lift + heave holds (which also now blend
+    from the victim's real position instead of snapping).
+  Verified: probes show torso→palms distance 0.29 at the top of the
+  finisher hoist and 0.11 mid-carry in the live special (was ~5 — the
+  old fixed "head-height + 0.6" float), throw velocity intact; chooser
+  click probe reloads with the picked mech; 16-mech attackmatrix ALL
+  CONNECT (jerry flake rerun ✓); colossus ace soak crash-free; lift
+  frame reviewed.

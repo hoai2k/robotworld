@@ -367,9 +367,7 @@ export const SPECIALS = {
         f.setState('special', 0.5);
         if (prey.alive) {
           prey._carry = null;
-          prey.pos.x = f.pos.x + Math.sin(f.yaw) * 0.4 * f.scale;
-          prey.pos.z = f.pos.z + Math.cos(f.yaw) * 0.4 * f.scale;
-          prey.pos.y = f.height + 0.6;
+          f.carryPoint(prey, prey.pos); // launched straight out of the palms
           prey.grounded = false;
           prey.iframes = 0; // the throw itself always lands
           prey.takeHit(sp.dmg * 0.7 * f.dmgMult(), f, { knock: 0, srcPos: f.pos, heavy: true });

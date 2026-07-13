@@ -8,6 +8,9 @@ import { SPECIALS, ULTS } from './specials.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
+const _palmTmp = new THREE.Vector3();
+const _carryTmp = new THREE.Vector3();
+const _carryOff = new THREE.Vector3();
 const _white = new THREE.Color(0xf4faff);
 const GRAVITY = 34;
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
@@ -103,6 +106,28 @@ export class Fighter {
 
   center(out = _v2) {
     return out.set(this.pos.x, this.pos.y + this.height * 0.55, this.pos.z).clone();
+  }
+
+  // world-space midpoint of both palms — where hoisted cargo rests. Falls
+  // back to an overhead point for rigs without hand joints.
+  palmsMid(out) {
+    const J = this.mech.joints;
+    if (!J.handL || !J.handR) {
+      return out.set(this.pos.x, this.pos.y + this.height + 0.4 * this.scale, this.pos.z);
+    }
+    J.handL.getWorldPosition(out);
+    return out.add(J.handR.getWorldPosition(_palmTmp)).multiplyScalar(0.5);
+  }
+
+  // where a body-slammed victim's ORIGIN goes so the torso lies IN the
+  // palms: subtract the victim's feet->torso offset through their CURRENT
+  // rotation, so the center rides the hands exactly at any roll angle.
+  carryPoint(prey, out) {
+    this.palmsMid(out);
+    _carryOff.set(0, prey.height * 0.5, 0).applyEuler(prey.group.rotation);
+    out.sub(_carryOff);
+    out.y += 0.24 * this.scale; // palms cradle UNDER the torso
+    return out;
   }
 
   // nearest living enemy (through the arena seam when wrapping)
@@ -693,12 +718,12 @@ export class Fighter {
       } else {
         c.riseT = Math.min(1, (c.riseT || 0) + dt / 0.24);
         const k = c.riseT * c.riseT * (3 - 2 * c.riseT); // smoothstep hoist
-        const tx = carrier.pos.x + Math.sin(carrier.yaw) * 0.4 * carrier.scale;
-        const tz = carrier.pos.z + Math.cos(carrier.yaw) * 0.4 * carrier.scale;
-        const ty = carrier.height + 0.6;
-        this.pos.x = c.x0 + (tx - c.x0) * k;
-        this.pos.y = c.y0 + (ty - c.y0) * k;
-        this.pos.z = c.z0 + (tz - c.z0) * k;
+        // ride the carrier's ACTUAL palms (liftHold swings them overhead),
+        // so the body visibly rests in the hands instead of floating
+        const tp = carrier.carryPoint(this, _carryTmp);
+        this.pos.x = c.x0 + (tp.x - c.x0) * k;
+        this.pos.y = c.y0 + (tp.y - c.y0) * k;
+        this.pos.z = c.z0 + (tp.z - c.z0) * k;
         this.vel.set(0, 0, 0);
         this.grounded = false;
         // rolled flat ACROSS the press as it rises (wrestling body slam)

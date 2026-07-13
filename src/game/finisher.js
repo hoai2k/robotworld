@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { rand, clamp01, lerp } from '../core/utils.js';
 
 const smooth = (k) => k * k * (3 - 2 * k);
+const _ct = new THREE.Vector3();
 
 export class Finisher {
   constructor(world, winner, victim, onDone) {
@@ -255,21 +256,28 @@ const SCRIPTS = {
     F.approach(0.2, 1.0, 3.2);
     F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
     F.at(1.45, () => { win.animator.play('liftHold'); vic.animator.play('launched'); F.beat('whooshBig', 0.3, 0); });
+    // hauled up INTO the palms — the body rides the actual lift-swing of
+    // the hands and rests in them at the top
+    let cx, cy2, cz;
     F.hold(1.45, 2.3, (k) => {
+      if (cx === undefined) { cx = vic.pos.x; cy2 = vic.pos.y; cz = vic.pos.z; }
       const e = smooth(k);
-      vic.pos.x = win.pos.x + Math.sin(win.yaw) * 0.4 * win.scale;
-      vic.pos.z = win.pos.z + Math.cos(win.yaw) * 0.4 * win.scale;
-      vic.pos.y = e * (win.height + 0.6);
+      const tp = win.carryPoint(vic, _ct);
+      vic.pos.x = cx + (tp.x - cx) * e;
+      vic.pos.y = cy2 + (tp.y - cy2) * e;
+      vic.pos.z = cz + (tp.z - cz) * e;
       vic.yaw = vic.targetYaw = win.yaw + Math.PI / 2;
       vic.group.rotation.y = vic.yaw;
       vic.group.rotation.x = -1.45 * e;
     });
     F.camShot(1.3, 2.6, { dist: 9.5, h: 7, az0: 3.5, az1: 3.1, lookH: 7 });
     F.at(2.55, () => win.animator.play('throwHeave'));
-    F.hold(2.6, 2.82, (k) => {
-      vic.pos.x = win.pos.x + Math.sin(win.yaw) * (0.4 + 2.4 * k) * win.scale;
-      vic.pos.z = win.pos.z + Math.cos(win.yaw) * (0.4 + 2.4 * k) * win.scale;
-      vic.pos.y = (win.height + 0.6) * (1 - k * k);
+    let tx0, ty0, tz0;
+    F.hold(2.6, 2.82, (k) => { // hurled straight out of the hands
+      if (tx0 === undefined) { tx0 = vic.pos.x; ty0 = vic.pos.y; tz0 = vic.pos.z; }
+      vic.pos.x = tx0 + Math.sin(win.yaw) * 2.4 * k * win.scale;
+      vic.pos.z = tz0 + Math.cos(win.yaw) * 2.4 * k * win.scale;
+      vic.pos.y = ty0 * (1 - k * k);
     });
     F.at(2.85, () => {
       F.beat('bodyfall', 1, 0.1);
