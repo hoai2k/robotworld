@@ -894,3 +894,41 @@ controllers via Gamepad API), AI opponents.
   click probe reloads with the picked mech; 16-mech attackmatrix ALL
   CONNECT (jerry flake rerun ✓); colossus ace soak crash-free; lift
   frame reviewed.
+
+47. HANDS-TRUE CARRY, GROUNDED CORPSES, AIMED HARDWARE, FX OVERHAUL ✅
+  · Lift-and-throw: victim grips into the hands in ~0.15s then RIDES the
+    liftHold arm swing (constant contact); clampPalmsTo IK servo narrows
+    the palms to exactly the body's width (probe: sep 2.05 = want, torso
+    0.3 from palm mid through the whole hoist). Throw launches out of the
+    palms. Same path drives the game special and the finisher.
+  · Floating corpses fixed: finisher holds get a guaranteed k=1 closing
+    tick + end() ground clamps (all 8 probed mechs rest at y=0).
+  · levelHands wrist counter-pitch: vulcan gatling pods, inferno torch
+    bells and cranky pincers now track the arm's aim (stretch along the
+    arm when fully raised) instead of pitching skyward.
+  · Rhino charges BIPEDAL: heavy forward lean, pumping tucked arms.
+  · Finisher reworks: AEGIS reaches to the heavens -> 10 spears of light;
+    NOVA ring spin-up -> apex ignition -> 9 lances converging from every
+    compass direction; WRAITH hurls the ghost FORWARD, blinks to the far
+    side, wheels round and hurls it back (4 passes, spectre re-baked per
+    launch); TEMPEST boxes the victim in with dark clouds above/behind/
+    left/right and 7 bolts rake in from every direction; FENRIR's
+    flurry now lands on a STANDING victim who only drops at its end.
+  · Camera pass: establishing shot moved to a front-side quarter, titanus
+    lift shot is now a FRONT hero angle (victim in the hands, not back
+    armor), saurion bite cam low front, aegis skyward reach front-low,
+    jerry side shots — no script films square through the winner's back.
+  · FX overhaul: ParticlePool color ramps (color2) + a normally-blended
+    `drops` pool for LIQUIDS. Fire is layered now (white core -> orange
+    tongues -> deep red + embers + rising black smoke) for inferno's
+    thrower, fire patches, explosions. Cranky's hose/geyser pour real
+    WATER (heavy blue-ramp droplets + foam + mist + splash-on-hit).
+    Frogger's gunk is thick green GOOP (sagging drips off the bolt,
+    splatter + ooze + splat rings). Lightning is THICK now — segmented
+    glowing bolts with a white core and a forked branch — and every bolt
+    leaves staticCling crackle arcing over the victim while the charge
+    bleeds off (zap ranged, storm special, ult strikes, finisher).
+  Verified: build green; close-range FX stills reviewed (fire wash, water
+  column, slime splatter, thick forked bolt, cloud-ring strike); fenrir
+  standing-flurry + titanus front lift frames reviewed; 16-mech
+  attackmatrix ALL CONNECT; tempest-vs-cranky ace soak crash-free.

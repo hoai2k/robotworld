@@ -1,5 +1,6 @@
-// VFX: pooled GPU point-particles (sparks/smoke/flame/embers), shockwave
-// rings, beams, lightning bolts, muzzle flashes, explosion composites.
+// VFX: pooled GPU point-particles (sparks/smoke/flame/embers/liquids),
+// shockwave rings, beams, thick lightning bolts, muzzle flashes, explosion
+// composites, and lingering electrical static on shocked fighters.
 import * as THREE from 'three';
 import { softCircleTexture, sparkTexture, smokeTexture, ringTexture } from '../core/textures.js';
 import { rand, clamp01 } from '../core/utils.js';
@@ -39,6 +40,7 @@ class ParticlePool {
     this.grav = new Float32Array(cap);
     this.drag = new Float32Array(cap);
     this.baseCol = new Float32Array(cap * 3);
+    this.endCol = new Float32Array(cap * 3); // color2: reached as life fades
     this.baseAlpha = new Float32Array(cap);
     this.baseSize = new Float32Array(cap);
     this.grow = new Float32Array(cap);
@@ -65,7 +67,7 @@ class ParticlePool {
     scene.add(this.points);
   }
 
-  emit(x, y, z, vx, vy, vz, { life = 1, size = 1, color = 0xffffff, alpha = 1, gravity = 0, drag = 0, grow = 0 } = {}) {
+  emit(x, y, z, vx, vy, vz, { life = 1, size = 1, color = 0xffffff, color2 = null, alpha = 1, gravity = 0, drag = 0, grow = 0 } = {}) {
     const i = this.head;
     this.head = (this.head + 1) % this.cap;
     this.pos[i * 3] = x; this.pos[i * 3 + 1] = y; this.pos[i * 3 + 2] = z;
@@ -76,12 +78,14 @@ class ParticlePool {
     this.grow[i] = grow;
     const c = new THREE.Color(color);
     this.baseCol[i * 3] = c.r; this.baseCol[i * 3 + 1] = c.g; this.baseCol[i * 3 + 2] = c.b;
+    const c2 = color2 === null ? c : new THREE.Color(color2);
+    this.endCol[i * 3] = c2.r; this.endCol[i * 3 + 1] = c2.g; this.endCol[i * 3 + 2] = c2.b;
     this.baseAlpha[i] = alpha;
     this.baseSize[i] = size;
   }
 
   update(dt) {
-    const { cap, pos, vel, life, life0, grav, drag, col, size, baseCol, baseAlpha, baseSize, grow } = this;
+    const { cap, pos, vel, life, life0, grav, drag, col, size, baseCol, endCol, baseAlpha, baseSize, grow } = this;
     for (let i = 0; i < cap; i++) {
       if (life[i] <= 0) { col[i * 4 + 3] = 0; size[i] = 0; continue; }
       life[i] -= dt;
@@ -94,9 +98,10 @@ class ParticlePool {
       pos[i * 3] += vel[i * 3] * dt;
       pos[i * 3 + 1] += vel[i * 3 + 1] * dt;
       pos[i * 3 + 2] += vel[i * 3 + 2] * dt;
-      col[i * 4] = baseCol[i * 3];
-      col[i * 4 + 1] = baseCol[i * 3 + 1];
-      col[i * 4 + 2] = baseCol[i * 3 + 2];
+      const m = 1 - f; // 0 fresh -> 1 dying: ramp base color toward end color
+      col[i * 4] = baseCol[i * 3] + (endCol[i * 3] - baseCol[i * 3]) * m;
+      col[i * 4 + 1] = baseCol[i * 3 + 1] + (endCol[i * 3 + 1] - baseCol[i * 3 + 1]) * m;
+      col[i * 4 + 2] = baseCol[i * 3 + 2] + (endCol[i * 3 + 2] - baseCol[i * 3 + 2]) * m;
       col[i * 4 + 3] = baseAlpha[i] * f;
       size[i] = baseSize[i] * (1 + grow[i] * (1 - f));
     }
@@ -194,48 +199,84 @@ class BeamPool {
   }
 }
 
+// REAL bolts, not static: each bolt is a chain of glowing cylinder segments
+// through jagged waypoints (thick, visible from any distance) with a hot
+// white core, plus an optional thinner side-branch forking off a kink.
+const SEGS = 7;
+const _lv = new THREE.Vector3();
+const _lup = new THREE.Vector3(0, 1, 0);
 class LightningPool {
-  constructor(scene, count = 8) {
+  constructor(scene, count = 14) {
     this.items = [];
+    const geo = new THREE.CylinderGeometry(1, 1, 1, 5, 1, true);
     for (let i = 0; i < count; i++) {
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(16 * 3), 3));
-      const line = new THREE.Line(geo, new THREE.LineBasicMaterial({
+      const group = new THREE.Group();
+      const mat = new THREE.MeshBasicMaterial({
         transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
-      }));
-      line.visible = false;
-      line.renderOrder = 7;
-      line.frustumCulled = false;
-      scene.add(line);
-      this.items.push({ line, t: 0, dur: 0 });
+      });
+      const core = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      });
+      const segs = [];
+      for (let s = 0; s < SEGS; s++) {
+        const outer = new THREE.Mesh(geo, mat);
+        const inner = new THREE.Mesh(geo, core);
+        outer.renderOrder = 7;
+        inner.renderOrder = 8;
+        group.add(outer);
+        group.add(inner);
+        segs.push({ outer, inner });
+      }
+      group.visible = false;
+      scene.add(group);
+      this.items.push({ group, mat, core, segs, t: 0, dur: 0 });
     }
   }
-  spawn(from, to, { color = 0x9fdcff, dur = 0.22, jag = 1.2 } = {}) {
-    const it = this.items.find((i) => !i.line.visible) || this.items[0];
-    it.line.visible = true;
-    it.line.material.color.set(color);
-    const posAttr = it.line.geometry.attributes.position;
-    const N = 16;
-    const dir = new THREE.Vector3().subVectors(to, from);
-    for (let i = 0; i < N; i++) {
-      const f = i / (N - 1);
+  spawn(from, to, { color = 0x9fdcff, dur = 0.22, jag = 1.2, thick = 0.16, branch = true } = {}) {
+    const it = this.items.find((i) => !i.group.visible) || this.items[0];
+    it.group.visible = true;
+    it.mat.color.set(color);
+    it.t = 0; it.dur = dur;
+    // jagged waypoints, offset mostly perpendicular to the strike line
+    const dir = _lv.subVectors(to, from);
+    const pts = [];
+    for (let i = 0; i <= SEGS; i++) {
+      const f = i / SEGS;
       const p = new THREE.Vector3().copy(from).addScaledVector(dir, f);
-      if (i > 0 && i < N - 1) {
+      if (i > 0 && i < SEGS) {
         p.x += rand(-jag, jag);
-        p.y += rand(-jag, jag);
+        p.y += rand(-jag * 0.5, jag * 0.5);
         p.z += rand(-jag, jag);
       }
-      posAttr.setXYZ(i, p.x, p.y, p.z);
+      pts.push(p);
     }
-    posAttr.needsUpdate = true;
-    it.t = 0; it.dur = dur;
+    for (let s = 0; s < SEGS; s++) {
+      const a = pts[s], b = pts[s + 1];
+      const seg = it.segs[s];
+      const d = new THREE.Vector3().subVectors(b, a);
+      const len = d.length() || 0.001;
+      for (const [mesh, r] of [[seg.outer, thick], [seg.inner, thick * 0.38]]) {
+        mesh.position.copy(a).addScaledVector(d, 0.5);
+        mesh.quaternion.setFromUnitVectors(_lup, d.clone().normalize());
+        mesh.scale.set(r, len, r);
+      }
+    }
+    // one thinner fork off a random kink sells the "real lightning" read
+    if (branch && jag > 0.5) {
+      const k = pts[1 + ((Math.random() * (SEGS - 2)) | 0)];
+      const end = k.clone().add(new THREE.Vector3(rand(-jag, jag) * 2.2, -Math.abs(rand(jag, jag * 2.5)), rand(-jag, jag) * 2.2));
+      this.spawn(k, end, { color, dur: dur * 0.8, jag: jag * 0.45, thick: thick * 0.55, branch: false });
+    }
+    return it;
   }
   update(dt) {
     for (const it of this.items) {
-      if (!it.line.visible) continue;
+      if (!it.group.visible) continue;
       it.t += dt;
-      if (it.t >= it.dur) { it.line.visible = false; continue; }
-      it.line.material.opacity = 1 - it.t / it.dur;
+      if (it.t >= it.dur) { it.group.visible = false; continue; }
+      const o = 1 - it.t / it.dur;
+      it.mat.opacity = o * 0.85;
+      it.core.opacity = o;
     }
   }
 }
@@ -250,9 +291,15 @@ export class Effects {
     this.smoke = new ParticlePool(scene, smokeTexture(), {
       cap: 450, blending: THREE.NormalBlending,
     });
+    // liquids: normally-blended droplets so water/slime read as MATTER
+    // (additive glows always read as light)
+    this.drops = new ParticlePool(scene, softCircleTexture(), {
+      cap: 700, blending: THREE.NormalBlending,
+    });
     this.rings = new RingPool(scene);
     this.beams = new BeamPool(scene);
     this.lightning = new LightningPool(scene);
+    this.statics = []; // {f, t, tick} — crackle lingering on shocked bots
     this.shake = 0;         // camera shake accumulator (read by camera)
     this.flash = null;      // {color, t} full-screen flash (read by hud)
   }
@@ -285,7 +332,7 @@ export class Effects {
       this.glows.emit(pos.x, pos.y + 0.5, pos.z, 0, 0, 0,
         { life: 0.14, size: radius * 2.2, color: 0xfff2d0, alpha: 1 });
       this.glows.emit(pos.x, pos.y + 0.5, pos.z, 0, 0, 0,
-        { life: 0.3, size: radius * 1.5, color, alpha: 0.9 });
+        { life: 0.3, size: radius * 1.5, color, color2: 0x992208, alpha: 0.9 });
     }
     if (sparks) {
       const n = Math.min(40, 10 + radius * 4);
@@ -328,17 +375,42 @@ export class Effects {
       0, 0, 0, { life: 0.3, size: rand(1.5, 2.6) * scale, color, alpha: 0.5 });
   }
 
-  flameCone(origin, dir, color = 0xff7a20, spread = 0.3, speed = 26) {
+  // one tick of REAL flame: white-hot core, orange body cooling to deep
+  // red as it rises, embers, and dark smoke breaking off the tip
+  fire(origin, dir, speed = 26, spread = 0.3) {
+    // core: hot, brief
+    const c = dir.clone();
+    c.x += rand(-spread * 0.5, spread * 0.5);
+    c.y += rand(-spread * 0.3, spread * 0.3);
+    c.z += rand(-spread * 0.5, spread * 0.5);
+    c.normalize().multiplyScalar(speed * rand(0.85, 1.05));
+    this.glows.emit(origin.x, origin.y, origin.z, c.x, c.y, c.z,
+      { life: rand(0.2, 0.32), size: rand(1.3, 2), color: 0xffe9b0, color2: 0xff8018, alpha: 0.95, drag: 2, grow: 2, gravity: -5 });
+    // body: tongues that cool yellow->orange->deep red while swelling
     for (let i = 0; i < 3; i++) {
       const d = dir.clone();
       d.x += rand(-spread, spread); d.y += rand(-spread * 0.6, spread * 0.6); d.z += rand(-spread, spread);
-      d.normalize().multiplyScalar(speed * rand(0.7, 1));
+      d.normalize().multiplyScalar(speed * rand(0.55, 0.95));
       this.glows.emit(origin.x, origin.y, origin.z, d.x, d.y, d.z,
-        { life: rand(0.25, 0.5), size: rand(1.2, 2.2), color, alpha: 0.75, drag: 2.2, grow: 3 });
+        { life: rand(0.35, 0.65), size: rand(1.8, 3), color: 0xff9028, color2: 0x7c1e06, alpha: 0.85, drag: 2.4, grow: 3.4, gravity: -7 });
     }
-    this.smoke.emit(origin.x + dir.x * 3, origin.y + dir.y * 3 + rand(0.5), origin.z + dir.z * 3,
-      dir.x * 8, 2 + rand(2), dir.z * 8,
-      { life: rand(0.5, 0.9), size: rand(1.5, 2.6), color: 0x1c1c20, alpha: 0.35, drag: 1.5, grow: 2.5 });
+    // embers: tiny hot flecks tumbling out of the stream
+    if (Math.random() < 0.35) {
+      this.sparks.emit(origin.x, origin.y, origin.z,
+        dir.x * speed * 0.7 + rand(-3, 3), dir.y * speed * 0.7 + rand(0, 4), dir.z * speed * 0.7 + rand(-3, 3),
+        { life: rand(0.4, 0.8), size: rand(0.3, 0.6), color: 0xffb060, color2: 0xff4010, gravity: 9, drag: 1 });
+    }
+    // smoke shears off past the flame tip and climbs
+    if (Math.random() < 0.7) {
+      const reach = rand(3, 5);
+      this.smoke.emit(origin.x + dir.x * reach, origin.y + dir.y * reach + rand(0.3, 1), origin.z + dir.z * reach,
+        dir.x * 7 + rand(-1, 1), 3.5 + rand(0, 2.5), dir.z * 7 + rand(-1, 1),
+        { life: rand(0.8, 1.5), size: rand(1.6, 2.8), color: 0x191919, alpha: 0.5, drag: 1.6, grow: 3 });
+    }
+  }
+
+  flameCone(origin, dir, color = 0xff7a20, spread = 0.3, speed = 26) {
+    this.fire(origin, dir, speed, spread);
   }
 
   snowCone(origin, dir, speed = 30) {
@@ -355,9 +427,79 @@ export class Effects {
     // one tick of ground-fire visuals; caller re-invokes while patch lives
     for (let i = 0; i < 2; i++) {
       const a = rand(Math.PI * 2), r = rand(0, radius);
-      this.glows.emit(pos.x + Math.cos(a) * r, pos.y + 0.2, pos.z + Math.sin(a) * r,
+      this.glows.emit(pos.x + Math.cos(a) * r, pos.y + 0.15, pos.z + Math.sin(a) * r,
         rand(-0.5, 0.5), rand(2.5, 5), rand(-0.5, 0.5),
-        { life: rand(0.3, 0.6), size: rand(1, 2), color: 0xff8830, alpha: 0.8, drag: 1, grow: 1.5 });
+        { life: rand(0.3, 0.6), size: rand(1, 2), color: 0xffc040, color2: 0x8a2408, alpha: 0.85, drag: 1, grow: 2.2 });
+    }
+    if (Math.random() < 0.4) {
+      const a = rand(Math.PI * 2), r = rand(0, radius * 0.8);
+      this.smoke.emit(pos.x + Math.cos(a) * r, pos.y + 1.2, pos.z + Math.sin(a) * r,
+        rand(-0.6, 0.6), rand(2.5, 4.5), rand(-0.6, 0.6),
+        { life: rand(0.9, 1.6), size: rand(1.4, 2.4), color: 0x161616, alpha: 0.4, drag: 1.2, grow: 2.6 });
+    }
+    if (Math.random() < 0.25) {
+      this.sparks.emit(pos.x + rand(-radius, radius), pos.y + 0.4, pos.z + rand(-radius, radius),
+        rand(-2, 2), rand(4, 8), rand(-2, 2),
+        { life: rand(0.4, 0.8), size: rand(0.3, 0.5), color: 0xffb060, color2: 0xff4010, gravity: 10, drag: 0.8 });
+    }
+  }
+
+  // one tick of pressurized WATER: heavy normally-blended droplets riding
+  // the jet with white foam sparkle and a little mist
+  waterJet(origin, dir, speed = 38) {
+    for (let i = 0; i < 6; i++) {
+      const s = speed * rand(0.85, 1.15);
+      this.drops.emit(origin.x, origin.y, origin.z,
+        (dir.x + rand(-0.06, 0.06)) * s, (dir.y + rand(-0.04, 0.06)) * s + 1.5, (dir.z + rand(-0.06, 0.06)) * s,
+        { life: rand(0.45, 0.7), size: rand(0.5, 1.15), color: 0xcfe8f6, color2: 0x4a80b0, alpha: 0.9, gravity: 26, drag: 0.25 });
+    }
+    // foam: a couple of bright flecks give the stream its wet sparkle
+    this.glows.emit(origin.x + dir.x * rand(1, 3), origin.y + dir.y * rand(1, 3), origin.z + dir.z * rand(1, 3),
+      dir.x * speed * 0.8, dir.y * speed * 0.8 + 1, dir.z * speed * 0.8,
+      { life: rand(0.2, 0.35), size: rand(0.35, 0.7), color: 0xffffff, alpha: 0.55, gravity: 20 });
+    if (Math.random() < 0.3) {
+      this.smoke.emit(origin.x + dir.x * 4, origin.y + dir.y * 4 + rand(0.5), origin.z + dir.z * 4,
+        dir.x * 9, 1.5 + rand(1.5), dir.z * 9,
+        { life: rand(0.4, 0.7), size: rand(1.2, 2), color: 0xd8eeff, alpha: 0.16, drag: 1.2, grow: 2 });
+    }
+  }
+
+  // water burst: crown of droplets + foam where a stream lands or a
+  // column erupts. power scales throw speed, up scales verticality.
+  splash(pos, n = 10, power = 8, up = 1) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(Math.PI * 2), sp = rand(0.4, 1) * power;
+      this.drops.emit(pos.x, pos.y, pos.z,
+        Math.cos(a) * sp, rand(0.6, 1.4) * power * up, Math.sin(a) * sp,
+        { life: rand(0.4, 0.8), size: rand(0.5, 1.2), color: 0xcfe8f6, color2: 0x4a80b0, alpha: 0.9, gravity: 28, drag: 0.3 });
+    }
+    for (let i = 0; i < Math.ceil(n / 3); i++) {
+      const a = rand(Math.PI * 2);
+      this.glows.emit(pos.x, pos.y + 0.2, pos.z,
+        Math.cos(a) * power * 0.5, rand(0.8, 1.3) * power * up, Math.sin(a) * power * 0.5,
+        { life: rand(0.2, 0.4), size: rand(0.3, 0.6), color: 0xffffff, alpha: 0.5, gravity: 26 });
+    }
+  }
+
+  // thick green GOOP: slow heavy globs that darken as they fly, dripping
+  // trails, and a splat ring when it lands hard
+  slime(pos, n = 8, power = 6, dir = null) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(Math.PI * 2), sp = rand(0.3, 1) * power;
+      const vx = dir ? dir.x * power + Math.cos(a) * sp * 0.4 : Math.cos(a) * sp;
+      const vz = dir ? dir.z * power + Math.sin(a) * sp * 0.4 : Math.sin(a) * sp;
+      this.drops.emit(pos.x, pos.y, pos.z,
+        vx, rand(0.2, 1) * power * 0.8 + (dir ? dir.y * power : 0), vz,
+        { life: rand(0.6, 1), size: rand(1.6, 2.8), color: 0x8ad42a, color2: 0x3c7410, alpha: 0.95, gravity: 18, drag: 0.6, grow: 0.5 });
+    }
+    // stringy drips falling out of the mass
+    for (let i = 0; i < Math.ceil(n / 3); i++) {
+      this.drops.emit(pos.x + rand(-0.6, 0.6), pos.y + rand(-0.3, 0.3), pos.z + rand(-0.6, 0.6),
+        rand(-1, 1), rand(-2, 0), rand(-1, 1),
+        { life: rand(0.5, 0.8), size: rand(0.4, 0.8), color: 0x5d9c1c, color2: 0x2c5210, alpha: 0.95, gravity: 22 });
+    }
+    if (power >= 6) {
+      this.rings.spawn(pos.clone().setY(Math.max(0.02, pos.y - 1)), { from: 0.3, to: power * 0.45, dur: 0.35, color: 0x6fae1e, y: 0.08 });
     }
   }
 
@@ -373,13 +515,40 @@ export class Effects {
       0, 3, 0, { life: 0.5, size: 1.2, color, alpha: 0.8, drag: 1 });
   }
 
+  // lingering electrical crackle on a shocked bot: small arcs snap between
+  // random points on the body while the charge bleeds off
+  staticCling(fighter, dur = 1.1) {
+    const cur = this.statics.find((s) => s.f === fighter);
+    if (cur) { cur.t = Math.max(cur.t, dur); return; }
+    this.statics.push({ f: fighter, t: dur, tick: 0 });
+  }
+
   update(dt) {
     this.sparks.update(dt);
     this.glows.update(dt);
     this.smoke.update(dt);
+    this.drops.update(dt);
     this.rings.update(dt);
     this.beams.update(dt);
     this.lightning.update(dt);
+    for (let i = this.statics.length - 1; i >= 0; i--) {
+      const s = this.statics[i];
+      s.t -= dt;
+      if (s.t <= 0 || !s.f.group?.visible) { this.statics.splice(i, 1); continue; }
+      s.tick -= dt;
+      if (s.tick <= 0) {
+        s.tick = 0.07;
+        const f = s.f, r = f.hitRadius * 0.8;
+        const a1 = rand(Math.PI * 2), a2 = a1 + rand(1, Math.PI);
+        const p1 = new THREE.Vector3(f.pos.x + Math.cos(a1) * r, f.pos.y + rand(0.2, f.height), f.pos.z + Math.sin(a1) * r);
+        const p2 = new THREE.Vector3(f.pos.x + Math.cos(a2) * r, f.pos.y + rand(0.2, f.height), f.pos.z + Math.sin(a2) * r);
+        this.lightning.spawn(p1, p2, { color: 0xcfefff, dur: 0.09, jag: 0.3, thick: 0.05, branch: false });
+        if (Math.random() < 0.3) {
+          this.sparks.emit(p1.x, p1.y, p1.z, rand(-2, 2), rand(1, 3), rand(-2, 2),
+            { life: 0.25, size: 0.4, color: 0xcfefff, gravity: 10 });
+        }
+      }
+    }
     this.shake = Math.max(0, this.shake - dt * 3.2);
   }
 }

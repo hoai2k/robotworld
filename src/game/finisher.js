@@ -44,8 +44,9 @@ export class Finisher {
     victim.animator.stop(0.15); // back on their feet for the last moment
 
     this.stageScale = Math.max(1, (winner.height + victim.height) / 11);
-    // default wide establishing orbit — scripts layer their shots over it
-    this.camShot(0, this.dur, { dist: 15, h: 6, lookH: 3 });
+    // default wide establishing orbit — a front-side quarter (never square
+    // behind the winner's back); scripts layer their shots over it
+    this.camShot(0, this.dur, { dist: 15, h: 6, lookH: 3, az0: 2.15, az1: 2.6 });
     (SCRIPTS[winner.def.id] || SCRIPTS.default)(this);
   }
 
@@ -287,7 +288,9 @@ const SCRIPTS = {
       vic.group.rotation.x = -1.45 * grip;
       F._palmVic = vic;
     });
-    F.camShot(1.3, 2.6, { dist: 9.5, h: 7, az0: 3.5, az1: 3.1, lookH: 7 });
+    // lift shot from the FRONT quarter: the victim hangs in the hands with
+    // titanus's face behind them, not a wall of back armor
+    F.camShot(1.3, 2.6, { dist: 10, h: 6.5, az0: 0.5, az1: 0.05, lookH: 6.2 });
     F.at(2.55, () => win.animator.play('throwHeave'));
     let tx0, ty0, tz0;
     F.hold(2.6, 2.82, (k) => { // hurled straight out of the hands
@@ -382,7 +385,9 @@ const SCRIPTS = {
       win.pos.y = rideY + Math.abs(Math.sin(k * 26)) * 0.22;
       win.yaw = win.targetYaw = F.axis;
     });
-    F.camShot(1.4, 4.1, { dist: 7.5, h: 2.2, az0: 3.7, az1: 3.25, lookH: 1.2 });
+    // low front shot: saurion's dipping head and the pinned chest fill the
+    // frame instead of his tail
+    F.camShot(1.4, 4.1, { dist: 7.5, h: 2.2, az0: 0.55, az1: -0.15, lookH: 1.2 });
     for (let i = 0; i < 7; i++) {
       F.at(1.6 + i * 0.32, () => {
         F.sparks(10, 9, 0xff3826);
@@ -522,8 +527,9 @@ const SCRIPTS = {
     F.vicBash(2.92, F.axis + 1.2, 1.6, 0.9, 0.7);
     F.vicBash(3.82, F.axis - 1.4, 1.6, 0.9, 0.7);
     F.trackCenter(2.0, 5.2, 4);
-    // arms-to-the-sky hero angle, then wide for the barrage
-    F.camShot(1.05, 2.4, { dist: 11, h: 2.8, az0: 3.6, az1: 3.3, lookH: 4.5 });
+    // arms-to-the-sky hero angle from the FRONT, low, looking up past the
+    // victim's shoulder — then wide for the barrage
+    F.camShot(1.05, 2.4, { dist: 11, h: 2.6, az0: 1.15, az1: 0.7, lookH: 4.5 });
     F.camShot(2.4, 5.1, { dist: 13, h: 4.5, az0: 2.7, az1: 2.25, lookH: 3.5 });
     F.at(5.0, () => { F.vicDown(); F.finaleBurst(0x9fd8ff); });
     F.triumph(5.4, 'victory', 'cast');
@@ -637,38 +643,61 @@ const SCRIPTS = {
     F.triumph(5.4, 'taunt', 'howl');
   },
 
-  // TEMPEST: pins them under his storm — five bolts hammer down, each one
-  // convulsing the body and JOLTING it across the scorched ground
+  // TEMPEST: raises the storm — dark clouds close in ABOVE, BEHIND, LEFT
+  // and RIGHT of the mark, then REAL bolts rake in from every direction,
+  // each one leaving the body crackling with static
   tempest(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.9, 8.5);
     F.at(1.0, () => { win.animator.play('burst'); w.audio?.play('thunder'); });
-    F.at(1.3, () => {
-      for (let i = 0; i < 22; i++) {
-        const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * 5;
-        w.effects.smoke.emit(vic.pos.x + Math.cos(a) * r, 12 + rand(-1, 1.5), vic.pos.z + Math.sin(a) * r,
-          rand(-1, 1), rand(-0.3, 0.4), rand(-1, 1),
-          { life: rand(1.6, 2.4), size: rand(4.5, 7.5), color: 0x10141d, alpha: 0.95, grow: 1.3 });
+    // four cloud stations boxing the victim in (station 0 = overhead)
+    const stations = () => {
+      const c = vic.pos;
+      return [
+        new THREE.Vector3(c.x, 13, c.z),
+        new THREE.Vector3(c.x + Math.sin(F.axis) * 9, 8, c.z + Math.cos(F.axis) * 9),
+        new THREE.Vector3(c.x + Math.cos(F.axis) * 9, 8, c.z - Math.sin(F.axis) * 9),
+        new THREE.Vector3(c.x - Math.cos(F.axis) * 9, 8, c.z + Math.sin(F.axis) * 9),
+      ];
+    };
+    // the clouds BUILD and keep churning for the whole storm
+    F.hold(1.25, 5.0, (k, dt) => {
+      if (Math.random() > dt * 26) return;
+      const st = stations();
+      const p = st[(Math.random() * st.length) | 0];
+      w.effects.smoke.emit(p.x + rand(-2.5, 2.5), p.y + rand(-1, 1.2), p.z + rand(-2.5, 2.5),
+        rand(-1, 1), rand(-0.2, 0.4), rand(-1, 1),
+        { life: rand(1.4, 2.2), size: rand(4.5, 7.5), color: 0x0e121a, alpha: 0.95, grow: 1.2 });
+      if (Math.random() < 0.2) { // static shimmer inside the clouds
+        w.effects.glows.emit(p.x + rand(-2, 2), p.y + rand(-1, 1), p.z + rand(-2, 2), 0, 0, 0,
+          { life: 0.2, size: rand(2, 4), color: 0x9fdcff, alpha: 0.7 });
       }
     });
-    const jolts = [0.7, -0.9, 1.8, -2.2, 0.3];
-    for (let i = 0; i < 5; i++) {
-      F.at(1.8 + i * 0.52, () => {
-        const gx = vic.pos.x + rand(-0.5, 0.5), gz = vic.pos.z + rand(-0.5, 0.5);
-        const top = new THREE.Vector3(gx + rand(-1, 1), 12, gz + rand(-1, 1));
-        const ground = new THREE.Vector3(gx, 0.1, gz);
-        w.effects.beams.spawn(top, ground, { radius: 0.24, dur: 0.16, color: 0xeaffff });
-        w.effects.lightning.spawn(top, ground, { color: 0xcfefff, dur: 0.22, jag: 3 });
-        w.effects.glows.emit(gx, 1, gz, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
+    // seven strikes rotating through the stations — bolts rake in from
+    // above, behind, left, right... every direction, all converging on the
+    // mark, each leaving crackling static on the body
+    const jolts = [0.7, -0.9, 1.8, -2.2, 0.3, 2.6, -1.2];
+    for (let i = 0; i < 7; i++) {
+      F.at(1.9 + i * 0.44, () => {
+        const st = stations();
+        const from = st[i % st.length].clone();
+        from.x += rand(-1, 1); from.z += rand(-1, 1);
+        const to = vic.center();
+        w.effects.lightning.spawn(from, to, { color: 0xeaffff, dur: 0.24, jag: 2.6, thick: 0.26 });
+        w.effects.lightning.spawn(from, to, { color: 0x9fdcff, dur: 0.28, jag: 1.6, thick: 0.12 });
+        w.effects.glows.emit(to.x, to.y, to.z, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
+        w.effects.staticCling(vic, 1.2);
         F.beat('zap', 0.55, 0.06);
+        F.sparks(10, 8, 0xcfefff);
         F.vicFlinch();
       });
-      F.vicBash(1.82 + i * 0.52, F.axis + jolts[i], 1.4, 0.9, 0.7);
+      F.vicBash(1.92 + i * 0.44, F.axis + jolts[i], 1.3, 0.8, 0.6);
     }
-    F.trackCenter(1.8, 4.8, 4);
-    F.camShot(1.3, 4.6, { dist: 10, h: 3.4, az0: 3.5, az1: 2.9, lookH: 4.5 });
-    F.at(4.55, () => { F.vicDown(); F.finaleBurst(0x9fdcff); });
-    F.triumph(5.15, 'burst', 'thunder');
+    F.trackCenter(1.9, 5.2, 4);
+    // slow sweeping orbit around the boxed-in kill zone
+    F.camShot(1.25, 5.05, { dist: 12.5, h: 4, az0: 0.7, az1: 2.1, lookH: 4 });
+    F.at(5.0, () => { F.vicDown(); F.finaleBurst(0x9fdcff); });
+    F.triumph(5.45, 'burst', 'thunder');
   },
 
   // FENRIR: wolf pounce, quick maul, then jaws clamp and DRAG the wreck in
@@ -682,13 +711,20 @@ const SCRIPTS = {
       win.pos.z = F.center.z - Math.cos(F.axis) * 8 * (1 - k);
       win.pos.y = Math.sin(k * Math.PI) * 3.4;
     });
-    F.at(1.35, () => { F.beat('slash', 0.8, 0.1); F.vicDown(); w.effects.dustPuff(vic.pos, 8); });
+    // the pounce STAGGERS them — they stay on their feet for the mauling
+    F.at(1.35, () => { F.beat('slash', 0.8, 0.1); F.vicFlinch(); w.effects.dustPuff(vic.pos, 8); });
     F.at(1.5, () => win.animator.play('flurry', { speed: 1.7 }));
     for (let i = 0; i < 3; i++) {
-      F.at(1.65 + i * 0.25, () => { F.sparks(11, 9, 0x6cd8ff); w.audio?.play('slash'); });
+      F.at(1.62 + i * 0.24, () => {
+        F.sparks(11, 9, 0x6cd8ff);
+        w.audio?.play('slash');
+        F.vicFlinch(); // each swipe rocks the standing victim
+      });
     }
+    // ...and only the LAST swipe puts them down
+    F.at(2.28, () => { F.beat('hitHeavy', 0.7, 0.08); F.vicDown(); w.effects.dustPuff(vic.pos, 6); });
     // jaws lock and he TEARS OFF, dragging the wreck in a wide circle
-    F.hold(2.3, 3.9, (k, dt) => {
+    F.hold(2.35, 3.9, (k, dt) => {
       const e = smooth(k);
       const ang = F.axis + e * 3.6;
       vic.pos.x = F.center.x + Math.sin(ang) * 2.2;
@@ -911,11 +947,17 @@ const SCRIPTS = {
     F.at(4.0, () => {
       const top = vic.pos.clone(); top.y += 30;
       w.effects.beams.spawn(vic.pos.clone(), top, { radius: 2.4, dur: 0.7, color: 0x8fdcff });
-      for (let i = 0; i < 40; i++) {
+      for (let i = 0; i < 40; i++) { // real WATER roaring up the column
         const a = rand(Math.PI * 2), r = rand(0, 2.5);
-        w.effects.glows.emit(vic.pos.x + Math.cos(a) * r, rand(0.2, 2), vic.pos.z + Math.sin(a) * r,
-          Math.cos(a) * rand(1, 3), rand(18, 32), Math.sin(a) * rand(1, 3),
-          { life: rand(0.7, 1.2), size: rand(1.4, 2.8), color: i % 3 ? 0xaee8ff : 0xffffff, alpha: 0.95, gravity: 24, drag: 0.35 });
+        if (i % 4 === 0) {
+          w.effects.glows.emit(vic.pos.x + Math.cos(a) * r, rand(0.2, 2), vic.pos.z + Math.sin(a) * r,
+            Math.cos(a) * rand(1, 3), rand(18, 32), Math.sin(a) * rand(1, 3),
+            { life: rand(0.4, 0.7), size: rand(0.5, 1), color: 0xffffff, alpha: 0.55, gravity: 24, drag: 0.35 });
+        } else {
+          w.effects.drops.emit(vic.pos.x + Math.cos(a) * r, rand(0.2, 2), vic.pos.z + Math.sin(a) * r,
+            Math.cos(a) * rand(1, 3), rand(18, 32), Math.sin(a) * rand(1, 3),
+            { life: rand(0.7, 1.2), size: rand(1, 2.2), color: 0xcfe8f6, color2: 0x4276a8, alpha: 0.92, gravity: 24, drag: 0.35 });
+        }
       }
       F.beat('explosionBig', 1, 0.1);
       vic.animator.play('launched');
@@ -924,7 +966,7 @@ const SCRIPTS = {
       vic.pos.y = Math.sin(Math.min(1, k) * Math.PI) * 14;
       vic.group.rotation.x = -k * 5.5;
     });
-    F.camShot(3.9, 5.3, { dist: 11, h: 4.5, az0: 3.0, az1: 2.7, lookH: 5.5 });
+    F.camShot(3.9, 5.3, { dist: 11, h: 4.5, az0: 2.35, az1: 2.05, lookH: 5.5 });
     F.at(5.3, () => {
       vic.group.rotation.x = 0;
       F.vicDown();
@@ -943,9 +985,9 @@ const SCRIPTS = {
     for (let i = 0; i < 5; i++) {
       F.at(1.2 + i * 0.3, () => {
         F.beat('plasma', 0.3, 0.03);
-        F.sparks(9, 7, 0x9ade2a);
-        w.effects.glows.emit(vic.pos.x + rand(-1, 1), rand(2, vic.height), vic.pos.z + rand(-1, 1),
-          0, -2, 0, { life: 0.6, size: rand(1.4, 2.4), color: 0x9ade2a, alpha: 0.9 });
+        // thick gunk SPLATTERS over them and oozes down
+        w.effects.slime(new THREE.Vector3(
+          vic.pos.x + rand(-0.8, 0.8), rand(2, vic.height), vic.pos.z + rand(-0.8, 0.8)), 7, 5);
         F.vic.animator.addImpulse('torso', [rand(-0.25, 0.25), 0, rand(-0.25, 0.25)], 34, 12);
       });
     }
@@ -1015,9 +1057,9 @@ const SCRIPTS = {
         if (Math.random() < 0.6) w.audio?.play('slash');
       });
     }
-    F.camShot(1.3, 3.1, { dist: 8.5, h: 3, az0: 3.6, az1: 3.2, lookH: 2.4 });
+    F.camShot(1.3, 3.1, { dist: 8.5, h: 3, az0: 2.0, az1: 2.5, lookH: 2.4 });
     // push in CLOSE on the carpet doing its work
-    F.camShot(3.1, 5.3, { dist: 5.5, h: 2.2, az0: 2.9, az1: 2.5, lookH: 2.0 });
+    F.camShot(3.1, 5.3, { dist: 5.5, h: 2.2, az0: 2.55, az1: 2.15, lookH: 2.0 });
     F.at(4.9, () => F.vicDown()); // finally goes down under them
     F.at(5.6, () => F.finaleBurst(0xc86a4a));
     F.triumph(5.7, 'taunt', 'dart');

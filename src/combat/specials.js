@@ -264,15 +264,15 @@ export const SPECIALS = {
             const top = new THREE.Vector3(gx + rand(-1, 1), cloudY, gz + rand(-1, 1));
             const ground = new THREE.Vector3(gx, 0.1, gz);
             // a hot beam core wrapped in two jagged arcs reads as a REAL bolt
-            w.effects.beams.spawn(top, ground, { radius: 0.22, dur: 0.16, color: 0xeaffff });
-            w.effects.lightning.spawn(top, ground, { color: 0xcfefff, dur: 0.22, jag: 3.2 });
-            w.effects.lightning.spawn(top, ground, { color: 0x9fdcff, dur: 0.26, jag: 2.2 });
+            w.effects.lightning.spawn(top, ground, { color: 0xeaffff, dur: 0.22, jag: 3.2, thick: 0.24 });
+            w.effects.lightning.spawn(top, ground, { color: 0x9fdcff, dur: 0.26, jag: 2.2, thick: 0.12 });
             w.effects.glows.emit(gx, 1, gz, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
             w.effects.rings.spawn(ground, { from: 0.4, to: 4.2, dur: 0.3, color: 0x9fdcff, y: 0.25 });
             w.audio?.play('zap');
             w.effects.addShake(0.3);
             if (b.victim && b.victim.alive) {
               b.victim.takeHit(sp.dmg * f.dmgMult(), f, { knock: 14, srcPos: center, status: { slow: 0.6, slowT: 1.6 } });
+              w.effects.staticCling(b.victim, 1.1); // charge crackles off them
             }
           });
         });
@@ -570,9 +570,9 @@ export const SPECIALS = {
           w.schedule(i * 0.05, () => {
             const boil = 0.5 + (i / bubbleTicks); // churn harder as it primes
             const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.8;
-            w.effects.glows.emit(target.x + Math.cos(a) * r, 0.3, target.z + Math.sin(a) * r,
+            w.effects.drops.emit(target.x + Math.cos(a) * r, 0.3, target.z + Math.sin(a) * r,
               rand(-0.5, 0.5), rand(2, 4.5) * boil, rand(-0.5, 0.5),
-              { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * boil, color: 0x9fe0ff, alpha: 0.9 });
+              { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * boil, color: 0xcfe8f6, color2: 0x4a80b0, alpha: 0.9, gravity: 14 });
           });
         }
         // ---- eruption: roaring column of water hurled skyward
@@ -585,9 +585,15 @@ export const SPECIALS = {
           // the whole (doubled) eruption area
           for (let i = 0; i < 60; i++) {
             const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.6;
-            w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
-              Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
-              { life: rand(0.8, 1.4), size: rand(1.6, 3.2), color: i % 4 ? 0xaee8ff : 0xffffff, alpha: 0.95, gravity: 26, drag: 0.35 });
+            if (i % 4 === 0) { // foam flecks riding the column
+              w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
+                Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
+                { life: rand(0.4, 0.7), size: rand(0.5, 1), color: 0xffffff, alpha: 0.55, gravity: 26, drag: 0.35 });
+            } else { // the water itself
+              w.effects.drops.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
+                Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
+                { life: rand(0.8, 1.4), size: rand(1, 2.2), color: 0xcfe8f6, color2: 0x4276a8, alpha: 0.92, gravity: 26, drag: 0.35 });
+            }
           }
           // main jet: dense fast water particles rocketing up the column core,
           // fired in three quick pulses so the column stays solid for longer
@@ -595,18 +601,18 @@ export const SPECIALS = {
             w.schedule(delay, () => {
               for (let i = 0; i < 22; i++) {
                 const a = rand(Math.PI * 2), r = rand(0, sp.radius * 0.45);
-                w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2.5), target.z + Math.sin(a) * r,
+                w.effects.drops.emit(target.x + Math.cos(a) * r, rand(0.2, 2.5), target.z + Math.sin(a) * r,
                   Math.cos(a) * rand(0.5, 2), rand(17, 30), Math.sin(a) * rand(0.5, 2),
-                  { life: rand(0.6, 1.1), size: rand(1.4, 2.8), color: i % 3 ? 0xaee8ff : 0xffffff, alpha: 0.95, gravity: 22, drag: 0.4 });
+                  { life: rand(0.6, 1.1), size: rand(1, 2), color: i % 3 ? 0xcfe8f6 : 0xffffff, color2: 0x4276a8, alpha: 0.92, gravity: 22, drag: 0.4 });
               }
             });
           }
           // spray: wider, slower droplets fanning out of the blast
           for (let i = 0; i < 24; i++) {
             const a = rand(Math.PI * 2);
-            w.effects.glows.emit(target.x + Math.cos(a) * rand(0.5, 1.5), rand(1, 4), target.z + Math.sin(a) * rand(0.5, 1.5),
+            w.effects.drops.emit(target.x + Math.cos(a) * rand(0.5, 1.5), rand(1, 4), target.z + Math.sin(a) * rand(0.5, 1.5),
               Math.cos(a) * rand(3, 8), rand(9, 18), Math.sin(a) * rand(3, 8),
-              { life: rand(0.6, 1.2), size: rand(0.8, 1.6), color: 0x8fdcff, alpha: 0.8, gravity: 26, drag: 0.3 });
+              { life: rand(0.6, 1.2), size: rand(0.6, 1.3), color: 0xbfe0f2, color2: 0x4276a8, alpha: 0.9, gravity: 26, drag: 0.3 });
           }
           // mist pluming off the column
           for (let i = 0; i < 8; i++) {
@@ -1052,9 +1058,14 @@ export const ULTS = {
             }
             target.y = 0;
             const top = target.clone(); top.y = 55;
-            f.world.effects.lightning.spawn(top, target, { color: 0x9fdcff, dur: 0.3, jag: 3 });
+            f.world.effects.lightning.spawn(top, target, { color: 0x9fdcff, dur: 0.3, jag: 3, thick: 0.22 });
             f.world.effects.glows.emit(target.x, target.y + 1, target.z, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
             f.world.explode(target, 4.5, u.dmg * f.dmgMult(), { owner: f, knock: 12, color: 0x9fdcff, silentFx: true });
+            for (const e2 of f.world.fighters) { // charge lingers on the struck
+              if (e2 !== f && e2.alive && Math.hypot(e2.pos.x - target.x, e2.pos.z - target.z) < 4.5) {
+                f.world.effects.staticCling(e2, 1.1);
+              }
+            }
             f.world.effects.addShake(0.4);
             f.world.audio?.play('zap');
           });

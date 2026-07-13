@@ -442,20 +442,9 @@ export class World {
         this.effects.beams.spawn(hFrom, new THREE.Vector3(
           hFrom.x + dir.x * reach, hFrom.y + dir.y * reach - 1.1, hFrom.z + dir.z * reach,
         ), { radius: 0.17, dur: 0.1, color: 0x9fdcff });
-        // pressurized droplets riding the jet, arcing down under gravity
-        for (let i = 0; i < 6; i++) {
-          const s = rand(34, 46);
-          this.effects.glows.emit(hFrom.x, hFrom.y, hFrom.z,
-            (dir.x + rand(-0.06, 0.06)) * s, (dir.y + rand(-0.04, 0.06)) * s + 1.5, (dir.z + rand(-0.06, 0.06)) * s,
-            { life: rand(0.45, 0.68), size: i === 0 ? rand(1.6, 2.2) : rand(1, 1.7),
-              color: i === 0 ? 0xffffff : 0xaee2ff, alpha: 0.9, gravity: 14, drag: 0.25 });
-        }
-        // mist sputtering off the stream
-        if (Math.random() < 0.4) {
-          this.effects.smoke.emit(hFrom.x + dir.x * 4, hFrom.y + dir.y * 4 + rand(0.5), hFrom.z + dir.z * 4,
-            dir.x * 10, 1.5 + rand(1.5), dir.z * 10,
-            { life: rand(0.4, 0.7), size: rand(1.2, 2), color: 0xd8eeff, alpha: 0.22, drag: 1.2, grow: 2 });
-        }
+        // pressurized water: heavy droplets + foam + mist (reads as liquid,
+        // not light — normally-blended drops with a blue depth ramp)
+        this.effects.waterJet(hFrom, dir, 40);
         if (Math.random() < 0.35) this.audio?.play('wave');
         for (const t of this.fighters) {
           if (t === f || !t.alive) continue;
@@ -464,9 +453,7 @@ export class World {
           if (d < mv.range && toT.normalize().dot(dir) > 0.8) {
             // the stream SHOVES as it soaks — splash where it lands
             t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 3.4, srcPos: hFrom });
-            const c = t.center();
-            this.effects.glows.emit(c.x, c.y, c.z, rand(-3, 3), rand(2, 6), rand(-3, 3),
-              { life: 0.3, size: rand(1, 1.8), color: 0xd8f2ff, alpha: 0.85, gravity: 18 });
+            this.effects.splash(t.center(), 7, 7);
           }
         }
         break;
@@ -503,8 +490,9 @@ export class World {
       case 'slime': // FROGGER: sticky gunk bolt, slows on hit
         this.projectiles.spawn('plasma', f, from, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0x9ade2a, knock: 8,
-          status: { slow: 0.7, slowT: 1.4 },
+          status: { slow: 0.7, slowT: 1.4 }, goop: true,
         });
+        this.effects.slime(from, 3, 3, dir);
         this.audio?.play('plasma');
         break;
     }

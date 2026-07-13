@@ -90,6 +90,7 @@ export class ProjectileSystem {
       status: spec.status || null,
       size: spec.size || 1,
       wobble: spec.wobble || 0,
+      goop: !!spec.goop,
       age: rand(0, 6.28), // desyncs flap/wobble phase across a swarm
     };
     if (p.size !== 1) p.mesh.scale.multiplyScalar(p.size);
@@ -206,6 +207,11 @@ export class ProjectileSystem {
             { life: 0.55, size: rand(0.8, 1.3), color: 0x3a3a40, alpha: 0.45, grow: 2 });
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             0, 0, 0, { life: 0.1, size: 1.2, color: 0xffb050, alpha: 0.8 });
+        } else if (p.goop) {
+          // thick liquid: heavy droplets sag off the bolt and drip down
+          world.effects.drops.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
+            rand(-0.6, 0.6), rand(-1.5, 0.2), rand(-0.6, 0.6),
+            { life: rand(0.35, 0.6), size: rand(0.7, 1.4), color: 0x8ad42a, color2: 0x3c7410, alpha: 0.95, gravity: 16 });
         } else if (vis.trail === 'glow') {
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             0, 0, 0, { life: 0.18, size: rand(0.9, 1.5), color: p.color, alpha: 0.6 });
@@ -323,8 +329,9 @@ export class ProjectileSystem {
     }
     if (best) {
       best.takeHit(dmg, owner, { knock, srcPos: origin, status: { slow: 0.75, slowT: 0.6 } });
-      world.effects.lightning.spawn(origin, best.center(), { color, jag: 1.1 });
+      world.effects.lightning.spawn(origin, best.center(), { color, jag: 1.1, thick: 0.14 });
       world.effects.impactSparks(best.center(), color, 12, 9);
+      world.effects.staticCling(best, 0.9);
       // chain to one nearby enemy
       let chain = null, chainD = Infinity;
       for (const f of world.fighters) {
@@ -334,8 +341,9 @@ export class ProjectileSystem {
       }
       if (chain) {
         chain.takeHit(dmg * 0.6, owner, { knock: knock * 0.6, srcPos: best.center() });
-        world.effects.lightning.spawn(best.center(), chain.center(), { color, jag: 0.9 });
+        world.effects.lightning.spawn(best.center(), chain.center(), { color, jag: 0.9, thick: 0.1 });
         world.effects.impactSparks(chain.center(), color, 8, 7);
+        world.effects.staticCling(chain, 0.6);
       }
       return true;
     }
