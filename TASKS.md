@@ -868,5 +868,9 @@ controllers via Gamepad API), AI opponents.
   2×scale ×3, saurion rideY 1.1, jerry 157 fleas/147 attached, wraith
   spectre 0→11→0→11→0, rhino double-trample trace, frogger squash
   0.42→1.0); 16-mech attackmatrix ALL CONNECT (jerry flake rerun ✓);
-  ace soak crash-free; chooser UI screenshot reviewed; 16 videos
-  re-captured and delivered.
+  ace soak crash-free; chooser UI screenshot reviewed. Follow-up from
+  frame review: chasing winners could block the fixed-azimuth shots, so
+  smash/walk-down/drag phases now use camAction — a smoothed camera that
+  rides perpendicular to the LIVE winner↔victim line (framing A/B'd on
+  the titanus smash phase). Scenes are reviewed in-browser via
+  ?debug=finisher (no video pass).
