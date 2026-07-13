@@ -78,6 +78,30 @@ export class Finisher {
     });
   }
 
+  // action cam: rides perpendicular to the LIVE winner<->victim line so the
+  // combatants stay in profile and the winner can never wander between the
+  // lens and the kill — for phases where the fight chases around the arena
+  camAction(t0, t1, { dist = 12, h = 3.8, lookH = 2.3, side = 1, bias = 0.6, rate = 3 } = {}) {
+    const S = this.stageScale;
+    let az, mx, mz;
+    this.hold(t0, t1, (k, dt) => {
+      const dx = this.w.wrapDelta(this.vic.pos.x - this.win.pos.x);
+      const dz = this.w.wrapDelta(this.vic.pos.z - this.win.pos.z);
+      const tx = lerp(this.win.pos.x, this.vic.pos.x, bias);
+      const tz = lerp(this.win.pos.z, this.vic.pos.z, bias);
+      if (az === undefined) { az = this.axis + side * Math.PI / 2; mx = tx; mz = tz; }
+      if (Math.hypot(dx, dz) > 0.6) { // coincident bodies: keep last azimuth
+        const want = Math.atan2(dx, dz) + side * Math.PI / 2;
+        az += Math.atan2(Math.sin(want - az), Math.cos(want - az)) * Math.min(1, dt * rate);
+      }
+      const a = Math.min(1, dt * 5);
+      mx += (tx - mx) * a;
+      mz += (tz - mz) * a;
+      this.cam.pos.set(mx + Math.sin(az) * dist * S, h * S, mz + Math.cos(az) * dist * S);
+      this.cam.look.set(mx, lookH * S, mz);
+    });
+  }
+
   // softly glue the action center (and thus every camShot) to wherever the
   // victim gets bashed to, so the camera follows the carnage
   trackCenter(t0, t1, rate = 4) {
@@ -212,7 +236,7 @@ const SCRIPTS = {
     F.at(1.25, () => F.win.animator.play('heavy'));
     F.at(1.7, () => { F.beat(); F.sparks(); F.vicFlinch(); });
     F.vicBash(1.72, F.axis, 1.3, 0.7, 0.4);
-    F.camShot(2.1, 4.7, { dist: 7.5, h: 3, az0: 3.6, az1: 3.15, lookH: 3 });
+    F.camAction(2.1, 4.7, { dist: 12, h: 3.6, lookH: 2.2 });
     F.at(2.25, () => F.win.animator.play('light1'));
     F.at(2.55, () => { F.beat('hit', 0.35, 0.04); F.sparks(10, 8); F.vicFlinch(); });
     F.at(2.9, () => F.win.animator.play('light2'));
@@ -254,7 +278,7 @@ const SCRIPTS = {
       F.center.set(vic.pos.x, 0, vic.pos.z);
       w.effects.dustPuff(vic.pos, 12);
     });
-    F.camShot(2.85, 5.75, { dist: 8.5, h: 3.4, az0: 2.5, az1: 2.1, lookH: 1.8 });
+    F.camAction(2.85, 5.75, { dist: 14, h: 4.6, lookH: 2.6 });
     F.trackCenter(2.9, 5.7, 5);
     // relentless pursuit: between smashes he re-squares up on wherever the
     // last punt knocked the body, so every pound lands ON it
@@ -333,7 +357,7 @@ const SCRIPTS = {
       win.pos.y = rideY + Math.abs(Math.sin(k * 26)) * 0.22;
       win.yaw = win.targetYaw = F.axis;
     });
-    F.camShot(1.4, 4.1, { dist: 6, h: 1.9, az0: 3.7, az1: 3.25, lookH: 1.1 });
+    F.camShot(1.4, 4.1, { dist: 7.5, h: 2.2, az0: 3.7, az1: 3.25, lookH: 1.2 });
     for (let i = 0; i < 7; i++) {
       F.at(1.6 + i * 0.32, () => {
         F.sparks(10, 9, 0xff3826);
@@ -433,7 +457,7 @@ const SCRIPTS = {
       if (Math.random() < dt * 10) w.effects.dustPuff(vic.pos, 2);
     });
     F.trackCenter(1.7, 4.6, 5);
-    F.camShot(1.3, 4.3, { dist: 7.5, h: 2.8, az0: 3.9, az1: 3.3, lookH: 2.6 });
+    F.camAction(1.3, 4.4, { dist: 12, h: 3.6, lookH: 2.4 });
     F.at(2.4, () => F.vicFlinch());
     F.at(3.4, () => F.vicDown());
     // one last burst kicks the corpse across the ground
@@ -640,7 +664,7 @@ const SCRIPTS = {
       if (Math.random() < dt * 16) w.effects.dustPuff(vic.pos, 2);
       if (Math.random() < dt * 8) { F.sparks(6, 6, 0x6cd8ff); }
     });
-    F.camShot(1.35, 3.9, { dist: 9.5, h: 3.2, az0: 3.6, az1: 4.9, lookH: 1.6 });
+    F.camAction(1.35, 3.9, { dist: 11, h: 3.2, lookH: 1.6, rate: 2.5 });
     // the release: flung tumbling across the arena
     F.at(3.9, () => { F.beat('whooshBig', 0.7, 0.08); vic.animator.play('launched'); win.animator.stop(0.15); });
     F.hold(3.9, 4.65, (k) => {
@@ -758,7 +782,7 @@ const SCRIPTS = {
       win.pos.z += Math.cos(F.axis) * dt * 1.3;
     });
     F.trackCenter(1.7, 4.6, 5);
-    F.camShot(1.2, 4.4, { dist: 8.5, h: 3, az0: 2.7, az1: 3.4, lookH: 2.8 });
+    F.camAction(1.2, 4.4, { dist: 12.5, h: 3.6, lookH: 2.5 });
     F.at(1.9, () => F.vicFlinch());
     F.at(2.5, () => F.vicFlinch());
     F.at(3.1, () => F.vicFlinch());
@@ -828,7 +852,7 @@ const SCRIPTS = {
       F.vicBash(1.44 + i * 0.62, F.axis + (i % 2 ? 1.35 : -1.35), 1.7, 0.8, 0.6);
     }
     F.trackCenter(1.3, 3.4, 5);
-    F.camShot(1.0, 3.2, { dist: 7.5, h: 3, az0: 3.7, az1: 3.2, lookH: 2.8 });
+    F.camAction(1.0, 3.2, { dist: 12, h: 3.8, lookH: 2.4 });
     F.at(3.2, () => { win.animator.play('castRaise'); w.audio?.play('cast'); });
     F.at(3.6, () => {
       w.effects.rings.spawn(vic.pos, { from: 0.6, to: 7, dur: 0.4, color: 0x4fc3ff, y: 0.3 });
