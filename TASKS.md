@@ -961,3 +961,29 @@ controllers via Gamepad API), AI opponents.
   constant; titanus sideways-lift still reviewed; 16-mech attackmatrix
   ALL CONNECT; colossus-vs-saurion ace soak (slam + perch under AI)
   crash-free.
+
+49. LUSCIOUS ELEMENTAL FX: FLIPBOOKS, ATLASES, SPRITE INTAKE ✅
+  · Particle engine upgraded: texture ATLASES with per-particle rotation
+    + spin, alpha fade-in curves (no more popping), color ramps — the
+    "fading circle" era is over. All CPU-simmed, one draw call per pool.
+  · FIRE is a 16-frame LOOPING turbulence flipbook (each flame licks
+    through the loop as it rises/cools white->orange->deep red) baked
+    from fractal value noise; explosions roll flipbook fireballs.
+  · SMOKE is a 2x2 atlas of distinct billowy fractal puffs that tumble
+    (spin) and fade in — soot, dust, mist, steam all tinted variants.
+  · WATER droplets have a baked specular glint + darker belly (wet bead
+    look), spinning as they arc; foam flecks + fine mist ride along.
+  · SLIME is a 2x2 atlas of lumpy noise-warped glossy blobs with
+    satellite drips — projectile trails, splats and the finisher all use
+    the goop pool now.
+  · ICE: crystalline six-armed sparkles for glacier's beam + frost vapor.
+  · Optional sprite intake: drop PNGs + public/sprites/manifest.json to
+    override any slot (fire/smoke/droplet/goop/ice/spark/glow), with
+    atlas dims and CHROMAKEY intake — "luma" (alpha from brightness, for
+    additive sprites on black) or "#rrggbb" keying with soft tolerance
+    and despill. Missing/broken manifest = procedural look stays.
+    docs/SPRITES.md has the manifest format + image-generator prompts.
+  Verified: build green; stills reviewed (fireball wash + pilot flames,
+  water beads with glints in the geyser column, lumpy slime globs);
+  16-mech attackmatrix ALL CONNECT; inferno-vs-frogger ace soak
+  (fire + goop under AI combat) crash-free.

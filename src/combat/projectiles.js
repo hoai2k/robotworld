@@ -208,10 +208,11 @@ export class ProjectileSystem {
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             0, 0, 0, { life: 0.1, size: 1.2, color: 0xffb050, alpha: 0.8 });
         } else if (p.goop) {
-          // thick liquid: heavy droplets sag off the bolt and drip down
-          world.effects.drops.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
+          // thick liquid: lumpy globs sag off the bolt and drip down
+          world.effects.goop.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             rand(-0.6, 0.6), rand(-1.5, 0.2), rand(-0.6, 0.6),
-            { life: rand(0.35, 0.6), size: rand(0.7, 1.4), color: 0x8ad42a, color2: 0x3c7410, alpha: 0.95, gravity: 16 });
+            { life: rand(0.35, 0.6), size: rand(0.8, 1.5), color: 0x9fe23a, color2: 0x3c7410,
+              alpha: 0.95, gravity: 16, spin: 1.5, fadeIn: 0.05 });
         } else if (vis.trail === 'glow') {
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             0, 0, 0, { life: 0.18, size: rand(0.9, 1.5), color: p.color, alpha: 0.6 });

@@ -347,6 +347,205 @@ export function ringTexture() {
   });
 }
 
+// ---------- fractal value noise (for luscious FX sprites) ----------
+function makeNoise(rng, size, oct = 4) {
+  const out = new Float32Array(size * size);
+  let amp = 1, sum = 0;
+  for (let o = 0; o < oct; o++) {
+    const n = 4 << o;
+    const grid = new Float32Array((n + 1) * (n + 1));
+    for (let i = 0; i < grid.length; i++) grid[i] = rng();
+    const sc = n / size;
+    for (let y = 0; y < size; y++) {
+      const gy = y * sc, y0 = gy | 0, fy = gy - y0;
+      const sy = fy * fy * (3 - 2 * fy);
+      for (let x = 0; x < size; x++) {
+        const gx = x * sc, x0 = gx | 0, fx = gx - x0;
+        const sx = fx * fx * (3 - 2 * fx);
+        const i00 = grid[y0 * (n + 1) + x0], i10 = grid[y0 * (n + 1) + x0 + 1];
+        const i01 = grid[(y0 + 1) * (n + 1) + x0], i11 = grid[(y0 + 1) * (n + 1) + x0 + 1];
+        const v = (i00 + (i10 - i00) * sx) * (1 - sy) + (i01 + (i11 - i01) * sx) * sy;
+        out[y * size + x] += v * amp;
+      }
+    }
+    sum += amp;
+    amp *= 0.55;
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= sum;
+  return out;
+}
+
+function fxTexture(key, w, h, draw) {
+  const tex = makeCanvasTexture(key, w, h, draw, { wrap: false });
+  tex.flipY = false; // atlas cell math indexes rows from the top
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// 4x4 flipbook of a LOOPING turbulent flame puff — the classic technique
+// for fire that reads as fire. Loop comes from circling the sample window
+// through a fixed noise field. White-hot heart and orange skirts are baked
+// in; the per-particle color ramp handles yellow->deep-red cooling.
+export function flameAtlasTexture() {
+  return fxTexture('flameAtlas', 512, 512, (ctx) => {
+    const CELL = 128, COLS = 4, FRAMES = 16, S = 512;
+    const rng = makeRng(4242);
+    const noiseA = makeNoise(rng, 256, 4);
+    const noiseB = makeNoise(rng, 256, 4);
+    const img = ctx.createImageData(S, S);
+    for (let fr = 0; fr < FRAMES; fr++) {
+      const cx0 = (fr % COLS) * CELL, cy0 = ((fr / COLS) | 0) * CELL;
+      const th = (fr / FRAMES) * Math.PI * 2;
+      const oxA = 90 + 42 * Math.cos(th), oyA = 90 + 42 * Math.sin(th);
+      const oxB = 90 + 42 * Math.cos(th + 2.1), oyB = 90 + 42 * Math.sin(th + 2.1);
+      for (let y = 0; y < CELL; y++) {
+        for (let x = 0; x < CELL; x++) {
+          const dx = (x - 64) / 64, dy = (y - 64) / 64;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          const nA = noiseA[(((y * 0.55 + oyA) | 0) * 256 + ((x * 0.55 + oxA) | 0))];
+          const nB = noiseB[(((y * 0.85 + oyB) | 0) * 256 + ((x * 0.85 + oxB) | 0))];
+          let v = (0.62 * nA + 0.38 * nB) * 1.8 - r * 1.5 + 0.12;
+          v = Math.max(0, Math.min(1, v));
+          v *= Math.max(0, Math.min(1, 1 - (r - 0.78) / 0.2)); // hard edge kill
+          const px = ((cy0 + y) * S + (cx0 + x)) * 4;
+          img.data[px] = 255;
+          img.data[px + 1] = Math.round(140 + 115 * Math.min(1, v * 1.6));
+          img.data[px + 2] = Math.round(36 + 219 * Math.max(0, v * 1.8 - 0.62));
+          img.data[px + 3] = Math.round(Math.pow(v, 1.3) * 255);
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  });
+}
+
+// 2x2 atlas of DISTINCT billowy smoke puffs: fractal density, ragged edges.
+// Baked white; particle color tints (soot, dust, mist, steam).
+export function smokeCellsTexture() {
+  return fxTexture('smokeCells', 256, 256, (ctx) => {
+    const CELL = 128, S = 256;
+    const rng = makeRng(9137);
+    const img = ctx.createImageData(S, S);
+    for (let c = 0; c < 4; c++) {
+      const cx0 = (c % 2) * CELL, cy0 = ((c / 2) | 0) * CELL;
+      const noise = makeNoise(rng, 128, 4);
+      for (let y = 0; y < CELL; y++) {
+        for (let x = 0; x < CELL; x++) {
+          const dx = (x - 64) / 64, dy = (y - 64) / 64;
+          const r = Math.sqrt(dx * dx + dy * dy);
+          const n = noise[y * 128 + x];
+          let a = n * 1.7 - r * 1.55 + 0.34;
+          a = Math.max(0, Math.min(1, a));
+          a *= Math.max(0, Math.min(1, 1 - (r - 0.76) / 0.22));
+          const px = ((cy0 + y) * S + (cx0 + x)) * 4;
+          // slight internal shading so puffs read as volumes, not discs
+          const shade = 205 + Math.round(50 * Math.min(1, n * 1.4));
+          img.data[px] = shade;
+          img.data[px + 1] = shade;
+          img.data[px + 2] = shade;
+          img.data[px + 3] = Math.round(Math.pow(a, 1.15) * 232);
+        }
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  });
+}
+
+// a single glossy water bead: cool body, off-center specular glint, darker
+// belly — normally-blended so it reads as matter with a wet shine
+export function dropletTexture() {
+  return fxTexture('droplet', 64, 64, (ctx, S) => {
+    const c = S / 2;
+    const body = ctx.createRadialGradient(c - 6, c - 8, 2, c, c, c * 0.92);
+    body.addColorStop(0, 'rgba(255,255,255,0.98)');
+    body.addColorStop(0.3, 'rgba(214,236,250,0.95)');
+    body.addColorStop(0.7, 'rgba(150,193,232,0.9)');
+    body.addColorStop(0.92, 'rgba(108,152,204,0.45)');
+    body.addColorStop(1, 'rgba(96,140,196,0)');
+    ctx.fillStyle = body;
+    ctx.beginPath(); ctx.arc(c, c, c * 0.92, 0, Math.PI * 2); ctx.fill();
+    // specular glint + a faint low rim-light: the "wet" signature
+    const hi = ctx.createRadialGradient(c - 9, c - 10, 0, c - 9, c - 10, 8);
+    hi.addColorStop(0, 'rgba(255,255,255,1)');
+    hi.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = hi;
+    ctx.beginPath(); ctx.arc(c - 9, c - 10, 8, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.arc(c, c, c * 0.7, Math.PI * 0.2, Math.PI * 0.8); ctx.stroke();
+  });
+}
+
+// 2x2 atlas of gooey irregular blobs — lumpy noise-warped outlines with a
+// glossy highlight and satellite droplets. Baked white; color makes slime.
+export function goopCellsTexture() {
+  return fxTexture('goopCells', 256, 256, (ctx) => {
+    const CELL = 128;
+    const rng = makeRng(5150);
+    for (let c = 0; c < 4; c++) {
+      const cx = (c % 2) * CELL + 64, cy = ((c / 2) | 0) * CELL + 64;
+      const p1 = rng() * Math.PI * 2, p2 = rng() * Math.PI * 2, p3 = rng() * Math.PI * 2;
+      ctx.save();
+      ctx.beginPath();
+      for (let i = 0; i <= 30; i++) {
+        const th = (i / 30) * Math.PI * 2;
+        const rad = 40 * (0.72 + 0.17 * Math.sin(3 * th + p1) + 0.09 * Math.sin(7 * th + p2) + 0.06 * Math.sin(11 * th + p3));
+        const x = cx + Math.cos(th) * rad, y = cy + Math.sin(th) * rad * 1.06;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      const body = ctx.createRadialGradient(cx - 8, cy - 10, 4, cx, cy, 46);
+      body.addColorStop(0, 'rgba(255,255,255,0.98)');
+      body.addColorStop(0.45, 'rgba(228,238,215,0.96)');
+      body.addColorStop(0.85, 'rgba(178,198,150,0.92)');
+      body.addColorStop(1, 'rgba(150,172,120,0.55)');
+      ctx.fillStyle = body;
+      ctx.fill();
+      // glossy wet highlight
+      const hi = ctx.createRadialGradient(cx - 12, cy - 14, 0, cx - 12, cy - 14, 12);
+      hi.addColorStop(0, 'rgba(255,255,255,0.95)');
+      hi.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = hi;
+      ctx.beginPath(); ctx.arc(cx - 12, cy - 14, 12, 0, Math.PI * 2); ctx.fill();
+      // satellite droplets hanging off the mass
+      for (let s = 0; s < 3; s++) {
+        const a = rng() * Math.PI * 2, d = 44 + rng() * 9;
+        ctx.fillStyle = 'rgba(214,228,196,0.9)';
+        ctx.beginPath();
+        ctx.arc(cx + Math.cos(a) * d, cy + Math.sin(a) * d, 2.5 + rng() * 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+  });
+}
+
+// crystalline six-armed ice sparkle (additive)
+export function iceTexture() {
+  return fxTexture('iceSparkle', 64, 64, (ctx, S) => {
+    const c = S / 2;
+    ctx.translate(c, c);
+    for (let arm = 0; arm < 6; arm++) {
+      ctx.rotate(Math.PI / 3);
+      const g = ctx.createLinearGradient(0, 0, 0, -c * 0.9);
+      g.addColorStop(0, 'rgba(255,255,255,0.95)');
+      g.addColorStop(0.6, 'rgba(190,230,255,0.55)');
+      g.addColorStop(1, 'rgba(160,215,255,0)');
+      ctx.strokeStyle = g;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -c * 0.9); ctx.stroke();
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(0, -c * 0.4); ctx.lineTo(c * 0.16, -c * 0.55); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, -c * 0.4); ctx.lineTo(-c * 0.16, -c * 0.55); ctx.stroke();
+    }
+    const heart = ctx.createRadialGradient(0, 0, 0, 0, 0, 10);
+    heart.addColorStop(0, 'rgba(255,255,255,1)');
+    heart.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = heart;
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, Math.PI * 2); ctx.fill();
+  });
+}
+
 // star-field / night sky dome texture
 export function skyStarsTexture() {
   return makeCanvasTexture('stars', 1024, 512, (ctx, W, H) => {
