@@ -77,6 +77,8 @@ export class Arena {
     this.explosives = []; // fuel tanks etc. that cook off when hit
     this.spikes = [];      // ground spike clusters: contact damage + shove
     this.campfires = [];   // attack one and it flares into a fire patch
+    this.propBodies = [];  // solid, destructible structures (cylinder colliders)
+    this.ghostPropGroups = []; // the 8 toroidal clones (mirror destruction)
     this.ambientT = 0;
     const rng = makeRng(seed * 31 + theme.id.length * 77);
 
@@ -245,6 +247,24 @@ export class Arena {
         if (g && g.userData.campfire) {
           this.campfires.push({ group: g, x, z, r: g.userData.campfire.r, litT: 0 });
         }
+        // every standing structure is SOLID and BREAKABLE: measure a
+        // cylinder collider off the built prop (ground hazards and flat
+        // dressing — pads, channels, rails — stay walk-over)
+        if (g && !g.userData.spikes && !g.userData.campfire && !g.userData.noCollide) {
+          const bb = new THREE.Box3().setFromObject(g);
+          const rx = (bb.max.x - bb.min.x) / 2, rz = (bb.max.z - bb.min.z) / 2;
+          const h = bb.max.y;
+          const r = Math.min(Math.max(rx, rz) * 0.72, 7);
+          if (h > 1.7 && r > 0.4 && r < 7.5 && h / Math.max(rx, rz) > 0.35) {
+            this.propBodies.push({
+              group: g, idx: this.propGroup.children.indexOf(g),
+              x, z, r, h,
+              hp: 26 + r * Math.min(h, 16) * 7,
+              alive: true,
+              tint: g.userData.explosive ? 0x8a4030 : 0x8f887c,
+            });
+          }
+        }
       }
     }
     // ghost copies of the props in the 8 neighbor cells (static)
@@ -257,6 +277,7 @@ export class Arena {
           ghost.position.set(gx * P, 0, gz * P);
           this.scene.add(ghost);
           this.objects.push(ghost);
+          this.ghostPropGroups.push(ghost); // destruction mirrors into these
         }
       }
     }
@@ -281,7 +302,85 @@ export class Arena {
 
   damageSphere(pos, radius, dmg, dir = null, structural = false) {
     this.igniteCampfires(pos, radius + 1.2);
-    return this.destructo.damageSphere(pos, radius, dmg, dir, structural);
+    const props = this.damageProps(pos, radius, dmg * (structural ? 1.4 : 0.8), dir);
+    return this.destructo.damageSphere(pos, radius, dmg, dir, structural) + props;
+  }
+
+  // ---- solid destructible props ----
+  // cylinder test: is this point inside a living prop body?
+  propAt(pos) {
+    const w = this.world;
+    for (const p of this.propBodies) {
+      if (!p.alive) continue;
+      if (pos.y > p.h || pos.y < -0.5) continue;
+      const dx = w ? w.wrapDelta(pos.x - p.x) : pos.x - p.x;
+      const dz = w ? w.wrapDelta(pos.z - p.z) : pos.z - p.z;
+      if (dx * dx + dz * dz < p.r * p.r) return p;
+    }
+    return null;
+  }
+
+  damageProps(pos, radius, dmg, dir = null) {
+    const w = this.world;
+    let hits = 0;
+    for (const p of this.propBodies) {
+      if (!p.alive) continue;
+      if (pos.y > p.h + radius) continue;
+      const dx = w ? w.wrapDelta(p.x - pos.x) : p.x - pos.x;
+      const dz = w ? w.wrapDelta(p.z - pos.z) : p.z - pos.z;
+      if (Math.hypot(dx, dz) > radius + p.r) continue;
+      hits++;
+      if (p.group.userData.explosive) {
+        // fuel tanks don't crumble — they COOK OFF
+        this.hitExplosives(pos, radius);
+        continue;
+      }
+      p.hp -= dmg;
+      if (p.hp <= 0) this.destroyProp(p, dir);
+      else if (w) {
+        w.effects.impactSparks(
+          new THREE.Vector3(p.x, Math.min(Math.max(pos.y, 0.6), p.h * 0.8), p.z),
+          0xcfc8ba, 6, 6);
+      }
+    }
+    return hits;
+  }
+
+  // the structure comes apart: real tumbling rubble blocks (solid, standable
+  // once settled), debris sparks, dust — and the toroidal clones vanish too
+  destroyProp(p, dir = null) {
+    if (!p.alive) return;
+    p.alive = false;
+    this.hideProp(p);
+    const w = this.world;
+    if (!w) return;
+    const n = Math.min(6, 2 + Math.round(p.r * p.h * 0.14));
+    for (let i = 0; i < n; i++) {
+      const a = rand(Math.PI * 2), rr = rand(0, p.r * 0.7);
+      const s = Math.min(2.6, Math.max(0.9, p.r * rand(0.5, 0.9)));
+      this.destructo.spawnRubble(
+        p.x + Math.cos(a) * rr, rand(1, Math.min(p.h, 10)), p.z + Math.sin(a) * rr,
+        s, s * rand(0.6, 1.2), s,
+        (dir ? dir.x * 6 : 0) + rand(-3, 3), rand(2, 6), (dir ? dir.z * 6 : 0) + rand(-3, 3),
+        new THREE.Color(p.tint)
+      );
+    }
+    const c = new THREE.Vector3(p.x, Math.min(2.5, p.h * 0.4), p.z);
+    w.effects.impactSparks(c, 0xd8cfc0, 14, 11);
+    w.effects.dustPuff(new THREE.Vector3(p.x, 0.4, p.z), 12, 0x99917f);
+    w.effects.rings.spawn(new THREE.Vector3(p.x, 0, p.z),
+      { from: 0.5, to: p.r * 3, dur: 0.4, color: 0xcabf9f, y: 0.25 });
+    w.audio?.play(p.h > 10 ? 'crumbleBig' : 'crumble');
+    w.effects.addShake(Math.min(0.6, 0.2 + p.h * 0.02));
+  }
+
+  hideProp(p) {
+    p.group.visible = false;
+    if (p.idx < 0) return;
+    for (const gg of this.ghostPropGroups) {
+      const child = gg.children[p.idx];
+      if (child) child.visible = false;
+    }
   }
 
   // ---- campfires: any strike near one flares it into a burning patch ----
@@ -311,8 +410,24 @@ export class Arena {
   applyViewFade(cam) { this.destructo.applyViewFade(cam); }
 
   collideFighter(f) {
-    // no boundary clamp — space wraps; only buildings + settled rubble push back
+    // no boundary clamp — space wraps; buildings, settled rubble and SOLID
+    // PROPS push back
     this.destructo.collideFighter(f);
+    const w = this.world;
+    for (const p of this.propBodies) {
+      if (!p.alive) continue;
+      if (f.pos.y > p.h) continue; // cleared it airborne
+      const dx = w ? w.wrapDelta(f.pos.x - p.x) : f.pos.x - p.x;
+      const dz = w ? w.wrapDelta(f.pos.z - p.z) : f.pos.z - p.z;
+      const rr = p.r + f.radius;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= rr * rr || d2 < 1e-6) continue;
+      const d = Math.sqrt(d2);
+      f.pos.x += (dx / d) * (rr - d);
+      f.pos.z += (dz / d) * (rr - d);
+      f.vel.x *= 0.5;
+      f.vel.z *= 0.5;
+    }
   }
 
   // ---- explosive props (fuel tanks): cook off into a fiery inferno ----

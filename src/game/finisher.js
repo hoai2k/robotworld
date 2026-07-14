@@ -868,12 +868,20 @@ const SCRIPTS = {
     F.at(1.1, () => { win.animator.play('shootLoop'); w.audio?.play('flame'); });
     F.hold(1.2, 4.2, (k, dt) => {
       F.winCtx = { speed: 0, grounded: true, firing: true }; // torch level
-      if (Math.random() < dt * 24) {
+      {
         const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
         const dir = new THREE.Vector3(Math.sin(win.yaw), 0.02, Math.cos(win.yaw));
-        w.effects.flameCone(from, dir, 0xff7a20, 0.24, 34);
-        w.effects.flameCone(from, dir, 0xffd23c, 0.11, 44);
-        if (Math.random() < 0.3) w.audio?.play('flame');
+        // the coherent flamethrower cone + tongues erupting along it
+        w.effects.jet('flame:fin', from, dir, {
+          type: 'fire', speed: 30, range: 13, gravity: -4, r0: 0.22, r1: 1.7,
+        });
+        if (Math.random() < dt * 24) {
+          w.effects.fire(from, dir, 34, 0.24);
+          const u = rand(0.35, 0.95);
+          w.effects.fire(new THREE.Vector3(
+            from.x + dir.x * 12 * u, from.y + u * u * 2, from.z + dir.z * 12 * u), dir, 10, 0.5);
+        }
+        if (Math.random() < dt * 7) w.audio?.play('flame');
       }
       if (Math.random() < dt * 8) {
         w.effects.glows.emit(vic.pos.x + rand(-1, 1), rand(0.5, vic.height), vic.pos.z + rand(-1, 1),

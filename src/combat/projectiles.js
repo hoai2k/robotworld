@@ -12,6 +12,20 @@ const VISUALS = {
   rocket: { geo: () => new THREE.CylinderGeometry(0.16, 0.28, 1.4, 8), rot: true, trail: 'smoke' },
   missile: { geo: () => new THREE.CylinderGeometry(0.1, 0.16, 0.9, 6), rot: true, trail: 'smoke' },
   plasma: { geo: () => new THREE.SphereGeometry(0.55, 10, 8), pulse: true, trail: 'glow' },
+  glob: { // FROGGER: lumpy gel wad — normally blended MATTER, not a light ball
+    geo: () => {
+      const g = new THREE.IcosahedronGeometry(0.52, 2);
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+        const n = 1 + 0.26 * Math.sin(x * 7.1 + 1) * Math.sin(y * 6.3 + 2) * Math.sin(z * 5.7 + 3);
+        pos.setXYZ(i, x * n, y * n, z * n);
+      }
+      g.computeVertexNormals();
+      return g;
+    },
+    pulse: true, rot: true, normalBlend: true,
+  },
   dart: { geo: () => new THREE.ConeGeometry(0.09, 1.1, 6), rot: true },
   wave: { geo: () => new THREE.TorusGeometry(1.4, 0.16, 6, 14, Math.PI * 0.7), waveRot: true, trail: 'glow' },
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
@@ -240,6 +254,10 @@ export class ProjectileSystem {
             f.takeHit(p.dmg, p.owner, { knock: p.knock, launch: p.launch, srcPos: p.mesh.position, status: p.status, soft: p.soft });
             world.effects.impactSparks(p.mesh.position, p.color, 10, 8);
           }
+          if (p.goop) { // gel wad BURSTS on them: blotch stuck on, spatter
+            world.effects.blotchOn(f);
+            world.effects.slime(p.mesh.position, 7, 5);
+          }
           if (!p.pierce) { dead = true; break; }
         }
       }
@@ -270,11 +288,25 @@ export class ProjectileSystem {
           }
           dead = true;
         }
+        // solid props stop rounds too (and break under them)
+        if (!dead && world.arena.propAt && world.arena.propAt(p.mesh.position)) {
+          if (p.splash) {
+            world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+          } else {
+            world.arena.damageProps(p.mesh.position, 1.6, p.dmg * 1.3, _v.copy(p.vel).normalize());
+            world.effects.impactSparks(p.mesh.position, p.color, 8, 6);
+          }
+          dead = true;
+        }
       }
 
       if (p.life <= 0 || p.dist > p.maxDist) dead = true;
 
       if (dead) {
+        if (p.goop) { // goo goes SPLAT wherever it dies: a puddle that stays
+          world.effects.puddle(p.mesh.position, { slime: true });
+          world.effects.slime(p.mesh.position, 6, 5);
+        }
         p.mesh.visible = false;
         p.mesh.scale.set(1, 1, 1);
         this.pool.get(p.type).push(p.mesh);
