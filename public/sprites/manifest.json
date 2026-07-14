@@ -1,0 +1,7 @@
+{
+  "fire":    { "file": "fire_atlas.png",  "cols": 4, "rows": 4, "key": "luma" },
+  "smoke":   { "file": "smoke_atlas.png", "cols": 2, "rows": 2, "key": "#00ff00" },
+  "droplet": { "file": "droplet.png",                           "key": "#00ff00" },
+  "goop":    { "file": "slime_atlas.png", "cols": 2, "rows": 2, "key": "#ff00ff" },
+  "ice":     { "file": "ice_sparkle.png",                       "key": "luma" }
+}
