@@ -288,6 +288,16 @@ export class Fighter {
   aimStrikeAt(prey) {
     const J = this.mech.joints;
     const w = this.world;
+    // steer ONLY during the strike descent — palms dropped below shoulder
+    // height. Steering through the overhead windup (where the fists are
+    // nowhere near the target line) twists the pose the wrong way and the
+    // rate-limited servo can't recover before impact.
+    let striking = true;
+    if (J.handL && J.handR && J.shoulderL) {
+      const hy = Math.min(J.handL.getWorldPosition(_palmTmp).y,
+        J.handR.getWorldPosition(_palmTmp).y);
+      striking = hy < J.shoulderL.getWorldPosition(_palmTmp).y + 0.1 * this.scale;
+    }
     if (J.torso) {
       this.palmsMid(_palmTmp);
       const pmx = _palmTmp.x - this.pos.x, pmz = _palmTmp.z - this.pos.z;
@@ -296,15 +306,16 @@ export class Fighter {
       let fix = this._aimYaw || 0;
       const dAz = (pmx * pmx + pmz * pmz > 0.09)
         ? angleDiff(Math.atan2(pmx, pmz), Math.atan2(vx, vz)) : 99;
-      if (Math.abs(dAz) < 1.1) { // palms swinging through the FRONT arc
+      if (striking && Math.abs(dAz) < 1.1) { // fists driving through the front arc
         fix = clamp(fix + clamp(dAz - fix, -0.2, 0.2), -0.6, 0.6);
       } else {
-        fix *= 0.75; // windup (palms overhead/behind): don't chase, unwind
+        fix *= 0.75; // windup: don't chase, unwind
       }
       J.torso.rotation.y += fix;
       this._aimYaw = fix;
     }
-    this.clampPalmsTo(prey);
+    if (striking) this.clampPalmsTo(prey);
+    else this._palmFix = (this._palmFix || 0) * 0.8;
   }
 
   // Firing NEVER turns a human's mech — the shot goes wherever the mech is
