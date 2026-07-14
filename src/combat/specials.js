@@ -855,7 +855,7 @@ export const SPECIALS = {
               // the tick flinches shake them and the slow bogs them down
               e._beamWhiteT = 0.18;
               e.takeHit(sp.dmg * f.dmgMult(), f, {
-                knock: 1, srcPos: from, silent: true,
+                knock: 1, srcPos: from, silent: true, soft: true,
                 status: { slow: sp.slow, slowT: 1.2 },
               });
             }

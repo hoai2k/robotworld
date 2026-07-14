@@ -91,6 +91,7 @@ export class ProjectileSystem {
       size: spec.size || 1,
       wobble: spec.wobble || 0,
       goop: !!spec.goop,
+      soft: !!spec.soft,
       age: rand(0, 6.28), // desyncs flap/wobble phase across a swarm
     };
     if (p.size !== 1) p.mesh.scale.multiplyScalar(p.size);
@@ -236,7 +237,7 @@ export class ProjectileSystem {
           if (p.splash) {
             world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch, status: p.status });
           } else {
-            f.takeHit(p.dmg, p.owner, { knock: p.knock, launch: p.launch, srcPos: p.mesh.position, status: p.status });
+            f.takeHit(p.dmg, p.owner, { knock: p.knock, launch: p.launch, srcPos: p.mesh.position, status: p.status, soft: p.soft });
             world.effects.impactSparks(p.mesh.position, p.color, 10, 8);
           }
           if (!p.pierce) { dead = true; break; }

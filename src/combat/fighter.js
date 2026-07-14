@@ -455,7 +455,7 @@ export class Fighter {
   }
 
   // ================= damage =================
-  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false } = {}) {
+  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false } = {}) {
     if (!this.alive || this.iframes > 0) return;
     this.uncloak();
 
@@ -527,6 +527,12 @@ export class Fighter {
       this.grounded = false;
       this.setState('launched', 3);
       this.animator.play('launched');
+    } else if (soft) {
+      // rapid-tick chip (flame, cryo beam, gatling, hose, ground fire):
+      // the body rocks under the stream but NEVER stun-locks — the target
+      // keeps full control so they can break away instead of standing
+      // there eating the whole magazine
+      if (Math.random() < 0.35) this.animator.addImpulse('torso', [-0.22, 0, 0], 30, 11);
     } else if (this.state !== 'launched' && this.state !== 'knockdown') {
       const stun = heavy ? 0.42 : 0.24;
       this.setState('hitstun', stun);

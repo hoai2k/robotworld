@@ -987,3 +987,23 @@ controllers via Gamepad API), AI opponents.
   water beads with glints in the geyser column, lumpy slime globs);
   16-mech attackmatrix ALL CONNECT; inferno-vs-frogger ace soak
   (fire + goop under AI combat) crash-free.
+
+50. SPRITE PACK VERIFIED LIVE + SOFT HITS (NO CHIP STUN-LOCK) ✅
+  · The five committed sprites (fire flipbook, smoke puffs, droplet,
+    slime blobs, ice sparkle) all load through the chromakey intake:
+    every slot reports ok, pool textures swap to the 1254px images with
+    correct atlas grids, and in-game stills show real flame tongues,
+    glossy water beads in the geyser, lumpy slime splats. The loader now
+    records per-slot outcomes in effects.spriteStatus for debugging.
+    (On software renderers the async load can take ~20s/sprite; on real
+    GPUs it's sub-second.)
+  · SOFT HITS: rapid-tick weapons (flame cone, cryo beam, gatling
+    bullets, hose stream, ground-fire patches) no longer apply hitstun.
+    The body still rocks under fire and knockback still shoves, but the
+    target KEEPS CONTROL and can break away instead of standing there
+    eating the whole magazine. Probe: 20 flame-cadence ticks leave the
+    victim in 'normal' state and they covered 15.3u while under fire;
+    a regular punch still stuns.
+  Verified: build green; sprite status + texture-swap probe; element
+  stills reviewed; soft/hard state probe; 16-mech attackmatrix ALL
+  CONNECT; vulcan-vs-inferno ace soak (both soft weapons) crash-free.

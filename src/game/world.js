@@ -211,7 +211,7 @@ export class World {
         for (const f of this.fighters) {
           if (f === p.owner || !f.alive) continue;
           if (f.grounded && f.pos.distanceTo(p.pos) < p.radius + f.radius) {
-            f.takeHit(p.dps, p.owner, { knock: 1, srcPos: p.pos, status: { burn: 6, burnT: 1.5 } });
+            f.takeHit(p.dps, p.owner, { knock: 1, srcPos: p.pos, status: { burn: 6, burnT: 1.5 }, soft: true });
           }
         }
       }
@@ -324,7 +324,7 @@ export class World {
         d.y += rand(-mv.spread, mv.spread) * 0.6;
         d.z += rand(-mv.spread, mv.spread);
         this.projectiles.spawn('bullet', f, from, d, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffd080, knock: 2, life: 1.6,
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffd080, knock: 2, life: 1.6, soft: true,
         });
         this.effects.muzzleFlash(from);
         this.audio?.play('gatling');
@@ -345,7 +345,7 @@ export class World {
           const toT = t.center().sub(from);
           const d = toT.length();
           if (d < mv.range && toT.normalize().dot(dir) > 0.72) {
-            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 0.5, srcPos: from, status: { burn: 5, burnT: 2 } });
+            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 0.5, srcPos: from, status: { burn: 5, burnT: 2 }, soft: true });
           }
         }
         break;
@@ -452,7 +452,7 @@ export class World {
           const d = toT.length();
           if (d < mv.range && toT.normalize().dot(dir) > 0.8) {
             // the stream SHOVES as it soaks — splash where it lands
-            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 3.4, srcPos: hFrom });
+            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 3.4, srcPos: hFrom, soft: true });
             this.effects.splash(t.center(), 7, 7);
           }
         }

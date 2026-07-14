@@ -421,11 +421,13 @@ export class Effects {
   }
 
   // optional hand-made sprites drop in via public/sprites/manifest.json;
-  // absent or broken -> the procedural textures above simply stay
+  // absent or broken -> the procedural textures above simply stay.
+  // Per-slot outcomes land in this.spriteStatus for debugging.
   async _loadSpriteOverrides() {
+    this.spriteStatus = {};
     try {
       const res = await fetch('/sprites/manifest.json');
-      if (!res.ok) return;
+      if (!res.ok) { this.spriteStatus._manifest = 'http ' + res.status; return; }
       const man = await res.json();
       const slots = {
         fire: this.flames, smoke: this.smoke, droplet: this.drops,
@@ -437,9 +439,14 @@ export class Effects {
         try {
           const tex = await loadKeyedTexture('/sprites/' + cfg.file, cfg);
           pool.setTexture(tex, cfg.cols || 1, cfg.rows || 1);
-        } catch { /* this sprite failed: keep procedural for the slot */ }
+          this.spriteStatus[slot] = 'ok';
+        } catch (e) {
+          this.spriteStatus[slot] = String(e).slice(0, 120); // keep procedural
+        }
       }
-    } catch { /* no manifest: fully procedural */ }
+    } catch (e) {
+      this.spriteStatus._manifest = String(e).slice(0, 120); // fully procedural
+    }
   }
 
   addShake(amount) { this.shake = Math.min(2.2, this.shake + amount); }
