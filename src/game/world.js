@@ -119,9 +119,16 @@ export class World {
   // ---- ammo crates: every mech's ranged weapon runs on ammo now ----
   spawnAmmoBoxes(count = 6, radius = 60) {
     for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + rand(-0.4, 0.4);
-      const r = radius * rand(0.45, 1);
-      const pos = new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r);
+      // keep crates out of lava streams / off bridges; hills are fine —
+      // the crate sits (and bobs) on the terrain surface
+      let x = 0, z = 0, tries = 0;
+      do {
+        const a = (i / count) * Math.PI * 2 + rand(-0.4, 0.4);
+        const r = radius * rand(0.45, 1);
+        x = Math.cos(a) * r; z = Math.sin(a) * r;
+      } while (this.arena?.badPickupSpot?.(x, z) && ++tries < 12);
+      const gy = this.arena?.terrainHeightAt?.(x, z) || 0;
+      const pos = new THREE.Vector3(x, gy, z);
       const grp = new THREE.Group();
       const box = new THREE.Mesh(
         new THREE.BoxGeometry(1.6, 1.1, 1.1),
@@ -145,7 +152,7 @@ export class World {
       grp.add(glow);
       grp.position.copy(pos);
       this.scene.add(grp);
-      this.pickups.push({ mesh: grp, pos, active: true, respawnT: 0, t: rand(0, 6) });
+      this.pickups.push({ mesh: grp, pos, baseY: pos.y, active: true, respawnT: 0, t: rand(0, 6) });
     }
   }
 
@@ -162,12 +169,12 @@ export class World {
         continue;
       }
       p.mesh.rotation.y = p.t * 1.4;
-      p.mesh.position.y = Math.sin(p.t * 2.2) * 0.18 + 0.05;
+      p.mesh.position.y = (p.baseY || 0) + Math.sin(p.t * 2.2) * 0.18 + 0.05;
       for (const f of this.fighters) {
         if (!f.alive || f.ammoMax === undefined) continue;
         if (f.ammo >= f.ammoMax) continue;
         const dx = this.wrapDelta(f.pos.x - p.pos.x), dz = this.wrapDelta(f.pos.z - p.pos.z);
-        if (dx * dx + dz * dz < 10.5 && f.pos.y < 4) {
+        if (dx * dx + dz * dz < 10.5 && Math.abs(f.pos.y - (p.baseY || 0)) < 4) {
           f.ammo = f.ammoMax;
           p.active = false;
           p.mesh.visible = false;

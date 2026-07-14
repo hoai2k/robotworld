@@ -5,6 +5,19 @@
 //   props [{name, ring:[rMin,rMax], count, opts}], ambient (particle style),
 //   bounds (half-size of square play area), pylonMat (boundary glow color)
 //
+// layout {} drives the terrain layer (src/arena/terrain.js):
+//   clearing — radius of the building/hazard-free spawn plaza (spawns at 34)
+//   plaza    — paint spawn-ring markings at the center
+//   lanes    — painted cell-crossing roads/streams: {kind, style?, count,
+//              width, color?, dash?, glow?}. kinds: road, lava (burns),
+//              water/canal (bogs down), oil (bogs harder), ice, crystal,
+//              sand, stripe. Lanes tile: centerlines are periodic in the
+//              wrap cell, so a lane exiting one edge re-enters opposite.
+//   bridges  — {count, color, edge?, h?} destructible causeways over streams
+//   hills    — {count, color, hMax?, style?:'deck', edge?} walkable mounds
+//   clusters — {count, size:[min,max]} building groups (city blocks,
+//              factory compounds...) with streets between
+//
 // Art direction: each theme keeps one or two saturated accent hues ("anime
 // pops") against a readable mid-tone stage. Fighters live at y=0..10 within
 // ~±bounds of origin — hemi/sun are balanced so they never sink into murk.
@@ -31,6 +44,15 @@ export const THEMES = [
     ambient: 'motes',
     bounds: 52,
     music: 'battleNight',
+    layout: {
+      clearing: 38, plaza: true,
+      lanes: [
+        { kind: 'road', style: 'asphalt', count: 3, width: 7, dash: 0xff3dd4 },
+        { kind: 'canal', count: 1, width: 5.5, glow: 0x53e8ff },
+      ],
+      bridges: { count: 1, color: 0x2c3036, edge: 0x53e8ff },
+      clusters: { count: 5, size: [2, 4] },
+    },
   },
   {
     id: 'foundry', name: 'Ironworks Foundry', desc: 'Steam, brass and molten light. The old machine-heart of Robotworld still beats.',
@@ -56,6 +78,16 @@ export const THEMES = [
     steamVents: 6,
     bounds: 50,
     music: 'battleIndustrial',
+    layout: {
+      clearing: 38,
+      lanes: [
+        { kind: 'road', style: 'plate', count: 1, width: 6 },
+        { kind: 'lava', count: 2, width: 5 },
+      ],
+      bridges: { count: 2, color: 0x3a3026, edge: 0xff5a10 },
+      hills: { count: 1, color: 0x453a30 },
+      clusters: { count: 4, size: [2, 3] },
+    },
   },
   {
     id: 'uptown', name: 'Uptown Plaza', desc: 'Glass towers, blue skies, and a city block with excellent demolition insurance.',
@@ -78,6 +110,13 @@ export const THEMES = [
     ambient: null,
     bounds: 52,
     music: 'battleDay',
+    layout: {
+      clearing: 38, plaza: true,
+      lanes: [{ kind: 'road', style: 'asphalt', count: 3, width: 7.5, dash: 0xffd23c }],
+      bridges: { count: 1, color: 0x9aa8b8, edge: 0x53e8ff },   // pedestrian skywalk
+      hills: { count: 1, color: 0x5e7a44 },                     // park knoll
+      clusters: { count: 5, size: [2, 4] },
+    },
   },
   {
     id: 'harbor', name: 'Harbor Docks', desc: 'Cranes, containers, salt air — and nowhere for a 40-ton mech to hide.',
@@ -102,6 +141,15 @@ export const THEMES = [
     steamVents: 2,
     bounds: 52,
     music: 'battleNight',
+    layout: {
+      clearing: 38,
+      lanes: [
+        { kind: 'road', style: 'plate', count: 2, width: 6.5 },
+        { kind: 'water', count: 1, width: 9 },
+      ],
+      bridges: { count: 1, color: 0x565e66, edge: 0xffb43c },
+      clusters: { count: 4, size: [2, 3] },
+    },
   },
   {
     id: 'skyterrace', name: 'Sky Terrace', desc: 'A rooftop arena above the cloud deck. Mind the drop. Actually — use the drop.',
@@ -124,6 +172,13 @@ export const THEMES = [
     ambient: 'clouds',
     bounds: 46,
     music: 'battleDay',
+    layout: {
+      clearing: 36, plaza: true,
+      lanes: [{ kind: 'stripe', count: 2, width: 4, glow: 0x53e8ff }],
+      bridges: { count: 1, color: 0x8ea0b0, edge: 0x53e8ff },   // glass skybridge
+      hills: { count: 2, color: 0x6a7480, style: 'deck', edge: 0x53e8ff, hMax: 3 },
+      clusters: { count: 3, size: [2, 3] },
+    },
   },
   {
     id: 'scrapyard', name: 'Scrapyard 7', desc: 'Where old mechs go to rest. Tonight, the scrap pile grows either way.',
@@ -146,6 +201,16 @@ export const THEMES = [
     ambient: 'sand',
     bounds: 50,
     music: 'battleIndustrial',
+    layout: {
+      clearing: 38,
+      lanes: [
+        { kind: 'road', style: 'dirt', count: 2, width: 6 },
+        { kind: 'oil', count: 1, width: 4.5 },
+      ],
+      bridges: { count: 1, color: 0x6e4a30, edge: 0xffb43c },
+      hills: { count: 2, color: 0x5e4c38 },
+      clusters: { count: 3, size: [2, 3] },
+    },
   },
   {
     id: 'quarry', name: 'Crystal Quarry', desc: 'A mining pit lined with resonant crystal. Every impact rings like a bell.',
@@ -167,6 +232,16 @@ export const THEMES = [
     ambient: 'motes',
     bounds: 50,
     music: 'battleNight',
+    layout: {
+      clearing: 38,
+      lanes: [
+        { kind: 'road', style: 'dirt', count: 1, width: 5.5, color: 0x2e2740 },
+        { kind: 'crystal', count: 2, width: 3.2, glow: 0xb46bff },
+      ],
+      bridges: { count: 1, color: 0x4c4460, edge: 0xb46bff },
+      hills: { count: 3, color: 0x4a4060, hMax: 5 },            // mining terraces
+      clusters: { count: 3, size: [2, 3] },
+    },
   },
   {
     id: 'volcano', name: 'Volcanic Forge', desc: 'Built on a live caldera. The floor is not lava — but it is adjacent.',
@@ -189,6 +264,16 @@ export const THEMES = [
     steamVents: 5,
     bounds: 48,
     music: 'battleIndustrial',
+    layout: {
+      clearing: 36,
+      lanes: [
+        { kind: 'road', style: 'stone', count: 1, width: 5, color: 0x241a14 },
+        { kind: 'lava', count: 2, width: 6.5 },
+      ],
+      bridges: { count: 2, color: 0x241c18, edge: 0xff5a10 },   // basalt causeways
+      hills: { count: 2, color: 0x352520, hMax: 5 },
+      clusters: { count: 2, size: [2, 3] },
+    },
   },
   {
     id: 'frozen', name: 'Frozen Outpost', desc: 'Research station K-9. Ambient temperature: hostile. Combat temperature: worse.',
@@ -212,6 +297,16 @@ export const THEMES = [
     ambient: 'snow',
     bounds: 50,
     music: 'battleDay',
+    layout: {
+      clearing: 38,
+      lanes: [
+        { kind: 'road', style: 'dirt', count: 1, width: 6, color: 0x5a6c7c },  // plowed track
+        { kind: 'ice', count: 1, width: 8, glow: 0x9be8ff },                   // frozen river
+      ],
+      bridges: { count: 1, color: 0x788a9a, edge: 0x53c8ff },
+      hills: { count: 2, color: 0xc2d4e0, hMax: 4 },            // snow drifts
+      clusters: { count: 3, size: [2, 3] },
+    },
   },
   {
     id: 'ruins', name: 'Desert Ruins', desc: 'An excavation site older than the war. The columns held for 3,000 years. Held.',
@@ -235,6 +330,16 @@ export const THEMES = [
     ambient: 'sand',
     bounds: 50,
     music: 'battleDay',
+    layout: {
+      clearing: 38, plaza: true,
+      lanes: [
+        { kind: 'road', style: 'stone', count: 1, width: 6, color: 0xc0a070 },  // processional way
+        { kind: 'sand', count: 1, width: 8 },                                   // dry riverbed
+      ],
+      bridges: { count: 1, color: 0xa88c5c, edge: 0x2ee6c8 },
+      hills: { count: 2, color: 0xb59a70, hMax: 4 },            // dunes
+      clusters: { count: 3, size: [2, 3] },
+    },
   },
   {
     id: 'jungle', name: 'Jungle Temple', desc: 'The canopy hides an arena the old kings built. The vines will grow back. Probably.',
@@ -257,6 +362,16 @@ export const THEMES = [
     ambient: 'leaves',
     bounds: 48,
     music: 'battleDay',
+    layout: {
+      clearing: 36,
+      lanes: [
+        { kind: 'road', style: 'stone', count: 1, width: 4.5, color: 0x6e7458 },  // overgrown flagstones
+        { kind: 'water', count: 1, width: 7 },                                    // jungle river
+      ],
+      bridges: { count: 1, color: 0x686e50, edge: 0x62ff9a },   // mossy causeway
+      hills: { count: 2, color: 0x4c6038, hMax: 5 },
+      clusters: { count: 2, size: [2, 3] },
+    },
   },
   {
     id: 'orbital', name: 'Orbital Platform', desc: 'Station VALKYRIE\'s landing deck. Artificial gravity, genuine consequences.',
@@ -280,6 +395,13 @@ export const THEMES = [
     ambient: 'motes',
     bounds: 48,
     music: 'battleNight',
+    layout: {
+      clearing: 38, plaza: true,
+      lanes: [{ kind: 'stripe', count: 2, width: 5, glow: 0x53e8ff }],  // deck traffic lanes
+      bridges: { count: 1, color: 0x3c4450, edge: 0x62ff9a },           // elevated walkway
+      hills: { count: 2, color: 0x444c58, style: 'deck', edge: 0x53e8ff, hMax: 3.2 },
+      clusters: { count: 3, size: [2, 4] },
+    },
   },
 ];
 

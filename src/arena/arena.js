@@ -2,6 +2,7 @@
 // buildings, props, ambient particles) and services combat queries.
 import * as THREE from 'three';
 import { DestructibleSystem } from './destructible.js';
+import { Terrain } from './terrain.js';
 import { PROPS, PROP_MATS, placeProp } from './props.js';
 import { roadTexture, chunkFacade, skyStarsTexture } from '../core/textures.js';
 import { rand, makeRng, clamp } from '../core/utils.js';
@@ -182,37 +183,28 @@ export class Arena {
     this.destructo = new DestructibleSystem(this.scene, chunkMats);
     this.objects.push(this.destructo.mesh, this.destructo.debris.mesh);
 
-    // ring layout: buildings frame the fight zone, several in-field for
-    // cover — counts doubled to match the doubled arena footprint
-    const count = Math.min(theme.buildings.count * 2, 16);
-    const innerCount = 4;
-    const placed = [];
-    for (let i = 0; i < count; i++) {
-      let x, z, ok = false, tries = 0;
-      const inner = i >= count - innerCount;
-      while (!ok && tries++ < 40) {
-        if (!inner) {
-          const a = (i / (count - innerCount)) * Math.PI * 2 + rng.range(-0.18, 0.18);
-          const r = rng.range(B * 0.72, B * 1.05);
-          x = Math.cos(a) * r; z = Math.sin(a) * r;
-        } else {
-          const a = rng.range(0, Math.PI * 2);
-          const r = rng.range(24, B * 0.55);
-          x = Math.cos(a) * r; z = Math.sin(a) * r;
-        }
-        ok = placed.every((p) => Math.hypot(p[0] - x, p[1] - z) > 24);
-      }
-      if (!ok) continue;
-      placed.push([x, z]);
+    // ---- terrain: painted roads/streams, hills, bridges, hazard lanes ----
+    // (built before buildings/props so both can respect its layout)
+    this.terrain = new Terrain(this, theme, rng);
+
+    // building layout: clusters (mini city blocks / compounds) separated by
+    // the painted road grid, plus scattered solo cover — the terrain keeps
+    // every site off lanes/hills/bridges and out of the spawn clearing, so
+    // fighters always start in an open plaza with clear sight lines
+    const count = Math.min(theme.buildings.count * 2, 18);
+    for (const site of this.terrain.buildingSites(count, rng)) {
       const nx = rng.int(2, 3), nz = rng.int(2, 3);
-      const ny = rng.int(theme.buildings.hRange[0], theme.buildings.hRange[1]);
+      let ny = rng.int(theme.buildings.hRange[0], theme.buildings.hRange[1]);
+      // one landmark tower per cluster; its neighbors read as its skirt
+      if (site.tall) ny = theme.buildings.hRange[1] + rng.int(1, 2);
+      else if (site.cluster >= 0 && rng.chance(0.5)) ny = Math.max(theme.buildings.hRange[0], ny - 1);
       const cw = rng.range(3.2, 3.9), ch = rng.range(3.1, 3.6), cd = rng.range(3.2, 3.9);
       let tint = theme.buildings.tints[rng.int(0, theme.buildings.tints.length - 1)];
       if (CONFIG.useTextures && FACADE_TEX[styleIdx]) {
         // pack facades carry their own color — keep only a whisper of tint
         tint = new THREE.Color(tint).lerp(new THREE.Color(0xffffff), 0.68).getHex();
       }
-      this.destructo.addBuilding(x, z, nx, ny, nz, cw, ch, cd, { tint, rng });
+      this.destructo.addBuilding(site.x, site.z, nx, ny, nz, cw, ch, cd, { tint, rng });
     }
 
     // ---- props ----
@@ -221,18 +213,36 @@ export class Arena {
     this.propGroup = new THREE.Group();
     this.scene.add(this.propGroup);
     this.objects.push(this.propGroup);
+    // props that register ground-level gameplay (hazards, explosives) stay
+    // on flat ground; everything else may ride a hillside — its Y is lifted
+    // to the terrain surface so nothing floats or sinks
+    const FLAT_PROPS = new Set(['fuelTank', 'obsidianSpikes', 'campfire', 'lavaPool',
+      'moltenChannel', 'railSegment', 'fountain', 'helipad', 'landingPad', 'mineCart', 'conduit']);
+    const propSpotOk = (x, z, needFlat) => {
+      if (Math.hypot(x, z) < 16) return false;                    // keep plaza center open
+      if (this.terrain.onLane(x, z, 1.2)) return false;           // nothing parked on a road/stream
+      if (this.terrain.nearBridge(x, z, 2.5)) return false;
+      if (needFlat && this.terrain.heightAt(x, z) > 0.15) return false;
+      return true;
+    };
     for (const spec of theme.props || []) {
       for (let i = 0; i < spec.count; i++) {
-        const a = rng.range(0, Math.PI * 2);
-        const r = rng.range(spec.ring[0], spec.ring[1]) * 1.85; // rings scaled with arena
-        const x = Math.cos(a) * r, z = Math.sin(a) * r;
+        const skyAnchored = spec.ring[1] <= 6; // aurora-style props place their visuals far away
+        let a, r, x, z, tries = 0;
+        do {
+          a = rng.range(0, Math.PI * 2);
+          r = rng.range(spec.ring[0], spec.ring[1]) * 1.85; // rings scaled with arena
+          x = Math.cos(a) * r; z = Math.sin(a) * r;
+        } while (!skyAnchored && !propSpotOk(x, z, FLAT_PROPS.has(spec.name)) && ++tries < 14);
         let opts = Array.isArray(spec.opts) ? spec.opts[i % spec.opts.length] : { ...(spec.opts || {}) };
         opts = { ...opts, seed: rng.int(1, 99999) };
         if (opts.mat === 'ice') opts.mat = PROP_MATS.ice;
+        const gy = skyAnchored ? 0 : this.terrain.heightAt(x, z);
         const g = placeProp(this.propGroup, this.objects, spec.name, x, z, opts);
+        if (g && gy > 0.01) g.position.y += gy; // seat the prop on the terrain surface
         if (g && g.userData.spin) this.spinners.push(g);
         if (g && g.userData.steamY !== undefined) {
-          this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY, z));
+          this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY + gy, z));
         }
         if (g && g.userData.explosive) {
           const e = g.userData.explosive;
@@ -281,7 +291,17 @@ export class Arena {
 
   damageSphere(pos, radius, dmg, dir = null, structural = false) {
     this.igniteCampfires(pos, radius + 1.2);
-    return this.destructo.damageSphere(pos, radius, dmg, dir, structural);
+    const n = this.terrain.damageSphere(pos, radius, dmg);
+    return this.destructo.damageSphere(pos, radius, dmg, dir, structural) + n;
+  }
+
+  // ground height contributed by terrain features (hills, live bridge decks)
+  terrainHeightAt(x, z) { return this.terrain.heightAt(x, z); }
+
+  // spots where an ammo crate would be unreachable or silly
+  badPickupSpot(x, z) {
+    const lane = this.terrain.onLane(x, z, 1);
+    return (lane && lane.hazard === 'lava') || !!this.terrain.nearBridge(x, z, 1);
   }
 
   // ---- campfires: any strike near one flares it into a burning patch ----
@@ -305,14 +325,16 @@ export class Arena {
       w.audio?.play('flame');
     }
   }
-  pointHits(pos) { return this.destructo.pointHits(pos); }
+  pointHits(pos) { return this.destructo.pointHits(pos) || this.terrain.pointHits(pos); }
   raySolid(origin, dir, range) { return this.destructo.raySolid(origin, dir, range); }
   setOccluders(segments) { this.destructo.setOccluders(segments); }
   applyViewFade(cam) { this.destructo.applyViewFade(cam); }
 
   collideFighter(f) {
-    // no boundary clamp — space wraps; only buildings + settled rubble push back
+    // no boundary clamp — space wraps; buildings + settled rubble push back,
+    // and terrain (hills / bridge decks) carries fighters on its surface
     this.destructo.collideFighter(f);
+    this.terrain.collideFighter(f);
   }
 
   // ---- explosive props (fuel tanks): cook off into a fiery inferno ----
@@ -452,6 +474,7 @@ export class Arena {
 
   update(dt) {
     this.destructo.update(dt);
+    this.terrain.update(dt);
     this.updateExplosives();
     this.updateHazards(dt);
     for (const g of this.spinners) g.rotation.z += g.userData.spin * dt;

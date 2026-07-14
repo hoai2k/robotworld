@@ -1007,3 +1007,40 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; sprite status + texture-swap probe; element
   stills reviewed; soft/hard state probe; 16-mech attackmatrix ALL
   CONNECT; vulcan-vs-inferno ace soak (both soft weapons) crash-free.
+
+51. LEVEL DESIGN PASS: TERRAIN LAYER FOR ALL 12 ARENAS ✅
+  · New src/arena/terrain.js, driven by theme.layout data in themes.js:
+    every arena now has painted ground LANES (roads, lava rivers, water
+    channels, oil slicks, crystal veins, ice rivers, dry riverbeds, deck
+    traffic stripes) baked into a cell-periodic overlay texture. Lane
+    centerlines are at + amp*sin(TAU*along/P) — periodic in the wrap
+    cell by construction, so every lane that exits one arena edge
+    re-enters exactly opposite (the tiling contract holds).
+  · HAZARD LANES are live gameplay: lava ticks burn damage + embers
+    (probe: 17.5 dmg standing in the flow), water/oil bog movement down
+    with splash/smoke FX.
+  · HILLS: walkable truncated-cone mounds (snow drifts, dunes, slag,
+    mining terraces; octagonal glow-edged deck pads on skyterrace/
+    orbital). The collision surface IS the visual cone — mechs walk up
+    and down smoothly (probe: fighter stands at exactly hill height and
+    rides the slope) and props placed on a hillside get their Y lifted
+    to the surface so nothing floats.
+  · BRIDGES: destructible causeways spanning the streams (basalt over
+    lava, skywalks, mossy stone) — full-height segmented blocks with
+    ramped ends, ghost-cloned across the seam. Blow segments out and
+    fighters fall through the gap (probe: explosion kills segments,
+    <45% left collapses the rest, fighter dropped from deck to ground);
+    rubble spawns via the destructible system.
+  · BUILDING CLUSTERS: city blocks / factory compounds / camps placed on
+    an axis-aligned mini-grid per cluster (one landmark tower each) with
+    the road grid running between them, plus scattered solo cover. All
+    sites avoid lanes, hills, bridges and the spawn plaza.
+  · SPAWN CLEARING: a guaranteed building-free plaza (r=38) around the
+    origin — fighters always spawn on a painted ring marking with clear
+    sight lines to each other. Ammo crates avoid lava/bridges and bob at
+    terrain height.
+  Verified: build green; screenshots of uptown/neon/volcano/quarry/
+  harbor/foundry/orbital reviewed (roads+plaza rings+clusters+lava
+  causeways all read correctly); physics probe on hills/bridges/lava;
+  ace soaks crash-free on volcano, neon, jungle, frozen, skyterrace,
+  scrapyard, ruins.
