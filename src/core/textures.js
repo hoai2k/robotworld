@@ -520,6 +520,35 @@ export function goopCellsTexture() {
   });
 }
 
+// tiling fractal noise for stream shaders (water jets, flame throwers)
+export function streamNoiseTexture() {
+  const key = 'streamNoise';
+  if (cache.has(key)) return cache.get(key);
+  const S = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = S; canvas.height = S;
+  const ctx = canvas.getContext('2d');
+  const rng = makeRng(7331);
+  const n = makeNoise(rng, S, 4);
+  const img = ctx.createImageData(S, S);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      // fold the field over both axes so REPEAT wrapping shows no seam
+      const xm = Math.min(x, S - 1 - x) * 2, ym = Math.min(y, S - 1 - y) * 2;
+      const v = Math.round(n[Math.min(S - 1, ym) * S + Math.min(S - 1, xm)] * 255);
+      const px = (y * S + x) * 4;
+      img.data[px] = img.data[px + 1] = img.data[px + 2] = v;
+      img.data[px + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.colorSpace = THREE.NoColorSpace;
+  cache.set(key, tex);
+  return tex;
+}
+
 // crystalline six-armed ice sparkle (additive)
 export function iceTexture() {
   return fxTexture('iceSparkle', 64, 64, (ctx, S) => {

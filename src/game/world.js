@@ -338,13 +338,18 @@ export class World {
         break;
       }
       case 'flame': {
-        // roaring double cone: wide orange wash + a hot fast yellow core,
-        // plus a bright throat glow riding the jet
-        this.effects.flameCone(from, dir, 0xff7a20, 0.26, 34);
-        this.effects.flameCone(from, dir, 0xffd23c, 0.11, 46);
-        this.effects.glows.emit(from.x + dir.x * 1.2, from.y + dir.y * 1.2, from.z + dir.z * 1.2,
-          dir.x * 30, dir.y * 30, dir.z * 30,
-          { life: 0.28, size: 2.4, color: 0xffe9a0, alpha: 0.95, drag: 1.4, grow: 2.2 });
+        // FLAMETHROWER: one roaring cone of burning fuel (additive stream
+        // tube, widening and ragging apart downstream) with licking
+        // flipbook tongues erupting all along it and smoke off the far end
+        this.effects.jet('flame' + f.playerIndex, from, dir, {
+          type: 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.22, r1: 1.7,
+        });
+        this.effects.fire(from, dir, 34, 0.24); // nozzle tongues + embers
+        const u = rand(0.35, 0.95); // mid-stream eruption
+        this.effects.fire(new THREE.Vector3(
+          from.x + dir.x * mv.range * u,
+          from.y + dir.y * mv.range * u + u * u * 2,
+          from.z + dir.z * mv.range * u), dir, 10, 0.5);
         this.audio?.play('flame');
         // cone tick damage
         for (const t of this.fighters) {
@@ -443,15 +448,17 @@ export class World {
         f._hoseSide = !f._hoseSide;
         const hFrom = f._hoseSide && anchors.muzzleL
           ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
-        // the jet core: a drooping water beam refreshed every tick so the
-        // stream reads as one continuous pressurized arc
-        const reach = mv.range * 0.8;
-        this.effects.beams.spawn(hFrom, new THREE.Vector3(
-          hFrom.x + dir.x * reach, hFrom.y + dir.y * reach - 1.1, hFrom.z + dir.z * reach,
-        ), { radius: 0.17, dur: 0.1, color: 0x9fdcff });
-        // pressurized water: heavy droplets + foam + mist (reads as liquid,
-        // not light — normally-blended drops with a blue depth ramp)
-        this.effects.waterJet(hFrom, dir, 40);
+        // the jet is ONE coherent pressurized tube of water (scrolling-
+        // noise stream mesh riding the ballistic arc); droplets and mist
+        // are just the breakup spray around it
+        const jetEnd = this.effects.jet('hose' + f.playerIndex, hFrom, dir, {
+          type: 'water', speed: 46, range: mv.range * 1.2, gravity: 30, r0: 0.2, r1: 0.8,
+        });
+        this.effects.waterJet(hFrom, dir, 42);
+        if (jetEnd && jetEnd.y <= 0.4) { // the stream hammers the dirt
+          this.effects.splash(jetEnd, 4, 5, 0.9);
+          if (Math.random() < 0.25) this.effects.puddle(jetEnd, { slime: false, life: 2.5 });
+        }
         if (Math.random() < 0.35) this.audio?.play('wave');
         for (const t of this.fighters) {
           if (t === f || !t.alive) continue;
@@ -494,14 +501,26 @@ export class World {
         this.fleas.spawn(f, from, dir, { dmg: mv.dmg * f.dmgMult() });
         this.effects.muzzleFlash(from);
         break;
-      case 'slime': // FROGGER: sticky gunk bolt, slows on hit
-        this.projectiles.spawn('plasma', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0x9ade2a, knock: 8,
-          status: { slow: 0.7, slowT: 1.4 }, goop: true,
-        });
-        this.effects.slime(from, 3, 3, dir);
+      case 'slime': { // FROGGER: a sputtering STREAM of gel wads — a lead
+        // glob followed by trailing spatter, all dripping goo in flight
+        for (let i = 0; i < 3; i++) {
+          const d2 = dir.clone();
+          d2.x += rand(-0.045, 0.045); d2.y += rand(-0.015, 0.05); d2.z += rand(-0.045, 0.045);
+          this.projectiles.spawn('glob', f, from, d2, {
+            dmg: (i === 0 ? mv.dmg : mv.dmg * 0.12) * f.dmgMult(),
+            speed: mv.speed * (1 - i * 0.13),
+            splash: i === 0 ? mv.splash : 0,
+            color: i === 0 ? 0x86d22e : 0x6cb022,
+            knock: i === 0 ? 8 : 2,
+            status: i === 0 ? { slow: 0.7, slowT: 1.4 } : null,
+            size: 1 - i * 0.24,
+            goop: true,
+          });
+        }
+        this.effects.slime(from, 4, 4, dir); // muzzle splatter
         this.audio?.play('plasma');
         break;
+      }
     }
   }
 

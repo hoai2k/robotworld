@@ -6,9 +6,48 @@
 import * as THREE from 'three';
 import {
   softCircleTexture, sparkTexture, smokeCellsTexture, flameAtlasTexture,
-  dropletTexture, goopCellsTexture, iceTexture, ringTexture,
+  dropletTexture, goopCellsTexture, iceTexture, ringTexture, streamNoiseTexture,
 } from '../core/textures.js';
 import { rand, clamp01 } from '../core/utils.js';
+
+// ---------- coherent substance streams (hose water, flamethrower) ----------
+// A jet is a ONE-PIECE tube mesh following the ballistic arc, skinned with
+// two layers of scrolling fractal noise — it reads as continuous pressurized
+// MATTER; billboard particles only add breakup spray around it.
+const STREAM_VERT = /* glsl */`
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+const STREAM_FRAG = /* glsl */`
+  uniform sampler2D uTex;
+  uniform float uTime;
+  uniform vec3 uCore;
+  uniform vec3 uEdge;
+  uniform float uAlpha;
+  uniform float uBreak;   // how quickly the jet rags apart downstream
+  varying vec2 vUv;
+  void main() {
+    float n1 = texture2D(uTex, vec2(vUv.x * 1.3 - uTime * 2.1, vUv.y + uTime * 0.11)).r;
+    float n2 = texture2D(uTex, vec2(vUv.x * 0.7 - uTime * 3.4 + 0.37, vUv.y * 2.1 - uTime * 0.23)).r;
+    float n = n1 * 0.62 + n2 * 0.38;
+    // solid at the nozzle, ragged tongues downstream
+    float mask = smoothstep(uBreak * vUv.x, uBreak * vUv.x + 0.4, n + 0.3 * (1.0 - vUv.x));
+    float a = uAlpha * mask * (1.0 - vUv.x * 0.5);
+    vec3 col = mix(uEdge, uCore, clamp(n * n * 1.7, 0.0, 1.0));
+    gl_FragColor = vec4(col, a);
+    if (a < 0.02) discard;
+  }
+`;
+const JET_SEG = 16, JET_SIDES = 7;
+const JET_STYLES = {
+  // kept well under bloom threshold: the jet must read as MATTER, not light
+  water: { core: 0xb8d8ea, edge: 0x2f5f88, alpha: 0.62, brk: 0.55, blending: THREE.NormalBlending },
+  fire: { core: 0xffc878, edge: 0xb62a06, alpha: 0.6, brk: 0.8, blending: THREE.AdditiveBlending },
+};
+const _ja = new THREE.Vector3(), _jb = new THREE.Vector3(), _jt = new THREE.Vector3();
 
 // ---------- shader point particle pool ----------
 const VERT = /* glsl */`
@@ -21,7 +60,10 @@ const VERT = /* glsl */`
     vColor = aColor;
     vMisc = aMisc;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * (240.0 / -mv.z);
+    float d = -mv.z;
+    // near-camera particles would explode into screen-filling sprites
+    // (one droplet grazing the lens = a full white-out) — cull and cap
+    gl_PointSize = d < 0.7 ? 0.0 : min(aSize * (240.0 / d), 240.0);
     gl_Position = projectionMatrix * mv;
   }
 `;
@@ -414,6 +456,11 @@ export class Effects {
     this.rings = new RingPool(scene);
     this.beams = new BeamPool(scene);
     this.lightning = new LightningPool(scene);
+    this.streams = new Map(); // key -> live jet tube (hose, flamethrower)
+    this.puddles = [];        // ground decals: slime splats, wet patches
+    this.blotches = [];       // goo splats STUCK to fighters
+    this._puddlePool = [];
+    this._blotchPool = [];
     this.statics = []; // {f, t, tick} — crackle lingering on shocked bots
     this.shake = 0;         // camera shake accumulator (read by camera)
     this.flash = null;      // {color, t} full-screen flash (read by hud)
@@ -619,10 +666,11 @@ export class Effects {
         { life: rand(0.45, 0.7), size: rand(0.45, 1.05), color: 0xffffff, color2: 0x9cc4ec,
           alpha: 0.95, gravity: 26, drag: 0.25, spin: 2, fadeIn: 0.04 });
     }
-    // foam: bright flecks give the stream its wet sparkle
+    // foam: soft flecks give the stream its wet sparkle (kept dim — foam
+    // brightness is what blows the bloom out)
     this.glows.emit(origin.x + dir.x * rand(1, 3), origin.y + dir.y * rand(1, 3), origin.z + dir.z * rand(1, 3),
       dir.x * speed * 0.8, dir.y * speed * 0.8 + 1, dir.z * speed * 0.8,
-      { life: rand(0.2, 0.35), size: rand(0.3, 0.6), color: 0xffffff, alpha: 0.5, gravity: 20, fadeIn: 0.02 });
+      { life: rand(0.2, 0.35), size: rand(0.25, 0.5), color: 0xcfe4f0, alpha: 0.3, gravity: 20, fadeIn: 0.02 });
     if (Math.random() < 0.35) {
       this.smoke.emit(origin.x + dir.x * 4, origin.y + dir.y * 4 + rand(0.5), origin.z + dir.z * 4,
         dir.x * 9, 1.5 + rand(1.5), dir.z * 9,
@@ -644,7 +692,7 @@ export class Effects {
       const a = rand(Math.PI * 2);
       this.glows.emit(pos.x, pos.y + 0.2, pos.z,
         Math.cos(a) * power * 0.5, rand(0.8, 1.3) * power * up, Math.sin(a) * power * 0.5,
-        { life: rand(0.2, 0.4), size: rand(0.3, 0.6), color: 0xffffff, alpha: 0.5, gravity: 26, fadeIn: 0.02 });
+        { life: rand(0.2, 0.4), size: rand(0.25, 0.5), color: 0xcfe4f0, alpha: 0.3, gravity: 26, fadeIn: 0.02 });
     }
     this.smoke.emit(pos.x, pos.y + 0.4, pos.z, 0, power * 0.35, 0,
       { life: rand(0.4, 0.7), size: rand(1.4, 2.2), color: 0xe4f2fc, alpha: 0.14,
@@ -688,6 +736,154 @@ export class Effects {
       0, 3, 0, { life: 0.5, size: 1.2, color, alpha: 0.8, drag: 1, fadeIn: 0.15 });
   }
 
+  // ---- coherent jets: call every weapon tick; the tube persists and
+  // rebuilds along the live ballistic arc, dying ~0.15s after the last
+  // call. Returns the arc's end point (for splashes/puddles at landing).
+  jet(key, from, dir, { type = 'water', speed = 42, range = 20, gravity = 28, r0 = 0.15, r1 = 0.6 } = {}) {
+    let e = this.streams.get(key);
+    if (!e) {
+      const style = JET_STYLES[type];
+      const geo = new THREE.BufferGeometry();
+      const verts = new Float32Array((JET_SEG + 1) * JET_SIDES * 3);
+      const uvs = new Float32Array((JET_SEG + 1) * JET_SIDES * 2);
+      const idx = [];
+      for (let i = 0; i < JET_SEG; i++) {
+        for (let s = 0; s < JET_SIDES; s++) {
+          const a = i * JET_SIDES + s, b = i * JET_SIDES + ((s + 1) % JET_SIDES);
+          const c = (i + 1) * JET_SIDES + s, d = (i + 1) * JET_SIDES + ((s + 1) % JET_SIDES);
+          idx.push(a, c, b, b, c, d);
+        }
+      }
+      geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+      geo.setAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+      geo.setIndex(idx);
+      geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uTex: { value: streamNoiseTexture() },
+          uTime: { value: rand(0, 10) },
+          uCore: { value: new THREE.Color(style.core) },
+          uEdge: { value: new THREE.Color(style.edge) },
+          uAlpha: { value: style.alpha },
+          uBreak: { value: style.brk },
+        },
+        vertexShader: STREAM_VERT,
+        fragmentShader: STREAM_FRAG,
+        transparent: true,
+        depthWrite: false,
+        blending: style.blending,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 6;
+      this.scene.add(mesh);
+      e = { mesh, mat, ttl: 0, alpha: style.alpha };
+      this.streams.set(key, e);
+    }
+    e.ttl = 0.16;
+    e.mesh.visible = true;
+    // ballistic arc: fly until range is spent or the stream meets the dirt
+    const vx = dir.x * speed, vy0 = dir.y * speed, vz = dir.z * speed;
+    let tEnd = range / speed;
+    if (gravity > 0) {
+      const tGround = (vy0 + Math.sqrt(Math.max(0, vy0 * vy0 + 2 * gravity * from.y))) / gravity;
+      tEnd = Math.min(tEnd, Math.max(0.08, tGround));
+    }
+    const pos = e.mesh.geometry.attributes.position.array;
+    const uv = e.mesh.geometry.attributes.uv.array;
+    let end = null;
+    for (let i = 0; i <= JET_SEG; i++) {
+      const u = i / JET_SEG, t = tEnd * u;
+      _ja.set(from.x + vx * t, Math.max(0.05, from.y + vy0 * t - 0.5 * gravity * t * t), from.z + vz * t);
+      if (i === JET_SEG) end = _ja.clone();
+      // frame: tangent + two perpendiculars
+      _jt.set(vx, vy0 - gravity * t, vz).normalize();
+      _jb.set(-_jt.z, 0, _jt.x).normalize();
+      const upx = _jt.y * _jb.z - _jt.z * _jb.y,
+        upy = _jt.z * _jb.x - _jt.x * _jb.z,
+        upz = _jt.x * _jb.y - _jt.y * _jb.x;
+      const r = r0 + (r1 - r0) * u;
+      for (let s = 0; s < JET_SIDES; s++) {
+        const a = (s / JET_SIDES) * Math.PI * 2;
+        const ca = Math.cos(a) * r, sa = Math.sin(a) * r;
+        const vi = (i * JET_SIDES + s) * 3;
+        pos[vi] = _ja.x + _jb.x * ca + upx * sa;
+        pos[vi + 1] = _ja.y + _jb.y * ca + upy * sa;
+        pos[vi + 2] = _ja.z + _jb.z * ca + upz * sa;
+        const ui = (i * JET_SIDES + s) * 2;
+        uv[ui] = u;
+        uv[ui + 1] = s / JET_SIDES;
+      }
+    }
+    e.mesh.geometry.attributes.position.needsUpdate = true;
+    e.mesh.geometry.attributes.uv.needsUpdate = true;
+    return end;
+  }
+
+  // ---- ground decals: slime puddles and wet splash patches ----
+  puddle(pos, { slime = false, size = null, life = null } = {}) {
+    let m = this._puddlePool.pop();
+    if (!m) {
+      m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+        transparent: true, depthWrite: false,
+      }));
+      m.rotation.x = -Math.PI / 2;
+      m.renderOrder = 2;
+      this.scene.add(m);
+    }
+    const tex = slime ? goopCellsTexture().clone() : softCircleTexture().clone();
+    if (slime) {
+      tex.repeat.set(0.5, 0.5);
+      tex.offset.set(Math.random() < 0.5 ? 0 : 0.5, Math.random() < 0.5 ? 0 : 0.5);
+      tex.flipY = false;
+    }
+    tex.needsUpdate = true;
+    m.material.map = tex;
+    m.material.color.set(slime ? 0x63a81e : 0x39638c);
+    m.material.opacity = slime ? 0.88 : 0.42;
+    m.material.needsUpdate = true;
+    const s = size || (slime ? rand(2.2, 3.6) : rand(2.6, 3.6));
+    m.scale.set(s, s * rand(0.75, 1), 1);
+    m.rotation.z = rand(Math.PI * 2);
+    m.position.set(pos.x, 0.05 + rand(0, 0.02), pos.z);
+    m.visible = true;
+    this.puddles.push({ mesh: m, t: 0, life: life || (slime ? 9 : 3.5), o0: m.material.opacity });
+    return m;
+  }
+
+  // ---- goo blotches SPLATTED onto a fighter's body; drip while they ride ----
+  blotchOn(fighter, color = 0x74bc24) {
+    const torso = fighter.mech?.joints?.torso;
+    if (!torso) return;
+    let m = this._blotchPool.pop();
+    if (!m) {
+      m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
+        transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      }));
+      m.renderOrder = 3;
+    }
+    const tex = goopCellsTexture().clone();
+    tex.repeat.set(0.5, 0.5);
+    tex.offset.set(Math.random() < 0.5 ? 0 : 0.5, Math.random() < 0.5 ? 0 : 0.5);
+    tex.flipY = false;
+    tex.needsUpdate = true;
+    m.material.map = tex;
+    m.material.color.set(color);
+    m.material.opacity = 0.95;
+    m.material.needsUpdate = true;
+    const s = fighter.scale * rand(1.1, 1.9);
+    m.scale.set(s, s, 1);
+    // slap it on the torso shell at a random spot, facing outward-ish
+    const a = rand(Math.PI * 2);
+    const rr = fighter.hitRadius * 0.55;
+    m.position.set(Math.sin(a) * rr, rand(0.2, 1.4) * fighter.scale, Math.cos(a) * rr);
+    m.rotation.set(0, a, rand(Math.PI * 2));
+    torso.add(m);
+    m.visible = true;
+    this.blotches.push({ mesh: m, f: fighter, t: 0, life: rand(5, 7) });
+  }
+
   // lingering electrical crackle on a shocked bot: small arcs snap between
   // random points on the body while the charge bleeds off
   staticCling(fighter, dur = 1.1) {
@@ -707,6 +903,51 @@ export class Effects {
     this.rings.update(dt);
     this.beams.update(dt);
     this.lightning.update(dt);
+    for (const [key, e] of this.streams) {
+      e.mat.uniforms.uTime.value += dt;
+      e.ttl -= dt;
+      // quick fade instead of a hard cut when the trigger releases
+      e.mat.uniforms.uAlpha.value = e.alpha * clamp01(e.ttl / 0.08);
+      if (e.ttl <= -0.1) {
+        e.mesh.visible = false;
+        this.scene.remove(e.mesh);
+        e.mesh.geometry.dispose();
+        e.mat.dispose();
+        this.streams.delete(key);
+      }
+    }
+    for (let i = this.puddles.length - 1; i >= 0; i--) {
+      const p = this.puddles[i];
+      p.t += dt;
+      const f = p.t / p.life;
+      if (f >= 1) {
+        p.mesh.visible = false;
+        this.puddles.splice(i, 1);
+        this._puddlePool.push(p.mesh);
+        continue;
+      }
+      p.mesh.material.opacity = p.o0 * (f < 0.8 ? 1 : 1 - (f - 0.8) / 0.2);
+    }
+    for (let i = this.blotches.length - 1; i >= 0; i--) {
+      const b = this.blotches[i];
+      b.t += dt;
+      const gone = b.t >= b.life || !b.f.group?.visible || b.mesh.parent === null;
+      if (gone) {
+        b.mesh.parent?.remove(b.mesh);
+        b.mesh.visible = false;
+        this.blotches.splice(i, 1);
+        this._blotchPool.push(b.mesh);
+        continue;
+      }
+      const f = b.t / b.life;
+      b.mesh.material.opacity = 0.95 * (f < 0.7 ? 1 : 1 - (f - 0.7) / 0.3);
+      if (Math.random() < dt * 1.6) { // the goo DRIPS off them
+        b.mesh.getWorldPosition(_ja);
+        this.goop.emit(_ja.x, _ja.y, _ja.z, rand(-0.4, 0.4), -0.5, rand(-0.4, 0.4),
+          { life: rand(0.4, 0.7), size: rand(0.4, 0.7), color: 0x6cb022, color2: 0x2c5210,
+            alpha: 0.95, gravity: 20, fadeIn: 0.05 });
+      }
+    }
     for (let i = this.statics.length - 1; i >= 0; i--) {
       const s = this.statics[i];
       s.t -= dt;

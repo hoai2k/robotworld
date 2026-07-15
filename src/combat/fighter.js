@@ -265,6 +265,57 @@ export class Fighter {
     });
     this.setState('attack', dur * 0.9);
     this.comboIdx = 0;
+    // track the actual victim through the whole swing: torso twists and the
+    // fists CONVERGE onto their body, so a landed pound visibly LANDS
+    // instead of slamming down on both sides of a slim target
+    const prey = this.nearestEnemy();
+    if (prey) {
+      const dx = this.world.wrapDelta(prey.pos.x - this.pos.x);
+      const dz = this.world.wrapDelta(prey.pos.z - this.pos.z);
+      if (Math.hypot(dx, dz) < mv.range * this.scale * 2 &&
+          Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < 1.1) {
+        this._strikeAim = { f: prey, t: dur * 0.95 };
+        this._aimYaw = 0;
+      }
+    }
+  }
+
+  // post-pose strike tracking: torso yaw slides the palms along an arc
+  // around our own root, so the lateral miss is corrected DIRECTLY — the
+  // azimuth of the palms' midpoint vs the victim's azimuth is the exact
+  // angle the torso must twist (rate-limited, capped at +-0.6 rad so the
+  // pose never contorts). Fist separation then narrows via the palm clamp.
+  aimStrikeAt(prey) {
+    const J = this.mech.joints;
+    const w = this.world;
+    // steer ONLY during the strike descent — palms dropped below shoulder
+    // height. Steering through the overhead windup (where the fists are
+    // nowhere near the target line) twists the pose the wrong way and the
+    // rate-limited servo can't recover before impact.
+    let striking = true;
+    if (J.handL && J.handR && J.shoulderL) {
+      const hy = Math.min(J.handL.getWorldPosition(_palmTmp).y,
+        J.handR.getWorldPosition(_palmTmp).y);
+      striking = hy < J.shoulderL.getWorldPosition(_palmTmp).y + 0.1 * this.scale;
+    }
+    if (J.torso) {
+      this.palmsMid(_palmTmp);
+      const pmx = _palmTmp.x - this.pos.x, pmz = _palmTmp.z - this.pos.z;
+      const vx = w.wrapDelta(prey.pos.x - this.pos.x);
+      const vz = w.wrapDelta(prey.pos.z - this.pos.z);
+      let fix = this._aimYaw || 0;
+      const dAz = (pmx * pmx + pmz * pmz > 0.09)
+        ? angleDiff(Math.atan2(pmx, pmz), Math.atan2(vx, vz)) : 99;
+      if (striking && Math.abs(dAz) < 1.1) { // fists driving through the front arc
+        fix = clamp(fix + clamp(dAz - fix, -0.2, 0.2), -0.6, 0.6);
+      } else {
+        fix *= 0.75; // windup: don't chase, unwind
+      }
+      J.torso.rotation.y += fix;
+      this._aimYaw = fix;
+    }
+    if (striking) this.clampPalmsTo(prey);
+    else this._palmFix = (this._palmFix || 0) * 0.8;
   }
 
   // Firing NEVER turns a human's mech — the shot goes wherever the mech is
@@ -951,10 +1002,19 @@ export class Fighter {
       duck: dk,
       charging: this._charging,
     });
-    // palm press must land after the pose is applied (else clobbered)
+    // palm press / strike tracking must land after the pose is applied
+    // (direct joint writes before applyPose get clobbered)
     if (this._palmPrey) {
       this.clampPalmsTo(this._palmPrey);
       this._palmPrey = null;
+    } else if (this._strikeAim) {
+      const sa = this._strikeAim;
+      sa.t -= dt;
+      if (sa.t <= 0 || !sa.f.alive || this.state !== 'attack') {
+        this._strikeAim = null;
+      } else {
+        this.aimStrikeAt(sa.f);
+      }
     } else {
       this._palmFix = 0;
     }
@@ -1041,11 +1101,30 @@ export class Fighter {
       }
     }
 
-    // high-speed body slam into buildings (launched mechs wreck facades)
+    // high-speed body slam into structures (launched mechs wreck facades
+    // and props) — and the structure hits BACK: a thrown mech that smashes
+    // through something takes real impact damage of its own
+    this._crashCd = Math.max(0, (this._crashCd || 0) - 1 / 60);
     const hSpeed = Math.hypot(this.vel.x, this.vel.z);
     if ((this.state === 'launched' || this.state === 'dash' || this.state === 'special') && hSpeed > 14) {
-      _v.set(this.pos.x, this.pos.y + this.height * 0.5, this.pos.z);
-      this.world.arena?.damageSphere(_v, this.radius * 2.2, hSpeed * 3, _v2.copy(this.vel).normalize(), true);
+      // sphere projected AHEAD into whatever we're hitting — the wall
+      // pushout otherwise keeps small mechs' reach just short of chunks
+      const lead = (this.radius + 1.4) / hSpeed;
+      _v.set(this.pos.x + this.vel.x * lead, this.pos.y + this.height * 0.5, this.pos.z + this.vel.z * lead);
+      const smashed = this.world.arena?.damageSphere(
+        _v, Math.max(3, this.radius * 2.2), hSpeed * 3, _v2.copy(this.vel).normalize(), true) || 0;
+      if (smashed > 0 && this.state === 'launched' && this._crashCd <= 0) {
+        this._crashCd = 0.6;
+        this.takeHit(Math.min(85, hSpeed * 1.5), this.lastAttacker, {
+          knock: 0, srcPos: _v, soft: true,
+        });
+        this.world.effects.impactSparks(this.center(), 0xffcf7a, 16, 12);
+        this.world.effects.dustPuff(this.pos, 8);
+        this.world.audio?.play('crumbleBig');
+        this.world.effects.addShake(0.5);
+        this.vel.x *= 0.55; // punching through wreckage bleeds momentum
+        this.vel.z *= 0.55;
+      }
     }
   }
 

@@ -1008,7 +1008,34 @@ controllers via Gamepad API), AI opponents.
   stills reviewed; soft/hard state probe; 16-mech attackmatrix ALL
   CONNECT; vulcan-vs-inferno ace soak (both soft weapons) crash-free.
 
-51. LEVEL DESIGN PASS: TERRAIN LAYER FOR ALL 12 ARENAS ✅
+51. DESTRUCTIBLE PROPS, THROWN-BOT WRECKAGE + SUBSTANCE JETS ✅
+  · Arena props (lamps, signs, crates, ...) now have measured cylinder
+    colliders + hp and DESTROY into rubble blocks, dust and sparks, with
+    the break mirrored across all 8 toroidal ghost copies. Fighters
+    collide with them; punches, projectiles and damage spheres break
+    them (explosive tanks still detonate through their own path).
+  · Body-slam throws wreck what they hit: a launched bot projects its
+    damage sphere ahead of its flight path, cracks buildings AND props,
+    and takes up to 85 impact damage itself (soft hit, 0.6s cooldown).
+  · SUBSTANCE REDESIGN: Cranky's hose and Inferno's flamethrower are now
+    continuous tube-mesh JETS — a 16-ring tube rebuilt along a ballistic
+    arc each tick, skinned with scrolling 2-layer fractal noise — with
+    droplet spray / fire tongues riding the stream. Frogger fires 3-glob
+    slime bursts (lumpy noise-displaced icosahedra) that splat ground
+    PUDDLES and stick dripping BLOTCHES onto victims. Water splash foam
+    dimmed + point sprites size-capped: the bloom white-out is gone.
+  · HEAVY STRIKE AIM: during the strike descent (fists below shoulders)
+    the torso yaw-servos the palms' azimuth onto the victim (cap ±0.6
+    rad) and the palm clamp narrows the fists to body width, so a landed
+    pound visibly lands on the body instead of straddling it. Probe:
+    impact-frame fist-to-victim distance improves in every scenario
+    (e.g. colossus right fist 3.17 → 2.39) and never regresses.
+  Verified: build green; prop collide/break + ghost-mirror probe; throw
+  crash probe (2 chunks broken, 40 self-damage); stream/glob/pound
+  stills reviewed; clean-victim convergence matrix (stale-intent probe
+  bug found + fixed in the harness).
+
+52. LEVEL DESIGN PASS: TERRAIN LAYER FOR ALL 12 ARENAS ✅
   · New src/arena/terrain.js, driven by theme.layout data in themes.js:
     every arena now has painted ground LANES (roads, lava rivers, water
     channels, oil slicks, crystal veins, ice rivers, dry riverbeds, deck
