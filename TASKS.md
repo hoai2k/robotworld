@@ -1128,3 +1128,44 @@ controllers via Gamepad API), AI opponents.
   vel 0; charge caps at 3.0; scaled release speeds; cancel returns to
   normal/standing; lock faces the enemy with 0.00 yaw error, acquires and
   releases cleanly); ace soak crash-free.
+
+55. SIGNATURE HEAVIES FOR SIX MECHS + THROWN WEAPONS + SUBSTANCE FIXES ✅
+  · Six mechs traded the generic pound for a signature Y-attack, powered by
+    a new per-mech heavy kit in fighter.js: heavySpin (post-pose joint
+    whirl that winds down onto whole turns), heavyDrive (forward flight /
+    leaps during a clip window), heavyFlare (scaling a design group), and
+    heavyFx ('fx'/'hit' event hooks for charge beats and impact bursts):
+    - AEGIS: spear raised overhead and SPUN like a rotor blade (hand joint
+      whirls at 30 rad/s), then a full-body lunge drives it home.
+    - VIPER: ninja coil, then a flat corkscrew DRILL flight — body
+      horizontal, both blades speared forward, barrel-rolling (hips spin)
+      while heavyDrive flies her ~12u through the target.
+    - NOVA: reaches skyward, a shaft of starlight strikes the staff
+      (fx beat), then she hammers it down — area burst + groundShockwave
+      around the impact, all scaled by her halo glow.
+    - TEMPEST: arms fling wide and the frame spins up into a tornado
+      (two hit beats, dmg re-split 74→42/beat) with cyan debris + dust
+      spiraling around the vortex (heavyAura).
+    - FENRIR: the whole spiked mane — now on its own 'mane' joint — FLARES
+      2.4x like a porcupine and he leaps (heavyDrive up 8), ramming the
+      bladed ruff through the target.
+    - WRAITH: the tattered cloak — now on a 'cloak' joint with six wingtip
+      anchors — spreads into a wing-wall 2.6x wide/1.9x tall and every
+      wingtip fires a red laser converging on the mark.
+  · THROWN WEAPONS: Viper's ranged is now Fang Throw (a sword tumbling
+    end-over-end — new 'blade' projectile) and Aegis' is Dawn Javelin (the
+    lance hurled point-first — new 'spear' projectile). Both weapons
+    (lance refactored onto its own 'lance' joint) vanish from the grip and
+    RE-FORGE over half a second with a glow shimmer (regrowWeapon).
+  · FROGGER's Quad Gunk Barrage now lobs lumpy slime GLOBS (goop-flagged,
+    count 8→11) that splat puddles and stick blotches like the ranged
+    version — probe: 11 puddles on the ground after one barrage.
+  · CRANKY's geyser erupts as an actual WATER column: the additive light
+    beam is gone, replaced by the coherent jet-tube substance system
+    (16 refresh ticks, churning surface) over the existing droplet
+    fountain — probe: 1 live water jet, 0 light beams.
+  Verified: build green; showcase stills (aegis raise, nova sky-reach,
+  viper coil, tempest spread); battle probes (mane 2.37x mid-leap, cloak
+  2.59x spread, drill spin 6.5rad + 4.3u flight, whirl 9rad, ALL heavies
+  land: 99/53/93/66/86/91 dmg; blade+spear projectiles + regrow 0→1.0;
+  geyser jet live) — ace soaks crash-free on all four matchups.

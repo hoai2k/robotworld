@@ -122,6 +122,10 @@ export function fenrir(A, D, J, anchors, def) {
   A.tube('torso', 'frame', W * 0.15, W * 0.18, 0.16 * s, { p: [0, chH * 0.98, 0.05 * s] });
 
   // ================= MANE: three-row spiked ruff =================
+  // The whole ruff lives on its own 'mane' joint so combat can FLARE it —
+  // porcupine-style — by scaling the group (fenrir's heavy leap does this).
+  addJoint(J, 'mane', 'torso', 0, chH * 0.9, 0);
+  const maneY = chH * 0.9;
   // Spike helper: places the blade so its ROOT sits at p (blades are
   // center-origin, so offset the center along the rotated long axis).
   const _eu = new THREE.Euler();
@@ -135,28 +139,28 @@ export function fenrir(A, D, J, anchors, def) {
   for (let i = 0; i < 9; i++) {
     const a = (i / 8 - 0.5) * Math.PI * 1.16;
     const jag = 1 - 0.08 * ((i * 5) % 3);
-    maneSpike('torso', 'metal', (1.85 - Math.abs(a) * 0.28) * jag * s, 0.36 * s, 0.05 * s,
-      [Math.sin(a) * W * 0.5, chH * 0.88, (-Math.cos(a) * 0.5 + 0.08) * W],
+    maneSpike('mane', 'metal', (1.85 - Math.abs(a) * 0.28) * jag * s, 0.36 * s, 0.05 * s,
+      [Math.sin(a) * W * 0.5, chH * 0.88 - maneY, (-Math.cos(a) * 0.5 + 0.08) * W],
       [-0.72 - Math.abs(a) * 0.22, 0, -a * 0.66], 0.05);
   }
   for (let i = 0; i < 8; i++) {
     const a = (i / 7 - 0.5) * Math.PI * 1.02;
     const jag = 1 - 0.09 * ((i * 7) % 3);
-    maneSpike('torso', 'primary', (1.4 - Math.abs(a) * 0.24) * jag * s, 0.32 * s, 0.05 * s,
-      [Math.sin(a) * W * 0.42, chH * 0.93, (-Math.cos(a) * 0.42 + 0.08) * W],
+    maneSpike('mane', 'primary', (1.4 - Math.abs(a) * 0.24) * jag * s, 0.32 * s, 0.05 * s,
+      [Math.sin(a) * W * 0.42, chH * 0.93 - maneY, (-Math.cos(a) * 0.42 + 0.08) * W],
       [-0.9 - Math.abs(a) * 0.2, 0, -a * 0.64], 0.1);
   }
   for (let i = 0; i < 7; i++) {
     const a = (i / 6 - 0.5) * Math.PI * 0.9;
-    maneSpike('torso', 'dark', (1.0 - Math.abs(a) * 0.18) * s, 0.27 * s, 0.045 * s,
-      [Math.sin(a) * W * 0.34, chH * 0.98, (-Math.cos(a) * 0.34 + 0.08) * W],
+    maneSpike('mane', 'dark', (1.0 - Math.abs(a) * 0.18) * s, 0.27 * s, 0.045 * s,
+      [Math.sin(a) * W * 0.34, chH * 0.98 - maneY, (-Math.cos(a) * 0.34 + 0.08) * W],
       [-1.08 - Math.abs(a) * 0.16, 0, -a * 0.62], 0.14);
   }
   // lower mane fringe spilling out over the shoulders
   for (const sx of [-1, 1]) {
     for (let k = 0; k < 3; k++) {
-      maneSpike('torso', k === 1 ? 'primary' : 'metal', (1.1 - k * 0.18) * s, 0.24 * s, 0.045 * s,
-        [sx * W * 0.5, chH * (0.84 - k * 0.08), (0.04 - k * 0.12) * W],
+      maneSpike('mane', k === 1 ? 'primary' : 'metal', (1.1 - k * 0.18) * s, 0.24 * s, 0.045 * s,
+        [sx * W * 0.5, chH * (0.84 - k * 0.08) - maneY, (0.04 - k * 0.12) * W],
         [-0.5 - k * 0.25, 0, -sx * (1.05 + k * 0.25)], 0.08);
     }
   }

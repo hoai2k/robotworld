@@ -27,6 +27,17 @@ const VISUALS = {
     pulse: true, rot: true, normalBlend: true,
   },
   dart: { geo: () => new THREE.ConeGeometry(0.09, 1.1, 6), rot: true },
+  blade: { // VIPER: a thrown energy sword tumbling end-over-end
+    geo: () => {
+      const g = new THREE.OctahedronGeometry(1);
+      g.scale(0.05, 0.26, 1.35);
+      return g;
+    },
+    tumble: true, trail: 'glow', doubleSide: true,
+  },
+  spear: { // AEGIS: the hurled lance — a long javelin flying point-first
+    geo: () => new THREE.ConeGeometry(0.15, 3.6, 6), rot: true, trail: 'glow',
+  },
   wave: { geo: () => new THREE.TorusGeometry(1.4, 0.16, 6, 14, Math.PI * 0.7), waveRot: true, trail: 'glow' },
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
   mortar: { geo: () => new THREE.SphereGeometry(0.42, 8, 6), trail: 'smoke' },
@@ -90,7 +101,7 @@ export class ProjectileSystem {
       splash: spec.splash || 0,
       knock: spec.knock ?? 8,
       color: spec.color ?? 0xffd080,
-      gravity: type === 'mortar' ? 26 : 0,
+      gravity: spec.arcTo || type === 'mortar' ? 26 : 0, // lobbed shots arc
       homing: spec.homing || null,
       retarget: !!spec.retarget,
       turnRate: spec.turnRate || 3.2,
@@ -209,6 +220,11 @@ export class ProjectileSystem {
       if (p.mesh.userData.vis.flap) {
         const fl = Math.abs(Math.sin(p.age * 16));
         p.mesh.scale.set((0.55 + 0.65 * fl) * p.size, p.size, p.size);
+      }
+      if (p.mesh.userData.vis.tumble) {
+        // thrown-blade spin: face the flight line, cartwheel end-over-end
+        p.mesh.rotation.order = 'YXZ';
+        p.mesh.rotation.set(p.age * 11, Math.atan2(p.vel.x, p.vel.z), 0);
       }
 
       // trails

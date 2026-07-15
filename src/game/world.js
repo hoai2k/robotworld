@@ -402,6 +402,23 @@ export class World {
         });
         this.audio?.play('dart');
         break;
+      case 'blade': // VIPER: hurls a forearm sword end-over-end — the blade
+        // re-forges in her sheath a beat later (regrowWeapon)
+        this.projectiles.spawn('blade', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x5aff2e, knock: 5,
+          status: { slow: 0.85, slowT: 1 },
+        });
+        f.regrowWeapon?.('bladeR');
+        this.audio?.play('slash');
+        break;
+      case 'spear': // AEGIS: javelin throw — the lance reforges in his grip
+        this.projectiles.spawn('spear', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9fd8ff, knock: 12,
+        });
+        f.regrowWeapon?.('lance');
+        this.effects.muzzleFlash(from);
+        this.audio?.play('whooshBig');
+        break;
       case 'wave':
         // waves fly level, so cap the launch height at chest level — a
         // high lance/claw muzzle would skim over every target's head

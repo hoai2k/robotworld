@@ -450,6 +450,7 @@ export class Fighter {
   onAttackEvent(type, arg, atk) {
     if (type === 'sfx') { this.world.audio?.play(arg); return; }
     if (type === 'shake') { this.world.effects.addShake(arg || 0.4); return; }
+    if (type === 'fx') { this.heavyChargeFx(atk); return; } // pre-impact charge beat
     if (type !== 'hit') return;
     this.uncloak();
     // kinetic bonus: real momentum behind a punch (dash, dive) hits harder
@@ -468,22 +469,8 @@ export class Fighter {
       const g = this.world.arena.grabProbe(cx, cy, cz);
       if (g) { this.startHang(g); return; }
     }
-    // AEGIS heavy: the raised spear SUMMONS the strike — a pillar of light
-    // hammers down on the impact point while he stands braced behind the
-    // shield (the melee sphere below still carries the damage)
-    if (atk.fx === 'lightPillar') {
-      const fxp = new THREE.Vector3(cx, 0, cz);
-      const w = this.world;
-      w.effects.rings.spawn(fxp, { from: 0.4, to: reach * 1.6, dur: 0.4, color: 0x9fd8ff, y: 0.3 });
-      w.effects.beams.spawn(new THREE.Vector3(cx, 34, cz), fxp, { radius: reach * 0.32, dur: 0.5, color: 0xbfe8ff });
-      for (let i = 0; i < 12; i++) {
-        const a = rand(Math.PI * 2), rr = rand(0, reach * 0.7);
-        w.effects.glows.emit(cx + Math.cos(a) * rr, rand(0.2, 4), cz + Math.sin(a) * rr,
-          rand(-1, 1), rand(4, 10), rand(-1, 1),
-          { life: rand(0.3, 0.6), size: rand(0.8, 1.6), color: i % 3 ? 0x9fd8ff : 0xfff4c8, alpha: 0.95 });
-      }
-      w.audio?.play('beam');
-    }
+    // signature heavy impact FX (visuals + any bonus area effect)
+    if (atk.fx) this.heavyImpactFx(atk, cx, cy, cz, reach);
     let hitAny = false;
     for (const f of this.world.fighters) {
       if (f === this || !f.alive) continue;
@@ -505,6 +492,156 @@ export class Fighter {
       this.world.engine.addHitStop(atk.heavy ? 0.09 : 0.045);
       this.world.effects.addShake(atk.heavy ? 0.5 : 0.2);
     }
+  }
+
+  // ---- signature heavy FX: the mid-clip charge beat ('fx' event) ----
+  heavyChargeFx(atk) {
+    const w = this.world;
+    if (atk.fx === 'starSmash') {
+      // NOVA: a shaft of starlight strikes the raised staff and sets it blazing
+      const tip = this.mech.anchors.muzzleR?.getWorldPosition(_v) || this.center();
+      w.effects.beams.spawn(new THREE.Vector3(tip.x, tip.y + 36, tip.z), tip.clone(),
+        { radius: 0.5, dur: 0.45, color: 0xffd8f8 });
+      const g = this.animator?.novaGlow || 0.5;
+      for (let i = 0; i < 14; i++) {
+        const a = rand(TAU), rr = rand(0, 1.2);
+        w.effects.glows.emit(tip.x + Math.cos(a) * rr, tip.y + rand(-0.4, 0.8), tip.z + Math.sin(a) * rr,
+          Math.cos(a) * 2, rand(1, 4), Math.sin(a) * 2,
+          { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * (1 + g), color: i % 3 ? 0xff3ce8 : 0xfff0ff, alpha: 0.95 });
+      }
+      w.effects.glows.emit(tip.x, tip.y, tip.z, 0, 0, 0,
+        { life: 0.4, size: 3 + 2.5 * g, color: 0xffffff, alpha: 0.95 });
+    }
+  }
+
+  // ---- signature heavy FX: on the impact frame ----
+  heavyImpactFx(atk, cx, cy, cz, reach) {
+    const w = this.world;
+    if (atk.fx === 'starSmash') {
+      // NOVA: the staff hits like a falling star — area burst around the point
+      const g = this.animator?.novaGlow || 0;
+      const p = new THREE.Vector3(cx, 0, cz);
+      w.effects.rings.spawn(p, { from: 0.6, to: 7 + 4 * g, dur: 0.5, color: 0xff3ce8, y: 0.35 });
+      w.effects.explosion(new THREE.Vector3(cx, 1, cz), 3.5 + 2 * g, { color: 0xff5ce8, smoke: false });
+      w.groundShockwave(this, p, 5.5 + 2 * g, atk.dmg * 0.35, 10, 0xff3ce8);
+      w.audio?.play('plasma');
+    } else if (atk.fx === 'wingLasers') {
+      // WRAITH: every spread wing-tip fires a red beam converging on the mark
+      const target = new THREE.Vector3(cx, Math.max(1.5, cy * 0.7), cz);
+      for (let k = 0; k < 6; k++) {
+        const a = this.mech.anchors['wing' + k];
+        if (!a) continue;
+        w.effects.beams.spawn(a.getWorldPosition(new THREE.Vector3()), target.clone(),
+          { radius: 0.11, dur: 0.32, color: 0xff2030 });
+      }
+      w.effects.glows.emit(target.x, target.y, target.z, 0, 0, 0,
+        { life: 0.35, size: 3.4, color: 0xff2030, alpha: 0.95 });
+      w.effects.impactSparks(target, 0xff2030, 16, 10);
+      w.audio?.play('zap');
+    }
+  }
+
+  // ---- signature heavy mechanics, driven every frame while the mech's own
+  // heavy clip plays: heavySpin (post-pose joint whirl — rotor spear, drill
+  // roll, tornado), heavyDrive (forward flight / leaps), heavyFlare
+  // (porcupine mane / cloak wing-wall scaling), heavyAura (tornado debris) ----
+  updateHeavySignature(dt) {
+    const def = this.def;
+    if (!def.heavySpin && !def.heavyDrive && !def.heavyFlare && !def.heavyAura) return;
+    const act = this.animator.action;
+    const playing = !!act && !act.fadingOut && act.clip.name === def.heavyClip;
+    const t = playing ? act.t : 0;
+
+    const sp = def.heavySpin;
+    if (sp) {
+      if (playing && t >= sp.t0 && t <= sp.t1) {
+        this._spinAcc = (this._spinAcc || 0) + dt * sp.rate;
+      } else if (this._spinAcc) {
+        // wind down onto a whole turn so the pose lands where the clip left it
+        const snap = Math.round(this._spinAcc / TAU) * TAU;
+        this._spinAcc += (snap - this._spinAcc) * Math.min(1, dt * 14);
+        if (Math.abs(this._spinAcc - snap) < 0.02) this._spinAcc = playing ? snap : 0;
+      }
+      if (this._spinAcc) {
+        const j = this.mech.joints[sp.joint];
+        if (j) j.rotation[sp.axis] += this._spinAcc; // on top of the posed value
+      }
+    }
+
+    const dr = def.heavyDrive;
+    if (dr && playing && this.state === 'attack' && t >= dr.t0 && t <= dr.t1) {
+      this.vel.x = Math.sin(this.yaw) * dr.speed;
+      this.vel.z = Math.cos(this.yaw) * dr.speed;
+      if (dr.up && !this._droveUp) {
+        this._droveUp = true;
+        this.vel.y = dr.up;
+        this.grounded = false;
+      }
+      if (dr.hold) this.vel.y = Math.max(this.vel.y, -2); // skim, don't faceplant
+    }
+    if (!playing) this._droveUp = false;
+
+    const fl = def.heavyFlare;
+    if (fl) {
+      const j = this.mech.joints[fl.joint];
+      if (j) {
+        let want = 0;
+        if (playing) {
+          want = clamp((t - fl.t0) / 0.22, 0, 1) * clamp((fl.t1 - t) / 0.16, 0, 1);
+          want = clamp(want, 0, 1);
+        }
+        this._flareK = lerp(this._flareK || 0, want, 1 - Math.exp(-12 * dt));
+        j.scale.set(
+          1 + (fl.scale[0] - 1) * this._flareK,
+          1 + (fl.scale[1] - 1) * this._flareK,
+          1 + (fl.scale[2] - 1) * this._flareK
+        );
+      }
+    }
+
+    if (def.heavyAura === 'tornado' && playing && t > 0.24 && t < 0.9) {
+      // storm debris spiraling up around the spinning frame
+      this._auraT = (this._auraT ?? 0) - dt;
+      if (this._auraT <= 0) {
+        this._auraT = 0.03;
+        const fx = this.world.effects;
+        const a = rand(TAU), rr = rand(1.2, 3.2) * this.scale;
+        const h = rand(0, this.height * 1.3);
+        fx.glows.emit(this.pos.x + Math.cos(a) * rr, this.pos.y + h, this.pos.z + Math.sin(a) * rr,
+          -Math.sin(a) * rand(8, 14), rand(3, 7), Math.cos(a) * rand(8, 14),
+          { life: rand(0.3, 0.55), size: rand(0.5, 1.1), color: 0x3fd8ff, alpha: 0.75, drag: 0.6 });
+        fx.smoke.emit(this.pos.x + Math.cos(a) * rr * 1.15, this.pos.y + h * 0.5, this.pos.z + Math.sin(a) * rr * 1.15,
+          -Math.sin(a) * rand(6, 10), rand(2, 5), Math.cos(a) * rand(6, 10),
+          { life: rand(0.4, 0.8), size: rand(1.2, 2.2), color: 0x9fb8c8, alpha: 0.22, grow: 1.5 });
+      }
+    }
+  }
+
+  // ---- thrown-weapon regrow: hide the weapon group, then rebuild it in the
+  // grip over half a second (viper's swords, aegis' javelin) ----
+  regrowWeapon(joint) {
+    const j = this.mech.joints[joint];
+    if (!j) return;
+    j.scale.setScalar(0.001);
+    this._regrow = { joint, t: 0 };
+  }
+
+  updateRegrow(dt) {
+    const rg = this._regrow;
+    if (!rg) return;
+    rg.t += dt;
+    const j = this.mech.joints[rg.joint];
+    if (!j) { this._regrow = null; return; }
+    const k = clamp((rg.t - 0.18) / 0.5, 0, 1);
+    j.scale.setScalar(Math.max(0.001, k));
+    if (k > 0.05 && Math.random() < 0.5) {
+      // re-forging shimmer at the grip
+      j.getWorldPosition(_v);
+      this.world.effects.glows.emit(_v.x + rand(-0.4, 0.4), _v.y + rand(-0.3, 0.3), _v.z + rand(-0.4, 0.4),
+        0, rand(0.5, 2), 0,
+        { life: 0.25, size: rand(0.3, 0.7), color: this.def.colors.glow, alpha: 0.9 });
+    }
+    if (k >= 1) this._regrow = null;
   }
 
   // ================= wall grab =================
@@ -1112,6 +1249,10 @@ export class Fighter {
     this.yaw = angleDamp(this.yaw, this.targetYaw, 14, dt);
     this.group.rotation.y = this.yaw;
 
+    // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
+    this.updateHeavySignature(dt);
+    // ---- thrown weapons re-forging in the grip ----
+    this.updateRegrow(dt);
     // ---- weapon trails: glowing streaks ride the blade/spear tips while a
     // one-shot attack clip swings, so cuts and thrusts read as EDGES ----
     if (this.def.bladeTrail) this.updateBladeTrail(dt);

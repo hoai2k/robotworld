@@ -97,11 +97,14 @@ export function wraith(A, D, J, anchors, def) {
   }
   // jagged blade-strips: a = angle around the back (0 = straight back).
   // Hang from the yoke, tilt backward, roll bottoms outward (skirt flare).
+  // The whole cloak lives on its own 'cloak' joint so combat can SPREAD it
+  // wide and tall like wings (wraith's heavy scales the group).
+  addJoint(J, 'cloak', 'torso', 0, chH * 0.92, -W * 0.3);
   const strip = (mat, a, L, R, yTop, tilt, wid, th, taper) => {
     const dirY = Math.cos(tilt), dirZ = Math.sin(tilt);
-    A.blade('torso', mat, L, wid, th, {
-      p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - dirY * L * 0.5,
-        -Math.cos(a) * R * 0.9 - dirZ * L * 0.5],
+    A.blade('cloak', mat, L, wid, th, {
+      p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - chH * 0.92 - dirY * L * 0.5,
+        -Math.cos(a) * R * 0.9 + W * 0.3 - dirZ * L * 0.5],
       r: [Math.PI + tilt, 0, -a * 0.3], taper });
   };
   const jag = (i, k) => 0.82 + 0.18 * (((i * 7 + k * 3) % 4) / 3); // varied lengths
@@ -314,6 +317,13 @@ export function wraith(A, D, J, anchors, def) {
 
   anchors.muzzleR = addAnchor(J.rifle, 0, -2.28 * s, -0.01 * s);
   anchors.scope = addAnchor(J.rifle, 0, 1.72 * s, 0.3 * s);
+  // wing emitters spread across the cloak span — when the cloak flares wide
+  // for the heavy, these ride out with it and fire the converging lasers
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 5 - 0.5) * 3.6;
+    anchors['wing' + k] = addAnchor(J.cloak,
+      Math.sin(a) * W * 0.72, -1.5 * s, -Math.cos(a) * W * 0.42);
+  }
   // core sits deep in the chest so the red light rims the cloak instead of
   // blowing out the sternum gap
   anchors.core = addAnchor(J.torso, 0, chH * 0.5, -W * 0.1);

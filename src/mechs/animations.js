@@ -164,17 +164,85 @@ const CLIPS_RAW = {
     ],
     events: [{ t: 0.26, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'hit', arg: 2 }],
   },
-  aegisSummon: { // heavy: shield plants forward, spear sweeps to full vertical —
-    // and holds there while the summoned light hammers down in front
+  aegisWhirl: { // heavy: spear raised overhead and SPUN like a rotor blade
+    // (fighter.js heavySpin whirls the hand joint through the hold), then the
+    // whole frame lunges and drives the spear home
+    dur: 1.05,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.2, ease: 'inOutCubic', pose: { torso: [-6, 0, 3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.18, 0], head: [-16, 0, 0], shoulderR: [-176, 0, 10], elbowR: [-5, 0, 0], shoulderL: [-58, 26, -12], elbowL: [-96, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [-8, 0, 3], shoulderR: [-174, 0, 8], hipsPos: [0, -0.22, 0] } },
+      { t: 0.78, ease: 'outBack', pose: { torso: [24, -18, -4], hipsRot: [4, -10, 0], hipsPos: [0, -0.34, 0.3], head: [-8, 8, 0], shoulderR: [-96, -8, 0], elbowR: [0, 0, 0], shoulderL: [-52, 30, -10], elbowL: [-100, 0, 0], thighL: [-46, 0, 0], kneeL: [56, 0, 0], thighR: [24, 0, 0], kneeR: [58, 0, 0], ankleR: [22, 0, 0] } },
+      { t: 0.9, ease: 'inOutQuad', pose: { torso: [18, -14, -3], hipsPos: [0, -0.28, 0.24] } },
+      { t: 1.05, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.24, type: 'sfx', arg: 'whoosh' }, { t: 0.42, type: 'sfx', arg: 'whoosh' }, { t: 0.6, type: 'sfx', arg: 'whoosh' }, { t: 0.7, type: 'sfx', arg: 'whooshBig' }, { t: 0.8, type: 'hit', arg: 0 }, { t: 0.82, type: 'shake', arg: 0.4 }],
+  },
+  viperDrill: { // heavy: ninja coil, then the whole body launches FLAT and
+    // corkscrews forward — both blades speared ahead as the drill point
+    // (fighter.js heavySpin barrel-rolls the hips; heavyDrive flies it)
     dur: 0.95,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.28, ease: 'inOutCubic', pose: { torso: [10, 10, 0], hipsRot: [0, 4, 0], hipsPos: [0, -0.3, 0], head: [6, 0, 0], shoulderL: [-78, 20, -8], elbowL: [-64, 0, 0], shoulderR: [-40, 10, 20], elbowR: [-95, 0, 0], kneeL: [38, 0, 0], kneeR: [38, 0, 0], thighL: [-20, 0, 0], thighR: [-20, 0, 0] } },
-      { t: 0.48, ease: 'outBack', pose: { torso: [-8, 0, 3], hipsRot: [-4, 0, 0], hipsPos: [0, -0.12, 0], head: [-22, 0, 0], shoulderL: [-70, 24, -10], elbowL: [-92, 0, 0], shoulderR: [-178, 0, 8], elbowR: [-4, 0, 0], kneeL: [22, 0, 0], kneeR: [22, 0, 0], thighL: [-12, 0, 0], thighR: [-12, 0, 0] } },
-      { t: 0.72, ease: 'inOutQuad', pose: { torso: [-6, 0, 2], shoulderR: [-174, 0, 8] } },
-      { t: 0.95, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+      { t: 0.24, ease: 'inOutCubic', pose: { hipsPos: [0, -0.85, 0], hipsRot: [0, 8, 0], torso: [20, 10, 0], head: [-10, -8, 0], shoulderL: [-42, 30, -48], shoulderR: [-42, -30, 48], elbowL: [-72, 0, 0], elbowR: [-72, 0, 0], handL: [0, 0, -30], handR: [0, 0, 30], kneeL: [80, 0, 0], kneeR: [80, 0, 0], thighL: [-42, 0, 0], thighR: [-42, 0, 0], ankleL: [-34, 0, 0], ankleR: [-34, 0, 0] } },
+      { t: 0.36, ease: 'outCubic', pose: { hipsPos: [0, 0.5, 0], hipsRot: [90, 0, 0], torso: [0, 0, 0], head: [12, 0, 0], shoulderL: [-172, 0, -6], shoulderR: [-172, 0, 6], elbowL: [-4, 0, 0], elbowR: [-4, 0, 0], handL: [0, 0, 0], handR: [0, 0, 0], kneeL: [8, 0, 0], kneeR: [8, 0, 0], thighL: [4, 0, -3], thighR: [4, 0, 3], ankleL: [-30, 0, 0], ankleR: [-30, 0, 0] } },
+      { t: 0.72, ease: 'inOutQuad', pose: { hipsPos: [0, 0.42, 0], hipsRot: [90, 0, 0] } },
+      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
-    events: [{ t: 0.3, type: 'sfx', arg: 'cast' }, { t: 0.55, type: 'hit', arg: 0 }, { t: 0.57, type: 'shake', arg: 0.5 }],
+    events: [{ t: 0.3, type: 'sfx', arg: 'dash' }, { t: 0.44, type: 'sfx', arg: 'whooshBig' }, { t: 0.55, type: 'hit', arg: 0 }, { t: 0.57, type: 'shake', arg: 0.35 }],
+  },
+  novaSmite: { // heavy: reach to the sky — a shaft of starlight strikes the
+    // staff (fx event) and sets it blazing — then hammer it down for an
+    // area-burst on whatever stands there
+    dur: 1.1,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.3, ease: 'inOutCubic', pose: { torso: [-10, 0, 4], hipsRot: [-4, 0, 0], hipsPos: [0, 0.08, 0], head: [-22, 0, 0], shoulderR: [-176, 0, 6], elbowR: [-4, 0, 0], shoulderL: [-26, 0, -42], elbowL: [-30, 0, 0], kneeL: [10, 0, 0], kneeR: [10, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [-12, 0, 4], shoulderR: [-174, 0, 6], hipsPos: [0, 0.05, 0] } },
+      { t: 0.78, ease: 'inCubic', pose: { torso: [48, -8, 0], hipsRot: [10, 0, 0], hipsPos: [0, -0.55, 0.1], head: [12, 0, 0], shoulderR: [-58, -6, -4], elbowR: [-8, 0, 0], shoulderL: [10, 0, -30], elbowL: [-20, 0, 0], kneeL: [55, 0, 0], kneeR: [55, 0, 0], thighL: [-30, 0, 0], thighR: [-30, 0, 0], ankleL: [-24, 0, 0], ankleR: [-24, 0, 0] } },
+      { t: 0.9, ease: 'outQuad', pose: { torso: [42, -6, 0], hipsPos: [0, -0.45, 0.08] } },
+      { t: 1.1, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.34, type: 'fx', arg: 'charge' }, { t: 0.34, type: 'sfx', arg: 'cast' }, { t: 0.72, type: 'sfx', arg: 'whooshBig' }, { t: 0.8, type: 'hit', arg: 0 }, { t: 0.82, type: 'shake', arg: 0.6 }],
+  },
+  tempestTornado: { // heavy: arms fling wide and the whole frame spins up
+    // into a tornado (heavySpin whirls the hips; the aura FX ride along) —
+    // two hit beats as the vortex grinds through the target
+    dur: 1.0,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.18, ease: 'inOutCubic', pose: { hipsPos: [0, -0.4, 0], torso: [10, 20, 0], head: [0, -10, 0], shoulderL: [-20, 30, -20], shoulderR: [-20, -30, 20], elbowL: [-110, 0, 0], elbowR: [-110, 0, 0], kneeL: [40, 0, 0], kneeR: [40, 0, 0], thighL: [-22, 0, 0], thighR: [-22, 0, 0] } },
+      { t: 0.3, ease: 'outBack', pose: { hipsPos: [0, 0.18, 0], torso: [-6, 0, 0], head: [-8, 0, 0], shoulderL: [-24, 0, -86], shoulderR: [-24, 0, 86], elbowL: [-4, 0, 0], elbowR: [-4, 0, 0], kneeL: [8, 0, 0], kneeR: [8, 0, 0], thighL: [-4, 0, 0], thighR: [-4, 0, 0] } },
+      { t: 0.85, ease: 'inOutQuad', pose: { hipsPos: [0, 0.1, 0], shoulderL: [-22, 0, -84], shoulderR: [-22, 0, 84] } },
+      { t: 1.0, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.28, type: 'sfx', arg: 'whooshBig' }, { t: 0.45, type: 'hit', arg: 0 }, { t: 0.55, type: 'sfx', arg: 'whoosh' }, { t: 0.68, type: 'hit', arg: 0 }, { t: 0.7, type: 'shake', arg: 0.35 }],
+  },
+  fenrirSpike: { // heavy: the mane flares out huge (heavyFlare scales the
+    // ruff, porcupine-style) as the wolf coils — then a spiking LEAP
+    // (heavyDrive) that rams the whole bladed body through the target
+    dur: 0.9,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.28, ease: 'inOutCubic', pose: { hipsPos: [0, -0.7, 0], hipsRot: [6, 0, 0], torso: [24, 0, 0], head: [-22, 0, 0], shoulderL: [10, 0, -24], shoulderR: [10, 0, 24], elbowL: [-60, 0, 0], elbowR: [-60, 0, 0], kneeL: [70, 0, 0], kneeR: [70, 0, 0], thighL: [-40, 0, 0], thighR: [-40, 0, 0], ankleL: [-32, 0, 0], ankleR: [-32, 0, 0] } },
+      { t: 0.42, ease: 'outCubic', pose: { hipsPos: [0, 0.2, 0], hipsRot: [22, 0, 0], torso: [14, 0, 0], head: [-16, 0, 0], shoulderL: [30, 0, -34], shoulderR: [30, 0, 34], elbowL: [-24, 0, 0], elbowR: [-24, 0, 0], thighL: [-30, 0, -4], thighR: [-30, 0, 4], kneeL: [26, 0, 0], kneeR: [26, 0, 0], ankleL: [-24, 0, 0], ankleR: [-24, 0, 0] } },
+      { t: 0.68, ease: 'inOutQuad', pose: { hipsPos: [0, 0.1, 0], hipsRot: [16, 0, 0] } },
+      { t: 0.9, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.08, type: 'sfx', arg: 'howl' }, { t: 0.38, type: 'sfx', arg: 'jump' }, { t: 0.55, type: 'hit', arg: 0 }, { t: 0.57, type: 'shake', arg: 0.35 }],
+  },
+  wraithLasers: { // heavy: the tattered cloak spreads into a vast wing-wall
+    // (heavyFlare scales the cloak wide and tall) and every wing-tip fires a
+    // red laser converging on the mark (heavyFx 'wingLasers' on the hit)
+    dur: 1.15,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.3, ease: 'outCubic', pose: { hipsPos: [0, 0.22, 0], hipsRot: [-6, 0, 0], torso: [-14, 0, 0], head: [-12, 0, 0], shoulderL: [-42, 0, -72], shoulderR: [-42, 0, 72], elbowL: [-8, 0, 0], elbowR: [-8, 0, 0], kneeL: [10, 0, 0], kneeR: [10, 0, 0], thighL: [-6, 0, 0], thighR: [-6, 0, 0] } },
+      { t: 0.58, ease: 'inOutQuad', pose: { hipsPos: [0, 0.26, 0], torso: [-16, 0, 0], head: [-6, 0, 0] } },
+      { t: 0.88, ease: 'inOutQuad', pose: { hipsPos: [0, 0.2, 0], torso: [-12, 0, 0] } },
+      { t: 1.15, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.14, type: 'sfx', arg: 'charge' }, { t: 0.62, type: 'hit', arg: 0 }, { t: 0.62, type: 'sfx', arg: 'railgun' }, { t: 0.66, type: 'shake', arg: 0.45 }],
   },
 
   // ---------- TITANUS / COLOSSUS: telegraphed haymakers ----------

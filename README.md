@@ -49,8 +49,8 @@ force it off). Desktop keyboard + controller local multiplayer is unchanged.
 |------|------|--------|---------|----------|
 | 👊 **TITANUS** | Colossal brawler | Rocket Fist | Seismic Slam | METEOR BREAKER |
 | 🔫 **VULCAN** | Gatling gunner | Gatling Burst | Micro-Missile Volley | BULLET HURRICANE |
-| 🛡️ **AEGIS** | Shield paladin | Lance Wave | Bulwark Bash | JUDGMENT RAY |
-| 🗡️ **VIPER** | Blade assassin | Venom Dart | Phantom Strike | SERPENT STORM |
+| 🛡️ **AEGIS** | Shield paladin | Dawn Javelin | Bulwark Bash | JUDGMENT RAY |
+| 🗡️ **VIPER** | Blade assassin | Fang Throw | Phantom Strike | SERPENT STORM |
 | ✨ **NOVA** | Plasma caster | Plasma Lance | Starfall Trio | SUPERNOVA |
 | 🐂 **RHINO** | Charging bull | Shoulder Cannon | Bull Rush | STAMPEDE |
 | ⚡ **TEMPEST** | Storm dancer | Arc Bolt | Static Overload | THUNDERFALL |

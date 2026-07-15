@@ -577,11 +577,20 @@ export const SPECIALS = {
               { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * boil, color: 0xcfe8f6, color2: 0x4a80b0, alpha: 0.9, gravity: 14 });
           });
         }
-        // ---- eruption: roaring column of water hurled skyward
+        // ---- eruption: roaring column of WATER hurled skyward — a real
+        // coherent jet tube (same substance system as the hose), refreshed
+        // every tick so the column stands as churning matter, not light
+        const jetKey = 'geyser' + f.playerIndex + ((Math.random() * 1e6) | 0);
+        const UP = new THREE.Vector3(0, 1, 0);
         w.schedule(WARN, () => {
-          const top = target.clone();
-          top.y += 27;
-          w.effects.beams.spawn(target, top, { radius: Math.min(3.4, sp.radius * 0.45), dur: 0.6, color: 0x8fdcff });
+          for (let k = 0; k < 16; k++) {
+            w.schedule(k * 0.05, () => {
+              w.effects.jet(jetKey, target, UP, {
+                type: 'water', speed: 40, range: 26, gravity: 4,
+                r0: 0.9, r1: 2.8,
+              });
+            });
+          }
           w.effects.rings.spawn(target, { from: 1, to: sp.radius * 2.2, dur: 0.5, color: 0xbfe8ff, y: 0.4 });
           // the blowout: one brief, HUGE fountain — tall fast jets across
           // the whole (doubled) eruption area
@@ -789,10 +798,12 @@ export const SPECIALS = {
 
   // FROGGER: all four gunk guns lob a sticky mortar carpet
   slimeBarrage(f, sp) {
+    // a rain of lumpy slime GLOBS — every wad that lands splats a puddle
+    // and gunks blotches onto whoever it hits (the goop flag drives both)
     const dur = f.animator.play('spray', { speed: 1.4 });
     f.setState('special', Math.min(dur, 1.0));
     for (let i = 0; i < sp.count; i++) {
-      f.world.schedule(0.1 * i, () => {
+      f.world.schedule(0.09 * i, () => {
         if (!f.alive) return;
         const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
         const arcTime = rand(0.7, 1.0);
@@ -800,10 +811,11 @@ export const SPECIALS = {
         const target = e ? leadPos(f, e, arcTime * 0.8) : fwd(f, 16);
         target.x += rand(-sp.radius, sp.radius) * 0.4;
         target.z += rand(-sp.radius, sp.radius) * 0.4;
-        f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
+        f.world.projectiles.spawn('glob', f, from, new THREE.Vector3(0, 1, 0), {
           dmg: sp.dmg * f.dmgMult(), splash: 2.6, color: 0x9ade2a, arcTo: target, arcTime,
-          status: { slow: 0.6, slowT: 1.8 },
+          status: { slow: 0.6, slowT: 1.8 }, goop: true, size: rand(0.9, 1.4),
         });
+        f.world.effects.slime(from, 3, 2);
         f.world.audio?.play('plasma');
       });
     }

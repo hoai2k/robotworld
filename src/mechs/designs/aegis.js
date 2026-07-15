@@ -308,34 +308,37 @@ export function aegis(A, D, J, anchors, def) {
   A.sharpBox('shield', 'frame', [1.2 * s, 0.16 * s, 0.06 * s], { p: [0, -0.8 * s, -0.04 * s] });
 
   // ================= ENERGY LANCE (right hand) =================
+  // The whole lance lives on its own 'lance' joint: the javelin throw hides
+  // it (and regrows it in the grip), and the whirl heavy spins it freely.
   A.fist('handR', 'frame', 'dark', 0.3 * s, { side: 1 });
+  addJoint(J, 'lance', 'handR', 0, 0, 0);
   // grip + gold guard bulge
-  A.tube('handR', 'dark', 0.055 * s, 0.055 * s, 0.7 * s, {
+  A.tube('lance', 'dark', 0.055 * s, 0.055 * s, 0.7 * s, {
     p: [0, -0.2 * s, -0.1 * s], r: [Math.PI / 2, 0, 0] });
-  A.lathe('handR', 'brass', [[-0.1 * s, 0.1 * s], [0.02 * s, 0.19 * s], [0.14 * s, 0.06 * s]], {
+  A.lathe('lance', 'brass', [[-0.1 * s, 0.1 * s], [0.02 * s, 0.19 * s], [0.14 * s, 0.06 * s]], {
     p: [0, -0.2 * s, 0.3 * s], r: [Math.PI / 2, 0, 0] });
   // dark segmented shaft with brass joint rings
-  A.tube('handR', 'dark', 0.06 * s, 0.075 * s, 1.1 * s, {
+  A.tube('lance', 'dark', 0.06 * s, 0.075 * s, 1.1 * s, {
     p: [0, -0.2 * s, 0.95 * s], r: [Math.PI / 2, 0, 0] });
-  A.ring('handR', 'brass', 0.085 * s, 0.024 * s, { p: [0, -0.2 * s, 1.55 * s] });
-  A.tube('handR', 'metal', 0.055 * s, 0.065 * s, 0.85 * s, {
+  A.ring('lance', 'brass', 0.085 * s, 0.024 * s, { p: [0, -0.2 * s, 1.55 * s] });
+  A.tube('lance', 'metal', 0.055 * s, 0.065 * s, 0.85 * s, {
     p: [0, -0.2 * s, 2.0 * s], r: [Math.PI / 2, 0, 0] });
-  A.ring('handR', 'brass', 0.08 * s, 0.024 * s, { p: [0, -0.2 * s, 2.45 * s] });
-  A.tube('handR', 'dark', 0.05 * s, 0.06 * s, 0.5 * s, {
+  A.ring('lance', 'brass', 0.08 * s, 0.024 * s, { p: [0, -0.2 * s, 2.45 * s] });
+  A.tube('lance', 'dark', 0.05 * s, 0.06 * s, 0.5 * s, {
     p: [0, -0.2 * s, 2.72 * s], r: [Math.PI / 2, 0, 0] });
   // ornate gold collar under the blade
-  A.lathe('handR', 'brass', [[-0.18 * s, 0.055 * s], [-0.04 * s, 0.14 * s], [0.1 * s, 0.1 * s], [0.22 * s, 0.04 * s]], {
+  A.lathe('lance', 'brass', [[-0.18 * s, 0.055 * s], [-0.04 * s, 0.14 * s], [0.1 * s, 0.1 * s], [0.22 * s, 0.04 * s]], {
     p: [0, -0.2 * s, 3.08 * s], r: [Math.PI / 2, 0, 0] });
   for (let k = 0; k < 4; k++) { // small gold prongs at the collar
     const a = (k / 4) * Math.PI * 2 + Math.PI / 4;
-    A.spike('handR', 'accent', 0.035 * s, 0.3 * s, {
+    A.spike('lance', 'accent', 0.035 * s, 0.3 * s, {
       p: [Math.cos(a) * 0.14 * s, -0.2 * s + Math.sin(a) * 0.14 * s, 3.24 * s],
       r: [Math.PI / 2 + Math.sin(a) * 0.25, 0, 0], seg: 6 });
   }
   // crystalline blue blade tip: layered glow cones
-  A.spike('handR', 'glowSoft', 0.13 * s, 0.55 * s, {
+  A.spike('lance', 'glowSoft', 0.13 * s, 0.55 * s, {
     p: [0, -0.2 * s, 3.36 * s], r: [Math.PI / 2, 0, 0], seg: 6 });
-  A.spike('handR', 'glow', 0.095 * s, 0.95 * s, {
+  A.spike('lance', 'glow', 0.095 * s, 0.95 * s, {
     p: [0, -0.2 * s, 3.62 * s], r: [Math.PI / 2, 0, 0], seg: 6 });
   A.fist('handL', 'frame', 'dark', 0.26 * s, { side: -1 });
 
@@ -393,7 +396,7 @@ export function aegis(A, D, J, anchors, def) {
     A.sharpBox(an, 'dark', [0.5 * s, 0.1 * s, 0.86 * s], { p: [0, -0.25 * s, 0.1 * s] });
   }
 
-  anchors.muzzleR = addAnchor(J.handR, 0, -0.2 * s, 4.1 * s);
+  anchors.muzzleR = addAnchor(J.lance, 0, -0.2 * s, 4.1 * s);
   anchors.shield = addAnchor(J.shield, 0, 0, 0.36 * s);
   anchors.core = addAnchor(J.torso, 0, cyY, W * 0.52);
 }

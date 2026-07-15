@@ -60,16 +60,17 @@ export const ROSTER = [
     stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
     // spear-and-shield doctrine: the shield arm holds a squared guard while
-    // the lance stabs around it; the heavy raises the spear skyward and a
-    // pillar of summoned light lands the blow
+    // the lance stabs around it; the heavy raises the spear overhead, WHIRLS
+    // it like a rotor blade, then lunges it home
     lightClips: ['aegisStab1', 'aegisStab2', 'aegisPierce'],
-    heavyClip: 'aegisSummon',
-    heavyFx: 'lightPillar',
+    heavyClip: 'aegisWhirl',
+    heavySpin: { joint: 'handR', axis: 'y', rate: 30, t0: 0.16, t1: 0.66 },
+    heavyDrive: { t0: 0.66, t1: 0.82, speed: 16 },
     bladeTrail: { anchors: ['muzzleR'], color: 0x9fd8ff },
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
       heavy: { dmg: 88, knock: 20, range: 4.2, launch: 8 },
-      ranged: { name: 'Lance Wave', type: 'wave', dmg: 44, speed: 38, cooldown: 1.1, ammo: 16 },
+      ranged: { name: 'Dawn Javelin', type: 'spear', dmg: 46, speed: 46, cooldown: 1.2, ammo: 16 },
       special: { id: 'shieldBash', name: 'Bulwark Bash', cooldown: 6, dmg: 60, knock: 22, guard: 2.2 },
       ult: { id: 'judgment', name: 'JUDGMENT RAY', dmg: 200, radius: 8 },
     },
@@ -88,14 +89,18 @@ export const ROSTER = [
     stats: { hp: 780, speed: 13.5, jump: 15.5, weight: 0.3, armor: 0, blockMult: 0.2 },
     ui: { power: 6, speed: 10, defense: 2 },
     // ninja sword forms: blade-led slashes and lunging stabs off the forearm
-    // energy daggers — never a punch that happens to hold a sword
+    // energy daggers — never a punch that happens to hold a sword. The heavy
+    // is a corkscrew DRILL flight: coil, then fly flat with both blades
+    // speared forward, barrel-rolling through the target
     lightClips: ['viperSlash1', 'viperSlash2', 'viperStab'],
-    heavyClip: 'viperHeavy',
+    heavyClip: 'viperDrill',
+    heavySpin: { joint: 'hips', axis: 'y', rate: 30, t0: 0.34, t1: 0.74 },
+    heavyDrive: { t0: 0.34, t1: 0.74, speed: 30, hold: true },
     bladeTrail: { anchors: ['bladeL', 'bladeR'], color: 0x5aff2e },
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
-      ranged: { name: 'Venom Dart', type: 'dart', dmg: 30, speed: 60, cooldown: 0.7, ammo: 26 },
+      ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8, ammo: 26 },
       special: { id: 'phantomStrike', name: 'Phantom Strike', cooldown: 5, dmg: 55, dashLen: 12 },
       ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 24, hits: 8 },
     },
@@ -112,6 +117,10 @@ export const ROSTER = [
     body: { scale: 1.05, torsoW: 0.9, torsoH: 1.05, headSize: 0.85, armLen: 1.0, legLen: 1.08, hipW: 0.88, bulk: 0.85 },
     stats: { hp: 850, speed: 10, jump: 14, weight: 0.4, armor: 0.05, blockMult: 0.14 },
     ui: { power: 8, speed: 6, defense: 3 },
+    // heavy: starlight strikes the raised staff, then she hammers it down —
+    // the impact bursts in an area around the strike point
+    heavyClip: 'novaSmite',
+    heavyFx: 'starSmash',
     moves: {
       light: { dmg: [28, 30, 42], knock: [4, 4, 10], range: 3.4 },
       heavy: { dmg: 72, knock: 17, range: 3.8, launch: 8 },
@@ -154,9 +163,15 @@ export const ROSTER = [
     restPose: { thighL: [-13, 0, 0], thighR: [-13, 0, 0], kneeL: [24, 0, 0], kneeR: [24, 0, 0], ankleL: [-11, 0, 0], ankleR: [-11, 0, 0] },
     stats: { hp: 880, speed: 11.5, jump: 15, weight: 0.42, armor: 0.04, blockMult: 0.14 },
     ui: { power: 7, speed: 8, defense: 3 },
+    // heavy: spins up into a grinding tornado (two hit beats while the
+    // vortex churns — dmg is per-beat) with storm debris whirling around
+    heavyClip: 'tempestTornado',
+    heavySpin: { joint: 'hips', axis: 'y', rate: 24, t0: 0.26, t1: 0.86 },
+    heavyDrive: { t0: 0.3, t1: 0.8, speed: 9 },
+    heavyAura: 'tornado',
     moves: {
       light: { dmg: [28, 30, 44], knock: [4, 4, 10], range: 3.2 },
-      heavy: { dmg: 74, knock: 17, range: 3.6, launch: 8 },
+      heavy: { dmg: 42, knock: 12, range: 3.6, launch: 8 },
       ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8, ammo: 20 },
       special: { id: 'staticField', name: 'Static Overload', cooldown: 7, dmg: 70, radius: 8 },
       ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 55, strikes: 8, radius: 12 },
@@ -176,6 +191,11 @@ export const ROSTER = [
     stats: { hp: 900, speed: 12.5, jump: 15, weight: 0.45, armor: 0.05, blockMult: 0.13 },
     ui: { power: 7, speed: 9, defense: 3 },
     gait: 'quad', // wolf lope: fronts reach, hinds drive together
+    // heavy: the spiked mane flares out huge — porcupine-style — and he
+    // leaps, ramming the whole bladed ruff through the target
+    heavyClip: 'fenrirSpike',
+    heavyDrive: { t0: 0.38, t1: 0.68, speed: 24, up: 8 },
+    heavyFlare: { joint: 'mane', scale: [2.4, 2.4, 2.4], t0: 0.06, t1: 0.72 },
     moves: {
       light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.3 },
       heavy: { dmg: 76, knock: 18, range: 3.7, launch: 8 },
@@ -220,6 +240,11 @@ export const ROSTER = [
     restPose: { thighL: [-26, 0, 0], thighR: [-26, 0, 0], kneeL: [49, 0, 0], kneeR: [49, 0, 0], ankleL: [-23, 0, 0], ankleR: [-23, 0, 0] },
     stats: { hp: 800, speed: 11, jump: 14, weight: 0.35, armor: 0, blockMult: 0.2 },
     ui: { power: 8, speed: 7, defense: 2 },
+    // heavy: the tattered cloak spreads into a vast wing-wall and every
+    // wing-tip fires a red laser converging on the mark
+    heavyClip: 'wraithLasers',
+    heavyFx: 'wingLasers',
+    heavyFlare: { joint: 'cloak', scale: [2.6, 1.9, 1.4], t0: 0.08, t1: 0.95 },
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.0 },
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
@@ -337,7 +362,7 @@ export const ROSTER = [
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 3.0 },
       heavy: { dmg: 78, knock: 18, range: 3.3, launch: 9 },
       ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4, ammo: 20 },
-      special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 8, radius: 8 },
+      special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 11, radius: 8 },
       ult: { id: 'royalRibbit', name: 'ROYAL RIBBIT', dmg: 190, radius: 12 },
     },
   },
