@@ -202,8 +202,9 @@ export class Fighter {
   dmgMult() {
     let m = 1;
     if (this.status.buff) m *= this.status.buff.dmg;
-    // NOVA: every attack surges while her halo burns at apex alignment
-    if (this.def.id === 'nova') m *= 1 + 0.35 * (this.animator?.novaGlow || 0);
+    // NOVA: every attack surges while her halo burns at apex alignment —
+    // a full-apex strike hits TWICE as hard as a dark-halo one
+    if (this.def.id === 'nova') m *= 1 + 1.0 * (this.animator?.novaGlow || 0);
     return m;
   }
 
@@ -223,7 +224,9 @@ export class Fighter {
   // ================= actions =================
   doLight() {
     const mv = this.def.moves.light;
-    const names = ['light1', 'light2', 'light3'];
+    // per-mech combo clips (sword forms, spear forms, haymakers...) — the
+    // shared punch trio is only the default
+    const names = this.def.lightClips || ['light1', 'light2', 'light3'];
     const idx = this.comboIdx % 3;
     this.faceNearestEnemyIfClose(12);
     const dur = this.animator.play(names[idx], {
@@ -261,6 +264,7 @@ export class Fighter {
         range: mv.range * this.scale,
         launch: mv.launch,
         heavy: true,
+        fx: this.def.heavyFx,
       }),
     });
     this.setState('attack', dur * 0.9);
@@ -455,6 +459,22 @@ export class Fighter {
         this.world.arena?.grabProbe) {
       const g = this.world.arena.grabProbe(cx, cy, cz);
       if (g) { this.startHang(g); return; }
+    }
+    // AEGIS heavy: the raised spear SUMMONS the strike — a pillar of light
+    // hammers down on the impact point while he stands braced behind the
+    // shield (the melee sphere below still carries the damage)
+    if (atk.fx === 'lightPillar') {
+      const fxp = new THREE.Vector3(cx, 0, cz);
+      const w = this.world;
+      w.effects.rings.spawn(fxp, { from: 0.4, to: reach * 1.6, dur: 0.4, color: 0x9fd8ff, y: 0.3 });
+      w.effects.beams.spawn(new THREE.Vector3(cx, 34, cz), fxp, { radius: reach * 0.32, dur: 0.5, color: 0xbfe8ff });
+      for (let i = 0; i < 12; i++) {
+        const a = rand(Math.PI * 2), rr = rand(0, reach * 0.7);
+        w.effects.glows.emit(cx + Math.cos(a) * rr, rand(0.2, 4), cz + Math.sin(a) * rr,
+          rand(-1, 1), rand(4, 10), rand(-1, 1),
+          { life: rand(0.3, 0.6), size: rand(0.8, 1.6), color: i % 3 ? 0x9fd8ff : 0xfff4c8, alpha: 0.95 });
+      }
+      w.audio?.play('beam');
     }
     let hitAny = false;
     for (const f of this.world.fighters) {
@@ -1023,6 +1043,69 @@ export class Fighter {
     // face target yaw
     this.yaw = angleDamp(this.yaw, this.targetYaw, 14, dt);
     this.group.rotation.y = this.yaw;
+
+    // ---- weapon trails: glowing streaks ride the blade/spear tips while a
+    // one-shot attack clip swings, so cuts and thrusts read as EDGES ----
+    if (this.def.bladeTrail) this.updateBladeTrail(dt);
+    // NOVA: the staff apex crackles while the halo burns — brighter and
+    // bigger the closer the crescents are to apex alignment
+    if (this.def.id === 'nova' && this.alive) this.updateNovaAura(dt);
+  }
+
+  updateBladeTrail(dt) {
+    const bt = this.def.bladeTrail;
+    const swinging = this.state === 'attack' && this.animator.action &&
+      !this.animator.action.fadingOut && !this.animator.action.clip.loop;
+    if (!swinging) { this._trailPrev = null; return; }
+    this.group.updateWorldMatrix(true, true);
+    this._trailPrev = this._trailPrev || {};
+    for (const name of bt.anchors) {
+      const anchor = this.mech.anchors[name];
+      if (!anchor) continue;
+      const p = anchor.getWorldPosition(_v);
+      const prev = this._trailPrev[name];
+      if (prev) {
+        const d = prev.distanceTo(p);
+        if (d > 0.35 * this.scale && d < 8 * this.scale) {
+          const n = Math.min(4, Math.ceil(d / (0.6 * this.scale)));
+          for (let i = 0; i <= n; i++) {
+            _v2.lerpVectors(prev, p, i / n);
+            this.world.effects.glows.emit(_v2.x, _v2.y, _v2.z, 0, 0, 0,
+              { life: 0.14, size: 0.55 * this.scale, color: bt.color, alpha: 0.85, grow: -1.5 });
+          }
+        }
+        prev.copy(p);
+      } else {
+        this._trailPrev[name] = p.clone();
+      }
+    }
+  }
+
+  updateNovaAura(dt) {
+    const g = this.animator?.novaGlow || 0;
+    this._novaFxT = (this._novaFxT ?? 0) - dt;
+    if (g < 0.45 || this._novaFxT > 0) return;
+    this._novaFxT = 0.055;
+    const fx = this.world.effects;
+    const tip = this.mech.anchors.muzzleR;
+    if (tip) {
+      // orbiting star-motes swirl around the staff apex; their size and
+      // spread scale with how bright the ring is burning
+      tip.getWorldPosition(_v);
+      const a = rand(TAU), rr = (0.25 + 0.9 * g) * this.scale;
+      fx.glows.emit(_v.x + Math.cos(a) * rr, _v.y + rand(-0.3, 0.5) * g, _v.z + Math.sin(a) * rr,
+        Math.cos(a + 1.6) * 2.2, rand(0.5, 2.2), Math.sin(a + 1.6) * 2.2,
+        { life: rand(0.25, 0.5), size: (0.5 + 1.5 * g) * this.scale,
+          color: Math.random() < 0.3 ? 0xfff0ff : 0xff3ce8, alpha: 0.9, drag: 1.2 });
+    }
+    // at full burn the halo itself sheds sparks
+    if (g > 0.78 && this.mech.joints.halo && Math.random() < 0.6) {
+      this.mech.joints.halo.getWorldPosition(_v);
+      const a = rand(TAU);
+      fx.glows.emit(_v.x + Math.cos(a) * 0.9 * this.scale, _v.y + rand(-0.2, 0.4), _v.z + Math.sin(a) * 0.9 * this.scale,
+        Math.cos(a) * 1.5, rand(1, 3), Math.sin(a) * 1.5,
+        { life: rand(0.3, 0.6), size: 0.4 * this.scale, color: 0xff9df2, alpha: 0.9 });
+    }
   }
 
   applyPhysics(dt, ax, az) {

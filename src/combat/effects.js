@@ -853,9 +853,10 @@ export class Effects {
   }
 
   // ---- goo blotches SPLATTED onto a fighter's body; drip while they ride ----
-  blotchOn(fighter, color = 0x74bc24) {
-    const torso = fighter.mech?.joints?.torso;
-    if (!torso) return;
+  // opts: joint (default torso), y0/y1 local height band, size mult, life
+  blotchOn(fighter, color = 0x74bc24, { joint = 'torso', y0 = 0.2, y1 = 1.4, size = 1, life = null, r = null } = {}) {
+    const bone = fighter.mech?.joints?.[joint];
+    if (!bone) return;
     let m = this._blotchPool.pop();
     if (!m) {
       m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
@@ -872,16 +873,40 @@ export class Effects {
     m.material.color.set(color);
     m.material.opacity = 0.95;
     m.material.needsUpdate = true;
-    const s = fighter.scale * rand(1.1, 1.9);
+    const s = fighter.scale * rand(1.1, 1.9) * size;
     m.scale.set(s, s, 1);
-    // slap it on the torso shell at a random spot, facing outward-ish
+    // slap it on the shell at a random spot, facing outward-ish
     const a = rand(Math.PI * 2);
-    const rr = fighter.hitRadius * 0.55;
-    m.position.set(Math.sin(a) * rr, rand(0.2, 1.4) * fighter.scale, Math.cos(a) * rr);
+    const rr = r ?? fighter.hitRadius * 0.55;
+    m.position.set(Math.sin(a) * rr, rand(y0, y1) * fighter.scale, Math.cos(a) * rr);
     m.rotation.set(0, a, rand(Math.PI * 2));
-    torso.add(m);
+    bone.add(m);
     m.visible = true;
-    this.blotches.push({ mesh: m, f: fighter, t: 0, life: rand(5, 7) });
+    this.blotches.push({ mesh: m, f: fighter, t: 0, life: life ?? rand(5, 7) });
+  }
+
+  // bury a fighter under gunk: blotches slapped over EVERY major body part
+  // (torso, head, both arms, both legs) until nothing clean shows — used by
+  // FROGGER's finisher to fully mummify the mark before the stomp
+  slimeCoat(fighter, color = 0x74bc24, life = 9) {
+    const R = fighter.hitRadius;
+    const spots = [
+      { joint: 'torso', n: 5, y0: 0.1, y1: 2.0, r: R * 0.55, size: 1.5 },
+      { joint: 'torso', n: 3, y0: 1.4, y1: 2.4, r: R * 0.45, size: 1.2 },
+      { joint: 'head', n: 2, y0: -0.1, y1: 0.5, r: R * 0.3, size: 0.9 },
+      { joint: 'shoulderL', n: 2, y0: -1.2, y1: 0, r: R * 0.28, size: 0.9 },
+      { joint: 'shoulderR', n: 2, y0: -1.2, y1: 0, r: R * 0.28, size: 0.9 },
+      { joint: 'thighL', n: 2, y0: -1.4, y1: 0, r: R * 0.3, size: 1 },
+      { joint: 'thighR', n: 2, y0: -1.4, y1: 0, r: R * 0.3, size: 1 },
+    ];
+    for (const sp of spots) {
+      for (let i = 0; i < sp.n; i++) {
+        this.blotchOn(fighter, color, {
+          joint: sp.joint, y0: sp.y0, y1: sp.y1, r: sp.r,
+          size: sp.size, life: life + rand(-1, 1.5),
+        });
+      }
+    }
   }
 
   // lingering electrical crackle on a shocked bot: small arcs snap between

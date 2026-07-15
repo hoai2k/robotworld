@@ -417,9 +417,14 @@ export class Animator {
           J.halo.rotation.z += dt * (0.9 + (ctx.firing ? 4 : 0));
           const g = 0.5 + 0.5 * Math.cos(2 * J.halo.rotation.z);
           this.novaGlow = g;
+          // UNMISTAKABLE power tell: the whole glow kit blazes toward apex —
+          // way past its dim floor — and the halo physically swells with it
           const mats = this.mech.materials;
-          if (mats?.glowSoft) mats.glowSoft.emissiveIntensity = 0.35 + 3.6 * g * g;
-          if (mats?.glow2) mats.glow2.emissiveIntensity = 2.4 * (0.5 + 1.2 * g);
+          if (mats?.glowSoft) mats.glowSoft.emissiveIntensity = 0.25 + 6.5 * g * g;
+          if (mats?.glow2) mats.glow2.emissiveIntensity = 2.4 * (0.4 + 2.0 * g);
+          if (mats?.glow) mats.glow.emissiveIntensity = 1.6 + 2.6 * g * g;
+          const hs = 1 + 0.12 * g * g;
+          J.halo.scale.set(hs, hs, hs);
         }
         break;
       case 'rhino': {

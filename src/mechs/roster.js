@@ -14,9 +14,12 @@ export const ROSTER = [
     body: { scale: 1.28, torsoW: 1.25, torsoH: 1.05, headSize: 0.9, armLen: 1.15, legLen: 1.0, hipW: 1.15, bulk: 1.1 },
     stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22, blockMult: 0.09 },
     ui: { power: 10, speed: 3, defense: 9 },
+    // telegraphed haymakers: full wind-up, and a landed punch sends the
+    // victim FLYING — nobody else's fists move people like this
+    lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
     moves: {
-      light: { dmg: [46, 50, 68], knock: [6, 7, 16], range: 3.4 },
-      heavy: { dmg: 105, knock: 26, range: 3.8, launch: 9 },
+      light: { dmg: [46, 50, 68], knock: [16, 18, 30], range: 3.4 },
+      heavy: { dmg: 105, knock: 38, range: 3.8, launch: 9 },
       ranged: { name: 'Seismic Slam', type: 'groundpound', dmg: 52, cooldown: 1.6, radius: 9, knock: 18 },
       special: { id: 'grabThrow', name: 'Skyline Slam', cooldown: 8, dmg: 88, range: 4.2, throw: 32, radius: 5 },
       ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
@@ -56,6 +59,13 @@ export const ROSTER = [
     body: { scale: 1.15, torsoW: 1.08, torsoH: 1.05, headSize: 0.9, armLen: 1.05, legLen: 1.05, hipW: 1.0, bulk: 1.0 },
     stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
+    // spear-and-shield doctrine: the shield arm holds a squared guard while
+    // the lance stabs around it; the heavy raises the spear skyward and a
+    // pillar of summoned light lands the blow
+    lightClips: ['aegisStab1', 'aegisStab2', 'aegisPierce'],
+    heavyClip: 'aegisSummon',
+    heavyFx: 'lightPillar',
+    bladeTrail: { anchors: ['muzzleR'], color: 0x9fd8ff },
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
       heavy: { dmg: 88, knock: 20, range: 4.2, launch: 8 },
@@ -77,6 +87,11 @@ export const ROSTER = [
     restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
     stats: { hp: 780, speed: 13.5, jump: 15.5, weight: 0.3, armor: 0, blockMult: 0.2 },
     ui: { power: 6, speed: 10, defense: 2 },
+    // ninja sword forms: blade-led slashes and lunging stabs off the forearm
+    // energy daggers — never a punch that happens to hold a sword
+    lightClips: ['viperSlash1', 'viperSlash2', 'viperStab'],
+    heavyClip: 'viperHeavy',
+    bladeTrail: { anchors: ['bladeL', 'bladeR'], color: 0x5aff2e },
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
@@ -181,9 +196,12 @@ export const ROSTER = [
     body: { scale: 1.3, torsoW: 1.3, torsoH: 1.0, headSize: 0.85, armLen: 1.05, legLen: 0.95, hipW: 1.2, bulk: 1.15 },
     stats: { hp: 1300, speed: 6.5, jump: 11, weight: 1.0, armor: 0.24, blockMult: 0.09 },
     ui: { power: 9, speed: 2, defense: 9 },
+    // same doctrine as TITANUS: wind the fist all the way back, then send
+    // whatever it lands on across the street
+    lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
     moves: {
-      light: { dmg: [42, 46, 62], knock: [6, 6, 14], range: 3.5 },
-      heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
+      light: { dmg: [42, 46, 62], knock: [15, 17, 28], range: 3.5 },
+      heavy: { dmg: 100, knock: 36, range: 3.9, launch: 9 },
       ranged: { name: 'Mortar Lob', type: 'mortar', dmg: 68, speed: 30, cooldown: 1.7, splash: 5.5, ammo: 10 },
       special: { id: 'grabThrow', name: 'Skyline Toss', cooldown: 8, dmg: 85, range: 4.5, throw: 36, radius: 5 },
       ult: { id: 'bigBertha', name: 'BIG BERTHA', dmg: 240, radius: 15 },

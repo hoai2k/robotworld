@@ -417,34 +417,36 @@ const SCRIPTS = {
     F.triumph(6.1, 'taunt', 'howl');
   },
 
-  // VIPER: five-point blink-flurry cage, then one launcher slash — the
-  // camera whips down low and TRACKS the body all the way up and down
+  // VIPER: five-point blink cage of sword cuts — each teleport lands a
+  // different blade form (cross-cut, rising cut, skewering stab) — then one
+  // kesa-giri launcher slash; the camera whips down low and TRACKS the body
   viper(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.8, 3.2);
-    const blink = (t, side) => {
+    const forms = ['viperSlash1', 'viperStab', 'viperSlash2', 'viperStab', 'viperSlash1'];
+    const blink = (t, side, form) => {
       F.at(t, () => {
         win.pos.x = F.center.x - Math.sin(F.axis + side) * 3;
         win.pos.z = F.center.z - Math.cos(F.axis + side) * 3;
         win.yaw = win.targetYaw = F.axis + side;
         w.effects.dashTrail(win.pos, 0x6cff5c, win.scale * 1.6);
-        win.animator.play('flurry', { speed: 1.5 });
+        win.animator.play(form, { speed: 1.4 });
         w.audio?.play('dash');
       });
       F.at(t + 0.2, () => { F.beat('slash', 0.4, 0.05); F.sparks(12, 9, 0x6cff5c); F.vicFlinch(); });
     };
-    blink(1.0, 0);
-    blink(1.55, 2.1);
-    blink(2.1, -2.1);
-    blink(2.65, Math.PI);
-    blink(3.2, 1.05);
+    blink(1.0, 0, forms[0]);
+    blink(1.55, 2.1, forms[1]);
+    blink(2.1, -2.1, forms[2]);
+    blink(2.65, Math.PI, forms[3]);
+    blink(3.2, 1.05, forms[4]);
     F.camShot(1.0, 3.9, { dist: 8, h: 3.4, az0: 2.0, az1: 3.6, lookH: 3 });
     F.at(3.75, () => {
       win.pos.x = F.center.x - Math.sin(F.axis) * 3;
       win.pos.z = F.center.z - Math.cos(F.axis) * 3;
       win.yaw = win.targetYaw = F.axis;
       w.effects.dashTrail(win.pos, 0x6cff5c, win.scale * 1.6);
-      win.animator.play('heavy', { speed: 1.3 });
+      win.animator.play('viperHeavy', { speed: 1.2 });
     });
     F.at(4.1, () => {
       F.beat('hitHeavy', 0.9, 0.12);
@@ -1004,22 +1006,39 @@ const SCRIPTS = {
     F.triumph(5.55, 'taunt', 'wave');
   },
 
-  // FROGGER: buries them under a gunk barrage, then the royal squash-hop —
-  // and the wreck is left genuinely FLATTENED under the crater
+  // FROGGER: hoses them down until they're MUMMIFIED head-to-toe in gunk,
+  // then the royal squash-hop — and the wreck is left genuinely FLATTENED
   frogger(F) {
     const { win, vic, w } = F;
     F.approach(0.2, 0.9, 7);
     F.at(1.0, () => { win.animator.play('spray', { speed: 1.4 }); });
-    for (let i = 0; i < 5; i++) {
-      F.at(1.2 + i * 0.3, () => {
+    // eight splats walking up the body: legs, torso, arms, head — each one
+    // sticks dripping blotches on so the coverage visibly BUILDS
+    const coats = [
+      ['thighL', 'thighR'], ['thighR', 'torso'], ['torso', 'torso'], ['torso', 'shoulderL'],
+      ['shoulderR', 'torso'], ['torso', 'head'], ['head', 'shoulderL'], ['head', 'torso'],
+    ];
+    for (let i = 0; i < 8; i++) {
+      F.at(1.15 + i * 0.22, () => {
         F.beat('plasma', 0.3, 0.03);
         // thick gunk SPLATTERS over them and oozes down
         w.effects.slime(new THREE.Vector3(
-          vic.pos.x + rand(-0.8, 0.8), rand(2, vic.height), vic.pos.z + rand(-0.8, 0.8)), 7, 5);
+          vic.pos.x + rand(-0.8, 0.8), rand(1, vic.height), vic.pos.z + rand(-0.8, 0.8)), 7, 5);
+        for (const joint of coats[i]) {
+          w.effects.blotchOn(vic, 0x74bc24, { joint, y0: joint === 'torso' ? 0.1 : -1.2, y1: joint === 'torso' ? 2.2 : 0.4, size: 1.3, life: 8 });
+        }
         F.vic.animator.addImpulse('torso', [rand(-0.25, 0.25), 0, rand(-0.25, 0.25)], 34, 12);
       });
     }
-    F.at(2.9, () => F.vicDown());
+    // the final coat: nothing clean left showing, oozing from every plate,
+    // standing in their own puddle — THEN the stomp
+    F.at(2.95, () => {
+      w.effects.slimeCoat(vic, 0x74bc24, 9);
+      w.effects.slime(vic.center(), 12, 7);
+      w.effects.puddle(new THREE.Vector3(vic.pos.x, 0.02, vic.pos.z), { slime: true, size: 4.5, life: 8 });
+      w.audio?.play('plasma');
+    });
+    F.at(3.05, () => F.vicDown());
     F.at(3.3, () => { win.animator.play('pounceLeap'); w.audio?.play('jump'); });
     F.hold(3.3, 3.95, (k) => { // the squash-hop onto the wreck
       win.pos.x = lerp(F.center.x - Math.sin(F.axis) * 7, vic.pos.x, k);

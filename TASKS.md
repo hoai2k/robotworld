@@ -1071,3 +1071,37 @@ controllers via Gamepad API), AI opponents.
   causeways all read correctly); physics probe on hills/bridges/lava;
   ace soaks crash-free on volcano, neon, jungle, frozen, skyterrace,
   scrapyard, ruins.
+
+53. SIGNATURE MELEE IDENTITIES + FINISHER POLISH ✅
+  · VIPER fights with SWORDS now: new blade-led combo clips (horizontal
+    cross-cut, rising reverse cut, lunging skewer) and a kesa-giri heavy —
+    the elbow stays near-straight so the forearm energy daggers LEAD every
+    move, with green glow trails riding the blade tips through each swing.
+    The finisher's blink cage cycles the sword forms and ends on the
+    kesa-giri launcher instead of the generic punch clips.
+  · AEGIS fights spear-and-board: light combo stabs the lance from BEHIND a
+    raised shield guard (the shield arm never punches), and the heavy
+    plants the shield, sweeps the spear to full vertical — and a summoned
+    PILLAR OF LIGHT hammers down on the strike point (beam + ring + light
+    motes; the melee sphere still carries the damage).
+  · TITANUS + COLOSSUS haymakers: new bigPunch clips wind the fist ALL the
+    way back with a full-body coil before letting loose (slower cadence),
+    and their punch knockback roughly TRIPLED (jabs 15-18, heavies 36-38)
+    so a landed punch sends people across the block — no other mech's
+    fists move fighters like that.
+  · NOVA glow overhaul: halo emissive range amped (glowSoft 0.25→6.75,
+    whole glow kit + halo scale swell with apex), star-motes orbit the
+    staff apex sized by ring brightness, halo sheds sparks at full burn,
+    apex plasma shots detonate off the staff tip with a flash that scales
+    with power — and apex attacks now hit 2X (dmgMult 1+1.0·novaGlow,
+    was 1+0.35).
+  · FROGGER finisher: the gunk barrage (8 splats walking up the body) now
+    STICKS blotches per hit, then a final coat mummifies the victim
+    head-to-toe (slimeCoat: torso/head/arms/legs) standing in their own
+    puddle — THEN the stomp. effects.blotchOn generalized (any joint,
+    size/life/height band).
+  Verified: build green; showcase stills of viperSlash1/viperStab (blade-
+  led ✓), aegisStab1/aegisSummon (spear visible, shield guard ✓),
+  bigPunch1 wind-up, nova halo blaze; finisher probe (frogger: 34 blotches
+  visible pre-stomp, viper/aegis: no missing clips, all complete); ace
+  soaks crash-free: viper-aegis, titanus-colossus, nova-frogger.

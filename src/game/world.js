@@ -379,8 +379,20 @@ export class World {
           size: 1 + 0.75 * g,
         });
         this.audio?.play('plasma');
-        if (g > 0.65) this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
-          { life: 0.25, size: 3 + 2 * g, color: 0xff5ce8, alpha: 0.9 });
+        // apex shots detonate off the staff tip — the flash size tracks how
+        // bright the halo is burning, so a 2X-power shot LOOKS 2X
+        if (g > 0.4) {
+          this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
+            { life: 0.28, size: 2.5 + 4.5 * g, color: 0xff5ce8, alpha: 0.95 });
+          this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
+            { life: 0.18, size: 1.2 + 2.2 * g, color: 0xfff0ff, alpha: 0.95 });
+          for (let i = 0; i < Math.round(6 * g); i++) {
+            const a = rand(Math.PI * 2);
+            this.effects.glows.emit(from.x, from.y, from.z,
+              Math.cos(a) * rand(3, 7), rand(-2, 4), Math.sin(a) * rand(3, 7),
+              { life: rand(0.25, 0.5), size: rand(0.5, 1.1), color: 0xff5ce8, alpha: 0.9, drag: 1.5 });
+          }
+        }
         break;
       }
       case 'dart':
