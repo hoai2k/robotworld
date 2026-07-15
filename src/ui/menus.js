@@ -3,6 +3,7 @@
 import { ROSTER, SCHEME_NAMES, SCHEME_COUNT, schemeSwatch } from '../mechs/roster.js';
 import { THEMES } from '../arena/themes.js';
 import { isTouchDevice } from '../core/utils.js';
+import { mechIcon } from './icons.js';
 
 const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
 
@@ -98,7 +99,7 @@ export class MechSelectScreen {
       const c = el('div', 'roster-cell');
       c.innerHTML = `
         <div class="cell-tint" style="background:linear-gradient(150deg, #${m.colors.primary.toString(16).padStart(6, '0')}, transparent)"></div>
-        <div class="cell-icon">${m.icon}</div>
+        <div class="cell-icon">${mechIcon(m, 52)}</div>
         <div class="cell-name">${m.name}</div>`;
       c.addEventListener('mouseenter', () => {
         if (this.mousePicker && !this.mousePicker.locked) { this.mousePicker.cursor = i; this.refresh(); }
@@ -317,7 +318,7 @@ export class MechSelectScreen {
       const mc = '#' + m.colors.glow.toString(16).padStart(6, '0');
       pc.classList.toggle('locked', pk.locked);
       pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
-        <div class="pc-dev" style="color:${mc}">${m.icon} ${m.name}${pk.locked ? ' ✓' : ''}</div>
+        <div class="pc-dev" style="color:${mc}">${mechIcon(m, 18)}${m.name}${pk.locked ? ' ✓' : ''}</div>
         <div class="pc-sub">${pk.locked ? `LOCKED · ${SCHEME_NAMES[pk.variant]}` : 'picking…'}</div>`;
     });
   }
@@ -342,7 +343,7 @@ export class MechSelectScreen {
       const pk = this.pickers[0];
       const m = ROSTER[pk.cursor];
       this.card.innerHTML = `
-        <div class="mi-name" style="color:#${m.colors.glow.toString(16).padStart(6, '0')}">${m.icon} ${m.name}</div>
+        <div class="mi-name" style="color:#${m.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(m, 30)}${m.name}</div>
         <div class="mi-title">${m.title}</div>
         <div class="mi-blurb">${m.blurb}</div>
         <div class="mi-stats">
@@ -366,7 +367,7 @@ export class MechSelectScreen {
                     background:rgba(10,18,30,0.45); border-radius:0 6px 6px 0;">
           <div style="font-size:11px;letter-spacing:0.2em;color:${pc};font-weight:800;">
             PLAYER ${pk.slotIdx + 1} ${pk.locked ? '· LOCKED ✓' : ''}</div>
-          <div class="mi-name" style="font-size:clamp(17px,1.8vw,24px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${m.icon} ${m.name}</div>
+          <div class="mi-name" style="font-size:clamp(17px,1.8vw,24px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(m, 26)}${m.name}</div>
           <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--hud-cyan);">${m.title}</div>
           <div class="mi-moves" style="margin-top:6px;">
             <b>RNG</b> ${m.moves.ranged.name} · <b>SPC</b> ${m.moves.special.name} · <b>ULT</b> ${m.moves.ult.name}
@@ -661,7 +662,7 @@ export class ResultsScreen {
     const panel = el('div', 'panel results-panel');
     panel.innerHTML = `
       <div class="winner-sub">CHAMPION</div>
-      <div class="winner-name" style="color:#${winner.def.colors.glow.toString(16).padStart(6, '0')}">${winner.def.icon} ${winner.def.name}</div>
+      <div class="winner-name" style="color:#${winner.def.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(winner.def, 34)}${winner.def.name}</div>
       <div class="winner-quote">${winner.def.quotes.win}</div>`;
     this.el.appendChild(panel);
     this.menu = el('div', 'menu-list');

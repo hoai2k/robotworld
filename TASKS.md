@@ -1169,3 +1169,23 @@ controllers via Gamepad API), AI opponents.
   2.59x spread, drill spin 6.5rad + 4.3u flight, whirl 9rad, ALL heavies
   land: 99/53/93/66/86/91 dmg; blade+spear projectiles + regrow 0→1.0;
   geyser jet live) — ace soaks crash-free on all four matchups.
+
+56. FULLSCREEN FINISHER CINEMATICS + REAL BOT PORTRAIT ICONS ✅
+  · Finishers now take the WHOLE SCREEN: when a KO cinematic starts during
+    a split-screen match, the viewports (and divider) drop away for one
+    fullscreen cinematic view — rendered through the post-FX composer —
+    and the split restores itself the frame the finisher ends. Verified
+    with forcesplit: pre-KO frame is true split (draws:355, divider),
+    mid-finisher frame is one fullscreen close-up (draws:1, no divider).
+  · The emoji placeholder icons (👊🔫⚡...) are replaced everywhere by real
+    rendered BOT PORTRAITS: tools/thumbs.mjs captures a head-and-torso
+    square of each of the 16 mechs from the showcase camera into
+    public/thumbs/<id>.png, and src/ui/icons.js inlines them (rounded,
+    rim-lit, emoji fallback via onerror) across the roster grid, player
+    cards, mech info card, results champion banner and battle HUD plates.
+  · docs/ICON_PROMPTS.md: a master style prompt + 16 per-character prompt
+    lines (with roster palette hexes) for generating flat badge icons with
+    an image generator, as a hand-authored alternative to the renders —
+    drop-in replacements for the same thumbs/<id>.png files.
+  Verified: build green; mech-select screenshot shows all 16 portrait
+  tiles; finisher split/fullscreen frames reviewed; ace soak crash-free.

@@ -1,5 +1,6 @@
 // Battle HUD: health/ult plates, round pips, timer, announcements,
 // damage popups, special/ult callouts, controller toasts.
+import { mechIcon } from './icons.js';
 import * as THREE from 'three';
 import { PLAYER_COLORS } from '../combat/fighter.js';
 import { clamp01 } from '../core/utils.js';
@@ -53,7 +54,7 @@ export class Hud {
       root.innerHTML = `
         <div class="hp-head">
           <span class="hp-player" style="color:${COLOR_CSS[i % 4]}">${f.isAI ? 'CPU' : 'P' + (i + 1)}</span>
-          <span class="hp-name">${f.def.icon} ${f.def.name}</span>
+          <span class="hp-name">${mechIcon(f.def, 17)}${f.def.name}</span>
         </div>
         <div class="hud-bar hp"><div class="bar-ghost"></div><div class="bar-fill"></div></div>
         <div class="hud-bar ult"><div class="bar-fill"></div></div>

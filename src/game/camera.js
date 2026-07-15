@@ -149,15 +149,17 @@ export class CameraSystem {
 
   // fighters framed by the camera; humans get viewports when split
   update(dtReal, fighters, humans) {
-    // cinematic finisher owns every camera while it runs
+    // cinematic finisher owns the whole SCREEN while it runs: drop any
+    // split-screen viewports for one fullscreen cinematic view (dividers
+    // hidden), then hand the split back the frame after it ends
     const fin = this.world.finisher;
     if (fin) {
-      const cams = this.engine.views && this.engine.views.length > 1
-        ? this.engine.views.map((v) => v.camera) : [this.engine.camera];
-      for (const c of cams) {
-        c.position.copy(fin.cam.pos);
-        c.lookAt(fin.cam.look);
-      }
+      this.engine.views = null;
+      this.dividerEl.style.display = 'none';
+      this._dividerKind = null;
+      const c = this.engine.camera;
+      c.position.copy(fin.cam.pos);
+      c.lookAt(fin.cam.look);
       return;
     }
 
