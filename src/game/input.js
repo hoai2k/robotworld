@@ -136,6 +136,8 @@ export class Input {
       intent.taunt = kp('taunt');
       intent.strafe = k('strafe');
       intent.duck = k('duck');
+      intent.chargeDash = false;
+      intent.lockOn = false;
     } else if (device.startsWith('pad')) {
       const i = +device[3];
       mx = this.padsCur[i].lx || 0;
@@ -150,13 +152,19 @@ export class Input {
       intent.lightHeld = this.padHeld(i, 'X');
       intent.heavy = this.padPressed(i, 'Y');
       intent.block = this.padHeld(i, 'LT');
-      intent.ranged = this.padHeld(i, 'RT');
-      intent.special = this.padPressed(i, 'B');
-      intent.specialHeld = this.padHeld(i, 'B');
-      // LB is now strafe-lock (hold); the ultimate moved to D-pad UP
+      // bumper shoots, trigger specials
+      intent.ranged = this.padHeld(i, 'RB');
+      intent.special = this.padPressed(i, 'RT');
+      intent.specialHeld = this.padHeld(i, 'RT');
       intent.ult = this.padPressed(i, 'DU');
-      intent.strafe = this.padHeld(i, 'LB');
-      intent.dash = this.padPressed(i, 'RB');
+      // B: hold to CROUCH and wind up a dash charge; release with a
+      // direction held to dash that way (fighter.js owns the mechanics)
+      intent.chargeDash = this.padHeld(i, 'B');
+      intent.dash = false;    // pads dash via the B charge-release
+      // LB: TARGET LOCK while held — face the locked enemy, camera tracks
+      // them; sideways movement becomes a natural strafe (replaces strafe)
+      intent.lockOn = this.padHeld(i, 'LB');
+      intent.strafe = false;
       // BACK/View button — RS click would misfire while steering the camera
       intent.taunt = this.padPressed(i, 'BACK');
       // crouch on left-stick click, the shooter-native duck
@@ -179,6 +187,8 @@ export class Input {
       intent.taunt = t.pressed.has('taunt');
       intent.strafe = t.held.has('strafe');
       intent.duck = t.held.has('duck');
+      intent.chargeDash = false;
+      intent.lockOn = false;
     }
 
     // rotate into world space (camera-relative):

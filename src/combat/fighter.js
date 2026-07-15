@@ -16,6 +16,7 @@ const _white = new THREE.Color(0xf4faff);
 const GRAVITY = 34;
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
+const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
 
 export const PLAYER_COLORS = [0x38e8ff, 0xff4d5e, 0x62ff9a, 0xffb43c];
 
@@ -395,13 +396,16 @@ export class Fighter {
     impl(this, u);
   }
 
-  doDash() {
-    if (this.dashCd > 0) return;
+  // charge (seconds of crouch wind-up, 0..CHARGE_DASH_MAX) scales the dash:
+  // an uncharged tap is the classic dodge, a full coil is a screaming lunge
+  doDash(charge = 0) {
+    if (this.dashCd > 0 && charge < 0.2) return;
+    const k = clamp(charge / CHARGE_DASH_MAX, 0, 1);
     const ix = this.intent.moveX, iz = this.intent.moveZ;
     let dir;
     if (Math.abs(ix) + Math.abs(iz) > 0.2) dir = _v.set(ix, 0, iz).normalize();
     else dir = _v.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    const sp = this.def.stats.speed * 4.2 * this.speedMult();
+    const sp = this.def.stats.speed * 4.2 * (1 + 0.95 * k) * this.speedMult();
     this.vel.x = dir.x * sp;
     this.vel.z = dir.z * sp;
     // strafe dash (AI only — players own their facing): keep facing a
@@ -413,13 +417,17 @@ export class Fighter {
       }
     }
     this.dashCd = 0.9;
-    this.dashT = 0.3;
-    this.iframes = Math.max(this.iframes, 0.26);
-    this.setState('dash', 0.3);
+    this.dashT = 0.3 + 0.32 * k;
+    this.iframes = Math.max(this.iframes, 0.26 + 0.28 * k);
+    this.setState('dash', this.dashT);
     this.world.audio?.play('dash');
     this.world.effects.rings.spawn(this.pos, {
-      from: 0.5, to: 3.5, dur: 0.3, color: PLAYER_COLORS[this.playerIndex % 4], y: 0.4,
+      from: 0.5, to: 3.5 + 3 * k, dur: 0.3, color: PLAYER_COLORS[this.playerIndex % 4], y: 0.4,
     });
+    if (k > 0.35) { // a wound-up release detonates off the line
+      this.world.audio?.play('whooshBig');
+      this.world.effects.dustPuff(this.pos, 6 + 8 * k);
+    }
   }
 
   faceNearestEnemyIfClose(maxDist, always = false) {
@@ -874,11 +882,47 @@ export class Fighter {
     const acting = this.canAct();
     this.blocking = acting && I.block; // blocking works airborne/hovering too
 
+    // ---- crouch-charged dash (pad B): HOLD to crouch and stop — the coil
+    // winds up to CHARGE_DASH_MAX seconds. RELEASE with a direction held to
+    // dash that way (the longer the crouch, the farther the dash); release
+    // with no direction and the mech just stands back up ----
+    this._dashCharging = !!I.chargeDash && this.alive && !this.blocking && this.grounded &&
+      (this.state === 'normal' || this.state === 'attack');
+    if (this._dashCharging) {
+      const was = this._dashCharge || 0;
+      this._dashCharge = Math.min(CHARGE_DASH_MAX, was + dt);
+      // wind-up tells: rings pulse quicker and wider as the coil tightens,
+      // and a flash marks the moment the charge tops out
+      this._chargeFxT = (this._chargeFxT ?? 0) - dt;
+      const k = this._dashCharge / CHARGE_DASH_MAX;
+      if (this._chargeFxT <= 0) {
+        this._chargeFxT = 0.5 - 0.3 * k;
+        this.world.effects.rings.spawn(this.pos, {
+          from: 3.5, to: 1 + (1 - k) * 1.5, dur: 0.28,
+          color: PLAYER_COLORS[this.playerIndex % 4], y: 0.3,
+        });
+      }
+      if (was < CHARGE_DASH_MAX && this._dashCharge >= CHARGE_DASH_MAX) {
+        this.world.audio?.play('powerup');
+        this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4.5, dur: 0.35, color: 0xffffff, y: 0.4 });
+      }
+    }
+    if (!I.chargeDash && this._chargePrev) {
+      // release: dash along the held direction, or cancel back to standing
+      const charge = this._dashCharge || 0;
+      this._dashCharge = 0;
+      if (Math.hypot(I.moveX, I.moveZ) > 0.25 && this.alive &&
+          (this.state === 'normal' || this.state === 'attack' || this.state === 'channel')) {
+        this.doDash(charge);
+      }
+    }
+    this._chargePrev = !!I.chargeDash;
+
     // ---- duck: hold to crouch. Ducking PERSISTS through an attack (so a
     // held-duck strike lands LOW and slips under a standing block); only
     // jumping/airborne or blocking pops you back up ----
     if (this._hangCoyote > 0) this._hangCoyote -= dt;
-    const wantDuck = I.duck && this.grounded && !this.blocking &&
+    const wantDuck = (I.duck || this._dashCharging) && this.grounded && !this.blocking &&
       (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
     this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
 
@@ -990,17 +1034,41 @@ export class Fighter {
 
     // ---- movement ----
     let ax = 0, az = 0;
-    const canMove = (this.state === 'normal' || this.state === 'channel') && !this.blocking;
+    const canMove = (this.state === 'normal' || this.state === 'channel') &&
+      !this.blocking && !this._dashCharging; // charging a dash roots you
     if (canMove) {
       ax = I.moveX; az = I.moveZ;
       const len = Math.hypot(ax, az);
       if (len > 1) { ax /= len; az /= len; }
-      if (I.strafe && I.aimYaw !== undefined) {
+      if (this.lockTarget) {
+        // target lock owns the facing (set below) — movement strafes
+      } else if (I.strafe && I.aimYaw !== undefined) {
         // strafe lock: face where the camera points, glide sideways
         this.targetYaw = I.aimYaw;
       } else if (len > 0.15 && this.state !== 'channel') {
         this.targetYaw = Math.atan2(ax, az);
       }
+    }
+
+    // ---- target lock (pad LB, held): square up on the locked enemy and
+    // stay squared — every sideways step becomes a natural strafe, and the
+    // camera (camera.js) swings to keep the target in frame ----
+    if (I.lockOn && this.alive) {
+      if (!this.lockTarget || !this.lockTarget.alive) this.lockTarget = this.nearestEnemy();
+      if (this.lockTarget) {
+        this.targetYaw = this.yawTo(this.lockTarget);
+        // lock reticle: a pulse in this player's color under the target
+        this._lockFxT = (this._lockFxT ?? 0) - dt;
+        if (this._lockFxT <= 0 && !this.isAI) {
+          this._lockFxT = 0.55;
+          this.world.effects.rings.spawn(this.lockTarget.pos, {
+            from: 3.4, to: 2.2, dur: 0.5,
+            color: PLAYER_COLORS[this.playerIndex % 4], y: 0.35,
+          });
+        }
+      }
+    } else {
+      this.lockTarget = null;
     }
     this.applyPhysics(dt, ax, az);
 

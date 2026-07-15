@@ -69,17 +69,30 @@ ultimate charged by dealing/taking damage.
 | Action | Keyboard P1 | Keyboard P2 | Xbox Controller |
 |--------|-------------|-------------|-----------------|
 | Move | WASD | Arrows | Left stick |
-| Jump | Space | Numpad 0 | A |
+| Camera | — | — | Right stick |
+| Jump / hover | Space | Numpad 0 | A |
 | Light attack | F | Numpad 1 | X |
 | Heavy attack | G | Numpad 2 | Y |
 | Block | H | Numpad 3 | LT |
-| Ranged | R | Numpad 4 | RT |
-| Special | T | Numpad 5 | B |
-| Ultimate | Y | Numpad 6 | LB |
-| Dash | Shift | Numpad Enter | RB |
+| Ranged | R | Numpad 4 | RB |
+| Special | T | Numpad 5 | RT |
+| Ultimate | Y | Numpad 6 | D-pad ↑ |
+| Dash | Shift | Numpad Enter | B (crouch-charged, see below) |
+| Target lock (hold) | Q (strafe-lock) | Numpad 7 | LB |
 | Duck (hold) | C | Numpad 8 | L-stick click |
-| Taunt | B | Numpad . | R-stick click |
+| Taunt | B | Numpad . | View/Back |
 | Pause | Esc / P | — | Start |
+
+**Pad B — crouch & charged dash.** Hold B to crouch and stop: a dash charge
+winds up over 3 seconds. Release with a direction held on the left stick to
+dash that way — the longer the wind-up, the faster and farther the dash
+(i-frames scale too). Release with no direction held and the charge is
+cancelled; the mech just stands back up.
+
+**Pad LB — target lock.** Hold LB to lock onto the nearest enemy: your mech
+squares up and keeps facing them (so sideways movement becomes a natural
+strafe), and your camera swings to keep the target in frame. Shots fire
+straight down the lock line. Releasing LB drops the lock.
 
 Controllers hot-plug: connect any time; assign them on the Battle Setup
 screen. Rumble is supported where the browser allows it.

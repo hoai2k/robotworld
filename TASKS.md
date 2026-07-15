@@ -1105,3 +1105,26 @@ controllers via Gamepad API), AI opponents.
   bigPunch1 wind-up, nova halo blaze; finisher probe (frogger: 34 blotches
   visible pre-stomp, viper/aegis: no missing clips, all complete); ace
   soaks crash-free: viper-aegis, titanus-colossus, nova-frogger.
+
+54. GAMEPAD CONTROL REMAP: CHARGE-DASH, TARGET LOCK, BUMPER/TRIGGER SWAP ✅
+  · PAD B → CROUCH & CHARGED DASH: hold to crouch and root in place while
+    a dash charge winds up (3s cap, ring pulses tighten as it builds, white
+    flash at full wind); release with a direction held to dash that way —
+    speed scales to 1.95x, dash duration and i-frames scale too (probe:
+    56.7 base / 77.6 half-charge / 102.6 full) — release with no direction
+    simply cancels back to standing. RB's old instant dash is gone from
+    pads (keyboard SHIFT dash unchanged).
+  · PAD LB → TARGET LOCK (replaces strafe-lock): while held the mech
+    acquires the nearest enemy, squares up and STAYS squared (sideways
+    movement becomes a natural strafe), a color-coded reticle pulses under
+    the target, and the camera — combined solo orbit AND per-player split
+    chase cams — swings behind the player to keep the target dead ahead
+    (right stick still overrides in split). Aim follows for free since
+    shots fire along facing.
+  · RB → ranged attack, RT → special (B's old job), LT stays block.
+  · Docs updated: README controls table + new B/LB explainer paragraphs,
+    pause-menu CONTROLS legend rewritten (per-button pad lines).
+  Verified: build green; fighter-level probe (crouch roots at duckT 1.0,
+  vel 0; charge caps at 3.0; scaled release speeds; cancel returns to
+  normal/standing; lock faces the enemy with 0.00 yaw error, acquires and
+  releases cleanly); ace soak crash-free.

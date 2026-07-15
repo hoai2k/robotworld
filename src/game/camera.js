@@ -245,7 +245,19 @@ export class CameraSystem {
         ? (player.vel.x * Math.sin(player.yaw) + player.vel.z * Math.cos(player.yaw)) / spd
         : 0;
       const enemy = player.nearestEnemy();
-      if (this.lookCd <= 0 && spd > 3 && fwdDot > 0.3) {
+      const lockT = player.lockTarget && player.lockTarget.alive ? player.lockTarget : null;
+      if (lockT) {
+        // TARGET LOCK (LB held): the camera swings behind the player and
+        // aims straight down the line at the locked enemy — it owns the
+        // view for as long as the lock is held
+        const lockAz = Math.atan2(
+          -this.world.wrapDelta(lockT.pos.x - player.pos.x),
+          -this.world.wrapDelta(lockT.pos.z - player.pos.z)
+        );
+        this.azimuth = this.azInit ? angleDamp(this.azimuth, lockAz, 5, dt) : lockAz;
+        this.azInit = true;
+        this.lookAzOffset = damp(this.lookAzOffset, 0, 4, dt);
+      } else if (this.lookCd <= 0 && spd > 3 && fwdDot > 0.3) {
         const dBehind = Math.abs(angleDiff(this.azimuth, player.yaw + Math.PI));
         this._followFront = dBehind > (this._followFront ? 1.25 : 2.15);
         const followAz = this._followFront ? player.yaw : player.yaw + Math.PI;
@@ -369,7 +381,16 @@ export class CameraSystem {
       const stickActive = Math.abs(ch.lookX) > 0.08 || Math.abs(ch.lookY) > 0.08;
       ch.lookCd = stickActive ? 0.6 : Math.max(0, (ch.lookCd || 0) - dt);
       const spd = Math.hypot(f.vel.x, f.vel.z);
-      if (ch.lookCd <= 0 && spd > 3 && f.alive) {
+      const lockT = f.lockTarget && f.lockTarget.alive ? f.lockTarget : null;
+      if (lockT && !stickActive) {
+        // TARGET LOCK (LB held): this viewport swings behind its player and
+        // keeps the locked enemy dead ahead (stick input still overrides)
+        const lockAz = Math.atan2(
+          -this.world.wrapDelta(lockT.pos.x - f.pos.x),
+          -this.world.wrapDelta(lockT.pos.z - f.pos.z)
+        );
+        ch.az = angleDamp(ch.az, lockAz, 5, dt);
+      } else if (ch.lookCd <= 0 && spd > 3 && f.alive && !lockT) {
         const fwdDot = (f.vel.x * Math.sin(f.yaw) + f.vel.z * Math.cos(f.yaw)) / spd;
         if (fwdDot > 0.3) {
           const dBehind = Math.abs(angleDiff(ch.az, f.yaw + Math.PI));
