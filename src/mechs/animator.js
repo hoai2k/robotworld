@@ -2,7 +2,7 @@
 // + additive impulses (recoil/flinch) + per-mech signature joint motion.
 import * as THREE from 'three';
 import { CLIPS, UPPER_JOINTS } from './animations.js';
-import { ease, lerp, clamp, clamp01, TAU } from '../core/utils.js';
+import { ease, lerp, clamp, clamp01, damp, TAU } from '../core/utils.js';
 
 const _wp = new THREE.Vector3();
 const _qa = new THREE.Quaternion();
@@ -127,6 +127,33 @@ export class Animator {
     const maxSpeed = ctx.maxSpeed || 10;
     const ratio = clamp01(speed / maxSpeed);
     const grounded = ctx.grounded !== false;
+
+    // ===== combat-ready layer =====
+    // Every mech carries a signature COMBAT STANCE (def.combatPose: additive
+    // deltas over the rest pose) and wears it by DEFAULT — guard up, ready
+    // to battle. Only after ~5s of standing genuinely still does the frame
+    // relax to the plain rest stance; any motion, shot or action snaps the
+    // guard back up. At speed the stance yields to the run cycle (arms are
+    // the gait's), and it softens in the air.
+    const cp = this.mech.def.combatPose;
+    if (cp) {
+      const still = speed < 0.4 && !this.action && grounded &&
+        !ctx.firing && !ctx.hovering && !ctx.charging;
+      this._stillT = still ? (this._stillT || 0) + dt : 0;
+      const want = ctx.alwaysReady || this._stillT < 5 ? 1 : 0;
+      this.readyK = this.readyK === undefined ? want : damp(this.readyK, want, 2.2, dt);
+      const k = this.readyK * (grounded ? 1 : 0.45) * (1 - 0.8 * ratio);
+      if (k > 0.01) {
+        for (const [j, v] of Object.entries(cp)) {
+          const base = tgt[j];
+          if (!base) continue;
+          const m = j === 'hipsPos' ? this.s : D2R;
+          base[0] += v[0] * m * k;
+          base[1] += v[1] * m * k;
+          base[2] += v[2] * m * k;
+        }
+      }
+    }
 
     if (grounded && speed > 0.4) {
       const swing = (0.42 + 0.4 * ratio);

@@ -1219,3 +1219,25 @@ controllers via Gamepad API), AI opponents.
     small: rest 27° + locomotion lean already stack.
   Verified: idle + two run-phase stills reviewed (alert stagger stance,
   stretched run with tucked claws); saurion-vs-fenrir ace soak crash-free.
+
+59. SIGNATURE COMBAT STANCES: EVERY MECH READY TO BATTLE BY DEFAULT ✅
+  · New combat-ready layer in the animator: every mech carries a
+    def.combatPose (additive deltas over restPose) matched to its martial
+    style, and WEARS IT BY DEFAULT — titanus/colossus heavyweight boxing
+    guards, aegis shield-up spear-chambered, glacier's double forearm
+    wall, viper's low ninja crouch (lead blade out, rear chambered),
+    tempest's fencer point, nova's staff guard, vulcan's guns-low ready,
+    rhino's linebacker set, fenrir's wolf pounce-set, wraith's side-on
+    skulk, inferno's leveled torches, cranky's raised-claw crab threat,
+    saurion's deepened raptor coil (rest legs also spread wider — the old
+    stagger was too subtle), frogger/jerry spring-loaded coils.
+  · Behavior: the stance is the default carriage; only after 5s of
+    standing genuinely still does the frame ease into the plain rest
+    stance (probe: readyK 1.0 at 1s still, 0.01 at 7s, back to 0.77
+    within 0.7s of moving). At running speed the stance yields to the
+    gait (arms belong to the run), and it softens airborne.
+  · Selector previews, the title lineup and the showcase pass alwaysReady
+    so mechs pose combat-ready there permanently.
+  Verified: six stance stills reviewed (titanus guard, viper blades,
+  aegis shield, tempest point, fenrir crouch, saurion raptor); battle
+  probe of the 5s relax cycle; ace soak crash-free.

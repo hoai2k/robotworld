@@ -123,7 +123,8 @@ class MenuStage {
     this.t += dt;
     for (const m of this.mechs) {
       if (this.previewId) m.group.rotation.y = Math.sin(this.t * 0.4) * 0.55 + 0.15;
-      m.animator.update(dt, { speed: 0, grounded: true });
+      // lineup & select previews always show the combat-ready carriage
+      m.animator.update(dt, { speed: 0, grounded: true, alwaysReady: true });
     }
   }
 

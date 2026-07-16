@@ -65,7 +65,7 @@ export function runShowcase(which) {
   let t = 0;
   engine.onUpdate = (dt) => {
     t += dt;
-    const ctx = { speed: 0, maxSpeed: 10, grounded: true, vy: 0 };
+    const ctx = { speed: 0, maxSpeed: 10, grounded: true, vy: 0, alwaysReady: true };
     if (animParam === 'walk') {
       ctx.speed = (Math.sin(t * 0.35) * 0.5 + 0.5) * 10;
       label.textContent = `locomotion speed=${ctx.speed.toFixed(1)}`;
