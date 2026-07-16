@@ -84,7 +84,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
       heavy: { dmg: 88, knock: 20, range: 4.2, launch: 8 },
-      ranged: { name: 'Dawn Javelin', type: 'spear', dmg: 46, speed: 46, cooldown: 1.2, ammo: 16 },
+      ranged: { name: 'Dawn Javelin', type: 'spear', dmg: 46, speed: 46, cooldown: 1.2 },
       special: { id: 'shieldBash', name: 'Bulwark Bash', cooldown: 6, dmg: 60, knock: 22, guard: 2.2 },
       ult: { id: 'judgment', name: 'JUDGMENT RAY', dmg: 200, radius: 8 },
     },
@@ -116,7 +116,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
-      ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8, ammo: 26 },
+      ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8 },
       special: { id: 'phantomStrike', name: 'Phantom Strike', cooldown: 5, dmg: 55, dashLen: 12 },
       ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 24, hits: 8 },
     },
@@ -214,11 +214,12 @@ export const ROSTER = [
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.18, 0], hipsRot: [8, 0, 0], torso: [10, 0, 0], head: [-10, 0, 0], shoulderL: [-42, 6, -10], shoulderR: [-42, -6, 10], elbowL: [-56, 0, 0], elbowR: [-56, 0, 0], handL: [24, 0, 0], handR: [24, 0, 0], thighL: [-14, 0, -7], thighR: [-2, 0, 7], kneeL: [20, 0, 0], kneeR: [10, 0, 0] },
     gait: 'quad', // wolf lope: fronts reach, hinds drive together
-    // heavy: the spiked mane flares out huge — porcupine-style — and he
-    // leaps, ramming the whole bladed ruff through the target
+    // heavy: he leaps first and the spiked mane flares out DURING the jump —
+    // porcupine-style, growing all flight long and peaking exactly at the
+    // moment of impact — so the target meets the ruff at its biggest
     heavyClip: 'fenrirSpike',
     heavyDrive: { t0: 0.38, t1: 0.68, speed: 24, up: 8 },
-    heavyFlare: { joint: 'mane', scale: [2.4, 2.4, 2.4], t0: 0.06, t1: 0.72 },
+    heavyFlare: { joint: 'mane', scale: [2.4, 2.4, 2.4], t0: 0.29, t1: 0.82 },
     moves: {
       light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.3 },
       heavy: { dmg: 76, knock: 18, range: 3.7, launch: 8 },
@@ -271,11 +272,16 @@ export const ROSTER = [
     ui: { power: 8, speed: 7, defense: 2 },
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.16, 0], hipsRot: [0, 16, 0], torso: [10, -20, 0], head: [-6, 18, 0], shoulderL: [-46, -12, -10], elbowL: [-40, 0, 0], shoulderR: [-10, 6, 14], elbowR: [-30, 0, 0], thighL: [-16, 0, -5], thighR: [4, 0, 7], kneeL: [24, 0, 0], kneeR: [10, 0, 0] },
-    // heavy: the tattered cloak spreads into a vast wing-wall and every
-    // wing-tip fires a red laser converging on the mark
+    // heavy: the tattered cloak spreads into a vast wing-wall, then the two
+    // spike-wing halves ROLL outward and up — fanning open like wings until
+    // the blades point above his head — and only then do the wing-tips fire
     heavyClip: 'wraithLasers',
     heavyFx: 'wingLasers',
-    heavyFlare: { joint: 'cloak', scale: [2.6, 1.9, 1.4], t0: 0.08, t1: 0.95 },
+    heavyFlare: { joint: 'cloak', scale: [2.8, 2.2, 1.4], t0: 0.08, t1: 1.12 },
+    heavyRaise: [
+      { joint: 'cloakL', rot: [0, 0, -2.2], t0: 0.3, t1: 1.1, ramp: 0.34 },
+      { joint: 'cloakR', rot: [0, 0, 2.2], t0: 0.3, t1: 1.1, ramp: 0.34 },
+    ],
     moves: {
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.0 },
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
@@ -383,10 +389,18 @@ export const ROSTER = [
     ui: { power: 7, speed: 10, defense: 3 },
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.16, 0], hipsRot: [4, 0, 0], torso: [6, 0, 0], head: [-8, 0, 0], shoulderL: [-14, 0, -5], shoulderR: [-14, 0, 5], elbowL: [-18, 0, 0], elbowR: [-18, 0, 0], thighL: [-10, 0, -6], thighR: [-4, 0, 6], kneeL: [10, 0, 0], kneeR: [6, 0, 0] },
+    // raptor doctrine: he fights with his FEET — the light combo is all
+    // sickle toe-claw kicks; the heavy coils him back onto his haunches and
+    // springs the whole frame forward into a lunging BITE (heavyDrive);
+    // ranged flings a brace of blade-spines off his forearm (his own
+    // plumage — no ammo)
+    lightClips: ['saurionKick1', 'saurionKick2', 'saurionKick3'],
+    heavyClip: 'saurionBite',
+    heavyDrive: { t0: 0.32, t1: 0.56, speed: 22, up: 5 },
     moves: {
       light: { dmg: [32, 34, 48], knock: [4, 5, 12], range: 3.5 },
       heavy: { dmg: 80, knock: 19, range: 3.8, launch: 8 },
-      ranged: { name: 'Razor Plume', type: 'feather', dmg: 30, speed: 58, cooldown: 0.55, ammo: 28 },
+      ranged: { name: 'Spine Volley', type: 'spikes', dmg: 26, count: 2, speed: 52, cooldown: 0.9 },
       special: { id: 'sickleRush', name: 'Sickle Pounce', cooldown: 6, dmg: 62, bleed: 9, leap: 22 },
       ult: { id: 'extinction', name: 'EXTINCTION PROTOCOL', dmg: 46, hits: 4, knock: 26 },
     },

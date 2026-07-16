@@ -552,12 +552,26 @@ export class World {
         this.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
         this.audio?.play('slam');
         break;
-      case 'feather': // SAURION: razor blade-feathers
-        this.projectiles.spawn('shard', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9aa0a8, knock: 5,
-        });
+      case 'spikes': { // SAURION: a brace of blade-spines flung off the
+        // FOREARM (his own plumage — regrows, costs nothing)
+        const armFrom = f.mech.joints.handR
+          ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
+          : from;
+        armFrom.y += 0.2;
+        for (let i = 0; i < (mv.count || 2); i++) {
+          const d2 = dir.clone();
+          d2.x += rand(-0.03, 0.03);
+          d2.y += i ? 0.035 : -0.01;
+          d2.z += rand(-0.03, 0.03);
+          this.projectiles.spawn('shard', f, armFrom, d2, {
+            dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.95, 1.08),
+            color: 0xc8ced8, knock: 5,
+          });
+        }
         this.audio?.play('dart');
+        this.effects.muzzleFlash(armFrom);
         break;
+      }
       case 'flea': // JERRY: launches a live robo-shrimp flea that hunts on foot
         this.fleas.spawn(f, from, dir, { dmg: mv.dmg * f.dmgMult() });
         this.effects.muzzleFlash(from);

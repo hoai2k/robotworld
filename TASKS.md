@@ -1390,3 +1390,33 @@ controllers via Gamepad API), AI opponents.
     extended wrist mid-reach, then the arm settles.
   Verified: build green; probe (gating thresholds, colors, catch clip
   fired during return, hand re-docked); ace soak crash-free.
+
+67. SELF-THROWN AMMO-FREE · SAURION KICK/BITE/SPINES · WRAITH WING-RISE · FENRIR FLARE-IN-FLIGHT · GRAB WHIFF REFUND ✅
+  · Mechs that throw THEIR OWN hardware no longer run on ammo: Aegis'
+    javelin and Viper's fang throw lost their ammo pools (the rocket
+    fist never had one) — the weapon regrows, the crates are for guns.
+  · SAURION fights with his FEET now: all three lights are sickle
+    toe-claw KICKS (right snap, left snap, leaping downward claw slash —
+    saurionKick1/2/3, authored rest-relative so the raptor crouch
+    carries through). His heavy is a lunging BITE: coils back deep onto
+    the haunches, head craned away, then the whole frame springs forward
+    (heavyDrive, probe: 6.7u covered) and the jaws snap down through the
+    target. His ranged is now Spine Volley: a brace of blade-spines
+    flung off the forearm — his own plumage, no ammo.
+  · WRAITH's laser heavy got its drama: the cloak is now split onto
+    cloakL/cloakR wing joints (design change; wing anchors ride them)
+    and a new generic def.heavyRaise post-pose mechanic ROLLS the two
+    spike-wing halves outward and up — fanning open like wings until the
+    blades stand above his head (mesh tops rise from y5.6 to y11.4) —
+    before the wing-tips fire (lasers pushed 0.62 -> 0.88 into a longer
+    1.45s clip with a second charge sting).
+  · FENRIR's porcupine flare now happens DURING the leap instead of
+    before it: flare window moved to the flight (t0 0.29), so the spikes
+    grow all jump long and peak at the moment of impact (probe: mane x1
+    on the ground, x1.5 mid-flight, x2.1 at the hit).
+  · Body-slam grabs (TITANUS/COLOSSUS Skyline Slam/Toss): a WHIFFED grab
+    is no longer spent — missing everyone refunds the cooldown to a
+    token 0.75s recovery (probe: whiff cd 0.18 vs landed 7.25).
+  Verified: build green; probes above (kicks 89 dmg combo, spikes x2
+  from the arm, no ammo fields on throwers); kick/bite stills + raised
+  wing-fan still reviewed; two ace/veteran soaks crash-free, clean KOs.

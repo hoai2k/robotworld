@@ -98,11 +98,16 @@ export function wraith(A, D, J, anchors, def) {
   // jagged blade-strips: a = angle around the back (0 = straight back).
   // Hang from the yoke, tilt backward, roll bottoms outward (skirt flare).
   // The whole cloak lives on its own 'cloak' joint so combat can SPREAD it
-  // wide and tall like wings (wraith's heavy scales the group).
+  // wide and tall like wings (wraith's heavy scales the group) — and each
+  // HALF lives on a cloakL/cloakR child joint so the heavy can roll the two
+  // wings outward and UP, fanning the spikes open above his head.
   addJoint(J, 'cloak', 'torso', 0, chH * 0.92, -W * 0.3);
+  addJoint(J, 'cloakL', 'cloak', 0, 0, 0);
+  addJoint(J, 'cloakR', 'cloak', 0, 0, 0);
   const strip = (mat, a, L, R, yTop, tilt, wid, th, taper) => {
     const dirY = Math.cos(tilt), dirZ = Math.sin(tilt);
-    A.blade('cloak', mat, L, wid, th, {
+    const wing = a < -0.05 ? 'cloakL' : a > 0.05 ? 'cloakR' : 'cloak';
+    A.blade(wing, mat, L, wid, th, {
       p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - chH * 0.92 - dirY * L * 0.5,
         -Math.cos(a) * R * 0.9 + W * 0.3 - dirZ * L * 0.5],
       r: [Math.PI + tilt, 0, -a * 0.3], taper });
@@ -317,11 +322,12 @@ export function wraith(A, D, J, anchors, def) {
 
   anchors.muzzleR = addAnchor(J.rifle, 0, -2.28 * s, -0.01 * s);
   anchors.scope = addAnchor(J.rifle, 0, 1.72 * s, 0.3 * s);
-  // wing emitters spread across the cloak span — when the cloak flares wide
-  // for the heavy, these ride out with it and fire the converging lasers
+  // wing emitters spread across the cloak span — parented to the wing-half
+  // joints so when the heavy fans the wings up, the laser origins ride up
+  // with the raised spikes
   for (let k = 0; k < 6; k++) {
     const a = (k / 5 - 0.5) * 3.6;
-    anchors['wing' + k] = addAnchor(J.cloak,
+    anchors['wing' + k] = addAnchor(a < 0 ? J.cloakL : J.cloakR,
       Math.sin(a) * W * 0.72, -1.5 * s, -Math.cos(a) * W * 0.42);
   }
   // core sits deep in the chest so the red light rims the cloak instead of

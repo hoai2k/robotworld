@@ -344,9 +344,11 @@ export const SPECIALS = {
         if (d < best) { prey = v; best = d; }
       }
       if (!prey) {
-        // grabbed a fistful of air — recover
+        // grabbed a fistful of air — recover, and the slam isn't SPENT:
+        // a whiffed grab keeps only a token cooldown, not the full one
         f.animator.stop();
         f.setState('attack', 0.35);
+        f.specialCd = Math.min(f.specialCd, 0.75);
         return;
       }
       // GOT ONE — hoist them overhead. The victim's own update pins them

@@ -756,7 +756,8 @@ export class Fighter {
   // (porcupine mane / cloak wing-wall scaling), heavyAura (tornado debris) ----
   updateHeavySignature(dt) {
     const def = this.def;
-    if (!def.heavySpin && !def.heavyDrive && !def.heavyFlare && !def.heavyAura) return;
+    if (!def.heavySpin && !def.heavyDrive && !def.heavyFlare && !def.heavyAura &&
+        !def.heavyRaise) return;
     const act = this.animator.action;
     const playing = !!act && !act.fadingOut && act.clip.name === def.heavyClip;
     const t = playing ? act.t : 0;
@@ -813,6 +814,28 @@ export class Fighter {
           1 + (fl.scale[1] - 1) * this._flareK,
           1 + (fl.scale[2] - 1) * this._flareK
         );
+      }
+    }
+
+    // heavyRaise: rotate extra (non-humanoid) joints toward a target
+    // orientation while the heavy plays — e.g. wraith's cloak wings rolling
+    // outward and up. These joints aren't posed by the animator, so we SET
+    // rotation from a stored base rather than adding every frame.
+    if (def.heavyRaise) {
+      for (const r of Array.isArray(def.heavyRaise) ? def.heavyRaise : [def.heavyRaise]) {
+        const j = this.mech.joints[r.joint];
+        if (!j) continue;
+        this._raiseBase ??= {};
+        this._raiseBase[r.joint] ??= [j.rotation.x, j.rotation.y, j.rotation.z];
+        let want = 0;
+        if (playing) {
+          want = clamp((t - r.t0) / (r.ramp || 0.3), 0, 1) * clamp((r.t1 - t) / 0.2, 0, 1);
+        }
+        this._raiseK ??= {};
+        const k = lerp(this._raiseK[r.joint] || 0, clamp(want, 0, 1), 1 - Math.exp(-11 * dt));
+        this._raiseK[r.joint] = k;
+        const b = this._raiseBase[r.joint];
+        j.rotation.set(b[0] + r.rot[0] * k, b[1] + r.rot[1] * k, b[2] + r.rot[2] * k);
       }
     }
 
