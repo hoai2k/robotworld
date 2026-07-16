@@ -1,6 +1,7 @@
 // Per-mech special & ultimate implementations, dispatched by id from roster.
 import * as THREE from 'three';
 import { rand, clamp, clamp01, angleDiff } from '../core/utils.js';
+import { GeyserFX } from './geyserfx.js';
 
 const _v = new THREE.Vector3();
 
@@ -559,8 +560,9 @@ export const SPECIALS = {
   },
 
   // CRANKY: water column erupts under the target — a bubbling warning patch
-  // telegraphs the spot first (evadable), then the geyser blasts skyward in
-  // a column of water particles
+  // telegraphs the spot first (evadable), then a full layered water sim
+  // (GeyserFX: shader column shells + droplet crown + mist + base surge)
+  // roars for sp.duration seconds before draining back down
   geyser(f, sp) {
     const WARN = 0.85; // telegraph long enough to sidestep
     const dur = f.animator.play('castRaise', {
@@ -571,80 +573,17 @@ export const SPECIALS = {
         const target = e ? leadPos(f, e, WARN + 0.45) : fwd(f, 14);
         target.y = 0;
         w.audio?.play('cast');
-        // ---- warning: pulsing danger rings + water bubbling out of the ground
-        for (let i = 0; i < 4; i++) {
-          w.schedule(i * 0.21, () => {
-            w.effects.rings.spawn(target, { from: 0.6, to: sp.radius * 1.5, dur: 0.34, color: 0x4fc3ff, y: 0.3 });
-          });
-        }
-        const bubbleTicks = Math.floor(WARN / 0.05);
-        for (let i = 0; i < bubbleTicks; i++) {
-          w.schedule(i * 0.05, () => {
-            const boil = 0.5 + (i / bubbleTicks); // churn harder as it primes
-            const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.8;
-            w.effects.drops.emit(target.x + Math.cos(a) * r, 0.3, target.z + Math.sin(a) * r,
-              rand(-0.5, 0.5), rand(2, 4.5) * boil, rand(-0.5, 0.5),
-              { life: rand(0.3, 0.6), size: rand(0.6, 1.4) * boil, color: 0xcfe8f6, color2: 0x4a80b0, alpha: 0.9, gravity: 14 });
-          });
-        }
-        // ---- eruption: roaring column of WATER hurled skyward — a real
-        // coherent jet tube (same substance system as the hose), refreshed
-        // every tick so the column stands as churning matter, not light
-        const jetKey = 'geyser' + f.playerIndex + ((Math.random() * 1e6) | 0);
-        const UP = new THREE.Vector3(0, 1, 0);
+        // the sim owns telegraph + eruption + collapse visuals; total show
+        // length = warn + sustain + ~0.95s collapse = sp.duration
+        w.geysers.push(new GeyserFX(w.scene, w.effects, target, {
+          height: 22, radius: 1.5, warn: WARN,
+          sustain: (sp.duration || 6) - WARN - 0.95,
+          boilRadius: sp.radius * 0.4,
+        }));
+        // damage: one big hit at the blowout moment, same as always
         w.schedule(WARN, () => {
-          for (let k = 0; k < 16; k++) {
-            w.schedule(k * 0.05, () => {
-              w.effects.jet(jetKey, target, UP, {
-                type: 'water', speed: 40, range: 26, gravity: 4,
-                r0: 0.9, r1: 2.8,
-              });
-            });
-          }
-          w.effects.rings.spawn(target, { from: 1, to: sp.radius * 2.2, dur: 0.5, color: 0xbfe8ff, y: 0.4 });
-          // the blowout: one brief, HUGE fountain — tall fast jets across
-          // the whole (doubled) eruption area
-          for (let i = 0; i < 60; i++) {
-            const a = rand(Math.PI * 2), r = Math.sqrt(Math.random()) * sp.radius * 0.6;
-            if (i % 4 === 0) { // foam flecks riding the column
-              w.effects.glows.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
-                Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
-                { life: rand(0.4, 0.7), size: rand(0.5, 1), color: 0xffffff, alpha: 0.55, gravity: 26, drag: 0.35 });
-            } else { // the water itself
-              w.effects.drops.emit(target.x + Math.cos(a) * r, rand(0.2, 2), target.z + Math.sin(a) * r,
-                Math.cos(a) * rand(1, 4), rand(24, 40), Math.sin(a) * rand(1, 4),
-                { life: rand(0.8, 1.4), size: rand(1, 2.2), color: 0xcfe8f6, color2: 0x4276a8, alpha: 0.92, gravity: 26, drag: 0.35 });
-            }
-          }
-          // main jet: dense fast water particles rocketing up the column core,
-          // fired in three quick pulses so the column stays solid for longer
-          for (const delay of [0, 0.14, 0.3]) {
-            w.schedule(delay, () => {
-              for (let i = 0; i < 22; i++) {
-                const a = rand(Math.PI * 2), r = rand(0, sp.radius * 0.45);
-                w.effects.drops.emit(target.x + Math.cos(a) * r, rand(0.2, 2.5), target.z + Math.sin(a) * r,
-                  Math.cos(a) * rand(0.5, 2), rand(17, 30), Math.sin(a) * rand(0.5, 2),
-                  { life: rand(0.6, 1.1), size: rand(1, 2), color: i % 3 ? 0xcfe8f6 : 0xffffff, color2: 0x4276a8, alpha: 0.92, gravity: 22, drag: 0.4 });
-              }
-            });
-          }
-          // spray: wider, slower droplets fanning out of the blast
-          for (let i = 0; i < 24; i++) {
-            const a = rand(Math.PI * 2);
-            w.effects.drops.emit(target.x + Math.cos(a) * rand(0.5, 1.5), rand(1, 4), target.z + Math.sin(a) * rand(0.5, 1.5),
-              Math.cos(a) * rand(3, 8), rand(9, 18), Math.sin(a) * rand(3, 8),
-              { life: rand(0.6, 1.2), size: rand(0.6, 1.3), color: 0xbfe0f2, color2: 0x4276a8, alpha: 0.9, gravity: 26, drag: 0.3 });
-          }
-          // mist pluming off the column
-          for (let i = 0; i < 8; i++) {
-            const a = rand(Math.PI * 2);
-            w.effects.smoke.emit(target.x + Math.cos(a) * rand(0.5, 2), rand(2, 14), target.z + Math.sin(a) * rand(0.5, 2),
-              Math.cos(a) * rand(1, 2.5), rand(2, 5), Math.sin(a) * rand(1, 2.5),
-              { life: rand(0.7, 1.2), size: rand(2, 3.5), color: 0xcfeaff, alpha: 0.35, grow: 1.6 });
-          }
           w.audio?.play('wave');
           w.audio?.play('explosionBig');
-          w.effects.addShake(0.8);
           for (const v of w.fighters) {
             if (v === f || !v.alive) continue;
             const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);

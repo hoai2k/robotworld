@@ -40,6 +40,7 @@ export class World {
     this.input = null;
     this.tasks = [];        // {t, fn}
     this.firePatches = [];  // {pos, radius, t, dps, owner}
+    this.geysers = [];      // live GeyserFX instances (CRANKY's special)
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
     this.time = 0;
@@ -205,6 +206,14 @@ export class World {
     this.effects.update(dt);
     this.arena?.update(dt);
     this.updatePickups(dt);
+
+    // geysers run their own lifecycle (telegraph -> erupt -> collapse)
+    for (let i = this.geysers.length - 1; i >= 0; i--) {
+      if (!this.geysers[i].update(dt)) {
+        this.geysers[i].dispose();
+        this.geysers.splice(i, 1);
+      }
+    }
 
     // fire patches
     for (let i = this.firePatches.length - 1; i >= 0; i--) {
@@ -624,6 +633,8 @@ export class World {
   clearTransient() {
     this.tasks.length = 0;
     this.firePatches.length = 0;
+    for (const g of this.geysers) g.dispose();
+    this.geysers.length = 0;
     for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);
     this.iceBlocks.length = 0;
     for (const p of this.projectiles.active) p.mesh.visible = false;

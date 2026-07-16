@@ -355,7 +355,7 @@ export const ROSTER = [
       light: { dmg: [40, 44, 60], knock: [6, 7, 14], range: 3.6 },
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
       ranged: { name: 'Hydro Hose', type: 'hose', dmg: 7, cooldown: 0.075, range: 20, ammo: 150 },
-      special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 11, launch: 15 },
+      special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 11, launch: 15, duration: 6 },
       ult: { id: 'riptide', name: 'RIPTIDE', dmg: 42, waves: 8, surgeDmg: 70, radius: 13 },
     },
   },
