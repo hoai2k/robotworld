@@ -174,7 +174,7 @@ export class Fighter {
   clampPalmsTo(prey) {
     const J = this.mech.joints;
     if (!(J.handL && J.handR && J.shoulderL && J.shoulderR)) return;
-    const want = Math.max(0.9, prey.hitRadius * 1.05);
+    const want = Math.max(0.8, prey.hitRadius * 0.95);
     const meas = () =>
       J.handL.getWorldPosition(_palmTmp).distanceTo(J.handR.getWorldPosition(_palmTmp2));
     const d0 = meas();
@@ -190,8 +190,10 @@ export class Fighter {
     J.shoulderR.rotation.z += dR * fix;
     const sep = meas();
     const arm = (this.mech.dims.upperArmLen || 1.5) + (this.mech.dims.foreArmLen || 1.5);
-    const step = clamp((sep - want) / (2 * arm), -0.12, 0.12); // servo rate
-    const nfix = clamp(fix + step, 0, 1.0);
+    const step = clamp((sep - want) / (2 * arm), -0.15, 0.15); // servo rate
+    // wide-shoulder frames need more shoulder travel to close on a slim
+    // target — the cap is generous, the servo rate keeps it smooth
+    const nfix = clamp(fix + step, 0, 1.3);
     J.shoulderL.rotation.z += dL * (nfix - fix);
     J.shoulderR.rotation.z += dR * (nfix - fix);
     this._palmFix = nfix;
@@ -332,16 +334,7 @@ export class Fighter {
     // track the actual victim through the whole swing: torso twists and the
     // fists CONVERGE onto their body, so a landed pound visibly LANDS
     // instead of slamming down on both sides of a slim target
-    const prey = this.nearestEnemy();
-    if (prey) {
-      const dx = this.world.wrapDelta(prey.pos.x - this.pos.x);
-      const dz = this.world.wrapDelta(prey.pos.z - this.pos.z);
-      if (Math.hypot(dx, dz) < mv.range * this.scale * 2 &&
-          Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < 1.1) {
-        this._strikeAim = { f: prey, t: dur * 0.95 };
-        this._aimYaw = 0;
-      }
-    }
+    this.trackStrikeVictim(mv.range, dur);
   }
 
   // post-pose strike tracking: torso yaw slides the palms along an arc
@@ -371,7 +364,7 @@ export class Fighter {
       const dAz = (pmx * pmx + pmz * pmz > 0.09)
         ? angleDiff(Math.atan2(pmx, pmz), Math.atan2(vx, vz)) : 99;
       if (striking && Math.abs(dAz) < 1.1) { // fists driving through the front arc
-        fix = clamp(fix + clamp(dAz - fix, -0.2, 0.2), -0.6, 0.6);
+        fix = clamp(fix + clamp(dAz - fix, -0.22, 0.22), -0.7, 0.7);
       } else {
         fix *= 0.75; // windup: don't chase, unwind
       }
@@ -652,6 +645,24 @@ export class Fighter {
     });
     this.setState('attack', dur * 0.9);
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // two-fist pounds (the punchHold mechs): converge the fists ONTO the
+    // victim's body through the slam — wide shoulders otherwise drop the
+    // hands to either side of a slim target
+    if (this.def.punchHold) this.trackStrikeVictim(mv.range, dur);
+  }
+
+  // aim the strike at whoever is in front: post-pose torso steer + palm
+  // convergence (aimStrikeAt) rides the rest of the swing
+  trackStrikeVictim(range, dur) {
+    const prey = this.nearestEnemy();
+    if (!prey) return;
+    const dx = this.world.wrapDelta(prey.pos.x - this.pos.x);
+    const dz = this.world.wrapDelta(prey.pos.z - this.pos.z);
+    if (Math.hypot(dx, dz) < range * this.scale * 2 &&
+        Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < 1.1) {
+      this._strikeAim = { f: prey, t: dur * 0.95 };
+      this._aimYaw = 0;
+    }
   }
 
   // ---- hold-to-charge haymaker (TITANUS/COLOSSUS): same contract as the
@@ -706,6 +717,8 @@ export class Fighter {
     this.setState('attack', dur * 0.85);
     this.comboIdx++;
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // the released haymaker steers onto the victim too
+    this.trackStrikeVictim(mv.range, dur);
   }
 
   // ---- charge tell: an additive sheath flickers over whichever limbs are

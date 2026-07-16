@@ -1617,3 +1617,21 @@ controllers via Gamepad API), AI opponents.
   machinery gone, lock-aim set/cleared, colossus script completes);
   frozen impact still reviewed (body bashed down beside his right leg,
   dust at the head); ace soak crash-free with a clean KO.
+
+75. FIST SLAMS CONVERGE ON THE TARGET (user request) ✅
+  · Wide-shoulder bots were visually missing slim targets with their
+    pounds — both fists landing to the LEFT and RIGHT of the body. Root
+    cause: the hold-release path (titanus/colossus poundSlam, and the
+    charged haymaker releases) never engaged the existing _strikeAim
+    victim-tracking, so no torso steer and no palm convergence ran.
+  · New fighter.trackStrikeVictim() helper wired into BOTH release paths
+    (and doHeavy now shares it): the post-pose servo steers the torso
+    onto the victim's azimuth and clampPalmsTo squeezes the fists onto
+    the body through the swing.
+  · Convergence strengthened for wide frames: target palm separation
+    0.9/1.05r -> 0.8/0.95r, shoulder-travel cap 1.0 -> 1.3 rad, servo
+    rate 0.12 -> 0.15, torso steer cap 0.6 -> 0.7 rad.
+  Verified: build green; probe (titanus pound on an off-axis viper:
+  hands 6.26 apart at rest -> 1.6 at the slam, palm midpoint 0.36 from
+  the victim, 85 dmg landed); frozen impact still shows both fists
+  together on the strike line; ace soak crash-free with a clean KO.
