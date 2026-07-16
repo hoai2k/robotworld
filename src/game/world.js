@@ -209,11 +209,29 @@ export class World {
     this.arena?.update(dt);
     this.updatePickups(dt);
 
-    // geysers run their own lifecycle (telegraph -> erupt -> collapse)
+    // geysers run their own lifecycle (telegraph -> erupt -> collapse);
+    // combat geysers ({owner, dmg}) also SCALD: anyone standing in the
+    // column keeps taking hits for as long as the water is up
     for (let i = this.geysers.length - 1; i >= 0; i--) {
-      if (!this.geysers[i].update(dt)) {
-        this.geysers[i].dispose();
+      const g = this.geysers[i];
+      if (!g.fx.update(dt)) {
+        g.fx.dispose();
         this.geysers.splice(i, 1);
+        continue;
+      }
+      if (!g.owner || g.fx.phase !== 'erupt') continue;
+      g.tick -= dt;
+      if (g.tick > 0) continue;
+      g.tick = 0.4;
+      for (const v of this.fighters) {
+        if (v === g.owner || !v.alive) continue;
+        const dx = this.wrapDelta(v.pos.x - g.fx.pos.x), dz = this.wrapDelta(v.pos.z - g.fx.pos.z);
+        // the column itself, not the full blast radius — matches the visual
+        if (Math.hypot(dx, dz) < g.radius * 0.55 + v.hitRadius * 0.5) {
+          v.takeHit(g.dmg * 0.2 * g.owner.dmgMult(), g.owner,
+            { knock: 3, launch: g.launch * 0.55, srcPos: g.fx.pos, soft: true });
+          this.effects.splash(v.center(), 6, 5, 1);
+        }
       }
     }
 
@@ -572,8 +590,13 @@ export class World {
         // the jet is ONE coherent pressurized tube of water (scrolling-
         // noise stream mesh riding the ballistic arc); droplets and mist
         // are just the breakup spray around it
+        // geyser two-shell tech: an aerated outer stream (foam ramp in the
+        // shader) around a dense white heart running up the middle
         const jetEnd = this.effects.jet('hose' + f.playerIndex, hFrom, dir, {
-          type: 'water', speed: 46, range: mv.range * 1.2, gravity: 30, r0: 0.2, r1: 0.8,
+          type: 'water', speed: 46, range: mv.range * 1.2, gravity: 30, r0: 0.26, r1: 1.0,
+        });
+        this.effects.jet('hosecore' + f.playerIndex, hFrom, dir, {
+          type: 'watercore', speed: 46, range: mv.range * 1.15, gravity: 30, r0: 0.13, r1: 0.45,
         });
         this.effects.waterJet(hFrom, dir, 42);
         if (jetEnd && jetEnd.y <= 0.4) { // the stream hammers the dirt
@@ -676,7 +699,7 @@ export class World {
     this.tasks.length = 0;
     for (const p of this.firePatches) p.flame.dispose();
     this.firePatches.length = 0;
-    for (const g of this.geysers) g.dispose();
+    for (const g of this.geysers) g.fx.dispose();
     this.geysers.length = 0;
     for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
     this.flameJets.clear();
