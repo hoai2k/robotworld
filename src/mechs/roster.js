@@ -28,7 +28,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [46, 50, 68], knock: [16, 18, 30], range: 3.4 },
       heavy: { dmg: 105, knock: 38, range: 3.8, launch: 9 },
-      ranged: { name: 'Rocket Fist', type: 'fist', dmg: 55, speed: 42, cooldown: 2.4, range: 26, knock: 14 },
+      ranged: { name: 'Rocket Fist', type: 'fist', dmg: 55, speed: 46, cooldown: 2.4, range: 42, knock: 14 },
       special: { id: 'grabThrow', name: 'Skyline Slam', cooldown: 8, dmg: 88, range: 4.2, throw: 32, radius: 5 },
       ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
     },
@@ -392,7 +392,7 @@ export const ROSTER = [
     // raptor doctrine: he fights with his FEET — the light combo is all
     // sickle toe-claw kicks; the heavy coils him back onto his haunches and
     // springs the whole frame forward into a lunging BITE (heavyDrive);
-    // ranged flings a brace of blade-spines off his forearm (his own
+    // ranged throws a fan of BLACK quills off both hands/forearms (his own
     // plumage — no ammo)
     lightClips: ['saurionKick1', 'saurionKick2', 'saurionKick3'],
     heavyClip: 'saurionBite',
@@ -400,7 +400,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [32, 34, 48], knock: [4, 5, 12], range: 3.5 },
       heavy: { dmg: 80, knock: 19, range: 3.8, launch: 8 },
-      ranged: { name: 'Spine Volley', type: 'spikes', dmg: 26, count: 2, speed: 52, cooldown: 0.9 },
+      ranged: { name: 'Quill Fan', type: 'spikes', dmg: 20, count: 3, speed: 54, cooldown: 0.9 },
       special: { id: 'sickleRush', name: 'Sickle Pounce', cooldown: 6, dmg: 62, bleed: 9, leap: 22 },
       ult: { id: 'extinction', name: 'EXTINCTION PROTOCOL', dmg: 46, hits: 4, knock: 26 },
     },

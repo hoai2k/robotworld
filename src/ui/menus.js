@@ -631,7 +631,7 @@ export class PauseScreen {
       <b style="color:#fff">XBOX PAD</b> — L-stick move · R-stick camera · A jump · X light · Y heavy · RB ranged · RT special · LT block · L-stick click duck · D-pad ↑ ultimate · VIEW taunt<br>
       <b style="color:#fff">PAD B — CHARGED DASH</b> — HOLD to wind up (3s cap): standing still crouches and winds fast, moving winds slowly; RELEASE with a direction held to dash that way — longer wind-up, farther dash. No direction = cancel<br>
       <b style="color:#fff">PAD LB — TARGET LOCK</b> — HOLD to lock onto the nearest enemy: you face them, the camera keeps them framed, and sideways movement becomes a strafe<br>
-      <b style="color:#fff">AIM</b> — HOLD ranged (RB / R) to raise a crosshair and aim with the camera (up/down too); RELEASE to fire at the reticle. Gatling/flame/hose stream immediately<br>
+      <b style="color:#fff">AIM</b> — while LB target lock is held, a light crosshair drifts onto the target and ranged shots fly at it (height included); unlocked shots fire along your facing<br>
       <b style="color:#fff">HOVER JETS</b> — press JUMP again in mid-air and HOLD to fly (lighter mechs fly higher)<br>
       <b style="color:#fff">CHARGED STRIKES</b> — TITANUS &amp; COLOSSUS: HOLD light (X) to keep the punch wound up, or heavy (Y) to keep the pound raised — release to strike with banked power<br>
       <b style="color:#fff">FINISHERS</b> — hold JUMP (A / SPACE) for 1s to skip the KO cinematic<br>

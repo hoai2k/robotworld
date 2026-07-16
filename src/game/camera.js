@@ -342,36 +342,11 @@ export class CameraSystem {
     return Math.atan2(dx, dz);
   }
 
-  // The world-space point a player's crosshair rests on: the ray from their
-  // camera through screen center, resolved against enemies (airborne ones
-  // too), buildings, then the ground — an aimed RB shot flies at this point.
-  aimPointFor(f) {
-    let pos = this.cPos, tgt = this.cTarget;
-    if (this.mode === 'split') {
-      const humans = this.world.fighters.filter((x) => !x.isAI);
-      const ch = this.chase[humans.indexOf(f)];
-      if (ch && ch.init) { pos = ch.pos; tgt = ch.target; }
-    }
-    const dir = new THREE.Vector3().subVectors(tgt, pos).normalize();
-    const minT = Math.hypot(f.pos.x - pos.x, f.pos.z - pos.z) + 2; // past own mech
-    let bestT = 90;
-    for (const v of this.world.fighters) {
-      if (v === f || !v.alive) continue;
-      const c = v.center();
-      const t = _v.copy(c).sub(pos).dot(dir);
-      if (t < minT || t > bestT) continue;
-      if (_v.copy(dir).multiplyScalar(t).add(pos).distanceTo(c) < v.hitRadius + 1.2) bestT = t;
-    }
-    const hit = this.world.arena?.raySolid?.(pos, dir, bestT);
-    if (hit) {
-      const t = hit.point.distanceTo(pos);
-      if (t > minT) bestT = Math.min(bestT, t);
-    }
-    if (dir.y < -0.001) {
-      const t = -pos.y / dir.y;
-      if (t > minT && t < bestT) bestT = t;
-    }
-    return dir.multiplyScalar(bestT).add(pos);
+  // the render camera covering a given human's view — the HUD projects the
+  // lock-aim crosshair through this
+  cameraFor(humanIdx) {
+    if (this.mode === 'split' && this.chase[humanIdx]?.init) return this.chase[humanIdx].camera;
+    return this.engine.camera;
   }
 
   // where a human's viewport sits on screen (0..1, origin bottom-left) —

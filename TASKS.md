@@ -1584,3 +1584,36 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; inferno-vs-cranky ace soak crash-free; night
   demo stills + GIF reviewed; daylight uptown battle probes show patches
   and mid-channel flamethrower reading at gameplay camera.
+
+74. BLACK QUILLS · LONGER ROCKET FIST · LB LOCK-AIM CROSSHAIR · COLOSSUS FEET-GRIP STRETCH SLAMS ✅
+  · SAURION's ranged is now a fan of BLACK QUILLS thrown off BOTH hands/
+    forearms: new 'quill' projectile (long flattened cone, normal-blended
+    matte black so it reads as a dark blade, with a faint ember trail via
+    new spec.trailColor) — three per throw, alternating hands.
+  · TITANUS' Rocket Fist flies a real distance now: turnaround range 26
+    -> 42 (probe: 84 units round trip), speed 42 -> 46. (Its early turns
+    were also partly the old RB-aim pitching it into the ground — gone.)
+  · HOLD-RB AIM REMOVED — ranged fires instantly on press again. In its
+    place: LB LOCK-AIM. While target lock is held, a LIGHT crosshair
+    (thin 28px reticle) drifts onto the locked enemy — a damped tracker,
+    so camera swings and enemy dashes pull it off the body for a beat
+    until it catches up — and any ranged attack fired during the lock
+    flies at the crosshair's world point, height included (probe: quill
+    fired at an airborne lock left with velY +20). Gatling streams also
+    track it. CameraSystem.aimPointFor replaced by cameraFor (the HUD
+    projects _lockAim through the player's own camera into their split
+    viewport). Docs updated.
+  · COLOSSUS finisher is the FEET-GRIP STRETCH SWING now: his fist holds
+    the victim by the ankles (fighter origin = feet, locked to handR),
+    and each slower one-second swing carries the stretched body clear
+    OVER him — head sweeping a huge arc, momentarily pointing skyward —
+    before cracking it HEAD-FIRST into the dirt beside his right leg,
+    across to his left, then right again (deepened slam poses put the
+    fist low; probe: head at y1.3-1.4 on impact, body roll alternating
+    -2.2/+1.6/-1.6). Sparks/dust/rings land at the HEAD's world position,
+    the camera pulled back (dist 16) so the whole swing reads, and the
+    one-hand hurl + castRaise pose close it out.
+  Verified: build green; probes above (3 quills instant-fire, aim-hold
+  machinery gone, lock-aim set/cleared, colossus script completes);
+  frozen impact still reviewed (body bashed down beside his right leg,
+  dust at the head); ace soak crash-free with a clean KO.
