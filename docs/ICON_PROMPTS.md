@@ -1,53 +1,93 @@
-# Character icon-badge generation prompts
+# Character badge-icon generation prompts
 
-Prompts for creating flat icon badges for the 16 mechs with an image
-generator (Midjourney / DALL-E / Ideogram / Stable Diffusion etc.), as an
-alternative to the rendered portraits in `public/thumbs/`.
+Prompts for generating EMBLEM badges for the 16 mechs with an image
+generator (Midjourney / DALL-E / Ideogram / Stable Diffusion etc.). These
+are NOT pictures of the mechs — each badge is a SYMBOL of that mech's power
+and personality, like a faction crest the mech would wear painted on its
+shoulder plate.
 
 ## How to use
 
-1. Combine the **master style prompt** with ONE character line below.
-2. Generate at 1024×1024, then downscale to 256×256 (`public/thumbs/<id>.png`
-   — same filename replaces the rendered portrait everywhere automatically).
-3. Keep the whole set in one session/seed where possible so the style stays
-   consistent across all 16 badges.
+1. Generate the full set with the **all-at-once grid prompt** below (or the
+   two 8-badge half sheets if your generator muddles a 16-tile grid).
+2. Slice the sheet into individual squares, downscale each to 256×256, and
+   save as `public/thumbs/<id>.png` — same filenames as the rendered
+   portraits, so they flow into the roster grid, player cards, results
+   banner and battle HUD automatically. (Keep row-major order: the slice at
+   row r, column c is badge number r*4 + c + 1.)
+3. If a single badge needs a re-roll, use the **single-badge prompt** at the
+   bottom with that mech's line.
 
-## Master style prompt
+## All-at-once grid prompt (one image, all 16 badges)
 
-> A flat vector emblem badge for a video game character-select screen: a
-> stylized robot mech head-and-shoulders bust in bold geometric shapes,
-> centered inside a rounded-square badge with a thin glowing rim. Clean
-> anime-mecha style, strong silhouette, 2–3 tone cel shading, subtle inner
-> glow, dark navy background (#0a121c). No text, no letters, no watermark.
-> Crisp edges, reads clearly at 64×64 pixels. — Character: {CHARACTER}
+> A sprite sheet of 16 military-style faction badges for video game robot
+> pilots, arranged in a perfect 4×4 grid of identical rounded-square tiles
+> on a dark navy background (#0a121c), with even spacing and a thin glowing
+> rim on every tile. Flat vector emblem style: each badge is a bold,
+> centered SYMBOL — never a robot, face, or figure — in 2–3 saturated
+> colors on the dark tile, clean geometric shapes, subtle inner glow,
+> strong silhouette that stays readable at 64×64 pixels. No text, letters,
+> numbers, or watermarks anywhere.
+> The 16 badges, in reading order:
+> 1. a mustard-yellow armored fist slamming down with cracked-earth impact lines and orange shockwave arcs (#bd9226, #ffa832)
+> 2. a spinning six-barrel gatling muzzle seen head-on, bone-white and oxide red, orange muzzle-flash star bursting from the center (#cfc9bd, #9c2f28, #ff8c30)
+> 3. a white-and-gold tower shield with a spear rising behind it, sunrise rays of light-blue dawn breaking over the shield rim (#d0d4da, #c9a542, #3f8cff)
+> 4. two crossed venom-green energy daggers over a coiled serpent silhouette, deep-purple backing shapes (#5aff2e, #4a3566)
+> 5. a radiant magenta star cradled inside a broken glowing halo ring, small teal sparkles orbiting it (#ff3ce8, #3e7a78)
+> 6. a single massive chrome horn in profile, charging speed-lines behind it and red impact spark at its tip (#5c6066, #ff2a20)
+> 7. a cyan lightning bolt twisting into a tornado spiral funnel (#3fd8ff, #2a3560)
+> 8. a silver wolf's claw slash — three ragged tear-marks — across a full ice-blue moon (#b4b9c0, #6cd8ff)
+> 9. an artillery shell arcing over a chess rook, dotted trajectory line, sand-tan and amber (#a08a64, #ffc23c)
+> 10. one baleful red eye inside a sniper's crosshair, ragged black cloak-tatters framing the corners (#ff2030, #232228)
+> 11. a roaring flame shaped like a grinning mouth, rust-red and furnace orange (#8a3626, #ff8a1e)
+> 12. a jagged snowflake fused with ice crystal shards, pale ice-blue and frost white (#7ce0ff, #9fb2c2)
+> 13. a rust-orange crab pincer clamped around a blue water-jet geyser column (#a64a28, #4fc3ff)
+> 14. a single curved raptor sickle-claw with one red predator eye reflected in the blade, gunmetal black (#33343a, #ff2418)
+> 15. a lime-green slime droplet mid-splat with two round bug-eye bubbles floating in it (#7cb420, #aef23c)
+> 16. a coral-pink shrimp curled into a spiral surrounded by a swarm of tiny hopping dots, red bead accents (#b9816b, #ff2818)
 
-## Character lines (fill {CHARACTER})
+## Half-sheet variants (two images of 8, if 16 muddles)
 
-| id | prompt line |
-|----|-------------|
-| titanus | a colossal siege-mech bust in mustard yellow armor (#bd9226) with black hazard stripes, small glowing orange eyes (#ffa832), massive squared shoulder pauldrons, radiating turbine core on the chest |
-| vulcan | a bone-white gunner mech (#cfc9bd) with oxide-red panels (#9c2f28), single wide orange visor (#ff8c30), twin gatling barrel pods rising behind the shoulders |
-| aegis | a white-and-gold paladin knight mech (#d0d4da / #c9a542), blue glowing visor (#3f8cff), tall crowned helm, the top edge of a gold-trimmed tower shield with a cross motif in front of one shoulder |
-| viper | a slim purple ninja assassin mech (#4a3566) with black accents, narrow venom-green visor slit (#5aff2e), two tall swept horn blades on the helm, a green energy dagger edge glinting beside the cheek |
-| nova | an elegant white oracle mech (#d2d6de) with teal panels (#3e7a78), a broken magenta glowing halo ring floating behind the head (#ff3ce8), serene single-eye faceplate, star-staff tip beside the shoulder |
-| rhino | a battered gunmetal bull mech (#5c6066) with rust-red plates (#8c3a32), one huge forward-curving chrome horn on the nose, tiny furious red eyes (#ff2a20), steam from the nostril vents |
-| tempest | a deep-blue storm dancer mech (#2a3560), sleek aerodynamic helm, electric cyan visor and lightning-bolt crest (#3fd8ff), crackling arc sparks around the shoulders |
-| fenrir | a silver wolf mech (#b4b9c0) with a spiked blade-mane ruff around the neck, long muzzle with bared chrome fangs, ice-blue eyes (#6cd8ff), ears swept back |
-| colossus | a sand-tan artillery fortress mech (#a08a64) with black stripes, low bunker-slit visor glowing amber (#ffc23c), twin mortar tubes angled up behind the shoulders |
-| wraith | a gaunt near-black reaper mech (#232228), tall pointed cowl, void face with ONE glowing red eye (#ff2030), tattered blade-strip cloak fanning out like wings |
-| inferno | a scorched rust-red demolition mech (#8a3626) with soot-black plates, wide grinning furnace-grille mouth glowing orange (#ff8a1e), small flame crest on the helm |
-| glacier | a pale ice-blue fortress mech (#9fb2c2), frost-rimmed angular helm, cold cyan visor (#7ce0ff), crystalline ice spikes growing off one pauldron |
-| cranky | a rust-orange deep-sea crab mech (#a64a28) with blue-steel water tanks on the shoulders (#46759e), four glowing blue LED eyes in a row (#4fc3ff), giant pincer claw raised beside the head |
-| saurion | a gunmetal-black raptor mech (#33343a), long predatory jaw with chrome teeth, single burning red eye and core glow (#ff2418), blade-feather crest sweeping back |
-| frogger | a lime-green frog mech (#7cb420) with black joint frame, two big glass-dome bug eyes with green glow (#aef23c), dripping translucent slime on the plates |
-| jerry | a weathered coral-pink shrimp mech (#b9816b) with olive seam bands, red bead eyes (#ff2818), segmented carapace helm with long antennae curving forward |
+Use the same opening paragraph but change "16 military-style faction
+badges ... 4×4 grid" to "8 military-style faction badges ... 4×2 grid",
+then append badges 1–8 for the first sheet and 9–16 for the second.
+
+## Single-badge re-roll prompt
+
+> A single military-style faction badge for a video game robot pilot: a
+> rounded-square tile on a dark navy background (#0a121c) with a thin
+> glowing rim. Flat vector emblem style: one bold centered SYMBOL — never a
+> robot, face, or figure — in 2–3 saturated colors, clean geometric shapes,
+> subtle inner glow, readable at 64×64 pixels. No text or watermark.
+> The symbol: {paste one numbered line from the list above}
+
+## Badge ↔ mech key
+
+| # | id | symbol concept |
+|---|----|----------------|
+| 1 | titanus | seismic fist |
+| 2 | vulcan | gatling flash |
+| 3 | aegis | dawn shield & spear |
+| 4 | viper | crossed fang-daggers |
+| 5 | nova | star in broken halo |
+| 6 | rhino | charging horn |
+| 7 | tempest | lightning tornado |
+| 8 | fenrir | claw-torn moon |
+| 9 | colossus | artillery rook |
+| 10 | wraith | eye in crosshair |
+| 11 | inferno | grinning flame |
+| 12 | glacier | shard snowflake |
+| 13 | cranky | pincer & geyser |
+| 14 | saurion | sickle claw |
+| 15 | frogger | slime splat eyes |
+| 16 | jerry | shrimp swarm spiral |
 
 ## Notes
 
-- Palette hexes come from `src/mechs/roster.js` (`colors.primary/accent/glow`)
-  — if a mech is repainted, update the line here.
-- If the generator struggles with "no text", add a negative prompt:
-  `text, letters, words, watermark, signature, photorealistic, 3d render`.
-- For engine-consistency, the rendered-portrait route stays available:
+- Palette hexes come from `src/mechs/roster.js` (`colors.primary/accent/
+  glow`) — if a mech is repainted, update its line here.
+- Negative prompt if supported: `robot, mech, face, figure, character,
+  text, letters, numbers, watermark, photorealistic, 3d render`.
+- The rendered-portrait route stays available as the default:
   `node tools/thumbs.mjs` (dev server running) regenerates all portraits
-  from the live models.
+  from the live models into the same files.
