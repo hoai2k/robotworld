@@ -56,6 +56,16 @@ const VISUALS = {
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
   mortar: { geo: () => new THREE.SphereGeometry(0.42, 8, 6), trail: 'smoke' },
   shard: { geo: () => new THREE.ConeGeometry(0.22, 1.3, 5), rot: true, trail: 'glow' },
+  quill: { // SAURION: a long BLACK blade-quill flung point-first — a dark
+    // matte body (normal blending; additive black is invisible) with only
+    // a faint ember trail giving away its flight line
+    geo: () => {
+      const g = new THREE.ConeGeometry(0.09, 2.1, 5);
+      g.scale(1, 1, 0.45); // flattened, feather-like
+      return g;
+    },
+    rot: true, normalBlend: true, doubleSide: true, trail: 'glow',
+  },
   bat: { // WRAITH: flat bat silhouette — nose +Z, wings spread on X; flaps in update()
     geo: () => {
       const g = new THREE.BufferGeometry();
@@ -128,6 +138,7 @@ export class ProjectileSystem {
       launch: spec.launch || 0,
       status: spec.status || null,
       size: spec.size || 1,
+      trailColor: spec.trailColor || null, // dark bodies fly with a bright wake
       wobble: spec.wobble || 0,
       goop: !!spec.goop,
       soft: !!spec.soft,
@@ -288,7 +299,7 @@ export class ProjectileSystem {
               alpha: 0.95, gravity: 16, spin: 1.5, fadeIn: 0.05 });
         } else if (vis.trail === 'glow') {
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
-            0, 0, 0, { life: 0.18, size: rand(0.9, 1.5), color: p.color, alpha: 0.6 });
+            0, 0, 0, { life: 0.18, size: rand(0.9, 1.5), color: p.trailColor || p.color, alpha: 0.6 });
         }
       }
 

@@ -460,42 +460,54 @@ const SCRIPTS = {
       F._palmVic = vic;
     });
     F.camShot(1.3, 2.55, { dist: 10, h: 6.5, az0: 0.5, az1: 0.05, lookH: 6.2 });
-    F.camAction(2.55, 6.0, { dist: 13, h: 4.6, lookH: 2.6 });
-    F.trackCenter(2.6, 5.6, 5);
-    // the one-arm ragdoll hammer: the wreck is LOCKED to his right fist and
-    // goes exactly where the hand goes — swung overhead and slammed into
-    // the dirt beside his right leg, then ACROSS to his left, then right
+    F.camAction(2.55, 6.2, { dist: 16, h: 5.2, lookH: 3.2 });
+    F.trackCenter(2.6, 6.1, 5);
+    // the FEET-GRIP stretch-swing: his right fist holds the victim by the
+    // ankles (the fighter origin IS the feet, so the wreck hangs from the
+    // hand at full stretch). Each swing carries the body clear OVER him —
+    // head sweeping a huge arc — and cracks it head-first into the dirt
+    // beside his right leg, then across to his left, then right again.
+    // Slow enough to read: each slam is a full second.
+    const rollFor = (side) => -side * 2.35; // head down-and-out, cracking the dirt
     for (let i = 0; i < 3; i++) {
-      const tS = 2.5 + i * 0.85;
-      const cross = i % 2 === 1; // second smash swings across to his LEFT
-      F.at(tS, () => win.animator.play(cross ? 'colossusSlamL' : 'colossusSlamR'));
-      F.hold(tS, tS + 0.78, (k) => {
+      const tS = 2.55 + i * 1.05;
+      const side = i % 2 ? -1 : 1; // right, over-the-top to left, right
+      F.at(tS, () => win.animator.play(side > 0 ? 'colossusSlamR' : 'colossusSlamL', { speed: 0.75 }));
+      const roll0 = i === 0 ? 1.45 : rollFor(-side);
+      F.hold(tS, tS + 1.0, (k) => {
         const hand = win.mech.joints.handR;
         if (!hand) return;
         hand.getWorldPosition(_ct);
-        vic.pos.set(_ct.x, Math.max(_ct.y - 0.75 * vic.scale, 0.02), _ct.z);
+        vic.pos.set(_ct.x, Math.max(_ct.y, 0.35), _ct.z); // ankles IN the fist
         vic.yaw = vic.targetYaw = win.yaw;
-        vic.group.rotation.y = win.yaw + (cross ? -0.5 : 0.5) * smooth(k);
-        vic.group.rotation.z = 1.45;
+        vic.group.rotation.y = win.yaw;
+        // the body pivots around the gripped feet: rolling from one side's
+        // dirt, up over his head (body momentarily stretched skyward), and
+        // down head-first onto the other side
+        vic.group.rotation.z = roll0 + (rollFor(side) - roll0) * smooth(k);
+        vic.group.rotation.x = 0;
       });
-      F.at(tS + 0.52, () => { // the fist bottoms out — impact
+      F.at(tS + 0.78, () => { // the head cracks the dirt
         F.beat('slam', 0.85, 0.08);
-        F.sparks(20, 12);
-        w.effects.dustPuff(vic.pos, 8);
-        w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5, dur: 0.32, color: 0xffc23c, y: 0.3 });
+        const hp = vic.mech.joints.head
+          ? vic.mech.joints.head.getWorldPosition(new THREE.Vector3()) : vic.center();
+        hp.y = Math.min(hp.y, 0.6);
+        w.effects.impactSparks(hp, 0xffc23c, 16, 10);
+        w.effects.dustPuff(hp, 9);
+        w.effects.rings.spawn(hp, { from: 0.6, to: 5, dur: 0.32, color: 0xffc23c, y: 0.3 });
       });
     }
     // the single-hand hurl, far and flat
-    F.at(5.1, () => { win.animator.play('throwHeave'); w.audio?.play('whooshBig'); });
+    F.at(5.75, () => { win.animator.play('throwHeave'); w.audio?.play('whooshBig'); });
     let hx, hy, hz;
-    F.hold(5.15, 5.52, (k) => {
+    F.hold(5.8, 6.14, (k) => {
       if (hx === undefined) { hx = vic.pos.x; hy = vic.pos.y; hz = vic.pos.z; }
       vic.pos.x = hx + Math.sin(win.yaw) * 9.5 * k * S;
       vic.pos.z = hz + Math.cos(win.yaw) * 9.5 * k * S;
       vic.pos.y = Math.max(0.35, hy + 3.2 * k - 7.5 * k * k);
       vic.group.rotation.x += 0.14;
     });
-    F.at(5.55, () => {
+    F.at(6.16, () => {
       F.beat('bodyfall', 1, 0.1);
       vic.group.rotation.x = 0;
       vic.group.rotation.z = 0;
@@ -503,7 +515,7 @@ const SCRIPTS = {
       w.effects.dustPuff(vic.pos, 12);
       F.finaleBurst();
     });
-    F.triumph(5.75, 'castRaise');
+    F.triumph(6.3, 'castRaise');
   },
 
   // SAURION: leaps straight onto the THROAT, rides them down flat — the

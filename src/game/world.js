@@ -559,24 +559,22 @@ export class World {
         this.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
         this.audio?.play('slam');
         break;
-      case 'spikes': { // SAURION: a brace of blade-spines flung off the
-        // FOREARM (his own plumage — regrows, costs nothing)
-        const armFrom = f.mech.joints.handR
-          ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
-          : from;
-        armFrom.y += 0.2;
-        for (let i = 0; i < (mv.count || 2); i++) {
+      case 'spikes': { // SAURION: a fan of BLACK quills thrown off both
+        // hands/forearms (his own plumage — regrows, costs nothing)
+        for (let i = 0; i < (mv.count || 3); i++) {
+          const hand = i % 2 ? f.mech.joints.handL : f.mech.joints.handR;
+          const armFrom = hand ? hand.getWorldPosition(new THREE.Vector3()) : from.clone();
+          armFrom.y += 0.2;
           const d2 = dir.clone();
-          d2.x += rand(-0.03, 0.03);
-          d2.y += i ? 0.035 : -0.01;
-          d2.z += rand(-0.03, 0.03);
-          this.projectiles.spawn('shard', f, armFrom, d2, {
+          d2.x += rand(-0.04, 0.04);
+          d2.y += (i - 1) * 0.035 + rand(-0.01, 0.01);
+          d2.z += rand(-0.04, 0.04);
+          this.projectiles.spawn('quill', f, armFrom, d2, {
             dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.95, 1.08),
-            color: 0xc8ced8, knock: 5,
+            color: 0x16161c, trailColor: 0x8a2318, knock: 4,
           });
         }
         this.audio?.play('dart');
-        this.effects.muzzleFlash(armFrom);
         break;
       }
       case 'flea': // JERRY: launches a live robo-shrimp flea that hunts on foot

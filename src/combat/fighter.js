@@ -377,6 +377,8 @@ export class Fighter {
     this.uncloak();
     const isChannel = mv.type === 'gatling' || mv.type === 'flame' || mv.type === 'hose';
     this.faceAim();
+    // LB lock-aim: shots fired during a target lock fly at the crosshair
+    if (this._lockAim) this._aimPoint = this._lockAim.clone();
 
     if (isChannel) {
       const cclip = this.def.channelClip || 'shootLoop';
@@ -1377,18 +1379,8 @@ export class Fighter {
         else this.doLight();
       } else if (I.heavy) this.doHeavy();
       else if (I.dash) this.doDash();
-      else if (I.ranged && !this._aimHold) {
-        // humans with single-shot weapons AIM first: pressing RB raises the
-        // crosshair, the shot fires on release (see the _aimHold block in
-        // update). AI and channel weapons (gatling/flame/hose) fire directly.
-        const rt = this.def.moves.ranged.type;
-        const channel = rt === 'gatling' || rt === 'flame' || rt === 'hose';
-        if (this.isAI || channel) this.doRanged();
-        else if (this.rangedCd <= 0 && !(this.ammoMax !== undefined && this.ammo <= 0) &&
-                 !(rt === 'fist' && this._fistOut)) {
-          this._aimHold = true;
-        }
-      } else if (I.taunt && this.state === 'normal') {
+      else if (I.ranged) this.doRanged();
+      else if (I.taunt && this.state === 'normal') {
         this.setState('attack', this.animator.play('taunt') * 0.9);
       }
       if (I.jump && this.grounded && this.state === 'normal') {
@@ -1424,6 +1416,7 @@ export class Fighter {
         if (this.rangedCd <= 0) {
           this.rangedCd = this.def.moves.ranged.cooldown;
           if (this.ammoMax !== undefined) this.ammo--;
+          if (this._lockAim) this._aimPoint = this._lockAim.clone();
           this.world.fireRanged(this, this.def.moves.ranged);
         }
         this.faceAim();
@@ -1547,22 +1540,24 @@ export class Fighter {
     if (this._whirlHold != null) this.updateHeavyHold(dt);
     if (this._punchHold != null) this.updatePunchHold(dt);
     this.updateChargeGlow(dt);
-    // hold-to-aim ranged: while RB stays down the crosshair is live (HUD
-    // draws it at this player's viewport center); releasing fires the shot
-    // at the reticle's world point — including up/down, from the camera ray
-    if (this._aimHold) {
-      if (!this.alive || !this.canAct()) this._aimHold = false;
-      else if (!this.intent.rangedHeld) {
-        this._aimHold = false;
-        const p = this.world.cameraSys?.aimPointFor?.(this);
-        if (p) {
-          this._aimPoint = p;
-          const adx = this.world.wrapDelta(p.x - this.pos.x);
-          const adz = this.world.wrapDelta(p.z - this.pos.z);
-          if (adx * adx + adz * adz > 1) this.yaw = this.targetYaw = Math.atan2(adx, adz);
-        }
-        this.doRanged();
+    // ---- LB lock-aim: while target lock is held, a light crosshair drifts
+    // onto the locked enemy (the HUD projects _lockAim into this player's
+    // view — fast camera swings and target dashes pull it off the body for
+    // a beat until it catches up) and any ranged attack fired during the
+    // lock flies at the crosshair's world point, height included ----
+    if (this.intent.lockOn && this.lockTarget?.alive && !this.isAI && this.alive) {
+      const c = this.lockTarget.center();
+      const tx = this.pos.x + this.world.wrapDelta(c.x - this.pos.x);
+      const tz = this.pos.z + this.world.wrapDelta(c.z - this.pos.z);
+      if (!this._lockAim) this._lockAim = new THREE.Vector3(tx, c.y, tz);
+      else {
+        const r = 1 - Math.exp(-9 * dt);
+        this._lockAim.x += (tx - this._lockAim.x) * r;
+        this._lockAim.y += (c.y - this._lockAim.y) * r;
+        this._lockAim.z += (tz - this._lockAim.z) * r;
       }
+    } else {
+      this._lockAim = null;
     }
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
@@ -1767,8 +1762,8 @@ export class Fighter {
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this._whirlHold = null;
     this._punchHold = null;
-    this._aimHold = false;
     this._aimPoint = null;
+    this._lockAim = null;
     this.clearChargeGlow();
     if (this._fistOut) { // fist projectile died with the round — re-attach
       this._fistOut = false;
