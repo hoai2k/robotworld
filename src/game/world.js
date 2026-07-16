@@ -369,6 +369,20 @@ export class World {
         this.audio?.play('missile');
         this.effects.muzzleFlash(from);
         break;
+      case 'fist': { // TITANUS: the fist itself is the round — it flies out
+        // flat, swings around at range and comes home to the wrist,
+        // clobbering on both legs of the trip (boomerang + pierce)
+        const p = this.projectiles.spawn('fist', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffb43c,
+          knock: mv.knock, launch: 5, pierce: true, boomerang: true,
+          maxDist: mv.range, life: 6, size: f.scale || 1,
+        });
+        p.onReturn = () => f.catchFist();
+        f.launchFist();
+        this.audio?.play('missile');
+        this.effects.muzzleFlash(from);
+        break;
+      }
       case 'plasma': {
         // NOVA: shots fired while the halo glows at apex alignment come out
         // bigger and hotter (novaGlow 0..1 from the animator)

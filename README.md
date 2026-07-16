@@ -47,7 +47,7 @@ force it off). Desktop keyboard + controller local multiplayer is unchanged.
 
 | Mech | Role | Ranged | Special | Ultimate |
 |------|------|--------|---------|----------|
-| 👊 **TITANUS** | Colossal brawler | Rocket Fist | Seismic Slam | METEOR BREAKER |
+| 👊 **TITANUS** | Colossal brawler | Rocket Fist | Skyline Slam | METEOR BREAKER |
 | 🔫 **VULCAN** | Gatling gunner | Gatling Burst | Micro-Missile Volley | BULLET HURRICANE |
 | 🛡️ **AEGIS** | Shield paladin | Dawn Javelin | Bulwark Bash | JUDGMENT RAY |
 | 🗡️ **VIPER** | Blade assassin | Fang Throw | Phantom Strike | SERPENT STORM |
@@ -94,6 +94,14 @@ too). Release with no direction held and the charge simply cancels.
 squares up and keeps facing them (so sideways movement becomes a natural
 strafe), and your camera swings to keep the target in frame. Shots fire
 straight down the lock line. Releasing LB drops the lock.
+
+**Charged strikes (TITANUS & COLOSSUS).** Hold the light-attack button to
+keep the haymaker wound up at the hip, or the heavy button to keep the
+overhead pound raised — the strike banks power while held and fires on
+release, up to roughly double damage with hugely increased knockback.
+TITANUS' ranged attack is the classic **Rocket Fist**: the fist launches
+straight ahead, boomerangs back to his arm, and hits enemies on both the
+outward and the return path (you can't fire again until it's home).
 
 **Finishers** can be skipped by holding **A** (Space/Enter on keyboard) for one second.
 

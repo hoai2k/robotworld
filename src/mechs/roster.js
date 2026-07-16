@@ -15,12 +15,19 @@ export const ROSTER = [
     stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22, blockMult: 0.09 },
     ui: { power: 10, speed: 3, defense: 9 },
     // telegraphed haymakers: full wind-up, and a landed punch sends the
-    // victim FLYING — nobody else's fists move people like this
+    // victim FLYING — nobody else's fists move people like this. Both the
+    // punch (hold X) and the overhead pound (hold Y) are CHARGEABLE: the
+    // arm stays wound/raised while held, release strikes with banked power
     lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
+    punchHold: true,
+    heavyClip: 'poundHold',
+    heavyHold: true,
+    heavyReleaseClip: 'poundSlam',
+    rangedClip: 'fistLaunch',
     moves: {
       light: { dmg: [46, 50, 68], knock: [16, 18, 30], range: 3.4 },
       heavy: { dmg: 105, knock: 38, range: 3.8, launch: 9 },
-      ranged: { name: 'Seismic Slam', type: 'groundpound', dmg: 52, cooldown: 1.6, radius: 9, knock: 18 },
+      ranged: { name: 'Rocket Fist', type: 'fist', dmg: 55, speed: 42, cooldown: 2.4, range: 26, knock: 14 },
       special: { id: 'grabThrow', name: 'Skyline Slam', cooldown: 8, dmg: 88, range: 4.2, throw: 32, radius: 5 },
       ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
     },
@@ -60,10 +67,12 @@ export const ROSTER = [
     stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
     // spear-and-shield doctrine: the shield holds a squared low-front guard
-    // through EVERY form while the lance swings arcs around it. The heavy is
-    // hold-to-charge: the overhead rotor-whirl LOOPS while Y is held,
-    // banking power (2.4s cap), and the lunge lands it on release
+    // through EVERY form while the lance STABS forward around it, tip always
+    // on the target line (see the handR aim note in animations.js). The
+    // heavy is hold-to-charge: the overhead rotor-whirl LOOPS while Y is
+    // held, banking power (2.4s cap), and the lunge lands it on release
     lightClips: ['aegisStab1', 'aegisStab2', 'aegisPierce'],
+    rangedClip: 'aegisThrow',
     heavyClip: 'aegisWhirlHold',
     heavyHold: true,
     heavyReleaseClip: 'aegisLunge',
@@ -229,8 +238,13 @@ export const ROSTER = [
     stats: { hp: 1300, speed: 6.5, jump: 11, weight: 1.0, armor: 0.24, blockMult: 0.09 },
     ui: { power: 9, speed: 2, defense: 9 },
     // same doctrine as TITANUS: wind the fist all the way back, then send
-    // whatever it lands on across the street
+    // whatever it lands on across the street — punches (hold X) and the
+    // overhead pound (hold Y) both charge while held
     lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
+    punchHold: true,
+    heavyClip: 'poundHold',
+    heavyHold: true,
+    heavyReleaseClip: 'poundSlam',
     moves: {
       light: { dmg: [42, 46, 62], knock: [15, 17, 28], range: 3.5 },
       heavy: { dmg: 100, knock: 36, range: 3.9, launch: 9 },

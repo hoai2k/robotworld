@@ -38,6 +38,20 @@ const VISUALS = {
   spear: { // AEGIS: the hurled lance — a long javelin flying point-first
     geo: () => new THREE.ConeGeometry(0.15, 3.6, 6), rot: true, trail: 'glow',
   },
+  fist: { // TITANUS: the detached rocket fist — a chunky knuckle block
+    // punching through the air nose-first, jet exhaust off the wrist
+    geo: () => {
+      const g = new THREE.BoxGeometry(0.95, 0.72, 1.05, 2, 2, 2);
+      const pos = g.attributes.position;
+      for (let i = 0; i < pos.count; i++) {
+        // knuckle ridge: bulge the top-front edge
+        if (pos.getY(i) > 0.3 && pos.getZ(i) > 0.4) pos.setY(i, pos.getY(i) + 0.14);
+      }
+      g.computeVertexNormals();
+      return g;
+    },
+    faceVel: true, trail: 'smoke',
+  },
   wave: { geo: () => new THREE.TorusGeometry(1.4, 0.16, 6, 14, Math.PI * 0.7), waveRot: true, trail: 'glow' },
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
   mortar: { geo: () => new THREE.SphereGeometry(0.42, 8, 6), trail: 'smoke' },
@@ -117,6 +131,8 @@ export class ProjectileSystem {
       wobble: spec.wobble || 0,
       goop: !!spec.goop,
       soft: !!spec.soft,
+      boomerang: !!spec.boomerang, // flies out, then homes back to its owner
+      returning: false,
       age: rand(0, 6.28), // desyncs flap/wobble phase across a swarm
     };
     if (p.size !== 1) p.mesh.scale.multiplyScalar(p.size);
@@ -184,6 +200,20 @@ export class ProjectileSystem {
           _v.addScaledVector(p.homing.vel, Math.min(dist / sp, 0.5) * 0.8);
           _v.sub(p.mesh.position).normalize();
           p.vel.normalize().lerp(_v, clamp(p.turnRate * dt, 0, 1)).normalize().multiplyScalar(sp);
+        }
+      }
+      // boomerang (rocket fist): once it's coming home, hard-home on the
+      // thrower at full speed — clobbering whatever crosses the return path
+      if (p.boomerang && p.returning && p.owner) {
+        _v.copy(p.owner.center());
+        _v.x = p.mesh.position.x + world.wrapDelta(_v.x - p.mesh.position.x);
+        _v.z = p.mesh.position.z + world.wrapDelta(_v.z - p.mesh.position.z);
+        const sp = p.vel.length();
+        _dir.copy(_v).sub(p.mesh.position);
+        if (_dir.length() < Math.max(1.6, sp * dt * 1.5)) {
+          p.life = -1; // home — the dead path below re-attaches it (onReturn)
+        } else {
+          p.vel.copy(_dir.normalize().multiplyScalar(sp));
         }
       }
       if (p.gravity) p.vel.y -= p.gravity * dt;
@@ -280,9 +310,16 @@ export class ProjectileSystem {
 
       // ground
       if (!dead && p.mesh.position.y <= 0.15) {
-        if (p.splash) world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch, status: p.status });
-        else world.effects.impactSparks(p.mesh.position, p.color, 6, 5);
-        dead = true;
+        if (p.boomerang) { // skims the deck, kicks up and whips back home
+          p.mesh.position.y = 0.2;
+          p.vel.y = Math.abs(p.vel.y) * 0.4 + 2.5;
+          world.effects.impactSparks(p.mesh.position, p.color, 6, 5);
+          this.startReturn(p);
+        } else {
+          if (p.splash) world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch, status: p.status });
+          else world.effects.impactSparks(p.mesh.position, p.color, 6, 5);
+          dead = true;
+        }
       }
 
       // buildings — substepped so fast rounds can't tunnel through a wall
@@ -296,39 +333,62 @@ export class ProjectileSystem {
           }
         }
         if (bHit) {
-          if (p.splash) {
+          if (p.boomerang) { // the fist PUNCHES THROUGH and keeps flying
+            world.arena.damageSphere(bHit, 2.4, p.dmg * 1.4, _v.copy(p.vel).normalize());
+            world.effects.impactSparks(bHit, p.color, 10, 7);
+            this.startReturn(p);
+          } else if (p.splash) {
             world.explode(bHit, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+            dead = true;
           } else {
             world.arena.damageSphere(bHit, 2.2, p.dmg * 1.4, _v.copy(p.vel).normalize());
             world.effects.impactSparks(bHit, p.color, 8, 6);
+            dead = true;
           }
-          dead = true;
         }
         // solid props stop rounds too (and break under them)
         if (!dead && world.arena.propAt && world.arena.propAt(p.mesh.position)) {
-          if (p.splash) {
+          if (p.boomerang) { // smashed through — keep flying
+            world.arena.damageProps(p.mesh.position, 1.6, p.dmg * 1.3, _v.copy(p.vel).normalize());
+            world.effects.impactSparks(p.mesh.position, p.color, 8, 6);
+            this.startReturn(p);
+          } else if (p.splash) {
             world.explode(p.mesh.position, p.splash, p.dmg, { owner: p.owner, knock: p.knock, color: p.color, launch: p.launch });
+            dead = true;
           } else {
             world.arena.damageProps(p.mesh.position, 1.6, p.dmg * 1.3, _v.copy(p.vel).normalize());
             world.effects.impactSparks(p.mesh.position, p.color, 8, 6);
+            dead = true;
           }
-          dead = true;
         }
       }
 
-      if (p.life <= 0 || p.dist > p.maxDist) dead = true;
+      // boomerangs use maxDist as the TURNAROUND point, not a kill line
+      if (p.boomerang && !p.returning && p.dist > p.maxDist) this.startReturn(p);
+      if (p.life <= 0 || (!p.boomerang && p.dist > p.maxDist)) dead = true;
 
       if (dead) {
         if (p.goop) { // goo goes SPLAT wherever it dies: a puddle that stays
           world.effects.puddle(p.mesh.position, { slime: true });
           world.effects.slime(p.mesh.position, 6, 5);
         }
+        if (p.boomerang && p.onReturn) { p.onReturn(); p.onReturn = null; }
         p.mesh.visible = false;
         p.mesh.scale.set(1, 1, 1);
         this.pool.get(p.type).push(p.mesh);
         this.active.splice(i, 1);
       }
     }
+  }
+
+  // flip a boomerang onto its homeward leg: wipe the hit ledger so the same
+  // enemies can be clobbered again on the way back
+  startReturn(p) {
+    if (p.returning) return;
+    p.returning = true;
+    p.hitSet.clear();
+    this.world.effects?.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
+      0, 0, 0, { life: 0.25, size: 2.2, color: p.color, alpha: 0.9 });
   }
 
   // ---- hitscan helpers ----

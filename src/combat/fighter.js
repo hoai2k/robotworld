@@ -225,6 +225,18 @@ export class Fighter {
   // ================= actions =================
   doLight() {
     const mv = this.def.moves.light;
+    // hold-to-charge haymaker (TITANUS/COLOSSUS): the wind-up pose HOLDS
+    // while X stays down; the punch itself fires on release (updatePunchHold)
+    if (this.def.punchHold) {
+      this._punchIdx = this.comboIdx % 2; // alternate arms
+      this._punchHold = 0.0001;
+      this._punchFull = false;
+      this.faceNearestEnemyIfClose(12);
+      this.animator.play(this._punchIdx ? 'punchHold2' : 'punchHold1');
+      this.setState('attack', 9);
+      this.world.audio?.play('servo');
+      return;
+    }
     // per-mech combo clips (sword forms, spear forms, haymakers...) — the
     // shared punch trio is only the default
     const names = this.def.lightClips || ['light1', 'light2', 'light3'];
@@ -258,8 +270,9 @@ export class Fighter {
       return;
     }
     this.faceNearestEnemyIfClose(14);
-    // hold-to-charge heavy (AEGIS): the whirl LOOPS while Y stays held,
-    // banking power; the lunge and the hit come on release (updateHeavyHold)
+    // hold-to-charge heavy (AEGIS whirl, TITANUS/COLOSSUS raised pound):
+    // the hold clip LOOPS while Y stays down, banking power; the strike and
+    // the hit come on release (updateHeavyHold)
     if (this.def.heavyHold) {
       this._whirlHold = 0.0001;
       this._whirlFull = false;
@@ -343,6 +356,7 @@ export class Fighter {
   doRanged() {
     const mv = this.def.moves.ranged;
     if (this.rangedCd > 0) return;
+    if (mv.type === 'fist' && this._fistOut) return; // fist still in flight
     if (this.ammoMax !== undefined && this.ammo <= 0) {
       this.world.audio?.play('uiBack'); // dry click — find an ammo crate
       this.rangedCd = 0.4;
@@ -363,9 +377,10 @@ export class Fighter {
     } else {
       // twin-cannon mechs alternate sides shot to shot (mirrored animation)
       if (mv.type === 'mortar' && this.mech.anchors.muzzleL) this._altSide = !this._altSide;
-      const clip = mv.type === 'mortar' ? (this._altSide ? 'braceL' : 'brace')
+      const clip = this.def.rangedClip
+        || (mv.type === 'mortar' ? (this._altSide ? 'braceL' : 'brace')
         : mv.type === 'railgun' ? 'aim'
-        : mv.type === 'groundpound' ? 'groundPound' : 'shoot';
+        : mv.type === 'groundpound' ? 'groundPound' : 'shoot');
       this.rangedCd = mv.cooldown;
       // single-shot weapons spend ammo too (channel weapons decrement in
       // their own loop) — without this they never drain and never refill
@@ -572,7 +587,7 @@ export class Fighter {
       if (this._whirlFxT <= 0) {
         this._whirlFxT = 0.42 - 0.24 * k;
         this.world.effects.rings.spawn(this.pos, {
-          from: 2.6, to: 0.8, dur: 0.26, color: 0x9fd8ff, y: 0.4,
+          from: 2.6, to: 0.8, dur: 0.26, color: this.def.colors.glow, y: 0.4,
         });
       }
       if (k >= 1 && !this._whirlFull) {
@@ -582,10 +597,11 @@ export class Fighter {
       }
       return;
     }
-    // released: discharge the banked whirl into the lunge
+    // released: discharge the banked hold into the strike
     const k = clamp01(this._whirlHold / cap);
     this._whirlHold = null;
     this._heavyLungeK = k;
+    this.faceNearestEnemyIfClose(14); // re-square: they moved during the hold
     const mv = this.def.moves.heavy;
     const dur = this.animator.play(this.def.heavyReleaseClip, {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
@@ -597,6 +613,60 @@ export class Fighter {
       }),
     });
     this.setState('attack', dur * 0.9);
+    if (k > 0.4) this.world.audio?.play('whooshBig');
+  }
+
+  // ---- hold-to-charge haymaker (TITANUS/COLOSSUS): same contract as the
+  // heavy hold — the wind-up loop keeps the fist cocked while X stays down,
+  // and releasing throws the punch with the banked damage/knock. A full
+  // charge sends the victim across the street like nothing else ----
+  updatePunchHold(dt) {
+    const cap = 1.8;
+    const idx = this._punchIdx || 0;
+    const holdClip = idx ? 'punchHold2' : 'punchHold1';
+    if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(holdClip)) {
+      this._punchHold = null;
+      return;
+    }
+    if (this.intent.lightHeld) {
+      this._punchHold = Math.min(cap, this._punchHold + dt);
+      this.stateT = Math.max(this.stateT, 0.3); // stay in the hold
+      const k = this._punchHold / cap;
+      // charge tell: energy crackles off the cocked fist as power banks
+      this._punchFxT = (this._punchFxT ?? 0) - dt;
+      if (this._punchFxT <= 0) {
+        this._punchFxT = 0.3 - 0.18 * k;
+        const j = this.mech.joints[idx ? 'handR' : 'handL'];
+        if (j) {
+          j.getWorldPosition(_v);
+          this.world.effects.glows.emit(_v.x, _v.y, _v.z,
+            rand(-1, 1), rand(0, 2), rand(-1, 1),
+            { life: 0.22, size: 0.5 + 0.9 * k, color: this.def.colors.glow, alpha: 0.9 });
+        }
+      }
+      if (k >= 1 && !this._punchFull) {
+        this._punchFull = true;
+        this.world.audio?.play('powerup');
+        this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 3.5, dur: 0.3, color: this.def.colors.glow, y: 0.5 });
+      }
+      return;
+    }
+    // released: throw the banked punch
+    const k = clamp01(this._punchHold / cap);
+    this._punchHold = null;
+    const mv = this.def.moves.light;
+    this.faceNearestEnemyIfClose(12);
+    const dur = this.animator.play(idx ? 'punchRelease2' : 'punchRelease1', {
+      onEvent: (type, arg) => this.onAttackEvent(type, arg, {
+        dmg: mv.dmg[idx] * (1 + 1.1 * k) * this.dmgMult(),
+        knock: mv.knock[idx] * (1 + 1.2 * k),
+        range: mv.range * this.scale * (1 + 0.1 * k),
+        launch: 10 * k,
+        heavy: k > 0.55,
+      }),
+    });
+    this.setState('attack', dur * 0.85);
+    this.comboIdx++;
     if (k > 0.4) this.world.audio?.play('whooshBig');
   }
 
@@ -682,6 +752,25 @@ export class Fighter {
           { life: rand(0.4, 0.8), size: rand(1.2, 2.2), color: 0x9fb8c8, alpha: 0.22, grow: 1.5 });
       }
     }
+  }
+
+  // ---- ROCKET FIST (TITANUS): the punching fist detaches and flies as a
+  // boomerang projectile; the hand stays hidden until it thunks back on ----
+  launchFist() {
+    this.mech.joints.handR?.scale.setScalar(0.001);
+    this._fistOut = true;
+  }
+
+  catchFist() {
+    if (!this._fistOut) return;
+    this._fistOut = false;
+    const j = this.mech.joints.handR;
+    if (j) {
+      j.scale.setScalar(1);
+      j.getWorldPosition(_v);
+      this.world.effects.impactSparks(_v, this.def.colors.glow, 8, 5);
+    }
+    this.world.audio?.play('servo');
   }
 
   // ---- thrown-weapon regrow: hide the weapon group, then rebuild it in the
@@ -1320,6 +1409,7 @@ export class Fighter {
 
     // ---- hold-to-charge heavy (whirl banking power until release) ----
     if (this._whirlHold != null) this.updateHeavyHold(dt);
+    if (this._punchHold != null) this.updatePunchHold(dt);
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
     // ---- thrown weapons re-forging in the grip ----
@@ -1520,6 +1610,12 @@ export class Fighter {
     this.height = this.baseHeight;
     this.hitRadius = this.baseHitRadius;
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
+    this._whirlHold = null;
+    this._punchHold = null;
+    if (this._fistOut) { // fist projectile died with the round — re-attach
+      this._fistOut = false;
+      this.mech.joints.handR?.scale.setScalar(1);
+    }
     this.animator.action = null;
   }
 }

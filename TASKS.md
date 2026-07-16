@@ -1314,3 +1314,33 @@ controllers via Gamepad API), AI opponents.
   damage both ways (1084 vs 570 hp); skip fired at 0.98s of held Space
   and cleared the finisher; skip-UI screenshot reviewed; veteran and ace
   soaks crash-free with clean KOs.
+
+63. AEGIS SPEAR-FORWARD FORMS + JAVELIN THROW · TITANUS ROCKET FIST · CHARGED PUNCHES/POUNDS ✅
+  · Found WHY Aegis read as "punching with a spear": the lance lies along
+    the HAND's local +Z, so a forward-thrust arm leaves the tip pointing
+    straight UP out of the fist. New identity handR.x ~= -(shoulderX +
+    elbowX) keeps the point ON the target line — all three lights are now
+    true spear forms (level mid thrust, high line driven over the shield
+    rim, lunging skewer), and the pierce/lunge got the same hand fix so
+    the heavy lunge leads point-first too. Shield never leaves guard.
+  · AEGIS ranged re-authored as a real JAVELIN THROW (aegisThrow clip):
+    chambers the lance level past the ear and whips it forward at chest
+    height (fire at full reach) instead of the old raised-arm sky shot.
+    New def.rangedClip plumbing lets any mech override its shoot clip.
+  · TITANUS ranged is now the ROCKET FIST: the right fist detaches on a
+    straight punch (fistLaunch clip), flies out ~26u as a boomerang
+    projectile, swings around and homes back to his wrist — hitting
+    enemies on BOTH legs (hit ledger cleared at the turn), punching
+    through buildings/props, and re-attaching with a spark on the catch.
+    The hand hides while it's out and RB is locked until it's home.
+  · TITANUS + COLOSSUS charged strikes: HOLD X keeps the haymaker wound
+    at the hip (punchHold loop, trembling, glow crackle tell, ring flash
+    at the 1.8s cap) and releasing throws it with banked power — probe:
+    tap 41 dmg vs full 81, full charge launches. HOLD Y keeps the pound
+    raised overhead (poundHold) via the same hold-release machinery as
+    the aegis whirl; full pound landed 141 and knocked down. Charge ring
+    color now uses each mech's glow color.
+  Verified: build green; probe (fist round trip + hand restore + refire
+  lock, punch tap/full, pound, aegis throw spawn level at chest height);
+  stills reviewed (stab thrust tip-forward, both hold poses); ace and
+  veteran soaks crash-free with clean KOs.

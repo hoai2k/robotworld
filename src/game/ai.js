@@ -20,6 +20,7 @@ function preferredRange(def) {
   if (t === 'railgun' || t === 'mortar') return 26;
   if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning' || t === 'bats') return 16;
   if (t === 'shard' || t === 'slime' || t === 'flea') return 14;
+  if (t === 'fist') return 13; // rocket fist: mid-range boomerang
   if (t === 'flame' || t === 'hose') return 9;
   if (t === 'groundpound') return 4; // stand IN their face and slam
   return 5; // brawlers (dart, wave, rocket, feather)
