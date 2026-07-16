@@ -3,10 +3,15 @@
 // dodging, special/ult usage. Three difficulty tiers.
 import { rand, clamp, angleDiff } from '../core/utils.js';
 
+// blockP/dodgeP are PER-SECOND reaction rates (they used to be rolled per
+// FRAME, which made even a veteran block/dodge nearly everything — the #1
+// "why does the AI feel unbeatable" culprit). aimErr is yaw error in
+// radians applied to every AI aim snap (humans aim by camera; a perfect
+// snap was the #2 culprit). pace scales the gaps between attack beats.
 export const DIFFICULTY = {
-  rookie: { react: 0.55, aggression: 0.45, blockP: 0.15, dodgeP: 0.12, ultDelay: 2.5, err: 0.5 },
-  veteran: { react: 0.3, aggression: 0.7, blockP: 0.38, dodgeP: 0.3, ultDelay: 1.2, err: 0.25 },
-  ace: { react: 0.14, aggression: 0.9, blockP: 0.6, dodgeP: 0.5, ultDelay: 0.4, err: 0.1 },
+  rookie: { react: 0.6, aggression: 0.4, blockP: 0.5, dodgeP: 0.4, ultDelay: 2.8, err: 0.5, aimErr: 0.3, pace: 1.7 },
+  veteran: { react: 0.34, aggression: 0.65, blockP: 1.4, dodgeP: 1.0, ultDelay: 1.3, err: 0.28, aimErr: 0.16, pace: 1.15 },
+  ace: { react: 0.16, aggression: 0.88, blockP: 3.2, dodgeP: 2.2, ultDelay: 0.5, err: 0.1, aimErr: 0.05, pace: 0.75 },
 };
 
 // preferred fighting range by ranged-weapon type
@@ -115,19 +120,25 @@ export class AIController {
       if (Math.random() < 0.5) I.jump = true;
     }
 
-    // ---- defense: react to attacking enemies ----
+    // ---- defense: react to attacking enemies (per-SECOND rates, so a
+    // reaction is a humanlike read, not a guaranteed per-frame reflex) ----
     const threat = t.state === 'attack' || t.state === 'special' || t.state === 'ult';
     if (threat && dist < 8) {
-      if (Math.random() < this.d.dodgeP) I.dash = true;
-      else if (Math.random() < this.d.blockP) I.block = true;
+      if (Math.random() < this.d.dodgeP * dt) I.dash = true;
+      else if (Math.random() < this.d.blockP * dt) this._blockT = rand(0.35, 0.7);
     }
     // dodge incoming projectiles
-    if (Math.random() < this.d.dodgeP * dt * 6) {
+    if (Math.random() < this.d.dodgeP * dt * 1.2) {
       for (const p of f.world.projectiles.active) {
         if (p.owner === f) continue;
         const toF = f.pos.distanceTo(p.mesh.position);
         if (toF < 12) { I.dash = true; break; }
       }
+    }
+    // a triggered block is HELD for a beat (one-frame blocks did nothing)
+    if (this._blockT > 0) {
+      this._blockT -= dt;
+      I.block = true;
     }
     if (I.block) { I.moveX = I.moveZ = 0; }
 
@@ -146,28 +157,40 @@ export class AIController {
     const canBreak = (f.def.stats.guardBreak || 0) > 0.3;
     if (targetBlocking && !canBreak && Math.random() < 0.6) I.duck = true;
 
-    // ---- offense ----
+    // ---- offense: PACED beats instead of every-frame spam ----
+    // aim error rides on the fighter's AI aim snap (fighter.js applies it)
+    f._aimErr = this.d.aimErr;
+    this._atkT = (this._atkT || 0) - dt;
+    this._fireT = (this._fireT || 0) - dt;
+    this._fireCd = (this._fireCd || 0) - dt;
     if (f.canAct() && !I.block) {
-      const err = Math.random() < this.d.err; // fumble: do nothing
-      if (!err) {
-        const uMv = f.def.moves.ult;
-        const ultRange = SELF_AOE_ULTS.has(uMv.id) ? (uMv.radius || 12) - 2 : 24;
-        const spMv = f.def.moves.special;
-        const spRange = SELF_AOE_SPECIALS.has(spMv.id) ? (spMv.radius || 8) - 1 : this.rangedPref * 1.6;
-        if (f.ult >= 1 && dist < ultRange && Math.random() < dt / this.d.ultDelay) {
-          I.ult = true;
-        } else if (f.specialCd <= 0 && dist < spRange && Math.random() < dt * 1.4) {
-          I.special = true;
-        } else if (melee || dist < 6) {
-          if (dist < f.def.moves.light.range * f.scale + 1.2) {
+      const uMv = f.def.moves.ult;
+      const ultRange = SELF_AOE_ULTS.has(uMv.id) ? (uMv.radius || 12) - 2 : 24;
+      const spMv = f.def.moves.special;
+      const spRange = SELF_AOE_SPECIALS.has(spMv.id) ? (spMv.radius || 8) - 1 : this.rangedPref * 1.6;
+      if (f.ult >= 1 && dist < ultRange && Math.random() < dt / this.d.ultDelay) {
+        I.ult = true;
+      } else if (f.specialCd <= 0 && dist < spRange && Math.random() < dt * 1.4) {
+        I.special = true;
+      } else if (melee || dist < 6) {
+        if (dist < f.def.moves.light.range * f.scale + 1.2 && this._atkT <= 0) {
+          // a swing beat: sometimes the AI hesitates instead (its "whiff")
+          this._atkT = (0.2 + this.d.react * rand(0.9, 1.8)) * this.d.pace;
+          if (Math.random() >= this.d.err) {
             if (Math.random() < 0.25) I.heavy = true;
             else I.light = true;
           }
-        } else if (dist < this.rangedPref * 1.7 && f.rangedCd <= 0 &&
-                   !(f.ammoMax !== undefined && f.ammo <= 0)) {
-          // face target implicitly via fighter auto-aim
+        }
+      } else if (dist < this.rangedPref * 1.7 &&
+                 !(f.ammoMax !== undefined && f.ammo <= 0)) {
+        // fire in human-length BURSTS with real pauses between them,
+        // not a continuous max-rate hose
+        if (this._fireT > 0) {
           I.ranged = true;
           I.duck = false; // can't fire mid-crouch reliably; stand to shoot
+        } else if (this._fireCd <= 0 && Math.random() < dt * 3) {
+          this._fireT = rand(0.5, 1.2);
+          this._fireCd = this._fireT + (0.4 + this.d.react * rand(1, 2)) * this.d.pace;
         }
       }
     }

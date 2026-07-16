@@ -451,7 +451,10 @@ export class Fighter {
     const dx = this.world.wrapDelta(e.pos.x - this.pos.x);
     const dz = this.world.wrapDelta(e.pos.z - this.pos.z);
     if (always || Math.hypot(dx, dz) < maxDist) {
-      this.targetYaw = Math.atan2(dx, dz);
+      // the AI's aim snap carries a per-difficulty yaw ERROR — humans aim
+      // with the camera and miss; a pixel-perfect snap felt unbeatable
+      const err = this._aimErr ? (Math.random() * 2 - 1) * this._aimErr : 0;
+      this.targetYaw = Math.atan2(dx, dz) + err;
       this.yaw = this.targetYaw;
     }
   }

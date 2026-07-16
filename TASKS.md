@@ -1287,3 +1287,30 @@ controllers via Gamepad API), AI opponents.
     tap 67 dmg vs full hold 172). New intent.heavyHeld on all devices.
   Verified: build green; swing + whirl-hold stills (shield square in
   front in both); probes above; aegis-vs-tempest ace soak crash-free.
+
+62. AI DIFFICULTY TONE-DOWN + HOLD-A FINISHER SKIP ✅
+  · Diagnosed WHY the AI felt unbeatable — three compounding edges:
+    (1) block/dodge probabilities were rolled PER FRAME (veteran's 0.38
+    at 60fps ≈ blocks/dodges nearly every attack), (2) the AI aim snap
+    in faceNearestEnemyIfClose was pixel-perfect every frame, and
+    (3) attack/fire intents were issued EVERY FRAME, so the AI attacked
+    and shot at the maximum rate the state machine allowed.
+  · ai.js DIFFICULTY rebuilt: blockP/dodgeP are now PER-SECOND reaction
+    rates (rookie 0.5/0.4 · veteran 1.4/1.0 · ace 3.2/2.2), a triggered
+    block is HELD 0.35–0.7s (one-frame blocks did nothing), new aimErr
+    (radians of yaw error on every aim snap: 0.3/0.16/0.05) and pace
+    (gap multiplier between attack beats: 1.7/1.15/0.75).
+  · Melee now swings on PACED beats with hesitation whiffs (err rolls a
+    skipped beat), ranged fires in 0.5–1.2s BURSTS with real cooldown
+    pauses between them instead of a continuous max-rate hose.
+  · fighter.js faceNearestEnemyIfClose applies f._aimErr as random yaw
+    error, so AI melee/shots can genuinely miss like a human's would.
+  · FINISHER SKIP: hold A (Space/Enter on keyboard, jump on touch) for
+    1s during a KO cinematic to skip it — a green Ⓐ chip with an
+    animated conic progress ring + "SKIP" label appears while held,
+    charge decays when released. README + pause CONTROLS legend updated.
+  Verified: build green; probe: veteran block rate fell to 7% of attacked
+  frames, aimErr 0.16 live on fighters, 10s AI-v-AI exchange traded
+  damage both ways (1084 vs 570 hp); skip fired at 0.98s of held Space
+  and cleared the finisher; skip-UI screenshot reviewed; veteran and ace
+  soaks crash-free with clean KOs.

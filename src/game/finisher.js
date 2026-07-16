@@ -189,8 +189,57 @@ export class Finisher {
     this._spectre = null;
   }
 
+  // ---- skip: hold A (Space/Enter/jump) for 1s to cut straight to the end.
+  // A green Ⓐ chip with a filling ring + SKIP label appears while held. ----
+  updateSkip(dt) {
+    const inp = this.w.input;
+    if (!inp || this.ended) return;
+    let held = inp.key?.('Space') || inp.key?.('Enter');
+    for (let i = 0; i < 4 && !held; i++) if (inp.padHeld?.(i, 'A')) held = true;
+    if (!held && inp.touch?.held?.has('jump')) held = true;
+    if (held) {
+      this.skipT = (this.skipT || 0) + dt;
+      this.showSkipUI();
+      if (this.skipT >= 1) { this.end(); return; }
+    } else {
+      this.skipT = Math.max(0, (this.skipT || 0) - dt * 3);
+      if (this.skipT <= 0) this.hideSkipUI();
+    }
+    if (this._skipRing) {
+      this._skipRing.style.background =
+        `conic-gradient(#7be87b ${Math.min(1, this.skipT) * 360}deg, rgba(120,232,120,0.15) 0deg)`;
+    }
+  }
+
+  showSkipUI() {
+    if (this._skipUI) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'position:absolute;bottom:9%;left:50%;transform:translateX(-50%);' +
+      'z-index:8;display:flex;align-items:center;gap:12px;pointer-events:none;' +
+      'font:700 15px monospace;color:#cfeaff;text-shadow:0 1px 3px #000;';
+    el.innerHTML = `
+      <div style="position:relative;width:46px;height:46px;">
+        <div class="skip-ring" style="position:absolute;inset:0;border-radius:50%;"></div>
+        <div style="position:absolute;inset:4px;border-radius:50%;background:#0d1620;
+          display:flex;align-items:center;justify-content:center;
+          font:800 22px sans-serif;color:#7be87b;">A</div>
+      </div>
+      <span style="letter-spacing:0.25em">SKIP</span>`;
+    document.getElementById('ui-root')?.appendChild(el);
+    this._skipUI = el;
+    this._skipRing = el.querySelector('.skip-ring');
+  }
+
+  hideSkipUI() {
+    this._skipUI?.remove();
+    this._skipUI = null;
+    this._skipRing = null;
+  }
+
   update(dt) {
     this.t += dt;
+    this.updateSkip(dt);
+    if (this.ended) return;
     for (const a of this.acts) {
       if (!a.done && this.t >= a.t) { a.done = true; a.fn(); }
     }
@@ -224,6 +273,7 @@ export class Finisher {
   end() {
     if (this.ended) return;
     this.ended = true;
+    this.hideSkipUI();
     this.dropSpectre();
     this.win.setOpacity?.(1);
     this.win.cinePuppet = false;

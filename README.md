@@ -95,6 +95,8 @@ squares up and keeps facing them (so sideways movement becomes a natural
 strafe), and your camera swings to keep the target in frame. Shots fire
 straight down the lock line. Releasing LB drops the lock.
 
+**Finishers** can be skipped by holding **A** (Space/Enter on keyboard) for one second.
+
 Controllers hot-plug: connect any time; assign them on the Battle Setup
 screen. Rumble is supported where the browser allows it.
 

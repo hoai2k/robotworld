@@ -633,6 +633,7 @@ export class PauseScreen {
       <b style="color:#fff">PAD LB — TARGET LOCK</b> — HOLD to lock onto the nearest enemy: you face them, the camera keeps them framed, and sideways movement becomes a strafe<br>
       <b style="color:#fff">AIM</b> — shots fire where the camera points (pad: hold LB target lock · keyboard: hold strafe-lock to face the camera line while moving sideways)<br>
       <b style="color:#fff">HOVER JETS</b> — press JUMP again in mid-air and HOLD to fly (lighter mechs fly higher)<br>
+      <b style="color:#fff">FINISHERS</b> — hold JUMP (A / SPACE) for 1s to skip the KO cinematic<br>
       <b style="color:#fff">DOWNED?</b> — press JUMP while knocked down to spring clear · every ranged weapon runs on AMMO — grab the yellow crates<br>
       <b style="color:#fff">WORLD</b> — the arena wraps: walk off any side and you come around the other<br>
       <b style="color:#fff">VIEW</b> — F9 flips the 2-player split (side-by-side ↔ stacked) · F10 fullscreen`;
