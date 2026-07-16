@@ -574,12 +574,17 @@ export const SPECIALS = {
         target.y = 0;
         w.audio?.play('cast');
         // the sim owns telegraph + eruption + collapse visuals; total show
-        // length = warn + sustain + ~0.95s collapse = sp.duration
-        w.geysers.push(new GeyserFX(w.scene, w.effects, target, {
-          height: 22, radius: 1.5, warn: WARN,
-          sustain: (sp.duration || 6) - WARN - 0.95,
-          boilRadius: sp.radius * 0.4,
-        }));
+        // length = warn + sustain + ~0.95s collapse = sp.duration. The
+        // {owner, dmg} fields arm the world's scald tick: anyone in the
+        // column keeps taking hits for the whole eruption
+        w.geysers.push({
+          fx: new GeyserFX(w.scene, w.effects, target, {
+            height: 22, radius: 1.5, warn: WARN,
+            sustain: (sp.duration || 6) - WARN - 0.95,
+            boilRadius: sp.radius * 0.4,
+          }),
+          owner: f, dmg: sp.dmg, radius: sp.radius, launch: sp.launch, tick: 0,
+        });
         // damage: one big hit at the blowout moment, same as always
         w.schedule(WARN, () => {
           w.audio?.play('wave');

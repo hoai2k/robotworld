@@ -9,6 +9,8 @@
 // close-ups over the default wide shot just by adding them.
 import * as THREE from 'three';
 import { rand, clamp01, lerp } from '../core/utils.js';
+import { GeyserFX } from '../combat/geyserfx.js';
+import { FlameFX } from '../combat/flamefx.js';
 
 const smooth = (k) => k * k * (3 - 2 * k);
 const _ct = new THREE.Vector3();
@@ -1115,18 +1117,30 @@ const SCRIPTS = {
       const dir = new THREE.Vector3(
         vic.pos.x - from.x, sweepY - from.y, vic.pos.z - from.z).normalize();
       w.effects.jet('flame:fin', from, dir, {
-        type: 'fire', speed: 30, range: 13, gravity: -4, r0: 0.22, r1: 1.7,
+        type: 'fire', speed: 30, range: 13, gravity: -4, r0: 0.32, r1: 2.2,
       });
-      if (Math.random() < dt * 24) w.effects.fire(from, dir, 30, 0.24);
-      if (Math.random() < dt * 7) w.audio?.play('flame');
-      // the BODY burns: flame tongues all over the frame, thickening as it
-      // chars — and the paint carbonizes to black across the spray
-      vic.applyCharring?.(Math.min(1, k * 1.2));
-      if (Math.random() < dt * (12 + 30 * k)) {
-        const bp = new THREE.Vector3(
-          vic.pos.x + rand(-0.9, 0.9), vic.pos.y + rand(0.3, vic.height), vic.pos.z + rand(-0.9, 0.9));
-        w.effects.fire(bp, new THREE.Vector3(rand(-0.2, 0.2), 1, rand(-0.2, 0.2)), 8, 0.4);
+      // shader-card flames ride the torch: tongues off the nozzle, and the
+      // VICTIM becomes a growing FlameFX burning source as they char.
+      // Parked in w.flameJets so the world ticks/extinguishes/cleans it.
+      let fj = w.flameJets.get('fin');
+      if (!fj) {
+        fj = {
+          nozzle: new FlameFX(w.scene, w.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false }),
+          impact: new FlameFX(w.scene, w.effects, vic.pos, { radius: 1.0, scale: 0.9, cards: 7, light: false }),
+          ttl: 0,
+        };
+        w.flameJets.set('fin', fj);
       }
+      fj.ttl = 0.16;
+      fj.nozzle.rekindle();
+      fj.impact.rekindle();
+      fj.nozzle.setPose(from, dir);
+      fj.impact.setPose(vic.pos);
+      fj.impact.scale = 0.9 + k * 0.9;   // the blaze builds as the paint chars
+      fj.impact.radius = 1.0 + k * 0.5;
+      if (Math.random() < dt * 10) w.effects.fire(from, dir, 30, 0.24); // embers
+      if (Math.random() < dt * 7) w.audio?.play('flame');
+      vic.applyCharring?.(Math.min(1, k * 1.2));
       if (Math.random() < dt * 10) {
         w.effects.glows.emit(vic.pos.x + rand(-1, 1), vic.pos.y + rand(0.5, vic.height), vic.pos.z + rand(-1, 1),
           0, 3.5, 0, { life: 0.5, size: rand(1.2, 2.2), color: 0xff7a20, alpha: 0.9 });
@@ -1157,13 +1171,9 @@ const SCRIPTS = {
       vic.pos.y = -0.35 * smooth(k) * vic.scale; // sags INTO the ground
     });
     F.at(4.45, () => F.finaleBurst(0xff6a20));
-    // the pyre burns under the whole victory pose
+    // the pyre burns under the whole victory pose (the fire patch dropped
+    // at 4.25 is a full FlameFX burning source — just add extra smoke)
     F.hold(4.4, F.dur, (k, dt) => {
-      if (Math.random() < dt * 18) {
-        const bp = new THREE.Vector3(
-          vic.pos.x + rand(-1.3, 1.3), rand(0.2, 1.8), vic.pos.z + rand(-1.3, 1.3));
-        w.effects.fire(bp, new THREE.Vector3(rand(-0.15, 0.15), 1, rand(-0.15, 0.15)), 7, 0.4);
-      }
       if (Math.random() < dt * 6) {
         w.effects.smoke.emit(vic.pos.x + rand(-1, 1), 1.5, vic.pos.z + rand(-1, 1),
           rand(-0.4, 0.4), rand(1.5, 3), rand(-0.4, 0.4),
@@ -1234,24 +1244,17 @@ const SCRIPTS = {
     F.camAction(1.0, 3.2, { dist: 12, h: 3.8, lookH: 2.4 });
     F.at(3.2, () => { win.animator.play('castRaise'); w.audio?.play('cast'); });
     F.at(3.6, () => {
-      w.effects.rings.spawn(vic.pos, { from: 0.6, to: 7, dur: 0.4, color: 0x4fc3ff, y: 0.3 });
+      // the REAL geyser sim: 0.4s boil under the wreck, then the column
+      // erupts at 4.0 exactly as the body launches (fx-only — no owner,
+      // so the world's scald tick leaves the cinematic alone)
+      w.geysers.push({
+        fx: new GeyserFX(w.scene, w.effects, vic.pos.clone().setY(0), {
+          height: 27, radius: 1.7, warn: 0.4, sustain: 1.3, boilRadius: 3,
+        }),
+      });
       w.audio?.play('wave');
     });
     F.at(4.0, () => {
-      const top = vic.pos.clone(); top.y += 30;
-      w.effects.beams.spawn(vic.pos.clone(), top, { radius: 2.4, dur: 0.7, color: 0x8fdcff });
-      for (let i = 0; i < 40; i++) { // real WATER roaring up the column
-        const a = rand(Math.PI * 2), r = rand(0, 2.5);
-        if (i % 4 === 0) {
-          w.effects.glows.emit(vic.pos.x + Math.cos(a) * r, rand(0.2, 2), vic.pos.z + Math.sin(a) * r,
-            Math.cos(a) * rand(1, 3), rand(18, 32), Math.sin(a) * rand(1, 3),
-            { life: rand(0.4, 0.7), size: rand(0.5, 1), color: 0xffffff, alpha: 0.55, gravity: 24, drag: 0.35 });
-        } else {
-          w.effects.drops.emit(vic.pos.x + Math.cos(a) * r, rand(0.2, 2), vic.pos.z + Math.sin(a) * r,
-            Math.cos(a) * rand(1, 3), rand(18, 32), Math.sin(a) * rand(1, 3),
-            { life: rand(0.7, 1.2), size: rand(1, 2.2), color: 0xcfe8f6, color2: 0x4276a8, alpha: 0.92, gravity: 24, drag: 0.35 });
-        }
-      }
       F.beat('explosionBig', 1, 0.1);
       vic.animator.play('launched');
     });

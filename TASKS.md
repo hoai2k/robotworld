@@ -1656,7 +1656,27 @@ controllers via Gamepad API), AI opponents.
   waist/hip/knee/thigh), 10-stack engulf (23 live patches, no wash),
   finisher engulf re-probed; both ace soaks crash-free; build green.
 
-77. NULLBOT GLITCH V3 — ON-TOP, DENSER, BODY-COLOR SMEARS · LEVITATION FINISHER (user feedback) ✅
+77. FIRE/WATER TECH ROLLED OUT EVERYWHERE + GEYSER SCALD (user request) ✅
+  · Finishers: CRANKY's launch column is a real GeyserFX (0.4s boil under
+    the wreck, erupts at the launch beat; fx-only entry — no scald in the
+    cinematic) replacing the old beam+particle spout. INFERNO's torch now
+    uses the bold flamethrower recipe: fat tube + FlameFX nozzle tongues,
+    and the VICTIM is a growing FlameFX burning source while they char
+    (parked in w.flameJets['fin'] so the world ticks/extinguishes it);
+    pyre fire() blobs dropped — the 4.25s fire patch is already FlameFX.
+  · Hose cannons upgraded with geyser tech: STREAM_FRAG gained an
+    aeration ramp (uFoam/uFoamAmt — water churns white downstream, same
+    trick as the column shader) and the hose fires TWO shells: aerated
+    outer stream + dense white 'watercore' heart (new JET_STYLES entry).
+  · Geyser scald: w.geysers entries are now {fx, owner, dmg, radius,
+    launch, tick}; while erupting, anyone inside the column (radius*0.55)
+    takes dmg*0.2 soft hits every 0.4s with a half launch + splash, for
+    the FULL spray duration. Big blowout hit at eruption unchanged.
+  Verified: build green; cranky-vs-inferno ace soak crash-free (scald
+  ticks land — inferno ground to 9hp/KO'd); finisher-demo probes shot
+  mid-scene: geyser column behind the launch, victim engulfed in tongues.
+
+78. NULLBOT GLITCH V3 — ON-TOP, DENSER, BODY-COLOR SMEARS · LEVITATION FINISHER (user feedback) ✅
   · Patches are true 2D screen artifacts now: depthTest OFF + renderOrder 9,
     so corruption always draws ON TOP of the character — from the back,
     through plating, from any angle (front/back probes confirmed).

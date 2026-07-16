@@ -38,6 +38,8 @@ const STREAM_FRAG = /* glsl */`
   uniform float uTime;
   uniform vec3 uCore;
   uniform vec3 uEdge;
+  uniform vec3 uFoam;     // aerated whitewater color (geyser tech)
+  uniform float uFoamAmt; // 0 = no aeration (fire), ~1 = churned water
   uniform float uAlpha;
   uniform float uBreak;   // how quickly the jet rags apart downstream
   varying vec2 vUv;
@@ -49,6 +51,10 @@ const STREAM_FRAG = /* glsl */`
     float mask = smoothstep(uBreak * vUv.x, uBreak * vUv.x + 0.4, n + 0.3 * (1.0 - vUv.x));
     float a = uAlpha * mask * (1.0 - vUv.x * 0.5);
     vec3 col = mix(uEdge, uCore, clamp(n * n * 1.7, 0.0, 1.0));
+    // aeration ramp (same trick as the geyser column): pressurized water
+    // churns WHITE the further it flies and the harder the noise breaks it
+    float foam = clamp(vUv.x * 1.3 - 0.15 + (n - 0.5) * 1.1, 0.0, 1.0) * uFoamAmt;
+    col = mix(col, uFoam, foam * foam);
     gl_FragColor = vec4(col, a);
     if (a < 0.02) discard;
   }
@@ -56,8 +62,10 @@ const STREAM_FRAG = /* glsl */`
 const JET_SEG = 16, JET_SIDES = 7;
 const JET_STYLES = {
   // kept well under bloom threshold: the jet must read as MATTER, not light
-  water: { core: 0xb8d8ea, edge: 0x2f5f88, alpha: 0.62, brk: 0.55, blending: THREE.NormalBlending },
-  fire: { core: 0xffc878, edge: 0xb62a06, alpha: 0.6, brk: 0.8, blending: THREE.AdditiveBlending },
+  water: { core: 0xb8d8ea, edge: 0x2f5f88, foam: 0xdceef6, foamAmt: 0.95, alpha: 0.68, brk: 0.55, blending: THREE.NormalBlending },
+  // dense white heart running inside the water jet (geyser two-shell trick)
+  watercore: { core: 0xeaf4fa, edge: 0x9cc8e4, foam: 0xf2f8fc, foamAmt: 0.6, alpha: 0.85, brk: 0.4, blending: THREE.NormalBlending },
+  fire: { core: 0xffc878, edge: 0xb62a06, foam: 0xffc878, foamAmt: 0, alpha: 0.6, brk: 0.8, blending: THREE.AdditiveBlending },
 };
 const _ja = new THREE.Vector3(), _jb = new THREE.Vector3(), _jt = new THREE.Vector3();
 
@@ -782,6 +790,8 @@ export class Effects {
           uTime: { value: rand(0, 10) },
           uCore: { value: new THREE.Color(style.core) },
           uEdge: { value: new THREE.Color(style.edge) },
+          uFoam: { value: new THREE.Color(style.foam ?? style.core) },
+          uFoamAmt: { value: style.foamAmt ?? 0 },
           uAlpha: { value: style.alpha },
           uBreak: { value: style.brk },
         },
