@@ -131,5 +131,6 @@ export function runGeyserTest() {
     engine.paused = true;
   }
   engine.start();
+  window.__geyserEngine = engine; // headless capture hook (step + screenshot)
   return engine;
 }
