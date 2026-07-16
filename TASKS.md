@@ -1524,3 +1524,25 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; cranky-vs-viper ace soak crash-free (clean
   KO); demo cycle stills reviewed at 4 phases; in-battle eruption
   screenshot via fast-forward probe (column reads at gameplay cam).
+
+72. INFERNO FIRE REBUILT AS SHADER-CARD FLAMES (user request) ✅
+  · New src/combat/flamefx.js: FlameFX — researched real-time fire
+    recipe (fire is an eroded shader, not fading particles). Billboarded
+    cards run a domain-distorted teardrop mask: two noise octaves racing
+    up at different rates shear the silhouette (tongues WRITHE), erosion
+    rises with height + card age (tips tear, dying tongues burn out
+    bottom-up), gradient map red skirt -> orange -> yellow -> small
+    white heart. Persistent flickering core cards + transient tongues,
+    ember/smoke garnish, optional flicker light (off in combat — light
+    count changes recompile materials). NORMAL blending, not additive:
+    additive fire vanished against bright daylight arenas.
+  · Wired in: fire patches (Inferno special firewall + ult ring) are one
+    FlameFX each (world.addFirePatch; extinguish-then-dispose lifecycle;
+    clearTransient cleans). Flamethrower bolder: fatter stream tube
+    (r0 .32/r1 2.2) + FlameFX pair per player — nozzle flames riding the
+    aim (setPose/rekindle) and an impact fire blooming where it lands.
+    Old flipbook-blob fire() retained only for embers/finisher pyre.
+  · ?fire dev page: side-by-side old vs new; &t warp + freeze; &orbit=0.
+  Verified: build green; inferno-vs-cranky ace soak crash-free; night
+  demo stills + GIF reviewed; daylight uptown battle probes show patches
+  and mid-channel flamethrower reading at gameplay camera.

@@ -86,8 +86,12 @@ function makeCard(scene) {
     fragmentShader: FLAME_FRAG,
     transparent: true,
     depthWrite: false,
-    blending: THREE.AdditiveBlending, // fire IS light
-    side: THREE.DoubleSide,           // belt and braces vs the note above
+    // NORMAL blending, not additive: additive fire vanishes against bright
+    // daylight arenas (uptown concrete washed it to nothing). Alpha-blended
+    // cards keep their body on any background; the saturated gradient +
+    // bloom on the hot heart still make it read as light.
+    blending: THREE.NormalBlending,
+    side: THREE.DoubleSide,
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.frustumCulled = false;
@@ -143,6 +147,21 @@ export class FlameFX {
 
   // fade the fire out over `t` seconds, then update() returns false
   extinguish(t = 0.6) { this._dieT = t; this._die0 = t; }
+
+  // cancel a pending extinguish (channel weapons re-trigger every tick)
+  rekindle() { if (this.alive) { this._dieT = undefined; } }
+
+  // move the burning source (nozzle flames ride the mech's aim)
+  setPose(pos, dir = null) {
+    this.pos.copy(pos);
+    if (dir) this.up.copy(dir).normalize();
+    let i = 0;
+    for (const c of this.cards) {
+      if (!c.core) continue;
+      c.mesh.position.copy(pos).addScaledVector(this.up, (i++) * 0.1);
+      c.u.uUp.value.copy(this.up);
+    }
+  }
 
   update(dt) {
     if (!this.alive) return false;
