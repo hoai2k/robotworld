@@ -17,6 +17,17 @@ const GRAVITY = 34;
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
 const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
+const PUNCH_HOLD_CAP = 1.8; // seconds to fully bank a held haymaker
+const HEAVY_HOLD_CAP = 2.4; // seconds to fully bank a held heavy
+
+// which joint subtrees the charge-flicker sheath covers, per charge kind
+const CHARGE_GLOW_SETS = {
+  armL: ['shoulderL'],
+  armR: ['shoulderR'],
+  arms: ['shoulderL', 'shoulderR'],
+  legs: ['thighL', 'thighR'],
+  lance: ['lance'],
+};
 
 export const PLAYER_COLORS = [0x38e8ff, 0xff4d5e, 0x62ff9a, 0xffb43c];
 
@@ -573,7 +584,7 @@ export class Fighter {
   // stays down, power banks (capped); releasing fires the lunge with the
   // banked damage/knock/launch — the longer the whirl, the harder it lands
   updateHeavyHold(dt) {
-    const cap = 2.4;
+    const cap = HEAVY_HOLD_CAP;
     if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(this.def.heavyClip)) {
       this._whirlHold = null;
       return;
@@ -621,7 +632,7 @@ export class Fighter {
   // and releasing throws the punch with the banked damage/knock. A full
   // charge sends the victim across the street like nothing else ----
   updatePunchHold(dt) {
-    const cap = 1.8;
+    const cap = PUNCH_HOLD_CAP;
     const idx = this._punchIdx || 0;
     const holdClip = idx ? 'punchHold2' : 'punchHold1';
     if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(holdClip)) {
@@ -668,6 +679,70 @@ export class Fighter {
     this.setState('attack', dur * 0.85);
     this.comboIdx++;
     if (k > 0.4) this.world.audio?.play('whooshBig');
+  }
+
+  // ---- charge tell: a reddish additive sheath flickers over whichever
+  // limbs are banking power — the wound-up punch arm, both pound arms, the
+  // dash legs, aegis' whirling lance — blinking faster and hotter as the
+  // charge approaches full, then white-hot at the cap ----
+  updateChargeGlow(dt) {
+    let key = null, k = 0;
+    if (this.alive) {
+      if (this._punchHold != null && this.intent.lightHeld) {
+        k = this._punchHold / PUNCH_HOLD_CAP;
+        key = this._punchIdx ? 'armR' : 'armL';
+      } else if (this._whirlHold != null && this.intent.heavyHeld) {
+        k = this._whirlHold / HEAVY_HOLD_CAP;
+        key = this.def.chargeGlow || 'armR';
+      } else if (this._dashCharging && this._dashCharge > 0.15) {
+        k = this._dashCharge / CHARGE_DASH_MAX;
+        key = 'legs';
+      }
+    }
+    if (!key) {
+      if (this._glowShells) this.clearChargeGlow();
+      return;
+    }
+    if (this._glowKey !== key) this.ensureChargeShells(key);
+    // flicker: a lazy red blink at low charge, an urgent strobe near full
+    this._glowPhase = (this._glowPhase || 0) + dt * (3 + 22 * k);
+    const on = Math.sin(this._glowPhase * TAU) > -0.35;
+    this._glowMat.opacity = on ? 0.16 + 0.5 * Math.min(1, k) : 0.03;
+    this._glowMat.color.setHex(k >= 1 ? 0xff8850 : 0xff2818);
+  }
+
+  ensureChargeShells(key) {
+    this.clearChargeGlow();
+    if (!this._glowMat) {
+      this._glowMat = new THREE.MeshBasicMaterial({
+        color: 0xff2818, transparent: true, opacity: 0,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+    }
+    const shells = [];
+    for (const jn of CHARGE_GLOW_SETS[key] || []) {
+      const j = this.mech.joints[jn];
+      if (!j) continue;
+      const meshes = [];
+      j.traverse((o) => { if (o.isMesh && !o.userData.chargeShell) meshes.push(o); });
+      for (const o of meshes) {
+        // a slightly inflated twin of each part, riding the same transform
+        const shell = new THREE.Mesh(o.geometry, this._glowMat);
+        shell.userData.chargeShell = true;
+        shell.scale.setScalar(1.045);
+        o.add(shell);
+        shells.push(shell);
+      }
+    }
+    this._glowShells = shells;
+    this._glowKey = key;
+    this._glowPhase = 0;
+  }
+
+  clearChargeGlow() {
+    if (this._glowShells) for (const s of this._glowShells) s.parent?.remove(s);
+    this._glowShells = null;
+    this._glowKey = null;
   }
 
   // ---- signature heavy mechanics, driven every frame while the mech's own
@@ -964,6 +1039,7 @@ export class Fighter {
   die(attacker) {
     this.hp = 0;
     this.alive = false;
+    this.clearChargeGlow();
     this.setState('dead', 999);
     this.blocking = false;
     this.firing = false;
@@ -1410,6 +1486,7 @@ export class Fighter {
     // ---- hold-to-charge heavy (whirl banking power until release) ----
     if (this._whirlHold != null) this.updateHeavyHold(dt);
     if (this._punchHold != null) this.updatePunchHold(dt);
+    this.updateChargeGlow(dt);
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
     // ---- thrown weapons re-forging in the grip ----
@@ -1612,6 +1689,7 @@ export class Fighter {
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this._whirlHold = null;
     this._punchHold = null;
+    this.clearChargeGlow();
     if (this._fistOut) { // fist projectile died with the round — re-attach
       this._fistOut = false;
       this.mech.joints.handR?.scale.setScalar(1);

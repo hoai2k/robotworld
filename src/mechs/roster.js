@@ -23,6 +23,7 @@ export const ROSTER = [
     heavyClip: 'poundHold',
     heavyHold: true,
     heavyReleaseClip: 'poundSlam',
+    chargeGlow: 'arms', // both raised pound arms flicker as power banks
     rangedClip: 'fistLaunch',
     moves: {
       light: { dmg: [46, 50, 68], knock: [16, 18, 30], range: 3.4 },
@@ -73,6 +74,7 @@ export const ROSTER = [
     // held, banking power (2.4s cap), and the lunge lands it on release
     lightClips: ['aegisStab1', 'aegisStab2', 'aegisPierce'],
     rangedClip: 'aegisThrow',
+    chargeGlow: 'lance', // the whirling spear flickers red as power banks
     heavyClip: 'aegisWhirlHold',
     heavyHold: true,
     heavyReleaseClip: 'aegisLunge',
@@ -245,6 +247,7 @@ export const ROSTER = [
     heavyClip: 'poundHold',
     heavyHold: true,
     heavyReleaseClip: 'poundSlam',
+    chargeGlow: 'arms', // both raised pound arms flicker as power banks
     moves: {
       light: { dmg: [42, 46, 62], knock: [15, 17, 28], range: 3.5 },
       heavy: { dmg: 100, knock: 36, range: 3.9, launch: 9 },

@@ -1344,3 +1344,22 @@ controllers via Gamepad API), AI opponents.
   lock, punch tap/full, pound, aegis throw spawn level at chest height);
   stills reviewed (stab thrust tip-forward, both hold poses); ace and
   veteran soaks crash-free with clean KOs.
+
+64. CHARGE-UP FLICKER TELL ON POWER-BANKING LIMBS ✅
+  · New per-limb "overcharge" sheath: while any hold is banking power, a
+    reddish ADDITIVE shell (an inflated twin of each part, riding the same
+    joint transforms) flickers over exactly the limbs doing the work —
+    the wound-up haymaker arm (hold X), both raised pound arms (hold Y),
+    the dash-charging legs (hold B), and AEGIS' whirling lance.
+  · The blink accelerates as the charge fills (3 -> 25 Hz phase rate,
+    probe: 0.108 -> 0.293 phase/frame across one punch hold) and brightens
+    with it (0.16 -> 0.66 peak opacity), shifting white-hot at the cap —
+    "more power is coming" reads at a glance before the strike lands.
+  · fighter.updateChargeGlow watches all four charge kinds each frame and
+    tears the shells down the instant the hold releases, breaks, or the
+    fighter dies/resets. def.chargeGlow picks the limb set (aegis 'lance',
+    titanus/colossus 'arms'); hold caps hoisted to shared constants.
+  Verified: build green; probe (right shells per kind: 12 punch arm / 24
+  pound arms / 24 legs / 6 lance, rate + opacity ramps, clean teardown on
+  release for all four); 1080p battle still shows the lance streaking red
+  mid-whirl; ace soak crash-free with a clean KO.
