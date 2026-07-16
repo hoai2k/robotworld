@@ -173,7 +173,7 @@ export class Fighter {
   clampPalmsTo(prey) {
     const J = this.mech.joints;
     if (!(J.handL && J.handR && J.shoulderL && J.shoulderR)) return;
-    const want = Math.max(0.9, prey.hitRadius * 1.05);
+    const want = Math.max(0.8, prey.hitRadius * 0.95);
     const meas = () =>
       J.handL.getWorldPosition(_palmTmp).distanceTo(J.handR.getWorldPosition(_palmTmp2));
     const d0 = meas();
@@ -189,8 +189,10 @@ export class Fighter {
     J.shoulderR.rotation.z += dR * fix;
     const sep = meas();
     const arm = (this.mech.dims.upperArmLen || 1.5) + (this.mech.dims.foreArmLen || 1.5);
-    const step = clamp((sep - want) / (2 * arm), -0.12, 0.12); // servo rate
-    const nfix = clamp(fix + step, 0, 1.0);
+    const step = clamp((sep - want) / (2 * arm), -0.15, 0.15); // servo rate
+    // wide-shoulder frames need more shoulder travel to close on a slim
+    // target — the cap is generous, the servo rate keeps it smooth
+    const nfix = clamp(fix + step, 0, 1.3);
     J.shoulderL.rotation.z += dL * (nfix - fix);
     J.shoulderR.rotation.z += dR * (nfix - fix);
     this._palmFix = nfix;
@@ -331,16 +333,7 @@ export class Fighter {
     // track the actual victim through the whole swing: torso twists and the
     // fists CONVERGE onto their body, so a landed pound visibly LANDS
     // instead of slamming down on both sides of a slim target
-    const prey = this.nearestEnemy();
-    if (prey) {
-      const dx = this.world.wrapDelta(prey.pos.x - this.pos.x);
-      const dz = this.world.wrapDelta(prey.pos.z - this.pos.z);
-      if (Math.hypot(dx, dz) < mv.range * this.scale * 2 &&
-          Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < 1.1) {
-        this._strikeAim = { f: prey, t: dur * 0.95 };
-        this._aimYaw = 0;
-      }
-    }
+    this.trackStrikeVictim(mv.range, dur);
   }
 
   // post-pose strike tracking: torso yaw slides the palms along an arc
@@ -370,7 +363,7 @@ export class Fighter {
       const dAz = (pmx * pmx + pmz * pmz > 0.09)
         ? angleDiff(Math.atan2(pmx, pmz), Math.atan2(vx, vz)) : 99;
       if (striking && Math.abs(dAz) < 1.1) { // fists driving through the front arc
-        fix = clamp(fix + clamp(dAz - fix, -0.2, 0.2), -0.6, 0.6);
+        fix = clamp(fix + clamp(dAz - fix, -0.22, 0.22), -0.7, 0.7);
       } else {
         fix *= 0.75; // windup: don't chase, unwind
       }
@@ -400,6 +393,8 @@ export class Fighter {
     this.uncloak();
     const isChannel = mv.type === 'gatling' || mv.type === 'flame' || mv.type === 'hose';
     this.faceAim();
+    // LB lock-aim: shots fired during a target lock fly at the crosshair
+    if (this._lockAim) this._aimPoint = this._lockAim.clone();
 
     if (isChannel) {
       const cclip = this.def.channelClip || 'shootLoop';
@@ -649,6 +644,24 @@ export class Fighter {
     });
     this.setState('attack', dur * 0.9);
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // two-fist pounds (the punchHold mechs): converge the fists ONTO the
+    // victim's body through the slam — wide shoulders otherwise drop the
+    // hands to either side of a slim target
+    if (this.def.punchHold) this.trackStrikeVictim(mv.range, dur);
+  }
+
+  // aim the strike at whoever is in front: post-pose torso steer + palm
+  // convergence (aimStrikeAt) rides the rest of the swing
+  trackStrikeVictim(range, dur) {
+    const prey = this.nearestEnemy();
+    if (!prey) return;
+    const dx = this.world.wrapDelta(prey.pos.x - this.pos.x);
+    const dz = this.world.wrapDelta(prey.pos.z - this.pos.z);
+    if (Math.hypot(dx, dz) < range * this.scale * 2 &&
+        Math.abs(angleDiff(this.yaw, Math.atan2(dx, dz))) < 1.1) {
+      this._strikeAim = { f: prey, t: dur * 0.95 };
+      this._aimYaw = 0;
+    }
   }
 
   // ---- hold-to-charge haymaker (TITANUS/COLOSSUS): same contract as the
@@ -703,6 +716,8 @@ export class Fighter {
     this.setState('attack', dur * 0.85);
     this.comboIdx++;
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // the released haymaker steers onto the victim too
+    this.trackStrikeVictim(mv.range, dur);
   }
 
   // ---- charge tell: an additive sheath flickers over whichever limbs are
@@ -1594,18 +1609,8 @@ export class Fighter {
         else this.doLight();
       } else if (I.heavy) this.doHeavy();
       else if (I.dash) this.doDash();
-      else if (I.ranged && !this._aimHold) {
-        // humans with single-shot weapons AIM first: pressing RB raises the
-        // crosshair, the shot fires on release (see the _aimHold block in
-        // update). AI and channel weapons (gatling/flame/hose) fire directly.
-        const rt = this.def.moves.ranged.type;
-        const channel = rt === 'gatling' || rt === 'flame' || rt === 'hose';
-        if (this.isAI || channel) this.doRanged();
-        else if (this.rangedCd <= 0 && !(this.ammoMax !== undefined && this.ammo <= 0) &&
-                 !(rt === 'fist' && this._fistOut)) {
-          this._aimHold = true;
-        }
-      } else if (I.taunt && this.state === 'normal') {
+      else if (I.ranged) this.doRanged();
+      else if (I.taunt && this.state === 'normal') {
         this.setState('attack', this.animator.play('taunt') * 0.9);
       }
       if (I.jump && this.grounded && this.state === 'normal') {
@@ -1641,6 +1646,7 @@ export class Fighter {
         if (this.rangedCd <= 0) {
           this.rangedCd = this.def.moves.ranged.cooldown;
           if (this.ammoMax !== undefined) this.ammo--;
+          if (this._lockAim) this._aimPoint = this._lockAim.clone();
           this.world.fireRanged(this, this.def.moves.ranged);
         }
         this.faceAim();
@@ -1764,22 +1770,24 @@ export class Fighter {
     if (this._whirlHold != null) this.updateHeavyHold(dt);
     if (this._punchHold != null) this.updatePunchHold(dt);
     this.updateChargeGlow(dt);
-    // hold-to-aim ranged: while RB stays down the crosshair is live (HUD
-    // draws it at this player's viewport center); releasing fires the shot
-    // at the reticle's world point — including up/down, from the camera ray
-    if (this._aimHold) {
-      if (!this.alive || !this.canAct()) this._aimHold = false;
-      else if (!this.intent.rangedHeld) {
-        this._aimHold = false;
-        const p = this.world.cameraSys?.aimPointFor?.(this);
-        if (p) {
-          this._aimPoint = p;
-          const adx = this.world.wrapDelta(p.x - this.pos.x);
-          const adz = this.world.wrapDelta(p.z - this.pos.z);
-          if (adx * adx + adz * adz > 1) this.yaw = this.targetYaw = Math.atan2(adx, adz);
-        }
-        this.doRanged();
+    // ---- LB lock-aim: while target lock is held, a light crosshair drifts
+    // onto the locked enemy (the HUD projects _lockAim into this player's
+    // view — fast camera swings and target dashes pull it off the body for
+    // a beat until it catches up) and any ranged attack fired during the
+    // lock flies at the crosshair's world point, height included ----
+    if (this.intent.lockOn && this.lockTarget?.alive && !this.isAI && this.alive) {
+      const c = this.lockTarget.center();
+      const tx = this.pos.x + this.world.wrapDelta(c.x - this.pos.x);
+      const tz = this.pos.z + this.world.wrapDelta(c.z - this.pos.z);
+      if (!this._lockAim) this._lockAim = new THREE.Vector3(tx, c.y, tz);
+      else {
+        const r = 1 - Math.exp(-9 * dt);
+        this._lockAim.x += (tx - this._lockAim.x) * r;
+        this._lockAim.y += (c.y - this._lockAim.y) * r;
+        this._lockAim.z += (tz - this._lockAim.z) * r;
       }
+    } else {
+      this._lockAim = null;
     }
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
@@ -1989,8 +1997,8 @@ export class Fighter {
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this._whirlHold = null;
     this._punchHold = null;
-    this._aimHold = false;
     this._aimPoint = null;
+    this._lockAim = null;
     this.clearChargeGlow();
     if (this._fistOut) { // fist projectile died with the round — re-attach
       this._fistOut = false;

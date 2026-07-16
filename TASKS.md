@@ -1563,7 +1563,80 @@ controllers via Gamepad API), AI opponents.
   legible); nullbot-vs-viper and titanus-vs-nullbot ace soaks crash-free;
   select-screen thumb generated; npx vite build green.
 
-73. NULLBOT GLITCH LOOK V2 — LOCALIZED RENDERING FAILURE (user feedback) ✅
+73. INFERNO FIRE REBUILT AS SHADER-CARD FLAMES (user request) ✅
+  · New src/combat/flamefx.js: FlameFX — researched real-time fire
+    recipe (fire is an eroded shader, not fading particles). Billboarded
+    cards run a domain-distorted teardrop mask: two noise octaves racing
+    up at different rates shear the silhouette (tongues WRITHE), erosion
+    rises with height + card age (tips tear, dying tongues burn out
+    bottom-up), gradient map red skirt -> orange -> yellow -> small
+    white heart. Persistent flickering core cards + transient tongues,
+    ember/smoke garnish, optional flicker light (off in combat — light
+    count changes recompile materials). NORMAL blending, not additive:
+    additive fire vanished against bright daylight arenas.
+  · Wired in: fire patches (Inferno special firewall + ult ring) are one
+    FlameFX each (world.addFirePatch; extinguish-then-dispose lifecycle;
+    clearTransient cleans). Flamethrower bolder: fatter stream tube
+    (r0 .32/r1 2.2) + FlameFX pair per player — nozzle flames riding the
+    aim (setPose/rekindle) and an impact fire blooming where it lands.
+    Old flipbook-blob fire() retained only for embers/finisher pyre.
+  · ?fire dev page: side-by-side old vs new; &t warp + freeze; &orbit=0.
+  Verified: build green; inferno-vs-cranky ace soak crash-free; night
+  demo stills + GIF reviewed; daylight uptown battle probes show patches
+  and mid-channel flamethrower reading at gameplay camera.
+
+74. BLACK QUILLS · LONGER ROCKET FIST · LB LOCK-AIM CROSSHAIR · COLOSSUS FEET-GRIP STRETCH SLAMS ✅
+  · SAURION's ranged is now a fan of BLACK QUILLS thrown off BOTH hands/
+    forearms: new 'quill' projectile (long flattened cone, normal-blended
+    matte black so it reads as a dark blade, with a faint ember trail via
+    new spec.trailColor) — three per throw, alternating hands.
+  · TITANUS' Rocket Fist flies a real distance now: turnaround range 26
+    -> 42 (probe: 84 units round trip), speed 42 -> 46. (Its early turns
+    were also partly the old RB-aim pitching it into the ground — gone.)
+  · HOLD-RB AIM REMOVED — ranged fires instantly on press again. In its
+    place: LB LOCK-AIM. While target lock is held, a LIGHT crosshair
+    (thin 28px reticle) drifts onto the locked enemy — a damped tracker,
+    so camera swings and enemy dashes pull it off the body for a beat
+    until it catches up — and any ranged attack fired during the lock
+    flies at the crosshair's world point, height included (probe: quill
+    fired at an airborne lock left with velY +20). Gatling streams also
+    track it. CameraSystem.aimPointFor replaced by cameraFor (the HUD
+    projects _lockAim through the player's own camera into their split
+    viewport). Docs updated.
+  · COLOSSUS finisher is the FEET-GRIP STRETCH SWING now: his fist holds
+    the victim by the ankles (fighter origin = feet, locked to handR),
+    and each slower one-second swing carries the stretched body clear
+    OVER him — head sweeping a huge arc, momentarily pointing skyward —
+    before cracking it HEAD-FIRST into the dirt beside his right leg,
+    across to his left, then right again (deepened slam poses put the
+    fist low; probe: head at y1.3-1.4 on impact, body roll alternating
+    -2.2/+1.6/-1.6). Sparks/dust/rings land at the HEAD's world position,
+    the camera pulled back (dist 16) so the whole swing reads, and the
+    one-hand hurl + castRaise pose close it out.
+  Verified: build green; probes above (3 quills instant-fire, aim-hold
+  machinery gone, lock-aim set/cleared, colossus script completes);
+  frozen impact still reviewed (body bashed down beside his right leg,
+  dust at the head); ace soak crash-free with a clean KO.
+
+75. FIST SLAMS CONVERGE ON THE TARGET (user request) ✅
+  · Wide-shoulder bots were visually missing slim targets with their
+    pounds — both fists landing to the LEFT and RIGHT of the body. Root
+    cause: the hold-release path (titanus/colossus poundSlam, and the
+    charged haymaker releases) never engaged the existing _strikeAim
+    victim-tracking, so no torso steer and no palm convergence ran.
+  · New fighter.trackStrikeVictim() helper wired into BOTH release paths
+    (and doHeavy now shares it): the post-pose servo steers the torso
+    onto the victim's azimuth and clampPalmsTo squeezes the fists onto
+    the body through the swing.
+  · Convergence strengthened for wide frames: target palm separation
+    0.9/1.05r -> 0.8/0.95r, shoulder-travel cap 1.0 -> 1.3 rad, servo
+    rate 0.12 -> 0.15, torso steer cap 0.6 -> 0.7 rad.
+  Verified: build green; probe (titanus pound on an off-axis viper:
+  hands 6.26 apart at rest -> 1.6 at the slam, palm midpoint 0.36 from
+  the victim, 85 dmg landed); frozen impact still shows both fists
+  together on the strike line; ace soak crash-free with a clean KO.
+
+76. NULLBOT GLITCH LOOK V2 — LOCALIZED RENDERING FAILURE (user feedback) ✅
   · User: don't flash the opponent's whole body — corruption must appear
     AT the hit body part, looking like 2D JPEG noise / TV static / RGB
     tears. New glitchNoiseTexture (macroblock grid, RGB channel-split

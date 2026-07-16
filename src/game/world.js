@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { Finisher } from './finisher.js';
 import { Effects } from '../combat/effects.js';
+import { FlameFX } from '../combat/flamefx.js';
 import { ProjectileSystem } from '../combat/projectiles.js';
 import { FleaSystem } from '../combat/fleas.js';
 import { rand, clamp } from '../core/utils.js';
@@ -39,8 +40,9 @@ export class World {
     this.arena = null;
     this.input = null;
     this.tasks = [];        // {t, fn}
-    this.firePatches = [];  // {pos, radius, t, dps, owner}
+    this.firePatches = [];  // {pos, radius, t, dps, owner, flame}
     this.geysers = [];      // live GeyserFX instances (CRANKY's special)
+    this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
     this.time = 0;
@@ -215,12 +217,33 @@ export class World {
       }
     }
 
+    // flamethrower card-flames die shortly after the trigger releases
+    for (const [k, fj] of this.flameJets) {
+      fj.ttl -= dt;
+      if (fj.ttl <= 0 && fj.nozzle.alive && fj.nozzle._dieT === undefined) {
+        fj.nozzle.extinguish(0.22);
+        fj.impact.extinguish(0.35);
+      }
+      const nozzleLive = fj.nozzle.update(dt);
+      const impactLive = fj.impact.update(dt);
+      if (!nozzleLive && !impactLive) {
+        fj.nozzle.dispose();
+        fj.impact.dispose();
+        this.flameJets.delete(k);
+      }
+    }
+
     // fire patches
     for (let i = this.firePatches.length - 1; i >= 0; i--) {
       const p = this.firePatches[i];
       p.t -= dt;
-      if (p.t <= 0) { this.firePatches.splice(i, 1); continue; }
-      this.effects.firePatch(p.pos, p.radius);
+      if (p.t <= 0 && !p.dying) { p.dying = true; p.flame.extinguish(0.5); }
+      if (!p.flame.update(dt)) {
+        p.flame.dispose();
+        this.firePatches.splice(i, 1);
+        continue;
+      }
+      if (p.dying) continue; // burning out — no more damage ticks
       p.tick -= dt;
       if (p.tick <= 0) {
         p.tick = 0.4;
@@ -294,7 +317,13 @@ export class World {
   }
 
   addFirePatch(owner, pos, radius, duration, dps) {
-    this.firePatches.push({ pos: pos.clone(), radius, t: duration, dps, owner, tick: 0 });
+    // each patch is a real burning source: shader-card tongues + embers +
+    // smoke (FlameFX), no per-frame flipbook blobs. Lights stay off in
+    // combat — light-count changes force material recompiles mid-match.
+    const flame = new FlameFX(this.scene, this.effects, pos, {
+      radius: radius * 0.8, scale: 1.0 + radius * 0.35, cards: 6, light: false,
+    });
+    this.firePatches.push({ pos: pos.clone(), radius, t: duration, dps, owner, tick: 0, flame });
   }
 
   freezeOverlay(fighter, duration) {
@@ -351,18 +380,33 @@ export class World {
         break;
       }
       case 'flame': {
-        // FLAMETHROWER: one roaring cone of burning fuel (additive stream
-        // tube, widening and ragging apart downstream) with licking
-        // flipbook tongues erupting all along it and smoke off the far end
-        this.effects.jet('flame' + f.playerIndex, from, dir, {
-          type: 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.22, r1: 1.7,
+        // FLAMETHROWER: one roaring cone of burning fuel — a FAT stream
+        // tube, plus shader-card flames (FlameFX) licking off the nozzle
+        // along the aim and blooming up where the stream lands
+        const end = this.effects.jet('flame' + f.playerIndex, from, dir, {
+          type: 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.32, r1: 2.2,
         });
-        this.effects.fire(from, dir, 34, 0.24); // nozzle tongues + embers
-        const u = rand(0.35, 0.95); // mid-stream eruption
-        this.effects.fire(new THREE.Vector3(
-          from.x + dir.x * mv.range * u,
-          from.y + dir.y * mv.range * u + u * u * 2,
-          from.z + dir.z * mv.range * u), dir, 10, 0.5);
+        let fj = this.flameJets.get(f.playerIndex);
+        if (fj && (!fj.nozzle.alive || !fj.impact.alive)) {
+          fj.nozzle.dispose();
+          fj.impact.dispose();
+          this.flameJets.delete(f.playerIndex);
+          fj = null;
+        }
+        if (!fj) {
+          fj = {
+            nozzle: new FlameFX(this.scene, this.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false }),
+            impact: new FlameFX(this.scene, this.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false }),
+            ttl: 0,
+          };
+          this.flameJets.set(f.playerIndex, fj);
+        }
+        fj.ttl = 0.16;
+        fj.nozzle.rekindle();
+        fj.impact.rekindle();
+        fj.nozzle.setPose(from, dir);
+        if (end) fj.impact.setPose(end.setY(Math.max(0, end.y - 0.5)));
+        if (Math.random() < 0.4) this.effects.fire(from, dir, 34, 0.24); // embers riding the blast
         this.audio?.play('flame');
         // cone tick damage
         for (const t of this.fighters) {
@@ -578,24 +622,22 @@ export class World {
         this.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
         this.audio?.play('slam');
         break;
-      case 'spikes': { // SAURION: a brace of blade-spines flung off the
-        // FOREARM (his own plumage — regrows, costs nothing)
-        const armFrom = f.mech.joints.handR
-          ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
-          : from;
-        armFrom.y += 0.2;
-        for (let i = 0; i < (mv.count || 2); i++) {
+      case 'spikes': { // SAURION: a fan of BLACK quills thrown off both
+        // hands/forearms (his own plumage — regrows, costs nothing)
+        for (let i = 0; i < (mv.count || 3); i++) {
+          const hand = i % 2 ? f.mech.joints.handL : f.mech.joints.handR;
+          const armFrom = hand ? hand.getWorldPosition(new THREE.Vector3()) : from.clone();
+          armFrom.y += 0.2;
           const d2 = dir.clone();
-          d2.x += rand(-0.03, 0.03);
-          d2.y += i ? 0.035 : -0.01;
-          d2.z += rand(-0.03, 0.03);
-          this.projectiles.spawn('shard', f, armFrom, d2, {
+          d2.x += rand(-0.04, 0.04);
+          d2.y += (i - 1) * 0.035 + rand(-0.01, 0.01);
+          d2.z += rand(-0.04, 0.04);
+          this.projectiles.spawn('quill', f, armFrom, d2, {
             dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.95, 1.08),
-            color: 0xc8ced8, knock: 5,
+            color: 0x16161c, trailColor: 0x8a2318, knock: 4,
           });
         }
         this.audio?.play('dart');
-        this.effects.muzzleFlash(armFrom);
         break;
       }
       case 'flea': // JERRY: launches a live robo-shrimp flea that hunts on foot
@@ -632,9 +674,12 @@ export class World {
 
   clearTransient() {
     this.tasks.length = 0;
+    for (const p of this.firePatches) p.flame.dispose();
     this.firePatches.length = 0;
     for (const g of this.geysers) g.dispose();
     this.geysers.length = 0;
+    for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
+    this.flameJets.clear();
     for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);
     this.iceBlocks.length = 0;
     for (const p of this.projectiles.active) p.mesh.visible = false;
