@@ -362,42 +362,120 @@ const SCRIPTS = {
     });
     F.camAction(2.85, 5.75, { dist: 14, h: 4.6, lookH: 2.6 });
     F.trackCenter(2.9, 5.7, 5);
-    // relentless pursuit: between smashes he re-squares up on wherever the
-    // last punt knocked the body, so every pound lands ON it
-    F.hold(2.95, 5.6, (k, dt) => {
-      const dx = w.wrapDelta(vic.pos.x - win.pos.x);
-      const dz = w.wrapDelta(vic.pos.z - win.pos.z);
-      const d = Math.hypot(dx, dz) || 1e-4;
-      const want = 2.0 * win.scale;
-      if (d > want + 0.05) {
-        const step = Math.min(d - want, dt * 10);
-        win.pos.x += (dx / d) * step;
-        win.pos.z += (dz / d) * step;
-        if (step > dt * 4) F.winCtx = { speed: 8, maxSpeed: 10, grounded: true };
-      }
-      win.yaw = win.targetYaw = Math.atan2(dx, dz);
+    // then he JUMPS ON TOP of the wreck and TRAMPLES it — repeated stomps
+    // with the body pinned under his feet the whole time
+    const bodyTop = 0.85 * vic.scale;
+    F.at(3.0, () => { win.animator.play('pounceLeap'); w.audio?.play('jump'); });
+    let jx0, jz0;
+    F.hold(3.02, 3.46, (k) => {
+      if (jx0 === undefined) { jx0 = win.pos.x; jz0 = win.pos.z; }
+      const s = smooth(k);
+      win.pos.x = jx0 + w.wrapDelta(vic.pos.x - jx0) * s;
+      win.pos.z = jz0 + w.wrapDelta(vic.pos.z - jz0) * s;
+      win.pos.y = Math.sin(Math.PI * k) * 4.4 * win.scale + bodyTop * k;
     });
-    for (let i = 0; i < 3; i++) {
-      const tS = 3.25 + i * 0.8;
-      F.at(tS, () => win.animator.play('groundPound', { speed: 1.6 }));
-      F.at(tS + 0.4, () => {
-        F.beat('slam', 0.9, 0.08);
-        F.sparks(22, 13);
-        w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5.5, dur: 0.35, color: 0xffb43c, y: 0.3 });
-        w.effects.dustPuff(vic.pos, 6);
+    F.at(3.46, () => {
+      F.beat('slam', 1, 0.1);
+      F.sparks(22, 13);
+      F.vicFlinch();
+      w.effects.dustPuff(vic.pos, 10);
+      w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5.5, dur: 0.35, color: 0xffb43c, y: 0.3 });
+    });
+    // stay planted on the body straight through the triumph pose
+    F.hold(3.46, F.dur, () => {
+      win.pos.x = vic.pos.x;
+      win.pos.z = vic.pos.z;
+      win.pos.y = bodyTop;
+    });
+    for (let i = 0; i < 4; i++) {
+      const tS = 3.6 + i * 0.5;
+      F.at(tS, () => win.animator.play(i % 2 ? 'stomp2' : 'stomp', { speed: 1.1 }));
+      F.at(tS + 0.26, () => {
+        F.beat('slam', 0.7, 0.06);
+        F.sparks(14, 10);
+        F.vicFlinch();
+        w.effects.dustPuff(vic.pos, 5);
+        w.effects.rings.spawn(vic.pos, { from: 0.5, to: 4, dur: 0.3, color: 0xffb43c, y: 0.3 });
       });
-      F.vicBash(tS + 0.42, F.axis + (i % 2 ? 1.05 : -1.05), 2.4, 1.3, 1.1);
     }
     F.at(5.75, () => F.finaleBurst());
-    F.triumph(5.85, 'castRaise');
+    F.triumph(5.85, 'castRaise'); // arms to the sky, atop the wreck
   },
 
-  // COLOSSUS: hoist overhead, hurl them down, hammer them flat — chasing
-  // the wreck around, arms to the sky. The requested wrestling execution.
+  // COLOSSUS: hoist them overhead, then — one-armed, never letting go —
+  // smash the body into the dirt on his right, his left, his right again,
+  // hurl the wreck away single-handed and strike the strongman pose.
   colossus(F) {
-    SCRIPTS.titanus(F); // same skeleton, then swap the smash flavor:
-    // (colossus's heavy Y-frame smashes read through the same beats; his
-    // groundPound clip is the full-body artillery slam — identical intent)
+    const { win, vic, w } = F;
+    const S = win.scale;
+    F.approach(0.2, 1.0, 3.2);
+    F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
+    F.at(1.45, () => { win.animator.play('liftHold'); vic.animator.play('launched'); F.beat('whooshBig', 0.3, 0); });
+    let cx, cy2, cz;
+    F.hold(1.28, 2.5, (k) => {
+      if (cx === undefined) { cx = vic.pos.x; cy2 = vic.pos.y; cz = vic.pos.z; }
+      const grip = smooth(Math.min(1, k / 0.16));
+      const tp = win.carryPoint(vic, _ct);
+      vic.pos.x = cx + (tp.x - cx) * grip;
+      vic.pos.y = cy2 + (tp.y - cy2) * grip;
+      vic.pos.z = cz + (tp.z - cz) * grip;
+      vic.yaw = vic.targetYaw = win.yaw;
+      vic.group.rotation.y = win.yaw;
+      vic.group.rotation.x = 0;
+      vic.group.rotation.z = 1.45 * grip;
+      F._palmVic = vic;
+    });
+    F.camShot(1.3, 2.55, { dist: 10, h: 6.5, az0: 0.5, az1: 0.05, lookH: 6.2 });
+    F.camAction(2.55, 6.0, { dist: 13, h: 4.6, lookH: 2.6 });
+    F.trackCenter(2.6, 5.6, 5);
+    // the one-arm ragdoll hammer: swung overhead and slammed down beside
+    // him, alternating sides, the grip never released
+    for (let i = 0; i < 3; i++) {
+      const tS = 2.5 + i * 0.85;
+      const side = i % 2 ? -1 : 1;
+      F.at(tS, () => win.animator.play(side > 0 ? 'bigPunch2' : 'bigPunch1', { speed: 1.35 }));
+      let sx, sy, sz;
+      F.hold(tS, tS + 0.7, (k) => {
+        if (sx === undefined) { sx = vic.pos.x; sy = vic.pos.y; sz = vic.pos.z; }
+        const gx = win.pos.x + (Math.cos(win.yaw) * side * 2.7 + Math.sin(win.yaw) * 0.7) * S;
+        const gz = win.pos.z + (-Math.sin(win.yaw) * side * 2.7 + Math.cos(win.yaw) * 0.7) * S;
+        const q = smooth(k);
+        vic.pos.x = sx + (gx - sx) * q;
+        vic.pos.z = sz + (gz - sz) * q;
+        const apex = 7.4 * S;
+        vic.pos.y = k < 0.42
+          ? sy + (apex - sy) * smooth(k / 0.42)
+          : Math.max(0.35, apex * (1 - smooth((k - 0.42) / 0.58)));
+        vic.group.rotation.y = win.yaw;
+        vic.group.rotation.z = 1.45 + side * 0.55 * q; // whipped over the top
+      });
+      F.at(tS + 0.68, () => {
+        F.beat('slam', 0.85, 0.08);
+        F.sparks(20, 12);
+        F.vicFlinch();
+        w.effects.dustPuff(vic.pos, 8);
+        w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5, dur: 0.32, color: 0xffc23c, y: 0.3 });
+      });
+    }
+    // the single-hand hurl, far and flat
+    F.at(5.1, () => { win.animator.play('throwHeave'); w.audio?.play('whooshBig'); });
+    let hx, hy, hz;
+    F.hold(5.15, 5.52, (k) => {
+      if (hx === undefined) { hx = vic.pos.x; hy = vic.pos.y; hz = vic.pos.z; }
+      vic.pos.x = hx + Math.sin(win.yaw) * 9.5 * k * S;
+      vic.pos.z = hz + Math.cos(win.yaw) * 9.5 * k * S;
+      vic.pos.y = Math.max(0.35, hy + 3.2 * k - 7.5 * k * k);
+      vic.group.rotation.x += 0.14;
+    });
+    F.at(5.55, () => {
+      F.beat('bodyfall', 1, 0.1);
+      vic.group.rotation.x = 0;
+      vic.group.rotation.z = 0;
+      F.vicDown();
+      w.effects.dustPuff(vic.pos, 12);
+      F.finaleBurst();
+    });
+    F.triumph(5.75, 'castRaise');
   },
 
   // SAURION: leaps straight onto the THROAT, rides them down flat — the
@@ -525,37 +603,84 @@ const SCRIPTS = {
 
   // VULCAN: point-blank gatling storm — the stream SHOVES them backwards,
   // sliding through the dirt, and he keeps walking them down
+  // VULCAN: arms flung up and OUT, a whole magazine sprayed skyward in every
+  // direction — the mark looks around, lost, the camera pulls WAY back...
+  // and the entire swarm whips around as one and homes in, hammering them
+  // in a single simultaneous barrage. Crumble. Maniacal pose.
   vulcan(F) {
     const { win, vic, w } = F;
-    F.approach(0.2, 1.0, 5.5);
-    F.at(1.1, () => { win.animator.play('shootLoop'); w.audio?.play('charge'); });
-    F.hold(1.3, 4.3, (k, dt) => {
-      F.winCtx = { speed: 0, grounded: true, firing: true }; // gatlings spin
-      if (Math.random() < dt * 30) {
-        const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
-        w.effects.muzzleFlash(from);
-        F.sparks(6, 8);
-        if (Math.random() < 0.4) w.audio?.play('gatling');
-        F.vic.animator.addImpulse('torso', [rand(-0.2, 0.2), 0, rand(-0.2, 0.2)], 40, 14);
+    F.approach(0.2, 1.0, 7);
+    const shots = [];
+    F.at(1.05, () => { win.animator.play('castRaise'); w.audio?.play('charge'); });
+    // the fountain: tracers pour out of both gatlings in a full dome
+    F.hold(1.1, 1.85, (k, dt) => {
+      F.winCtx = { speed: 0, grounded: true, firing: true };
+      const fromR = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
+      const fromL = win.mech.anchors.muzzleL
+        ? win.mech.anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : fromR;
+      for (let n = 0; n < 2; n++) {
+        const from = n ? fromL : fromR;
+        const a = rand(Math.PI * 2), el = rand(0.45, 1.25);
+        shots.push({
+          x: from.x, y: from.y, z: from.z,
+          vx: Math.cos(a) * Math.cos(el) * 26,
+          vy: Math.sin(el) * 30 + rand(-2, 2),
+          vz: Math.sin(a) * Math.cos(el) * 26,
+          state: 0, tick: n,
+        });
+      }
+      w.effects.muzzleFlash(fromR);
+      if (Math.random() < dt * 26) w.audio?.play('gatling');
+    });
+    // the mark looks around, confused — head snapping after the streaks
+    F.hold(1.4, 2.85, (k, dt) => { vic.yaw += Math.sin(k * 17) * dt * 2.2; });
+    F.at(1.5, () => vic.animator.addImpulse('head', [0, 0.6, 0], 9, 3));
+    F.at(2.1, () => vic.animator.addImpulse('head', [0, -0.7, 0], 9, 3));
+    F.at(2.6, () => vic.animator.addImpulse('head', [0.3, 0.5, 0], 9, 3));
+    // camera pulls WAY out so the whole orbiting swarm reads
+    F.camShot(1.15, 3.3, { dist: 30, h: 12, az0: 2.0, az1: 2.55, lookH: 5 });
+    // ...and on this beat, every round whips around AS ONE
+    F.at(2.85, () => { w.audio?.play('charge'); for (const s of shots) s.state = 1; });
+    // swarm physics: loft outward, then hard-home on the mark together
+    F.hold(1.1, 4.5, (k, dt) => {
+      for (const s of shots) {
+        if (s.state === 2) continue;
+        if (s.state === 0) {
+          s.vy -= 9 * dt; // lofting fountain arc
+        } else {
+          const tx = vic.pos.x - s.x, ty = vic.pos.y + vic.height * 0.55 - s.y, tz = vic.pos.z - s.z;
+          const d = Math.hypot(tx, ty, tz);
+          if (d < 1.5) {
+            s.state = 2;
+            w.effects.impactSparks(new THREE.Vector3(s.x, s.y, s.z), 0xffd080, 3, 5);
+            continue;
+          }
+          const sp = 40, r = Math.min(1, dt * 8);
+          s.vx += ((tx / d) * sp - s.vx) * r;
+          s.vy += ((ty / d) * sp - s.vy) * r;
+          s.vz += ((tz / d) * sp - s.vz) * r;
+        }
+        s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
+        if (s.y < 0.15) { s.y = 0.15; s.vy = Math.abs(s.vy) * 0.4; }
+        s.tick ^= 1; // tracer streak every other frame
+        if (s.tick) {
+          w.effects.glows.emit(s.x, s.y, s.z, 0, 0, 0,
+            { life: 0.14, size: 0.55, color: 0xffd080, alpha: 0.85 });
+        }
       }
     });
-    // the shred physically drives them back; vulcan advances to match
-    F.hold(1.7, 3.4, (k, dt) => {
-      vic.pos.x += Math.sin(F.axis) * dt * 2.6;
-      vic.pos.z += Math.cos(F.axis) * dt * 2.6;
-      win.pos.x += Math.sin(F.axis) * dt * 2.1;
-      win.pos.z += Math.cos(F.axis) * dt * 2.1;
-      if (Math.random() < dt * 10) w.effects.dustPuff(vic.pos, 2);
+    // punch back in for the convergence — the all-at-once barrage
+    F.camAction(3.3, 4.6, { dist: 13, h: 4, lookH: 2.4 });
+    F.trackCenter(3.3, 4.6, 5);
+    F.at(3.55, () => { F.beat('hit', 0.6, 0.05); F.sparks(18, 10); F.vicFlinch(); });
+    F.at(3.75, () => { F.beat('hitHeavy', 0.85, 0.08); F.sparks(26, 14); F.vicFlinch(); });
+    F.at(4.0, () => {
+      F.beat('explosionBig', 1, 0.1);
+      F.finaleBurst(0xffd060);
+      F.vicDown(); // riddled — crumbles where they stand
+      w.effects.dustPuff(vic.pos, 10);
     });
-    F.trackCenter(1.7, 4.6, 5);
-    F.camAction(1.3, 4.4, { dist: 12, h: 3.6, lookH: 2.4 });
-    F.at(2.4, () => F.vicFlinch());
-    F.at(3.4, () => F.vicDown());
-    // one last burst kicks the corpse across the ground
-    F.vicBash(3.9, F.axis, 2.4, 0.8, 1.4);
-    F.at(3.9, () => { F.beat('hitHeavy', 0.7, 0.08); F.sparks(20, 12); });
-    F.at(4.45, () => { F.finaleBurst(); F.sparks(30, 16); });
-    F.triumph(5.05);
+    F.triumph(4.7, 'victory', 'gatling');
   },
 
   // AEGIS: plants himself, reaches up to the heavens — and the sky ANSWERS:
@@ -918,26 +1043,31 @@ const SCRIPTS = {
     const { win, vic, w } = F;
     F.approach(0.2, 1.0, 6.5);
     F.at(1.1, () => { win.animator.play('shootLoop'); w.audio?.play('flame'); });
+    // hose the victim HEAD TO TOE: the jet's aim point sweeps up and down
+    // their body while the whole frame catches fire and chars black
     F.hold(1.2, 4.2, (k, dt) => {
       F.winCtx = { speed: 0, grounded: true, firing: true }; // torch level
-      {
-        const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
-        const dir = new THREE.Vector3(Math.sin(win.yaw), 0.02, Math.cos(win.yaw));
-        // the coherent flamethrower cone + tongues erupting along it
-        w.effects.jet('flame:fin', from, dir, {
-          type: 'fire', speed: 30, range: 13, gravity: -4, r0: 0.22, r1: 1.7,
-        });
-        if (Math.random() < dt * 24) {
-          w.effects.fire(from, dir, 34, 0.24);
-          const u = rand(0.35, 0.95);
-          w.effects.fire(new THREE.Vector3(
-            from.x + dir.x * 12 * u, from.y + u * u * 2, from.z + dir.z * 12 * u), dir, 10, 0.5);
-        }
-        if (Math.random() < dt * 7) w.audio?.play('flame');
+      const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
+      // sweep: three full bottom-to-top-and-back passes over the spray
+      const sweepY = vic.pos.y + (0.5 + 0.45 * Math.sin(k * Math.PI * 6)) * vic.height;
+      const dir = new THREE.Vector3(
+        vic.pos.x - from.x, sweepY - from.y, vic.pos.z - from.z).normalize();
+      w.effects.jet('flame:fin', from, dir, {
+        type: 'fire', speed: 30, range: 13, gravity: -4, r0: 0.22, r1: 1.7,
+      });
+      if (Math.random() < dt * 24) w.effects.fire(from, dir, 30, 0.24);
+      if (Math.random() < dt * 7) w.audio?.play('flame');
+      // the BODY burns: flame tongues all over the frame, thickening as it
+      // chars — and the paint carbonizes to black across the spray
+      vic.applyCharring?.(Math.min(1, k * 1.2));
+      if (Math.random() < dt * (12 + 30 * k)) {
+        const bp = new THREE.Vector3(
+          vic.pos.x + rand(-0.9, 0.9), vic.pos.y + rand(0.3, vic.height), vic.pos.z + rand(-0.9, 0.9));
+        w.effects.fire(bp, new THREE.Vector3(rand(-0.2, 0.2), 1, rand(-0.2, 0.2)), 8, 0.4);
       }
-      if (Math.random() < dt * 8) {
-        w.effects.glows.emit(vic.pos.x + rand(-1, 1), rand(0.5, vic.height), vic.pos.z + rand(-1, 1),
-          0, 3.5, 0, { life: 0.5, size: rand(1.2, 2), color: 0xff7a20, alpha: 0.9 });
+      if (Math.random() < dt * 10) {
+        w.effects.glows.emit(vic.pos.x + rand(-1, 1), vic.pos.y + rand(0.5, vic.height), vic.pos.z + rand(-1, 1),
+          0, 3.5, 0, { life: 0.5, size: rand(1.2, 2.2), color: 0xff7a20, alpha: 0.9 });
       }
     });
     // driven back step by burning step; inferno stalks after them
@@ -948,16 +1078,37 @@ const SCRIPTS = {
       win.pos.z += Math.cos(F.axis) * dt * 1.3;
     });
     F.trackCenter(1.7, 4.6, 5);
-    F.camAction(1.2, 4.4, { dist: 12.5, h: 3.6, lookH: 2.5 });
+    F.camAction(1.2, 5.2, { dist: 12.5, h: 3.6, lookH: 2.2 });
     F.at(1.9, () => F.vicFlinch());
     F.at(2.5, () => F.vicFlinch());
     F.at(3.1, () => F.vicFlinch());
-    F.at(3.6, () => F.vicDown());
-    F.at(4.3, () => {
-      F.finaleBurst(0xff6a20);
-      w.addFirePatch(null, vic.pos.clone().setY(0), 3, 5, 8);
+    // the CRUMBLE: the burnt-out shell folds and collapses to the ground,
+    // settling into the dirt while the blaze keeps raging over it
+    F.at(4.25, () => {
+      F.vicDown();
+      w.audio?.play('bodyfall');
+      w.effects.dustPuff(vic.pos, 8);
+      w.addFirePatch(null, vic.pos.clone().setY(0), 3.4, 8, 8);
     });
-    F.triumph(5.0, 'burst', 'flame');
+    F.hold(4.25, 5.2, (k) => {
+      vic.applyCharring?.(1);
+      vic.pos.y = -0.35 * smooth(k) * vic.scale; // sags INTO the ground
+    });
+    F.at(4.45, () => F.finaleBurst(0xff6a20));
+    // the pyre burns under the whole victory pose
+    F.hold(4.4, F.dur, (k, dt) => {
+      if (Math.random() < dt * 18) {
+        const bp = new THREE.Vector3(
+          vic.pos.x + rand(-1.3, 1.3), rand(0.2, 1.8), vic.pos.z + rand(-1.3, 1.3));
+        w.effects.fire(bp, new THREE.Vector3(rand(-0.15, 0.15), 1, rand(-0.15, 0.15)), 7, 0.4);
+      }
+      if (Math.random() < dt * 6) {
+        w.effects.smoke.emit(vic.pos.x + rand(-1, 1), 1.5, vic.pos.z + rand(-1, 1),
+          rand(-0.4, 0.4), rand(1.5, 3), rand(-0.4, 0.4),
+          { life: rand(0.8, 1.4), size: rand(1.4, 2.4), color: 0x26221e, alpha: 0.4, grow: 1.6 });
+      }
+    });
+    F.triumph(5.3, 'burst', 'flame');
   },
 
   // GLACIER: freezes them solid white, walks up, and SHATTERS the statue —

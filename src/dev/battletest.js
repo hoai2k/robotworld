@@ -56,6 +56,7 @@ export function runBattleTest() {
 
   let humans = auto ? [] : [fighters[0]];
   const cameraSys = new CameraSystem(engine, world);
+  world.cameraSys = cameraSys; // aimed RB shots resolve their ray through this
   if (params.get('forcesplit') === '1') {
     humans = fighters.slice(0, Math.min(4, fighters.length));
     fighters.forEach((f, i) => f.pos.set((i % 2) * 90 - 45, 0, (i >> 1) * 60 - 30));

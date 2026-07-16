@@ -394,6 +394,7 @@ export async function bootGame() {
     });
 
     const cameraSys = new CameraSystem(engine, world);
+    world.cameraSys = cameraSys; // fighters + HUD reach the aim ray through this
     const hud = new Hud(uiRoot, world);
     hud.buildPlates(fighters);
     hud.positionPlates(cameraSys.layoutKind(humans.length), humans.map((h) => fighters.indexOf(h.fighter)));

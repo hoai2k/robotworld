@@ -103,6 +103,12 @@ TITANUS' ranged attack is the classic **Rocket Fist**: the fist launches
 straight ahead, boomerangs back to his arm, and hits enemies on both the
 outward and the return path (you can't fire again until it's home).
 
+**Aimed shots.** Hold the ranged button (RB / R) to raise a crosshair
+instead of firing instantly: the reticle sits at your camera's center, so
+the right stick aims the shot — including up and down. Release to fire at
+whatever the crosshair rests on (enemies, buildings, ground). Channel
+weapons (gatling, flamethrower, hose) still stream while held.
+
 **Finishers** can be skipped by holding **A** (Space/Enter on keyboard) for one second.
 
 Controllers hot-plug: connect any time; assign them on the Battle Setup

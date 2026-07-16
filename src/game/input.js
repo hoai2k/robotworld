@@ -130,6 +130,7 @@ export class Input {
       intent.heavyHeld = k('heavy');
       intent.block = k('block');
       intent.ranged = k('ranged');
+      intent.rangedHeld = k('ranged');
       intent.special = kp('special');
       intent.specialHeld = k('special');
       intent.ult = kp('ult');
@@ -154,8 +155,9 @@ export class Input {
       intent.heavy = this.padPressed(i, 'Y');
       intent.heavyHeld = this.padHeld(i, 'Y');
       intent.block = this.padHeld(i, 'LT');
-      // bumper shoots, trigger specials
+      // bumper shoots (hold RB = aim crosshair, release = fire), trigger specials
       intent.ranged = this.padHeld(i, 'RB');
+      intent.rangedHeld = this.padHeld(i, 'RB');
       intent.special = this.padPressed(i, 'RT');
       intent.specialHeld = this.padHeld(i, 'RT');
       intent.ult = this.padPressed(i, 'DU');
@@ -183,6 +185,7 @@ export class Input {
       intent.heavyHeld = t.held.has('heavy');
       intent.block = t.held.has('block');
       intent.ranged = t.held.has('ranged');
+      intent.rangedHeld = t.held.has('ranged');
       intent.special = t.pressed.has('special');
       intent.specialHeld = t.held.has('special');
       intent.ult = t.pressed.has('ult');

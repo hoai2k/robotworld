@@ -1420,3 +1420,53 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; probes above (kicks 89 dmg combo, spikes x2
   from the arm, no ammo fields on throwers); kick/bite stills + raised
   wing-fan still reviewed; two ace/veteran soaks crash-free, clean KOs.
+
+68. HOLD-RB AIMED SHOTS + CROSSHAIR · WRAITH HOVER-LEAN · EAGLE KICKS ✅
+  · RANGED IS AIMED NOW (humans, single-shot weapons): pressing RB/R no
+    longer fires instantly — it raises a crosshair at the player's
+    viewport center and the shot launches on RELEASE, flying at the
+    world point under the reticle. CameraSystem.aimPointFor resolves the
+    camera ray against enemies (airborne included), buildings, then the
+    ground, so up/down aiming works (probe: released spear at an
+    airborne target left with velY +19.6). The mech squares to the shot
+    on release; a whiffed-in-hitstun aim cancels. Channel weapons
+    (gatling/flame/hose) and the AI keep instant fire. Mortar lobs drop
+    exactly on the crosshair. New intent.rangedHeld on all devices; HUD
+    draws one crosshair per human, centered per split viewport (probe:
+    shown while aiming, hidden on release). Docs updated.
+  · WRAITH's laser heavy now LIFTS OFF and leans INTO the mark — hovering
+    with legs trailing and torso pitched forward — instead of the old
+    backward arch, while the wings fan up and fire.
+  · SAURION's kicks are EAGLE kicks: the sickle claw whips up to head
+    height (thigh ~105 deg, leg snapped straight) with the torso swung
+    back to counterweight, on all three combo steps.
+  Verified: build green; aim/crosshair/finisher probes; kick + hover
+  stills reviewed.
+
+69. FOUR FINISHERS RE-CHOREOGRAPHED (COLOSSUS, TITANUS, INFERNO, VULCAN) ✅
+  · COLOSSUS: hoists the mark overhead (as before), then — one arm,
+    never letting go — SMASHES the body into the dirt beside him,
+    right side, left side, right again, whipping it over the top each
+    time; then a single-hand hurl sends the wreck flying flat, and the
+    strongman pose lands (castRaise).
+  · TITANUS: seize, hoist, hurl to the dirt (unchanged) — then instead
+    of pounding he JUMPS ON TOP of the wreck (pounceLeap arc onto the
+    body) and TRAMPLES it: four alternating-foot stomps (new stomp/
+    stomp2 clips) with the body pinned under him, and he strikes the
+    arms-to-the-sky pose still standing on the corpse.
+  · INFERNO: the flame jet now SWEEPS the victim head-to-toe (aim point
+    scans their body three full passes), flame tongues thicken all over
+    the frame as it burns, and the paint CARBONIZES to black
+    (fighter.applyCharring lerps every material to char 0x14100d —
+    restored on round reset). Then the burnt-out shell CRUMBLES: folds
+    to the ground and sags into the dirt while the pyre keeps raging
+    (fire patch + flame tongues + smoke through the whole victory pose).
+  · VULCAN: arms flung up and out, both gatlings pour ~90 tracers
+    skyward in a full dome; the mark looks around lost (head snaps,
+    confused turns) as the camera pulls WAY back — then on one beat the
+    ENTIRE swarm whips around and homes in together, hammering the mark
+    in a single simultaneous barrage (custom swarm sim with per-round
+    tracer streaks and impact sparks) — crumble, triumphant pose.
+  Verified: build green; all four scripts probed to completion headless
+  (charring hit full black 0x14100d mid-script); vulcan+saurion ace and
+  inferno+colossus veteran soaks crash-free with clean KOs.

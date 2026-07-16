@@ -37,6 +37,26 @@ export class Hud {
     this.el.appendChild(this.calloutEl);
     this.calloutT = 0;
 
+    // aim crosshairs: one per human, shown centered in that player's
+    // viewport while they hold RB to aim (fighter._aimHold)
+    this.crosshairs = [];
+    for (let i = 0; i < 4; i++) {
+      const c = document.createElement('div');
+      c.style.cssText = `
+        position:absolute; width:34px; height:34px; display:none;
+        transform:translate(-50%,-50%); pointer-events:none; z-index:6;
+        border:2px solid rgba(255,255,255,0.9); border-radius:50%;
+        box-shadow:0 0 8px rgba(0,0,0,0.6), inset 0 0 5px rgba(0,0,0,0.45);`;
+      c.innerHTML = `
+        <i style="position:absolute;left:50%;top:50%;width:4px;height:4px;background:#fff;border-radius:50%;transform:translate(-50%,-50%)"></i>
+        <i style="position:absolute;left:50%;top:-8px;width:2px;height:7px;background:#fff;transform:translateX(-50%)"></i>
+        <i style="position:absolute;left:50%;bottom:-8px;width:2px;height:7px;background:#fff;transform:translateX(-50%)"></i>
+        <i style="position:absolute;top:50%;left:-8px;height:2px;width:7px;background:#fff;transform:translateY(-50%)"></i>
+        <i style="position:absolute;top:50%;right:-8px;height:2px;width:7px;background:#fff;transform:translateY(-50%)"></i>`;
+      this.el.appendChild(c);
+      this.crosshairs.push(c);
+    }
+
     this.unsubs = [
       world.events.on('damage', (d) => this.onDamage(d)),
       world.events.on('special', (d) => this.callout(`${d.fighter.def.name} — ${d.name}`)),
@@ -137,6 +157,22 @@ export class Hud {
     }
     this.calloutT -= dt;
     if (this.calloutT <= 0) this.calloutEl.style.opacity = 0;
+
+    // aim crosshairs ride each aiming player's viewport center
+    const cams = this.world.cameraSys;
+    const humans = this.world.fighters.filter((f) => !f.isAI);
+    for (let i = 0; i < this.crosshairs.length; i++) {
+      const el = this.crosshairs[i];
+      const f = humans[i];
+      if (f && f._aimHold && f.alive && cams) {
+        const vp = cams.viewportRectFor(i);
+        el.style.left = (vp.x + vp.w / 2) * 100 + '%';
+        el.style.top = (1 - (vp.y + vp.h / 2)) * 100 + '%';
+        el.style.display = 'block';
+      } else if (el.style.display !== 'none') {
+        el.style.display = 'none';
+      }
+    }
   }
 
   onDamage({ dmg, pos, attacker }) {

@@ -13,6 +13,7 @@ const _palmTmp2 = new THREE.Vector3();
 const _carryTmp = new THREE.Vector3();
 const _carryOff = new THREE.Vector3();
 const _white = new THREE.Color(0xf4faff);
+const _charBlack = new THREE.Color(0x14100d); // burnt-out carbon shell
 const GRAVITY = 34;
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
@@ -106,7 +107,7 @@ export class Fighter {
 
     this.intent = {
       moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
-      ranged: false, special: false, specialHeld: false, ult: false, block: false, dash: false,
+      ranged: false, rangedHeld: false, special: false, specialHeld: false, ult: false, block: false, dash: false,
       taunt: false, strafe: false, duck: false, aimYaw: undefined,
     };
     this.plunging = false;   // aerial ground-smash riding down to impact
@@ -1058,6 +1059,17 @@ export class Fighter {
     }
   }
 
+  // scorch tint for the flame finisher: lerp every body material toward
+  // charred black (k=1 fully carbonized); k=0 restores the originals
+  applyCharring(k) {
+    if (!this._matBase) this.applyWhiteout(0); // builds the material cache
+    this._charK = k;
+    for (const b of this._matBase) {
+      b.m.color.copy(b.color).lerp(_charBlack, k);
+      if (b.emissive) b.m.emissive.copy(b.emissive).multiplyScalar(1 - k * 0.92);
+    }
+  }
+
   uncloak() {
     if (this.status.cloak) {
       delete this.status.cloak;
@@ -1365,8 +1377,18 @@ export class Fighter {
         else this.doLight();
       } else if (I.heavy) this.doHeavy();
       else if (I.dash) this.doDash();
-      else if (I.ranged) this.doRanged();
-      else if (I.taunt && this.state === 'normal') {
+      else if (I.ranged && !this._aimHold) {
+        // humans with single-shot weapons AIM first: pressing RB raises the
+        // crosshair, the shot fires on release (see the _aimHold block in
+        // update). AI and channel weapons (gatling/flame/hose) fire directly.
+        const rt = this.def.moves.ranged.type;
+        const channel = rt === 'gatling' || rt === 'flame' || rt === 'hose';
+        if (this.isAI || channel) this.doRanged();
+        else if (this.rangedCd <= 0 && !(this.ammoMax !== undefined && this.ammo <= 0) &&
+                 !(rt === 'fist' && this._fistOut)) {
+          this._aimHold = true;
+        }
+      } else if (I.taunt && this.state === 'normal') {
         this.setState('attack', this.animator.play('taunt') * 0.9);
       }
       if (I.jump && this.grounded && this.state === 'normal') {
@@ -1525,6 +1547,23 @@ export class Fighter {
     if (this._whirlHold != null) this.updateHeavyHold(dt);
     if (this._punchHold != null) this.updatePunchHold(dt);
     this.updateChargeGlow(dt);
+    // hold-to-aim ranged: while RB stays down the crosshair is live (HUD
+    // draws it at this player's viewport center); releasing fires the shot
+    // at the reticle's world point — including up/down, from the camera ray
+    if (this._aimHold) {
+      if (!this.alive || !this.canAct()) this._aimHold = false;
+      else if (!this.intent.rangedHeld) {
+        this._aimHold = false;
+        const p = this.world.cameraSys?.aimPointFor?.(this);
+        if (p) {
+          this._aimPoint = p;
+          const adx = this.world.wrapDelta(p.x - this.pos.x);
+          const adz = this.world.wrapDelta(p.z - this.pos.z);
+          if (adx * adx + adz * adz > 1) this.yaw = this.targetYaw = Math.atan2(adx, adz);
+        }
+        this.doRanged();
+      }
+    }
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
     // ---- thrown weapons re-forging in the grip ----
@@ -1704,6 +1743,7 @@ export class Fighter {
     this.cinePuppet = false;
     this.group.rotation.set(0, yaw, 0); // clear any carry/slam roll
     if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
+    if (this._charK) { this._charK = 0; this.applyCharring(0); }
     this.pos.copy(pos);
     this.vel.set(0, 0, 0);
     this.yaw = this.targetYaw = yaw;
@@ -1727,6 +1767,8 @@ export class Fighter {
     if (this.ammoMax !== undefined) this.ammo = this.ammoMax;
     this._whirlHold = null;
     this._punchHold = null;
+    this._aimHold = false;
+    this._aimPoint = null;
     this.clearChargeGlow();
     if (this._fistOut) { // fist projectile died with the round — re-attach
       this._fistOut = false;

@@ -305,11 +305,14 @@ export class World {
     const anchors = f.mech.anchors;
     const from = anchors.muzzleR.getWorldPosition(new THREE.Vector3());
     const e = f.nearestEnemy();
-    // Aim strictly along the mech's facing — no horizontal auto-aim.
-    // (Humans fire where the camera points; the AI squares up first.)
-    // Only VERTICAL assist remains: when an enemy is roughly down the
-    // barrel, the shot pitches to their height so airborne/short targets
-    // aren't unhittable with yaw-only controls.
+    // AIMED shot (human held RB): fly straight at the crosshair's world
+    // point — full manual control, including pitch. No assist.
+    const aimP = f._aimPoint || null;
+    f._aimPoint = null;
+    // Otherwise aim strictly along the mech's facing — no horizontal
+    // auto-aim. Only VERTICAL assist remains: when an enemy is roughly down
+    // the barrel, the shot pitches to their height so airborne/short
+    // targets aren't unhittable with yaw-only controls.
     const dir = new THREE.Vector3(Math.sin(f.yaw), 0.02, Math.cos(f.yaw));
     let barrelDot = -1, flatDist = 0;
     if (e) {
@@ -318,11 +321,12 @@ export class World {
       to.z = this.wrapDelta(to.z);
       flatDist = Math.hypot(to.x, to.z) || 1;
       barrelDot = (to.x / flatDist) * dir.x + (to.z / flatDist) * dir.z;
-      if (barrelDot > 0.86) {
+      if (!aimP && barrelDot > 0.86) {
         dir.y = clamp(to.y / flatDist, -0.7, 0.7);
         dir.normalize();
       }
     }
+    if (aimP) dir.copy(aimP).sub(from).normalize();
 
     switch (mv.type) {
       case 'gatling': {
@@ -469,12 +473,15 @@ export class World {
         break;
       case 'mortar': {
         // lob along the facing; if an enemy is down the barrel, range the
-        // arc to their distance (with velocity lead) — direction stays manual
+        // arc to their distance (with velocity lead) — direction stays
+        // manual. An AIMED lob drops the shell exactly on the crosshair.
         const lobDist = barrelDot > 0.8 ? flatDist : 25;
-        const target = new THREE.Vector3(
-          f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
-        ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
-        if (e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
+        const target = aimP
+          ? new THREE.Vector3(aimP.x, 0, aimP.z)
+          : new THREE.Vector3(
+            f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
+          ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
+        if (!aimP && e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
         // twin cannons trade shots — doRanged toggled the side + mirrored clip
         const mFrom = f._altSide && anchors.muzzleL
           ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
