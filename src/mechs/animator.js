@@ -517,6 +517,38 @@ export class Animator {
           J.head.rotation.y -= Math.sin(ph) * 0.09 * run;
           J.head.rotation.x += Math.abs(Math.sin(ph)) * 0.06 * run - 0.03 * run;
         }
+        // RAPTOR CARRIAGE (written into tgt — direct writes get clobbered):
+        if (run > 0.05 && ctx.grounded !== false) {
+          // running: the body levels out and stretches, head spearing
+          // forward eyes-level — and the arms hold the classic tucked
+          // half-raised carry instead of pumping like a jogger's.
+          // (rest pitch 27° + locomotion lean already stack up: keep the
+          // extra drop SMALL or the run reads nose-down)
+          tgt.hipsRot[0] += 0.08 * run;
+          tgt.hipsPos[1] -= 0.06 * run * this.s;
+          tgt.head[0] += -0.22 * run;
+          const carryBob = Math.sin(ph * 2) * 0.05 * run;
+          tgt.shoulderL[0] = lerp(tgt.shoulderL[0], -0.62 + carryBob, run);
+          tgt.shoulderR[0] = lerp(tgt.shoulderR[0], -0.62 + carryBob, run);
+          tgt.shoulderL[2] = lerp(tgt.shoulderL[2], -0.1, run);
+          tgt.shoulderR[2] = lerp(tgt.shoulderR[2], 0.1, run);
+          tgt.elbowL[0] = lerp(tgt.elbowL[0], -1.15, run);
+          tgt.elbowR[0] = lerp(tgt.elbowR[0], -1.15, run);
+          tgt.handL[0] = lerp(tgt.handL[0], 0.5, run);
+          tgt.handR[0] = lerp(tgt.handR[0], 0.5, run);
+          // longer, springier strides than the humanoid cycle gives
+          tgt.thighL[0] += -Math.sin(ph) * 0.2 * run;
+          tgt.thighR[0] += -Math.sin(ph + Math.PI) * 0.2 * run;
+          tgt.kneeL[0] += Math.max(0, Math.sin(ph + 1.05)) * 0.24 * run;
+          tgt.kneeR[0] += Math.max(0, Math.sin(ph + Math.PI + 1.05)) * 0.24 * run;
+        } else if (run <= 0.05 && ctx.grounded !== false) {
+          // idle: coiled and ALERT — weight rocking between the staggered
+          // feet, claws flexing, head ticking in sharp little scans
+          tgt.hipsRot[2] += Math.sin(t * 0.9) * 0.02;
+          tgt.handL[0] += Math.sin(t * 1.4) * 0.08;
+          tgt.handR[0] += Math.sin(t * 1.4 + 1.1) * 0.08;
+          tgt.head[1] += Math.sin(t * 0.47) > 0.93 ? 0.22 : Math.sin(t * 0.31) * 0.1;
+        }
         break;
       }
       case 'frogger': {

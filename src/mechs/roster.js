@@ -330,9 +330,20 @@ export const ROSTER = [
       accent: { base: 0x24262c, base2: 0x1a1c22, metal: 0x6a6e76, wear: 0.5, grime: 0.4, panelDepth: 3, roughPaint: 0.36, metalPaint: 0.58, normalStrength: 1.15 },
     },
     body: { scale: 1.12, torsoW: 0.95, torsoH: 0.9, headSize: 1.0, armLen: 1.0, legLen: 1.15, hipW: 0.95, bulk: 0.95 },
-    // velociraptor stance: whole spine pitched forward over deeply-bent
-    // digitigrade legs, head craned back up to keep eyes on the prey
-    restPose: { torso: [27, 0, 0], head: [-25, 0, 0], thighL: [-45, 0, 0], thighR: [-45, 0, 0], kneeL: [75, 0, 0], kneeR: [75, 0, 0], ankleL: [-34, 0, 0], ankleR: [-34, 0, 0] },
+    // velociraptor stance (the Jurassic Park read): spine pitched forward
+    // over deeply-bent digitigrade legs SET APART and staggered — one leg
+    // leading, coiled to spring — shoulders DROPPED with the forearms
+    // half-raised in front, wrists curled so the claws hang ready, and the
+    // head craned back up, alert on the prey
+    restPose: {
+      torso: [27, 0, 0], head: [-25, 0, 0],
+      shoulderL: [-34, 0, -7], shoulderR: [-34, 0, 7],
+      elbowL: [-62, 0, 0], elbowR: [-62, 0, 0],
+      handL: [28, 0, 10], handR: [28, 0, -10],
+      thighL: [-50, 0, -9], thighR: [-40, 0, 9],
+      kneeL: [80, 0, 0], kneeR: [70, 0, 0],
+      ankleL: [-37, 0, 0], ankleR: [-31, 0, 0],
+    },
     stats: { hp: 1080, speed: 12.8, jump: 15, weight: 0.42, armor: 0.06, duck: 0.75, blockMult: 0.16, guardBreak: 0.6 },
     ui: { power: 7, speed: 10, defense: 3 },
     moves: {

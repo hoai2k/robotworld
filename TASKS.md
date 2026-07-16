@@ -1203,3 +1203,19 @@ controllers via Gamepad API), AI opponents.
     256px PNGs in roster order.
   Verified: mech-select screenshot shows all 16 badges crisp in the grid,
   info card, and player bar.
+
+58. SAURION: TRUE VELOCIRAPTOR STANCE & GAIT ✅
+  · Rest pose rebuilt to the Jurassic Park read: legs SET APART and
+    staggered (lead leg deeper-coiled), shoulders DROPPED with forearms
+    half-raised in front and wrists curled so the claws hang ready, spine
+    pitched over the digitigrade crouch with the head craned up alert.
+  · Idle: coiled-and-alert overlay — weight rocks between the staggered
+    feet, claws flex, and the head ticks in sharp scanning snaps instead
+    of the generic humanoid sway.
+  · Run: raptor carriage in the animator — body levels and stretches with
+    the head spearing forward eyes-level, the arms LEAVE the humanoid
+    counter-swing for the classic tucked half-raised carry (small gallop
+    bob), and the stride lengthens with extra knee drive. Extra pitch kept
+    small: rest 27° + locomotion lean already stack.
+  Verified: idle + two run-phase stills reviewed (alert stagger stance,
+  stretched run with tucked claws); saurion-vs-fenrir ace soak crash-free.
