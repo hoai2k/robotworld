@@ -1189,3 +1189,17 @@ controllers via Gamepad API), AI opponents.
     drop-in replacements for the same thumbs/<id>.png files.
   Verified: build green; mech-select screenshot shows all 16 portrait
   tiles; finisher split/fullscreen frames reviewed; ace soak crash-free.
+
+57. GENERATED FACTION BADGES INTEGRATED AS THE ROSTER ICONS ✅
+  · The AI-generated 4x4 badge sheet (from docs/ICON_PROMPTS.md) is sliced
+    into public/thumbs/<id>.png and now serves as every mech's icon —
+    seismic fist, gatling flash, dawn shield, crossed fangs, halo star,
+    charging horn, lightning tornado, claw-torn moon, artillery rook, eye
+    in crosshair, grinning flame, shard snowflake, pincer geyser, sickle
+    claw, slime splat, shrimp swarm — replacing the rendered portraits.
+  · New tools/slicebadges.mjs: slices any future badge sheet via Chromium
+    canvas (no native image deps), auto-detecting each tile's glowing rim
+    bounding box so uneven sheet margins can't drift the crops, and writes
+    256px PNGs in roster order.
+  Verified: mech-select screenshot shows all 16 badges crisp in the grid,
+  info card, and player bar.
