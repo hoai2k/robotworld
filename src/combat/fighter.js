@@ -5,7 +5,6 @@ import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/u
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
-import { glitchTint } from './effects.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -1117,19 +1116,26 @@ export class Fighter {
     }
   }
 
-  // a glitched hit landed: another part of this frame turns to broken data
+  // a glitched hit landed: another part of this frame turns to broken data.
+  // The look is LOCAL — a flickering 2D corruption patch (JPEG macroblocks,
+  // RGB-split scanlines, TV static) pinned right where the hit landed, as
+  // if the renderer is failing at that spot — plus a slow drip of square
+  // data-flecks off the same part. Never a whole-body color flash.
   addGlitch(n = 1) {
     if (!this.alive || this.state === 'glitched') return;
     for (let i = 0; i < n && this.glitchStacks < GLITCH_OVERLOAD; i++) {
       this.glitchStacks++;
       const [jn, y0, y1] = GLITCH_SPOT_JOINTS[(Math.random() * GLITCH_SPOT_JOINTS.length) | 0];
       if (this.mech.joints[jn]) {
-        this._glitchSpots.push({
+        const spot = {
           joint: jn,
           x: rand(-0.35, 0.35) * this.scale,
           y: rand(y0, y1) * this.scale,
           z: rand(-0.25, 0.4) * this.scale,
-        });
+        };
+        this._glitchSpots.push(spot);
+        // the rendering-failure patch itself, pinned to the part for the round
+        this.world.effects.glitchOn(this, { ...spot, size: 1.35 });
       }
     }
     // the freshly-corrupted part visibly TEARS
@@ -1144,9 +1150,20 @@ export class Fighter {
   }
 
   // 10 stacks: TOTAL CORRUPTION — engulfed head to toe, servos locked,
-  // spasming, taking double damage until the crash clears
+  // spasming, taking double damage until the crash clears. "Engulfed"
+  // means corruption patches over EVERY body part, not a color wash.
   glitchOverload() {
     this.setState('glitched', GLITCH_STUN_TIME);
+    for (const [jn, y0, y1] of GLITCH_SPOT_JOINTS) {
+      if (!this.mech.joints[jn]) continue;
+      this.world.effects.glitchOn(this, {
+        joint: jn,
+        x: rand(-0.3, 0.3) * this.scale,
+        y: rand(y0, y1) * this.scale,
+        z: rand(-0.2, 0.4) * this.scale,
+        size: 1.65, life: GLITCH_STUN_TIME,
+      });
+    }
     this.blocking = false;
     this.firing = false;
     this.hovering = false;
@@ -1171,7 +1188,7 @@ export class Fighter {
     this.glitchStacks = 0;
     this._glitchSpots.length = 0;
     this._nullTear = 0;
-    this._tintHold = 0;
+    this.world.effects.clearGlitchOn(this);
     this.applyGlitchTint(0);
   }
 
@@ -1205,32 +1222,20 @@ export class Fighter {
         }
       }
     }
-    // material strobing: the shell renders in wrong colors
-    if (engulfed) {
-      this._tintT = (this._tintT ?? 0) - dt;
-      if (this._tintT <= 0) {
-        this._tintT = rand(0.05, 0.14);
-        this._tintC = glitchTint();
-        this._tintW = rand(0.3, 0.65);
-      }
-      this.applyGlitchTint(this._tintW, this._tintC);
-    } else if (this._tintHold > 0) {
-      this._tintHold -= dt;
-      if (this._tintHold <= 0) this.applyGlitchTint(0);
-    } else if (Math.random() < dt * (0.5 + this.glitchStacks * 0.45)) {
-      // one-beat full-body color tear, more often as stacks build
-      this._tintHold = rand(0.04, 0.1);
-      this.applyGlitchTint(rand(0.25, 0.55), glitchTint());
-    }
+    // NOTE: deliberately no whole-body material tinting here — corruption
+    // must read as LOCAL rendering failure (the patches + flecks above),
+    // never as the entire enemy flashing a color.
   }
 
-  // NULLBOT's own ambient corruption: parts of his body constantly flash
-  // broken colors — he IS the virus (super scary, per the concept)
+  // NULLBOT's own ambient corruption: individual parts of his body keep
+  // failing to render — wandering 2D static/RGB-noise patches that jump
+  // to a new part every couple of seconds, plus stray data-flecks. Local
+  // tears only; his shell never flashes as a whole.
   updateNullbotAura(dt) {
     const fx = this.world.effects;
     this._nullFxT = (this._nullFxT ?? 0) - dt;
     if (this._nullFxT <= 0) {
-      this._nullFxT = rand(0.05, 0.14);
+      this._nullFxT = rand(0.06, 0.16);
       const names = ['torso', 'torso', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'];
       const j = this.mech.joints[names[(Math.random() * names.length) | 0]];
       if (j) {
@@ -1240,13 +1245,21 @@ export class Fighter {
           _v.z + rand(-0.45, 0.55) * this.scale, 0.85 * this.scale);
       }
     }
-    // rare one-beat full-shell color tear
-    if (this._nullTear > 0) {
-      this._nullTear -= dt;
-      if (this._nullTear <= 0) this.applyGlitchTint(0);
-    } else if (Math.random() < dt * 0.45) {
-      this._nullTear = rand(0.04, 0.09);
-      this.applyGlitchTint(rand(0.2, 0.45), glitchTint());
+    // wandering rendering-failure patches: each lives a couple of seconds
+    // on one body part, dies, and respawns somewhere else
+    this._nullPatchT = (this._nullPatchT ?? 0) - dt;
+    if (this._nullPatchT <= 0) {
+      this._nullPatchT = rand(0.7, 1.6);
+      const [jn, y0, y1] = GLITCH_SPOT_JOINTS[(Math.random() * GLITCH_SPOT_JOINTS.length) | 0];
+      if (this.mech.joints[jn]) {
+        fx.glitchOn(this, {
+          joint: jn,
+          x: rand(-0.3, 0.3) * this.scale,
+          y: rand(y0, y1) * this.scale,
+          z: rand(-0.2, 0.4) * this.scale,
+          size: 1.0, life: rand(1.4, 2.6),
+        });
+      }
     }
   }
 

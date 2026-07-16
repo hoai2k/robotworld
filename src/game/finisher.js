@@ -9,7 +9,6 @@
 // close-ups over the default wide shot just by adding them.
 import * as THREE from 'three';
 import { rand, clamp01, lerp } from '../core/utils.js';
-import { glitchTint } from '../combat/effects.js';
 
 const smooth = (k) => k * k * (3 - 2 * k);
 const _ct = new THREE.Vector3();
@@ -1390,7 +1389,9 @@ const SCRIPTS = {
       vic.pos.y = smooth(Math.min(1, k * 2.4)) * 0.8 * win.scale;
       vic.yaw = vic.targetYaw = F.axis + Math.PI;
       vic.group.rotation.y = vic.yaw;
-      // corruption ramp: flecks -> bursts -> near-total static
+      // corruption ramp: flecks -> bursts -> part after part of the body
+      // STOPS RENDERING (2D static/RGB-noise patches pinned to the joints,
+      // spawning faster and faster until nothing is left clean)
       if (Math.random() < dt * (10 + 46 * k)) {
         w.effects.glitchFleck(
           vic.pos.x + rand(-0.8, 0.8) * vic.scale,
@@ -1403,8 +1404,22 @@ const SCRIPTS = {
       }
       F._vt = (F._vt ?? 0) - dt;
       if (F._vt <= 0) {
-        F._vt = 0.045 + (1 - k) * 0.1;
-        vic.applyGlitchTint(0.2 + 0.45 * k, glitchTint());
+        F._vt = 0.42 - 0.3 * k;
+        const GRAB_JOINTS = [
+          ['torso', 0.2, 1.5], ['head', -0.1, 0.4],
+          ['shoulderL', -1.0, 0.1], ['shoulderR', -1.0, 0.1],
+          ['elbowL', -0.9, 0], ['elbowR', -0.9, 0],
+          ['thighL', -1.2, 0], ['thighR', -1.2, 0],
+          ['kneeL', -1.1, 0], ['kneeR', -1.1, 0],
+        ];
+        const [jn, y0, y1] = GRAB_JOINTS[(Math.random() * GRAB_JOINTS.length) | 0];
+        w.effects.glitchOn(vic, {
+          joint: jn,
+          x: rand(-0.3, 0.3) * vic.scale,
+          y: rand(y0, y1) * vic.scale,
+          z: rand(-0.2, 0.4) * vic.scale,
+          size: 1.45, life: rand(2.5, 5),
+        });
       }
     });
     // side-front quarter so the hoisted, corrupting victim stays in frame
@@ -1412,7 +1427,6 @@ const SCRIPTS = {
     // the husk is dropped — a heap of static
     F.at(3.6, () => {
       F.vicDown();
-      vic.applyGlitchTint(0.45, 0xff2df2);
       w.effects.glitchBurst(vic.center(), 20, 9, vic.scale);
       F.beat('bodyfall', 0.5, 0.05);
     });
@@ -1440,7 +1454,7 @@ const SCRIPTS = {
       w.effects.glitchBurst(win.center(), 24, 12, win.scale);
       showBluescreen(F);
     });
-    F.cleanups.push(() => vic.applyGlitchTint(0));
+    F.cleanups.push(() => w.effects.clearGlitchOn(vic));
     // the SYSTEM FAILURE screen owns the last three seconds; end() (or a
     // skip) tears it down via cleanups
   },

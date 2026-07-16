@@ -1562,3 +1562,23 @@ controllers via Gamepad API), AI opponents.
   probed at t=3.0 (engulf), 4.1 (lens turn), 6.0 (bluescreen, full text
   legible); nullbot-vs-viper and titanus-vs-nullbot ace soaks crash-free;
   select-screen thumb generated; npx vite build green.
+
+73. NULLBOT GLITCH LOOK V2 — LOCALIZED RENDERING FAILURE (user feedback) ✅
+  · User: don't flash the opponent's whole body — corruption must appear
+    AT the hit body part, looking like 2D JPEG noise / TV static / RGB
+    tears. New glitchNoiseTexture (macroblock grid, RGB channel-split
+    scan bars, fine static on transparent ground) + a glitch-patch system
+    in Effects: camera-facing sprites pinned to the struck joint that
+    flicker on a hard duty cycle, jitter, stretch (scanline strips vs
+    noise blocks) and re-tile a fresh sub-window of the sheet every few
+    frames — that part of the enemy visibly stops rendering correctly.
+  · Every glitch stack pins one persistent patch to the exact part hit
+    (round-long, cleared by clearGlitchOn); the 10-stack overload now
+    covers EVERY body part in bigger patches for the 3s stun instead of
+    tint-strobing; all whole-body color flashing removed for victims.
+    NULLBOT's own ambient swapped to wandering per-part patches too, and
+    the finisher engulf corrupts the victim part-by-part (patches ramp
+    in faster and faster) with no tint wash.
+  Verified: close-cam probes at 6/8 stacks (distinct static patches on
+  waist/hip/knee/thigh), 10-stack engulf (23 live patches, no wash),
+  finisher engulf re-probed; both ace soaks crash-free; build green.

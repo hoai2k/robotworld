@@ -590,6 +590,50 @@ export function glitchCellsTexture() {
   });
 }
 
+// A sheet of 2D RENDERING FAILURE, transparent background: JPEG-style
+// macroblock noise, RGB channel-split scan bars, and fine TV static.
+// Sampled through random repeat/offset sub-windows by the glitch patches
+// pinned to corrupted body parts, so every flicker shows a fresh tear.
+// v picks one of a few baked layouts.
+export function glitchNoiseTexture(v = 0) {
+  return fxTexture('glitchNoise' + v, 128, 128, (ctx) => {
+    const rng = makeRng(0x51a71c + v * 977);
+    const PAL = ['#ff2038', '#27f6ff', '#ff2df2', '#3cff6e', '#3350ff', '#ffe23c', '#ffffff', '#0a0a10'];
+    // JPEG macroblocks: hard 8px squares, most of the sheet left transparent
+    for (let by = 0; by < 16; by++) {
+      for (let bx = 0; bx < 16; bx++) {
+        const r = rng();
+        if (r < 0.58) continue;
+        ctx.globalAlpha = 0.4 + rng() * 0.6;
+        if (r < 0.82) { // desaturated broken-decode gray
+          const g = (30 + rng() * 200) | 0;
+          ctx.fillStyle = `rgb(${g},${g},${g})`;
+        } else {
+          ctx.fillStyle = PAL[(rng() * PAL.length) | 0];
+        }
+        ctx.fillRect(bx * 8, by * 8, 8, 8);
+      }
+    }
+    // RGB channel-split scan bars (the classic torn-frame smear)
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < 6; i++) {
+      const y = (rng() * 120) | 0, h = 2 + ((rng() * 4) | 0);
+      const x = (rng() * 50) | 0, w = 40 + rng() * 80;
+      ctx.globalAlpha = 0.75;
+      ctx.fillStyle = '#ff0026'; ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = '#00ffe6'; ctx.fillRect(x + 3, y + 1, w, h);
+      ctx.fillStyle = '#2236ff'; ctx.fillRect(x - 3, y - 1, w, h);
+    }
+    // fine RGB static sprinkled over everything
+    ctx.globalCompositeOperation = 'source-over';
+    for (let i = 0; i < 240; i++) {
+      ctx.globalAlpha = 0.35 + rng() * 0.65;
+      ctx.fillStyle = ['#ff2038', '#3cff6e', '#3350ff', '#ffffff', '#27f6ff'][(rng() * 5) | 0];
+      ctx.fillRect((rng() * 126) | 0, (rng() * 126) | 0, rng() < 0.3 ? 2 : 1, 1);
+    }
+  });
+}
+
 // crystalline six-armed ice sparkle (additive)
 export function iceTexture() {
   return fxTexture('iceSparkle', 64, 64, (ctx, S) => {

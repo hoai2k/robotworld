@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import {
   softCircleTexture, sparkTexture, smokeCellsTexture, flameAtlasTexture,
   dropletTexture, goopCellsTexture, iceTexture, ringTexture, streamNoiseTexture,
-  glitchCellsTexture,
+  glitchCellsTexture, glitchNoiseTexture,
 } from '../core/textures.js';
 
 // NULLBOT's corruption palette: hard neon channels + white, cycled at
@@ -475,6 +475,8 @@ export class Effects {
     this.streams = new Map(); // key -> live jet tube (hose, flamethrower)
     this.puddles = [];        // ground decals: slime splats, wet patches
     this.blotches = [];       // goo splats STUCK to fighters
+    this.glitchPatches = [];  // 2D corruption patches pinned to hit body parts
+    this._glitchPatchPool = [];
     this._puddlePool = [];
     this._blotchPool = [];
     this.statics = []; // {f, t, tick} — crackle lingering on shocked bots
@@ -952,6 +954,73 @@ export class Effects {
       { life: 0.12, size: size * 2.2, color: 0xffffff, alpha: 0.95, fadeIn: 0.01, rot: 0 });
   }
 
+  // ---- localized rendering failure: a camera-facing patch of 2D
+  // corruption (JPEG macroblocks / RGB channel-split bars / TV static)
+  // pinned to the EXACT body part a NULLBOT hit landed on. Each patch
+  // flickers on a hard duty cycle, jitters, stretches and re-tiles a new
+  // sub-window of the noise sheet every few frames — that spot of the
+  // enemy simply stops rendering correctly. life=Infinity patches persist
+  // until clearGlitchOn(fighter). ----
+  glitchOn(fighter, { joint = 'torso', x = 0, y = 0, z = 0, size = 1, life = Infinity } = {}) {
+    const bone = fighter.mech?.joints?.[joint];
+    if (!bone) return null;
+    let spr = this._glitchPatchPool.pop();
+    if (!spr) {
+      spr = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
+      spr.renderOrder = 7;
+    }
+    const tex = glitchNoiseTexture((Math.random() * 3) | 0).clone();
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.needsUpdate = true;
+    spr.material.map = tex;
+    spr.material.opacity = 1;
+    spr.material.needsUpdate = true;
+    bone.add(spr);
+    spr.visible = true;
+    const p = {
+      spr, f: fighter, base: { x, y, z }, size: size * (fighter.scale || 1),
+      t: 0, life, tick: 0,
+      line: Math.random() < 0.4, // torn scanline strip vs macroblock patch
+    };
+    this._restyleGlitchPatch(p);
+    this.glitchPatches.push(p);
+    return p;
+  }
+
+  _restyleGlitchPatch(p) {
+    const m = p.spr.material.map;
+    if (p.line) { // a torn horizontal scanline: long, razor thin
+      m.repeat.set(rand(0.5, 1), rand(0.05, 0.14));
+      p.spr.scale.set(p.size * rand(1.0, 2.0), p.size * rand(0.06, 0.16), 1);
+    } else { // block of compression noise
+      m.repeat.set(rand(0.35, 0.85), rand(0.3, 0.75));
+      p.spr.scale.set(p.size * rand(0.6, 1.15), p.size * rand(0.4, 0.85), 1);
+    }
+    m.offset.set(Math.random(), Math.random());
+    p.spr.position.set(
+      p.base.x + rand(-0.12, 0.12) * p.size,
+      p.base.y + rand(-0.12, 0.12) * p.size,
+      p.base.z + rand(-0.08, 0.08) * p.size);
+    // occasionally the whole patch decodes as one hard channel color
+    p.spr.material.color.setHex(Math.random() < 0.75 ? 0xffffff : glitchColor());
+  }
+
+  _dropGlitchPatch(i) {
+    const p = this.glitchPatches[i];
+    p.spr.parent?.remove(p.spr);
+    p.spr.material.map?.dispose();
+    p.spr.material.map = null;
+    p.spr.visible = false;
+    this.glitchPatches.splice(i, 1);
+    this._glitchPatchPool.push(p.spr);
+  }
+
+  clearGlitchOn(fighter) {
+    for (let i = this.glitchPatches.length - 1; i >= 0; i--) {
+      if (this.glitchPatches[i].f === fighter) this._dropGlitchPatch(i);
+    }
+  }
+
   // lingering electrical crackle on a shocked bot: small arcs snap between
   // random points on the body while the charge bleeds off
   staticCling(fighter, dur = 1.1) {
@@ -1015,6 +1084,21 @@ export class Effects {
         this.goop.emit(_ja.x, _ja.y, _ja.z, rand(-0.4, 0.4), -0.5, rand(-0.4, 0.4),
           { life: rand(0.4, 0.7), size: rand(0.4, 0.7), color: 0x6cb022, color2: 0x2c5210,
             alpha: 0.95, gravity: 20, fadeIn: 0.05 });
+      }
+    }
+    for (let i = this.glitchPatches.length - 1; i >= 0; i--) {
+      const p = this.glitchPatches[i];
+      p.t += dt;
+      if (p.t >= p.life || !p.f.group?.visible || !p.spr.parent) {
+        this._dropGlitchPatch(i);
+        continue;
+      }
+      p.tick -= dt;
+      if (p.tick <= 0) {
+        p.tick = rand(0.03, 0.14);
+        // hard duty cycle: dead-off beats sell the flicker
+        p.spr.visible = Math.random() < 0.8;
+        if (p.spr.visible) this._restyleGlitchPatch(p);
       }
     }
     for (let i = this.statics.length - 1; i >= 0; i--) {
