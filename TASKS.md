@@ -1470,3 +1470,24 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; all four scripts probed to completion headless
   (charring hit full black 0x14100d mid-script); vulcan+saurion ace and
   inferno+colossus veteran soaks crash-free with clean KOs.
+
+70. CRANKY GEYSER REBUILT AS A LAYERED WATER SIM (user request) ✅
+  · New src/combat/geyserfx.js: reusable GeyserFX — the standard
+    real-time geyser fake (researched: column-mesh + particle layers,
+    never a fluid solve). Two nested shader shells (vertex-noise churn,
+    dual noise scrolling up the column, deep-blue -> aerated-foam ramp,
+    rim foaming, noise-eroded ragged crown) + Effects-pool layers:
+    risers, ballistic droplet crown, fall-back splash donut, mist, base
+    surge, foam rings, wet puddle. Lifecycle: boiling telegraph ->
+    spring-overshoot burst -> pulsing sustain (random pressure surges)
+    -> drain-down collapse (ejection stops, spray rains out).
+  · specials.js geyser() now spawns GeyserFX (~140 lines of hand-rolled
+    burst particles deleted); damage unchanged: same 0.85s evadable
+    telegraph, one heavy hit at blowout. roster.js: duration: 6 — the
+    full show runs 6s (warn 0.85 + sustain 4.2 + collapse 0.95).
+    world.geysers list ticks live instances; clearTransient disposes.
+  · ?geyser dev page (src/dev/geysertest.js): looping hot-spring
+    diorama; &t=<sec> warps + freezes for headless shots; &orbit=0.
+  Verified: build green; cranky-vs-viper ace soak crash-free (clean
+  KO); demo cycle stills reviewed at 4 phases; in-battle eruption
+  screenshot via fast-forward probe (column reads at gameplay cam).
