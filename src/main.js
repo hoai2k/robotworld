@@ -8,6 +8,8 @@ if (params.has('showcase')) {
   });
 } else if (params.has('battle') || params.get('debug') === 'finisher' || params.get('finisherdemo') === '1') {
   import('./dev/battletest.js').then(({ runBattleTest }) => runBattleTest());
+} else if (params.has('geyser')) {
+  import('./dev/geysertest.js').then(({ runGeyserTest }) => runGeyserTest());
 } else if (params.has('rigtest')) {
   import('./dev/rigtest.js').then(({ runRigTest }) => runRigTest());
 } else {
