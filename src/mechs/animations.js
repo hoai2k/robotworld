@@ -360,6 +360,16 @@ const CLIPS_RAW = {
     ],
     events: [{ t: 0.18, type: 'sfx', arg: 'whooshBig' }, { t: 0.26, type: 'fire' }, { t: 0.28, type: 'shake', arg: 0.25 }],
   },
+  fistCatch: { // the rocket fist is inbound: reach the right arm straight
+    // out and brace — the fist re-docks onto the extended wrist mid-clip
+    dur: 0.85, upper: true,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.2, ease: 'outCubic', pose: { torso: [4, -14, -4], head: [0, 8, 0], shoulderR: [-86, 4, -4], elbowR: [-8, 0, 0], shoulderL: [6, 0, -14], elbowL: [-24, 0, 0] } },
+      { t: 0.55, ease: 'inOutQuad', pose: { shoulderR: [-84, 4, -4], torso: [3, -12, -3] } },
+      { t: 0.85, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
+    ],
+  },
 
   heavy: { // two-hand overhead smash — huge arch back, body hurled into the slam
     dur: 0.98,

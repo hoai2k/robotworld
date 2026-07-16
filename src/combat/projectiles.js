@@ -208,14 +208,21 @@ export class ProjectileSystem {
         }
       }
       // boomerang (rocket fist): once it's coming home, hard-home on the
-      // thrower at full speed — clobbering whatever crosses the return path
+      // thrower's WRIST at full speed — clobbering whatever crosses the
+      // return path — and cue the owner to reach out for the catch
       if (p.boomerang && p.returning && p.owner) {
-        _v.copy(p.owner.center());
+        const wrist = p.owner.mech?.joints?.handR;
+        if (wrist) wrist.getWorldPosition(_v); else _v.copy(p.owner.center());
         _v.x = p.mesh.position.x + world.wrapDelta(_v.x - p.mesh.position.x);
         _v.z = p.mesh.position.z + world.wrapDelta(_v.z - p.mesh.position.z);
         const sp = p.vel.length();
         _dir.copy(_v).sub(p.mesh.position);
-        if (_dir.length() < Math.max(1.6, sp * dt * 1.5)) {
+        const dHome = _dir.length();
+        if (!p.reachCalled && dHome < sp * 0.42) { // ~0.4s out: arm up!
+          p.reachCalled = true;
+          p.owner.reachForFist?.(p.mesh.position);
+        }
+        if (dHome < Math.max(1.6, sp * dt * 1.5)) {
           p.life = -1; // home — the dead path below re-attaches it (onReturn)
         } else {
           p.vel.copy(_dir.normalize().multiplyScalar(sp));

@@ -1375,3 +1375,18 @@ controllers via Gamepad API), AI opponents.
     death) so any future projectile can wear real geometry.
   Verified: build green; mid-flight still shows the dark segmented fist
   crossing the gap (hand hidden on the mech); ace soak crash-free.
+
+66. CHARGE FLICKER = NEAR-MAX WARNING · BLUE DASH · FIST-CATCH REACH ✅
+  · The charge sheath no longer lights on any power gain: it stays dark
+    until ~70% of the hold cap, then ramps blink rate and brightness over
+    the final stretch to 100% (white-hot at cap) — it now MEANS "maximum
+    is close", not "charging". Probe: nothing at 50-56%, strobing at 92%+.
+  · Dash charge strobes BLUE (0x2470ff, icy at cap) on the legs; attack
+    holds keep the red.
+  · ROCKET FIST catch: the returning fist now homes on Titanus' WRIST
+    (not his chest), and ~0.4s before arrival it cues reachForFist — he
+    squares toward the incoming fist and plays a new upper-body fistCatch
+    clip, right arm reaching straight out so the fist re-docks onto the
+    extended wrist mid-reach, then the arm settles.
+  Verified: build green; probe (gating thresholds, colors, catch clip
+  fired during return, hand re-docked); ace soak crash-free.

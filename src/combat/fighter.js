@@ -681,12 +681,14 @@ export class Fighter {
     if (k > 0.4) this.world.audio?.play('whooshBig');
   }
 
-  // ---- charge tell: a reddish additive sheath flickers over whichever
-  // limbs are banking power — the wound-up punch arm, both pound arms, the
-  // dash legs, aegis' whirling lance — blinking faster and hotter as the
-  // charge approaches full, then white-hot at the cap ----
+  // ---- charge tell: an additive sheath flickers over whichever limbs are
+  // banking power — the wound-up punch arm, both pound arms, the dash legs,
+  // aegis' whirling lance. It is a NEAR-MAX warning, not a charging light:
+  // nothing shows until ~70% of the cap, then the flicker ramps from a
+  // first blink to an urgent strobe as 100% closes in (white-hot at cap).
+  // Attacks strobe red; the dash strobes blue. ----
   updateChargeGlow(dt) {
-    let key = null, k = 0;
+    let key = null, k = 0, dash = false;
     if (this.alive) {
       if (this._punchHold != null && this.intent.lightHeld) {
         k = this._punchHold / PUNCH_HOLD_CAP;
@@ -697,18 +699,21 @@ export class Fighter {
       } else if (this._dashCharging && this._dashCharge > 0.15) {
         k = this._dashCharge / CHARGE_DASH_MAX;
         key = 'legs';
+        dash = true;
       }
     }
-    if (!key) {
+    const u = (Math.min(1, k) - 0.7) / 0.3; // 0 at 70% charge, 1 at the cap
+    if (!key || u <= 0) {
       if (this._glowShells) this.clearChargeGlow();
       return;
     }
     if (this._glowKey !== key) this.ensureChargeShells(key);
-    // flicker: a lazy red blink at low charge, an urgent strobe near full
-    this._glowPhase = (this._glowPhase || 0) + dt * (3 + 22 * k);
+    this._glowPhase = (this._glowPhase || 0) + dt * (5 + 20 * u);
     const on = Math.sin(this._glowPhase * TAU) > -0.35;
-    this._glowMat.opacity = on ? 0.16 + 0.5 * Math.min(1, k) : 0.03;
-    this._glowMat.color.setHex(k >= 1 ? 0xff8850 : 0xff2818);
+    this._glowMat.opacity = on ? 0.2 + 0.46 * u : 0.03;
+    this._glowMat.color.setHex(dash
+      ? (k >= 1 ? 0x9fd8ff : 0x2470ff)
+      : (k >= 1 ? 0xff8850 : 0xff2818));
   }
 
   ensureChargeShells(key) {
@@ -834,6 +839,16 @@ export class Fighter {
   launchFist() {
     this.mech.joints.handR?.scale.setScalar(0.001);
     this._fistOut = true;
+  }
+
+  // the returning fist is a beat out — square toward it and reach the right
+  // arm out open-wristed so the re-dock reads as a deliberate catch
+  reachForFist(fistPos) {
+    if (!this.alive || !this.canAct()) return;
+    const dx = this.world.wrapDelta(fistPos.x - this.pos.x);
+    const dz = this.world.wrapDelta(fistPos.z - this.pos.z);
+    this.targetYaw = Math.atan2(dx, dz);
+    this.animator.play('fistCatch');
   }
 
   catchFist() {
