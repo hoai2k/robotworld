@@ -1149,8 +1149,16 @@ export class Fighter {
           z: rand(-0.25, 0.4) * this.scale,
         };
         this._glitchSpots.push(spot);
-        // the rendering-failure patch itself, pinned to the part for the round
-        this.world.effects.glitchOn(this, { ...spot, size: 1.35 });
+        // the rendering-failure patches, pinned to the part for the round —
+        // a big primary tear plus a smaller satellite so each hit reads DENSE
+        this.world.effects.glitchOn(this, { ...spot, size: 1.5 });
+        this.world.effects.glitchOn(this, {
+          joint: spot.joint,
+          x: spot.x + rand(-0.3, 0.3) * this.scale,
+          y: spot.y + rand(-0.3, 0.3) * this.scale,
+          z: spot.z,
+          size: 1.0,
+        });
       }
     }
     // the freshly-corrupted part visibly TEARS
@@ -1169,15 +1177,17 @@ export class Fighter {
   // means corruption patches over EVERY body part, not a color wash.
   glitchOverload() {
     this.setState('glitched', GLITCH_STUN_TIME);
-    for (const [jn, y0, y1] of GLITCH_SPOT_JOINTS) {
-      if (!this.mech.joints[jn]) continue;
-      this.world.effects.glitchOn(this, {
-        joint: jn,
-        x: rand(-0.3, 0.3) * this.scale,
-        y: rand(y0, y1) * this.scale,
-        z: rand(-0.2, 0.4) * this.scale,
-        size: 1.65, life: GLITCH_STUN_TIME,
-      });
+    for (const sizes of [1.9, 1.2]) { // two layers: big tears + fill
+      for (const [jn, y0, y1] of GLITCH_SPOT_JOINTS) {
+        if (!this.mech.joints[jn]) continue;
+        this.world.effects.glitchOn(this, {
+          joint: jn,
+          x: rand(-0.3, 0.3) * this.scale,
+          y: rand(y0, y1) * this.scale,
+          z: rand(-0.2, 0.4) * this.scale,
+          size: sizes, life: GLITCH_STUN_TIME,
+        });
+      }
     }
     this.blocking = false;
     this.firing = false;
@@ -1264,7 +1274,7 @@ export class Fighter {
     // on one body part, dies, and respawns somewhere else
     this._nullPatchT = (this._nullPatchT ?? 0) - dt;
     if (this._nullPatchT <= 0) {
-      this._nullPatchT = rand(0.7, 1.6);
+      this._nullPatchT = rand(0.45, 1.1);
       const [jn, y0, y1] = GLITCH_SPOT_JOINTS[(Math.random() * GLITCH_SPOT_JOINTS.length) | 0];
       if (this.mech.joints[jn]) {
         fx.glitchOn(this, {
@@ -1272,7 +1282,9 @@ export class Fighter {
           x: rand(-0.3, 0.3) * this.scale,
           y: rand(y0, y1) * this.scale,
           z: rand(-0.2, 0.4) * this.scale,
-          size: 1.0, life: rand(1.4, 2.6),
+          size: 1.15, life: rand(1.4, 2.6),
+          // his shell is near-black — decode in his glow channels instead
+          colors: [this.def.colors.glow, this.def.colors.glow2 || 0x27f6ff, 0xffffff],
         });
       }
     }

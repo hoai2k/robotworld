@@ -1383,84 +1383,85 @@ const SCRIPTS = {
   // scene ends (skip and end() both tear the overlay down).
   nullbot(F) {
     const { win, vic, w } = F;
-    F.dur = 7.5;
+    F.dur = 8.0;
+    const GRAB_JOINTS = [
+      ['torso', 0.2, 1.5], ['head', -0.1, 0.4],
+      ['shoulderL', -1.0, 0.1], ['shoulderR', -1.0, 0.1],
+      ['elbowL', -0.9, 0], ['elbowR', -0.9, 0],
+      ['thighL', -1.2, 0], ['thighR', -1.2, 0],
+      ['kneeL', -1.1, 0], ['kneeR', -1.1, 0],
+    ];
+    const vicPatch = (size, life) => {
+      const [jn, y0, y1] = GRAB_JOINTS[(Math.random() * GRAB_JOINTS.length) | 0];
+      w.effects.glitchOn(vic, {
+        joint: jn,
+        x: rand(-0.3, 0.3) * vic.scale,
+        y: rand(y0, y1) * vic.scale,
+        z: rand(-0.2, 0.4) * vic.scale,
+        size, life,
+      });
+    };
     F.approach(0.2, 1.0, 2.6);
     F.camShot(0, 1.35, { dist: 12, h: 4.4, az0: 2.1, az1: 2.5 });
     F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
     F.at(1.32, () => { F.ragdoll(vic, 'ragdollAir'); F.beat('zap', 0.35, 0.05); });
-    // hoisted one-handed by the collar, feet off the dirt, while the
-    // corruption pours in — shell strobing wrong colors, parts tearing
-    // away into square static
-    F.hold(1.32, 3.55, (k, dt) => {
+    // the mark is LEVITATED out at arm's length — well clear of NULLBOT —
+    // and rises slowly into the air while the corruption pours in: patch
+    // after patch of their body stops rendering, faster and faster, and
+    // the patches STAY, until there is more static than machine
+    F.hold(1.32, 4.2, (k, dt) => {
       win.yaw = win.targetYaw = F.axis;
-      const hx = win.pos.x + Math.sin(F.axis) * 2.0 * win.scale;
-      const hz = win.pos.z + Math.cos(F.axis) * 2.0 * win.scale;
+      const hx = win.pos.x + Math.sin(F.axis) * 3.6 * win.scale;
+      const hz = win.pos.z + Math.cos(F.axis) * 3.6 * win.scale;
       const grip = Math.min(1, dt * 9);
       vic.pos.x += (hx - vic.pos.x) * grip;
       vic.pos.z += (hz - vic.pos.z) * grip;
-      vic.pos.y = smooth(Math.min(1, k * 2.4)) * 0.8 * win.scale;
+      vic.pos.y = smooth(Math.min(1, k * 1.4)) * 2.3 * win.scale + Math.sin(k * 21) * 0.1;
       vic.yaw = vic.targetYaw = F.axis + Math.PI;
       vic.group.rotation.y = vic.yaw;
-      // corruption ramp: flecks -> bursts -> part after part of the body
-      // STOPS RENDERING (2D static/RGB-noise patches pinned to the joints,
-      // spawning faster and faster until nothing is left clean)
-      if (Math.random() < dt * (10 + 46 * k)) {
+      // loose flecks + occasional shard bursts, ramping with the corruption
+      if (Math.random() < dt * (10 + 50 * k)) {
         w.effects.glitchFleck(
           vic.pos.x + rand(-0.8, 0.8) * vic.scale,
           vic.pos.y + rand(0.3, vic.height),
           vic.pos.z + rand(-0.8, 0.8) * vic.scale, 1.25 * vic.scale);
       }
-      if (Math.random() < dt * (1.5 + 7 * k)) {
+      if (Math.random() < dt * (1.5 + 8 * k)) {
         w.effects.glitchBurst(vic.center(), 8, 5, 0.8 * vic.scale);
         if (Math.random() < 0.4) w.audio?.play('zap');
       }
-      F._vt = (F._vt ?? 0) - dt;
-      if (F._vt <= 0) {
-        F._vt = 0.42 - 0.3 * k;
-        const GRAB_JOINTS = [
-          ['torso', 0.2, 1.5], ['head', -0.1, 0.4],
-          ['shoulderL', -1.0, 0.1], ['shoulderR', -1.0, 0.1],
-          ['elbowL', -0.9, 0], ['elbowR', -0.9, 0],
-          ['thighL', -1.2, 0], ['thighR', -1.2, 0],
-          ['kneeL', -1.1, 0], ['kneeR', -1.1, 0],
-        ];
-        const [jn, y0, y1] = GRAB_JOINTS[(Math.random() * GRAB_JOINTS.length) | 0];
-        w.effects.glitchOn(vic, {
-          joint: jn,
-          x: rand(-0.3, 0.3) * vic.scale,
-          y: rand(y0, y1) * vic.scale,
-          z: rand(-0.2, 0.4) * vic.scale,
-          size: 1.45, life: rand(2.5, 5),
-        });
+      // accumulating patches: long-lived, spawning ever faster
+      F._pt = (F._pt ?? 0) - dt;
+      if (F._pt <= 0) {
+        F._pt = 0.5 - 0.44 * k * k;
+        vicPatch(rand(1.3, 1.8), rand(5, 9));
       }
     });
-    // side-front quarter so the hoisted, corrupting victim stays in frame
-    F.camShot(1.35, 3.6, { dist: 10.5, h: 3.9, az0: 1.35, az1: 1.75, lookH: 3.4 });
-    // the husk is dropped — a heap of static
-    F.at(3.6, () => {
-      F.vicDown();
-      w.effects.glitchBurst(vic.center(), 20, 9, vic.scale);
-      F.beat('bodyfall', 0.5, 0.05);
-    });
-    F.hold(3.6, 4.55, (k, dt) => { // the wreck keeps fizzing where it fell
-      if (Math.random() < dt * 16) {
-        w.effects.glitchFleck(vic.pos.x + rand(-0.9, 0.9), vic.pos.y + rand(0.2, 1.6),
-          vic.pos.z + rand(-0.9, 0.9), 1.1);
+    // side-front quarter, lens lifted to follow the rising body
+    F.camShot(1.35, 4.25, { dist: 12, h: 4.9, az0: 1.35, az1: 1.8, lookH: 4.3 });
+    // TOTAL COVERAGE: a final two-layer blanket over every body part —
+    // whatever was still recognizable stops rendering entirely
+    F.at(4.2, () => {
+      for (let i = 0; i < GRAB_JOINTS.length; i++) {
+        vicPatch(rand(1.8, 2.2), 3.9);
+        vicPatch(rand(1.1, 1.5), 3.9);
       }
+      w.effects.glitchBurst(vic.center(), 26, 10, vic.scale);
+      F.beat('zap', 0.6, 0.06);
     });
     // ...and then it notices YOU. Locked-off lens shot at chest height;
-    // NULLBOT turns square into it.
-    F.hold(3.66, 4.62, () => {
+    // NULLBOT turns square into it while the corrupted mass hangs behind.
+    F.hold(4.25, 5.2, () => {
       const az = F.axis + 2.5;
       const d = 6.2 * F.stageScale;
       F.cam.pos.set(win.pos.x + Math.sin(az) * d, win.height * 0.6, win.pos.z + Math.cos(az) * d);
       F.cam.look.set(win.pos.x, win.height * 0.64, win.pos.z);
       win.yaw = win.targetYaw = Math.atan2(F.cam.pos.x - win.pos.x, F.cam.pos.z - win.pos.z);
     });
-    F.at(3.9, () => { w.audio?.play('servo'); win.animator.addImpulse('head', [0, 0.5, 0], 22, 9); });
-    F.at(4.2, () => win.animator.play('light2', { speed: 0.9 }));
+    F.at(4.45, () => { w.audio?.play('servo'); win.animator.addImpulse('head', [0, 0.5, 0], 22, 9); });
+    F.at(4.72, () => win.animator.play('light2', { speed: 1.0 }));
     // the fist arrives AT the lens — and the feed dies
-    F.at(4.48, () => {
+    F.at(4.97, () => {
       F.beat('hitHeavy', 1.6, 0.16);
       w.audio?.play('explosionBig');
       w.effects.glitchBurst(win.center(), 24, 12, win.scale);

@@ -1655,3 +1655,25 @@ controllers via Gamepad API), AI opponents.
   Verified: close-cam probes at 6/8 stacks (distinct static patches on
   waist/hip/knee/thigh), 10-stack engulf (23 live patches, no wash),
   finisher engulf re-probed; both ace soaks crash-free; build green.
+
+77. NULLBOT GLITCH V3 — ON-TOP, DENSER, BODY-COLOR SMEARS · LEVITATION FINISHER (user feedback) ✅
+  · Patches are true 2D screen artifacts now: depthTest OFF + renderOrder 9,
+    so corruption always draws ON TOP of the character — from the back,
+    through plating, from any angle (front/back probes confirmed).
+  · Denser & more prominent: two patches per stack (big tear + satellite),
+    the 10-stack overload lays a two-layer blanket (22 patches), bigger
+    scale ranges, higher flicker duty, faster NULLBOT ambient. Patches now
+    "decode" ~1/3 of the time in the colors of the armor they're obscuring
+    (victim primary/accent/glow via opts.colors; NULLBOT's own use his glow
+    channels since his shell is near-black) — smeared displaced texture
+    data, mixed with raw static and hard channel colors.
+  · Finisher re-choreographed: the mark is LEVITATED out at arm's length
+    (3.6 units clear of NULLBOT — no hugging) and rises ~2.3 units into
+    the air while long-lived patches accumulate ever faster; at 4.2s a
+    final two-layer blanket makes them completely unrecognizable — and
+    then the lens-turn, the camera punch, and the SYSTEM FAILURE
+    bluescreen (still a full 3s; scene now 8.0s).
+  Verified: front+back close-cam probes at 7 stacks (17 patches, drawn
+  over the body from both sides, gold/white body-color smears visible);
+  finisher probed at rise/full-cover/bluescreen; both ace soaks
+  crash-free; build green.

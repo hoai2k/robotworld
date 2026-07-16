@@ -954,20 +954,25 @@ export class Effects {
       { life: 0.12, size: size * 2.2, color: 0xffffff, alpha: 0.95, fadeIn: 0.01, rot: 0 });
   }
 
-  // ---- localized rendering failure: a camera-facing patch of 2D
-  // corruption (JPEG macroblocks / RGB channel-split bars / TV static)
-  // pinned to the EXACT body part a NULLBOT hit landed on. Each patch
-  // flickers on a hard duty cycle, jitters, stretches and re-tiles a new
-  // sub-window of the noise sheet every few frames — that spot of the
-  // enemy simply stops rendering correctly. life=Infinity patches persist
-  // until clearGlitchOn(fighter). ----
-  glitchOn(fighter, { joint = 'torso', x = 0, y = 0, z = 0, size = 1, life = Infinity } = {}) {
+  // ---- localized rendering failure: a patch of 2D corruption (JPEG
+  // macroblocks / RGB channel-split bars / TV static) pinned to the EXACT
+  // body part a NULLBOT hit landed on. Pure screen-space artifacts:
+  // depth-test OFF, so they always draw ON TOP of the character — visible
+  // from the back, through the mech's own plating, from any angle. Each
+  // patch flickers on a hard duty cycle, jitters, stretches and re-tiles
+  // a new sub-window of the noise sheet every few frames, and part of the
+  // time it "decodes" in the colors of the armor it's obscuring (opts.
+  // colors — the victim's palette), like smeared displaced texture data.
+  // life=Infinity patches persist until clearGlitchOn(fighter). ----
+  glitchOn(fighter, { joint = 'torso', x = 0, y = 0, z = 0, size = 1, life = Infinity, colors = null } = {}) {
     const bone = fighter.mech?.joints?.[joint];
     if (!bone) return null;
     let spr = this._glitchPatchPool.pop();
     if (!spr) {
-      spr = new THREE.Sprite(new THREE.SpriteMaterial({ transparent: true, depthWrite: false }));
-      spr.renderOrder = 7;
+      spr = new THREE.Sprite(new THREE.SpriteMaterial({
+        transparent: true, depthWrite: false, depthTest: false,
+      }));
+      spr.renderOrder = 9; // over the mech, the particles, everything
     }
     const tex = glitchNoiseTexture((Math.random() * 3) | 0).clone();
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
@@ -980,6 +985,7 @@ export class Effects {
     const p = {
       spr, f: fighter, base: { x, y, z }, size: size * (fighter.scale || 1),
       t: 0, life, tick: 0,
+      colors: colors || (fighter.def ? [fighter.def.colors.primary, fighter.def.colors.accent, fighter.def.colors.glow] : null),
       line: Math.random() < 0.4, // torn scanline strip vs macroblock patch
     };
     this._restyleGlitchPatch(p);
@@ -991,18 +997,21 @@ export class Effects {
     const m = p.spr.material.map;
     if (p.line) { // a torn horizontal scanline: long, razor thin
       m.repeat.set(rand(0.5, 1), rand(0.05, 0.14));
-      p.spr.scale.set(p.size * rand(1.0, 2.0), p.size * rand(0.06, 0.16), 1);
+      p.spr.scale.set(p.size * rand(1.1, 2.2), p.size * rand(0.07, 0.18), 1);
     } else { // block of compression noise
       m.repeat.set(rand(0.35, 0.85), rand(0.3, 0.75));
-      p.spr.scale.set(p.size * rand(0.6, 1.15), p.size * rand(0.4, 0.85), 1);
+      p.spr.scale.set(p.size * rand(0.7, 1.35), p.size * rand(0.45, 1.0), 1);
     }
     m.offset.set(Math.random(), Math.random());
     p.spr.position.set(
-      p.base.x + rand(-0.12, 0.12) * p.size,
-      p.base.y + rand(-0.12, 0.12) * p.size,
-      p.base.z + rand(-0.08, 0.08) * p.size);
-    // occasionally the whole patch decodes as one hard channel color
-    p.spr.material.color.setHex(Math.random() < 0.75 ? 0xffffff : glitchColor());
+      p.base.x + rand(-0.15, 0.15) * p.size,
+      p.base.y + rand(-0.15, 0.15) * p.size,
+      p.base.z + rand(-0.1, 0.1) * p.size);
+    // decode modes: raw static, smeared BODY-color data, or one hard channel
+    const r = Math.random();
+    if (r < 0.45 || !p.colors) p.spr.material.color.setHex(0xffffff);
+    else if (r < 0.78) p.spr.material.color.setHex(p.colors[(Math.random() * p.colors.length) | 0]);
+    else p.spr.material.color.setHex(glitchColor());
   }
 
   _dropGlitchPatch(i) {
@@ -1097,7 +1106,7 @@ export class Effects {
       if (p.tick <= 0) {
         p.tick = rand(0.03, 0.14);
         // hard duty cycle: dead-off beats sell the flicker
-        p.spr.visible = Math.random() < 0.8;
+        p.spr.visible = Math.random() < 0.85;
         if (p.spr.visible) this._restyleGlitchPatch(p);
       }
     }
