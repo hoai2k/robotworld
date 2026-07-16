@@ -457,6 +457,38 @@ export const ROSTER = [
       ult: { id: 'tidalPlague', name: 'TIDAL PLAGUE', dmg: 150, radius: 11, count: 10, fleaDmg: 24 },
     },
   },
+  {
+    id: 'nullbot', name: 'NULLBOT', title: 'The Fatal Exception', icon: '👾', seed: 197,
+    blurb: 'Nobody built NULLBOT. It was simply found in the arena\'s memory one morning, already undefeated. Where it walks, textures tear, audio stutters, and the scoreboard reads NaN.',
+    quotes: { win: '"SEGMENTATION FAULT. core dumped. ...that was you."', intro: '"> fatal exception 0x00NULLBOT :: you will be nullified"' },
+    // canonical image (docs/canonical/mech_null.png): void-black jagged
+    // plate with a faint violet sheen, twin red eyes, red null-sigil core,
+    // and multicolor data-corruption flickering off shoulders/arms/shins
+    // (the flicker itself is runtime FX — see fighter.updateNullbotAura)
+    colors: { primary: 0x17131e, accent: 0x0a080d, glow: 0xff1f2a, glow2: 0x27f6ff, stripes: false },
+    skin: {
+      primary: { base: 0x14111a, base2: 0x0b0910, metal: 0x2e2a38, wear: 0.3, grime: 0.38, panelDepth: 4, roughPaint: 0.56, metalPaint: 0.32, normalStrength: 1.25 },
+      accent: { base: 0x09080c, base2: 0x050408, metal: 0x242130, wear: 0.34, grime: 0.4, panelDepth: 4, roughPaint: 0.6, metalPaint: 0.3, normalStrength: 1.2 },
+    },
+    // tall and lean: long legs and long clawed arms, narrow waist
+    body: { scale: 1.26, torsoW: 0.98, torsoH: 1.08, headSize: 0.82, armLen: 1.14, legLen: 1.12, hipW: 0.85, bulk: 0.88 },
+    stats: { hp: 1020, speed: 10.2, jump: 13.5, weight: 0.55, armor: 0.08, blockMult: 0.12 },
+    ui: { power: 8, speed: 7, defense: 4 },
+    // combat doctrine: the punches LOOK ordinary — it's the impacts that
+    // corrupt. Every landed punch, backhand or bolt turns a piece of the
+    // victim into flickering data (a glitch stack, kept for the round);
+    // the 10th stack crashes them outright: 3s engulfed + stunned at
+    // double damage, then the corruption clears and the count restarts.
+    combatPose: { hipsPos: [0, -0.1, 0], torso: [6, -8, 0], head: [-4, 6, 0], shoulderL: [-24, 0, -16], elbowL: [-46, 0, 0], shoulderR: [-24, 0, 14], elbowR: [-40, 0, 0], thighL: [-10, 0, -5], thighR: [2, 0, 5], kneeL: [14, 0, 0], kneeR: [6, 0, 0] },
+    heavyClip: 'nullBackhand',
+    moves: {
+      light: { dmg: [30, 32, 46], knock: [4, 5, 11], range: 3.4, status: { glitch: 1 } },
+      heavy: { dmg: 84, knock: 30, range: 3.7, launch: 9, status: { glitch: 1 } },
+      ranged: { name: 'Null Pointer', type: 'glitch', dmg: 30, speed: 50, cooldown: 0.75, ammo: 18 },
+      special: { id: 'segfault', name: 'SEGFAULT', cooldown: 6.5, dmg: 55, dashLen: 14 },
+      ult: { id: 'systemCrash', name: 'SYSTEM CRASH', dmg: 170, radius: 13, knock: 16 },
+    },
+  },
 ];
 
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((m) => [m.id, m]));

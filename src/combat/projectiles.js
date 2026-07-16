@@ -1,7 +1,9 @@
 // Pooled projectiles: bullets, rockets, homing missiles, plasma, darts,
 // waves, shells, mortars, ice shards + hitscan helpers (rail, lightning).
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { rand, clamp } from '../core/utils.js';
+import { glitchColor } from './effects.js';
 
 const _v = new THREE.Vector3();
 const _dir = new THREE.Vector3();
@@ -56,6 +58,24 @@ const VISUALS = {
   shell: { geo: () => new THREE.CylinderGeometry(0.14, 0.2, 0.8, 8), rot: true, trail: 'glow' },
   mortar: { geo: () => new THREE.SphereGeometry(0.42, 8, 6), trail: 'smoke' },
   shard: { geo: () => new THREE.ConeGeometry(0.22, 1.3, 5), rot: true, trail: 'glow' },
+  glitch: { // NULLBOT: a jagged knot of corrupted voxels — hard cubes
+    // clumped off-axis, tumbling end over end, strobing wrong colors
+    geo: () => {
+      const cells = [
+        [0, 0, 0, 0.6], [0.32, 0.2, -0.12, 0.34], [-0.3, -0.14, 0.16, 0.28],
+        [0.12, -0.32, -0.22, 0.24], [-0.18, 0.3, 0.1, 0.2], [0.34, -0.08, 0.24, 0.18],
+      ];
+      const parts = cells.map(([x, y, z, s]) => {
+        const g = new THREE.BoxGeometry(s, s, s);
+        g.translate(x, y, z);
+        return g.toNonIndexed();
+      });
+      const merged = BufferGeometryUtils.mergeGeometries(parts, false);
+      parts.forEach((g) => g.dispose());
+      return merged;
+    },
+    tumble: true, trail: 'glitch',
+  },
   bat: { // WRAITH: flat bat silhouette — nose +Z, wings spread on X; flaps in update()
     geo: () => {
       const g = new THREE.BufferGeometry();
@@ -286,6 +306,11 @@ export class ProjectileSystem {
             rand(-0.6, 0.6), rand(-1.5, 0.2), rand(-0.6, 0.6),
             { life: rand(0.35, 0.6), size: rand(0.8, 1.5), color: 0x9fe23a, color2: 0x3c7410,
               alpha: 0.95, gravity: 16, spin: 1.5, fadeIn: 0.05 });
+        } else if (vis.trail === 'glitch') {
+          // corrupted wake: square data-flecks hang in the air behind it,
+          // and the shard itself keeps re-rendering in the wrong color
+          world.effects.glitchFleck(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z, 0.9);
+          if (Math.random() < 0.4) p.mesh.material.color.setHex(glitchColor());
         } else if (vis.trail === 'glow') {
           world.effects.glows.emit(p.mesh.position.x, p.mesh.position.y, p.mesh.position.z,
             0, 0, 0, { life: 0.18, size: rand(0.9, 1.5), color: p.color, alpha: 0.6 });

@@ -540,6 +540,16 @@ export class World {
         }
         break;
       }
+      case 'glitch': { // NULLBOT: a tumbling knot of corrupted voxels —
+        // whatever it hits gets a piece of itself turned into glitch
+        this.projectiles.spawn('glitch', f, from, dir, {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xff2df2, knock: 6,
+          status: { glitch: 1 },
+        });
+        this.effects.glitchBurst(from, 6, 4, 0.7 * f.scale);
+        this.audio?.play('zap');
+        break;
+      }
       case 'bats': { // WRAITH: a swarm of hunting bats fans out and homes in
         const target = e && f.isAI ? e : (e && barrelDot > 0.6 ? e : null);
         for (let i = 0; i < (mv.count || 3); i++) {

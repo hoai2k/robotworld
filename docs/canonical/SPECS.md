@@ -216,3 +216,22 @@ bites 3s, pops), Brine Swarm (6-flea burst), TIDAL PLAGUE (spring-crouch
 mega-leap, landing quake + ring of 10 fleas). Signature motion: nervous
 antenna snaps, arm-nest ripple (flares when firing), sharp head cocks,
 rear-strut creep; jump is crouch-then-launch (jumpWindup 0.18, jump 24).
+
+## NULLBOT — mech_null.png (The Fatal Exception)
+A living system error. Read: TALL gaunt frame (legs+arms long, waist
+pinched) in layered VOID-BLACK jagged shard-armor with a faint violet
+sheen (0x14111a / 0x0b0910, low wear, dark 0x2e2a38 metal); silhouette is
+all spikes — crown of swept horns on an angular skull, TWIN burning red
+eyes (0xff1f2a), spike-stacked pauldrons, crooked spine-fan mantle off the
+back, serrated forearm/calf fins, long clawed fingers and taloned feet.
+Sternum bears the RED NULL SIGIL: a glowing ring with a blade slashed
+through it (Ø). All over the shell, small rectangles of the body "fail to
+render": multicolor data-corruption chips (cyan/magenta/red/green/blue)
+flickering at wrong angles — in-engine these are glow2 shard plates
+strobed by the animator plus glitchFleck particles off random joints.
+Powers: every landed punch/backhand/bolt corrupts a PART of the victim
+(glitch stack, kept all round; 10th stack = 3s total-corruption stun at
+2x damage, then clears); Null Pointer (tumbling voxel-knot bolt),
+SEGFAULT (de-rez dash-through), SYSTEM CRASH (corruption nova, +3 stacks),
+finisher = grab, engulf in glitches, punch the CAMERA → 3s SYSTEM FAILURE
+bluescreen (docs/canonical/null_bluescreen_of_death.png).

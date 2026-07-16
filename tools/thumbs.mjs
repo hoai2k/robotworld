@@ -9,7 +9,7 @@ import { mkdirSync } from 'fs';
 const BASE = process.argv[2] || 'http://localhost:5173';
 const IDS = ['titanus', 'vulcan', 'aegis', 'viper', 'nova', 'rhino',
   'tempest', 'fenrir', 'colossus', 'wraith', 'inferno', 'glacier',
-  'cranky', 'saurion', 'frogger', 'jerry'];
+  'cranky', 'saurion', 'frogger', 'jerry', 'nullbot'];
 
 mkdirSync('public/thumbs', { recursive: true });
 const browser = await chromium.launch({

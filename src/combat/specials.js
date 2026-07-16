@@ -849,6 +849,41 @@ export const SPECIALS = {
     }
   },
 
+  // NULLBOT: SEGFAULT — he de-rezzes into a smear of corrupted frames and
+  // tears forward through everything on the line; whoever he passes
+  // through gets a chunk of themselves converted (a glitch stack)
+  segfault(f, sp) {
+    const w = f.world;
+    f.animator.play('lunge');
+    f.setState('special', 0.48);
+    f.iframes = 0.42;
+    const spd = f.def.stats.speed * 4.4;
+    f.vel.x = Math.sin(f.yaw) * spd;
+    f.vel.z = Math.cos(f.yaw) * spd;
+    w.audio?.play('zap');
+    w.audio?.play('dash');
+    w.effects.glitchBurst(f.center(), 14, 8, f.scale);
+    const victims = new Set();
+    for (let i = 1; i <= 9; i++) {
+      w.schedule(i * 0.045, () => {
+        if (!f.alive) return;
+        // after-images: corrupted frames left hanging along the tear line
+        w.effects.glitchFleck(f.pos.x + rand(-0.6, 0.6), f.pos.y + rand(0.8, f.height * 0.9),
+          f.pos.z + rand(-0.6, 0.6), 1.5 * f.scale);
+        w.effects.dashTrail(f.pos, 0xff2df2, f.scale * 1.3);
+        for (const e of w.fighters) {
+          if (e === f || !e.alive || victims.has(e)) continue;
+          if (e.pos.distanceTo(f.pos) < 3.4 * f.scale) {
+            victims.add(e);
+            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 10, srcPos: f.pos, status: { glitch: 1 } });
+            w.effects.glitchBurst(e.center(), 12, 7, e.scale);
+            w.engine.addHitStop(0.05);
+          }
+        }
+      });
+    }
+  },
+
   // GLACIER: cryo beam channel
   freezeBeam(f, sp) {
     f.animator.play('shootLoop');
@@ -1350,6 +1385,40 @@ export const ULTS = {
         f.world.schedule(0.1, land);
       });
     });
+  },
+
+  // NULLBOT: SYSTEM CRASH — the whole area re-renders WRONG: a detonation
+  // of corrupted data that hands everyone caught inside three glitch
+  // stacks at once (a third of the way to a full crash, instantly)
+  systemCrash(f, u) {
+    const dur = f.animator.play('burst', {
+      onEvent: (t) => {
+        if (t !== 'fire') return;
+        const w = f.world;
+        w.audio?.play('explosionBig');
+        w.audio?.play('zap');
+        w.effects.glitchBurst(f.center(), 40, 16, 1.4 * f.scale);
+        const RING_COLORS = [0xff2038, 0x27f6ff, 0xff2df2];
+        for (let i = 0; i < 3; i++) {
+          w.schedule(i * 0.14, () => {
+            if (!f.alive) return;
+            w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * (1.1 + i * 0.5), dur: 0.5, color: RING_COLORS[i], y: 0.5 });
+            // square data-shards raining over the whole blast zone
+            for (let k = 0; k < 14; k++) {
+              const a = rand(Math.PI * 2), r = rand(1, u.radius);
+              w.effects.glitchFleck(f.pos.x + Math.cos(a) * r, rand(0.5, 6), f.pos.z + Math.sin(a) * r, 1.6);
+            }
+          });
+        }
+        w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
+          owner: f, knock: u.knock, color: 0xff2df2, launch: 9,
+          status: { glitch: 3, slow: 0.6, slowT: 2 },
+        });
+        w.effects.addShake(1.2);
+      },
+    });
+    f.setState('ult', dur);
+    f.iframes = dur;
   },
 
   // GLACIER: freeze everything nearby

@@ -19,7 +19,7 @@ function preferredRange(def) {
   const t = def.moves.ranged.type;
   if (t === 'railgun' || t === 'mortar') return 26;
   if (t === 'gatling' || t === 'plasma' || t === 'shell' || t === 'lightning' || t === 'bats') return 16;
-  if (t === 'shard' || t === 'slime' || t === 'flea') return 14;
+  if (t === 'shard' || t === 'slime' || t === 'flea' || t === 'glitch') return 14;
   if (t === 'fist' || t === 'spikes') return 13; // boomerang fist / spine volley
   if (t === 'flame' || t === 'hose') return 9;
   if (t === 'groundpound') return 4; // stand IN their face and slam
@@ -29,7 +29,7 @@ function preferredRange(def) {
 // self-centered AoE moves only connect up close — gate them by their radius
 // instead of the weapon's preferred range
 const SELF_AOE_SPECIALS = new Set(['groundPound', 'staticField', 'grabThrow']);
-const SELF_AOE_ULTS = new Set(['supernova', 'backdraft', 'absoluteZero']);
+const SELF_AOE_ULTS = new Set(['supernova', 'backdraft', 'absoluteZero', 'systemCrash']);
 
 export class AIController {
   constructor(fighter, difficulty = 'veteran') {

@@ -688,6 +688,32 @@ export class Animator {
         }
         break;
       }
+      case 'nullbot': {
+        // the corruption shards bolted over the shell strobe like a failing
+        // display — dead dark, then a hard flash, sometimes in the WRONG
+        // color — and the head snaps in unsettling micro-ticks between
+        // long dead stillness (nothing about it should read as alive)
+        const mats = this.mech.materials;
+        this._nbT = (this._nbT ?? 0) - dt;
+        if (this._nbT <= 0) {
+          this._nbT = 0.05 + Math.random() * 0.16;
+          const on = Math.random() < 0.72;
+          if (mats?.glow2) {
+            mats.glow2.emissiveIntensity = on ? 1.8 + Math.random() * 2.8 : 0.12;
+            if (on && Math.random() < 0.35) {
+              const c = [0x27f6ff, 0xff2df2, 0xff2038, 0x8a2dff][(Math.random() * 4) | 0];
+              mats.glow2.color.setHex(c);
+              mats.glow2.emissive.setHex(c);
+            }
+          }
+        }
+        if (this._nbTwitch > 0) this._nbTwitch -= dt;
+        else if (Math.random() < dt * 0.7) {
+          this._nbTwitch = 0.5;
+          this.addImpulse('head', [0.06, (Math.random() < 0.5 ? -1 : 1) * 0.5, 0.1], 36, 15);
+        }
+        break;
+      }
       case 'viper':
         if (J.bladeL && J.bladeR) {
           const flare = ctx.firing || (this.action && !this.action.fadingOut) ? 0.0 : 0.35;

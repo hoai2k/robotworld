@@ -549,6 +549,47 @@ export function streamNoiseTexture() {
   return tex;
 }
 
+// 2x2 atlas of DIGITAL CORRUPTION fragments: clusters of hard square
+// pixels, torn scanline bars and dead-channel blocks — no soft edges
+// anywhere, so the particles read as broken DATA, not light or smoke.
+// Baked white; the per-particle color tint cycles the glitch palette.
+export function glitchCellsTexture() {
+  return fxTexture('glitchCells', 256, 256, (ctx) => {
+    const CELL = 128, S = 256;
+    const rng = makeRng(0x0bad);
+    for (let c = 0; c < 4; c++) {
+      const cx0 = (c % 2) * CELL, cy0 = ((c / 2) | 0) * CELL;
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(cx0, cy0, CELL, CELL);
+      ctx.clip();
+      // pixel clusters: random square chunks clumped near the cell center
+      const blocks = 14 + ((rng() * 8) | 0);
+      for (let i = 0; i < blocks; i++) {
+        const bw = 6 + rng() * 26, bh = 4 + rng() * 18;
+        const x = cx0 + 20 + rng() * (CELL - 40 - bw) + (rng() - 0.5) * 14;
+        const y = cy0 + 20 + rng() * (CELL - 40 - bh) + (rng() - 0.5) * 14;
+        ctx.fillStyle = `rgba(255,255,255,${(0.45 + rng() * 0.55).toFixed(2)})`;
+        ctx.fillRect(Math.round(x), Math.round(y), Math.round(bw), Math.round(bh));
+      }
+      // torn horizontal scanline bars sliding off the clusters
+      for (let i = 0; i < 5; i++) {
+        const y = cy0 + 16 + rng() * (CELL - 32);
+        const x = cx0 + 8 + rng() * 50;
+        ctx.fillStyle = `rgba(255,255,255,${(0.3 + rng() * 0.5).toFixed(2)})`;
+        ctx.fillRect(Math.round(x), Math.round(y), Math.round(30 + rng() * (CELL - 70)), 2 + ((rng() * 4) | 0));
+      }
+      // a few isolated dead pixels around the mass
+      for (let i = 0; i < 16; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${(0.3 + rng() * 0.6).toFixed(2)})`;
+        ctx.fillRect(cx0 + (rng() * (CELL - 4)) | 0, cy0 + (rng() * (CELL - 4)) | 0,
+          2 + ((rng() * 3) | 0), 2 + ((rng() * 3) | 0));
+      }
+      ctx.restore();
+    }
+  });
+}
+
 // crystalline six-armed ice sparkle (additive)
 export function iceTexture() {
   return fxTexture('iceSparkle', 64, 64, (ctx, S) => {

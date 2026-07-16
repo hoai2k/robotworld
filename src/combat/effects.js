@@ -7,7 +7,19 @@ import * as THREE from 'three';
 import {
   softCircleTexture, sparkTexture, smokeCellsTexture, flameAtlasTexture,
   dropletTexture, goopCellsTexture, iceTexture, ringTexture, streamNoiseTexture,
+  glitchCellsTexture,
 } from '../core/textures.js';
+
+// NULLBOT's corruption palette: hard neon channels + white, cycled at
+// random so glitched surfaces strobe like a dying GPU
+export const GLITCH_COLORS = [
+  0xff2038, 0x27f6ff, 0xff2df2, 0x3cff6e, 0x3350ff, 0xffe23c, 0xffffff,
+];
+export const glitchColor = () => GLITCH_COLORS[(Math.random() * GLITCH_COLORS.length) | 0];
+// whole-shell material tints stick to the harsh digital channels — warm
+// hues at high weight read as gold paint, not corruption
+export const GLITCH_TINTS = [0xff2038, 0x27f6ff, 0xff2df2, 0x3350ff];
+export const glitchTint = () => GLITCH_TINTS[(Math.random() * GLITCH_TINTS.length) | 0];
 import { rand, clamp01 } from '../core/utils.js';
 
 // ---------- coherent substance streams (hose water, flamethrower) ----------
@@ -453,6 +465,10 @@ export class Effects {
       cap: 400, cols: 4, rows: 4,
     });
     this.ice = new ParticlePool(scene, iceTexture(), { cap: 200 });
+    // digital corruption fragments (NULLBOT): hard square pixel clusters
+    this.pixels = new ParticlePool(scene, glitchCellsTexture(), {
+      cap: 600, cols: 2, rows: 2,
+    });
     this.rings = new RingPool(scene);
     this.beams = new BeamPool(scene);
     this.lightning = new LightningPool(scene);
@@ -909,6 +925,33 @@ export class Effects {
     }
   }
 
+  // ---- digital corruption (NULLBOT) ----
+  // one flickering corruption fragment pinned near a surface: pops in
+  // axis-aligned, barely drifts, dies in a frame or three — a body dressed
+  // in a steady stream of these reads as PART GLITCH, not on fire
+  glitchFleck(x, y, z, size = 1) {
+    this.pixels.emit(x, y, z, rand(-0.5, 0.5), rand(-0.2, 0.7), rand(-0.5, 0.5), {
+      life: rand(0.07, 0.2), size: size * rand(0.7, 1.5), color: glitchColor(),
+      alpha: 0.95, fadeIn: 0.01, rot: Math.random() < 0.85 ? 0 : Math.PI / 2,
+    });
+  }
+
+  // corruption burst: square data-shards tear OUT of the impact point in a
+  // strobing cloud, plus a hard white core block — the "bit of them turned
+  // into glitch" beat when a NULLBOT hit lands
+  glitchBurst(pos, n = 12, power = 7, size = 1) {
+    for (let i = 0; i < n; i++) {
+      const a = rand(Math.PI * 2), e = rand(-0.5, 1);
+      const sp = rand(0.25, 1) * power;
+      this.pixels.emit(pos.x, pos.y, pos.z,
+        Math.cos(a) * sp, e * sp * 0.6, Math.sin(a) * sp,
+        { life: rand(0.14, 0.38), size: size * rand(0.6, 1.6), color: glitchColor(),
+          alpha: 0.95, drag: 2.2, fadeIn: 0.01, rot: Math.random() < 0.85 ? 0 : Math.PI / 2 });
+    }
+    this.pixels.emit(pos.x, pos.y, pos.z, 0, 0, 0,
+      { life: 0.12, size: size * 2.2, color: 0xffffff, alpha: 0.95, fadeIn: 0.01, rot: 0 });
+  }
+
   // lingering electrical crackle on a shocked bot: small arcs snap between
   // random points on the body while the charge bleeds off
   staticCling(fighter, dur = 1.1) {
@@ -925,6 +968,7 @@ export class Effects {
     this.goop.update(dt);
     this.flames.update(dt);
     this.ice.update(dt);
+    this.pixels.update(dt);
     this.rings.update(dt);
     this.beams.update(dt);
     this.lightning.update(dt);

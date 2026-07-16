@@ -178,6 +178,7 @@ mechs), `anchors.core` (chest; carries the colored point light).
 | viper | `bladeL`/`bladeR` (children of hands) | `bladeL/bladeR` | animator flares blades |
 | wraith | `rifle` (child of handR) | `muzzleR`+`scope` on `J.rifle` | railgun fires from muzzleR |
 | tempest | — | `coilL`/`coilR` at coil tips | static-field lightning FX |
+| nullbot | — | `muzzleR` at right palm; `core` behind the chest sigil | animator strobes the `glow2` corruption shards; fighter.updateNullbotAura pops glitch flecks off the joints |
 | aegis | `shield` (child of elbowL) | `shield` | reserved for shield FX |
 | rhino | — | `horn` (tip) | reserved |
 | titanus/inferno/glacier | — | inferno needs `muzzleL` too | dual flamethrowers |

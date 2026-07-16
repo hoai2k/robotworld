@@ -5,6 +5,7 @@ import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/u
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
+import { glitchTint } from './effects.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -20,6 +21,24 @@ const JUMP_MULT = 1.18;  // global jump boost
 const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
 const PUNCH_HOLD_CAP = 1.8; // seconds to fully bank a held haymaker
 const HEAVY_HOLD_CAP = 2.4; // seconds to fully bank a held heavy
+
+// ---- NULLBOT corruption ----
+// Every glitched hit converts another PART of the victim into flickering
+// data. Stacks last the whole round. The 10th stack OVERLOADS the frame:
+// fully engulfed for 3s — stunned, eating DOUBLE damage — then every trace
+// of corruption clears and the count starts from zero.
+const GLITCH_OVERLOAD = 10;
+const GLITCH_STUN_TIME = 3;
+const _glitchTint = new THREE.Color();
+// where a corruption spot may pin itself: joint + local Y band (in scale
+// units) roughly covering that part's visible geometry
+const GLITCH_SPOT_JOINTS = [
+  ['torso', 0.2, 1.5], ['torso', 0.2, 1.5], ['head', -0.1, 0.4],
+  ['shoulderL', -1.0, 0.1], ['shoulderR', -1.0, 0.1],
+  ['elbowL', -0.9, 0], ['elbowR', -0.9, 0],
+  ['thighL', -1.2, 0], ['thighR', -1.2, 0],
+  ['kneeL', -1.1, 0], ['kneeR', -1.1, 0],
+];
 
 // which joint subtrees the charge-flicker sheath covers, per charge kind
 const CHARGE_GLOW_SETS = {
@@ -104,6 +123,9 @@ export class Fighter {
 
     // status effects: {burn:{dps,t}, slow:{f,t}, buff:{spd,dmg,t}, guard:{f,t}, cloak:{t}}
     this.status = {};
+    // NULLBOT corruption: hit count + the body parts already turned to data
+    this.glitchStacks = 0;
+    this._glitchSpots = [];
 
     this.intent = {
       moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
@@ -260,6 +282,7 @@ export class Fighter {
         knock: mv.knock[idx],
         range: mv.range * this.scale,
         launch: idx === 2 ? 10 : 0,
+        status: mv.status || null,
       }),
     });
     this.setState('attack', dur * 0.82);
@@ -301,6 +324,7 @@ export class Fighter {
         launch: mv.launch,
         heavy: true,
         fx: this.def.heavyFx,
+        status: mv.status || null,
       }),
     });
     this.setState('attack', dur * 0.9);
@@ -520,7 +544,7 @@ export class Fighter {
       if (dx * dx + dy * dy + dz * dz < rr * rr) {
         f.takeHit(atk.dmg, this, {
           knock: atk.knock, launch: atk.launch,
-          srcPos: this.pos, heavy: atk.heavy,
+          srcPos: this.pos, heavy: atk.heavy, status: atk.status || null,
         });
         hitAny = true;
       }
@@ -982,6 +1006,7 @@ export class Fighter {
     }
 
     if (this.status.guard) dmg *= 1 - this.status.guard.f;
+    if (this.state === 'glitched') dmg *= 2; // corrupted frames can't shield themselves
     dmg *= 1 - this.def.stats.armor;
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
@@ -1001,6 +1026,13 @@ export class Fighter {
     // place (whether this very hit froze them or they were already iced),
     // otherwise the next beam tick would knock them straight out of frozen
     if (this.state === 'frozen') return;
+
+    // mid-crash: the corruption holds them rigid — hits rock the frame but
+    // never knock them out of the 3s overload window
+    if (this.state === 'glitched') {
+      this.animator.addImpulse('torso', [rand(-0.3, 0.3), 0, rand(-0.3, 0.3)], 34, 10);
+      return;
+    }
 
     // knockback & reactions (weight resists)
     const resist = 1 - this.def.stats.weight * 0.45;
@@ -1031,6 +1063,7 @@ export class Fighter {
   applyStatus(st) {
     if (st.burn) this.status.burn = { dps: st.burn, t: st.burnT || 3 };
     if (st.slow) this.status.slow = { f: st.slow, t: st.slowT || 2 };
+    if (st.glitch) this.addGlitch(st.glitch);
     if (st.freeze) {
       this.status.frozen = { t: st.freeze };
       this.setState('frozen', st.freeze);
@@ -1070,6 +1103,153 @@ export class Fighter {
     }
   }
 
+  // ================= NULLBOT corruption =================
+  // lerp every body material toward one hard glitch color (w=0 restores
+  // the exact originals) — the whole shell "renders wrong" for a beat
+  applyGlitchTint(w, color = 0xff2df2) {
+    if (w <= 0 && !this._glitchTinted) return;
+    if (!this._matBase) this.applyWhiteout(0); // builds the material cache
+    this._glitchTinted = w > 0;
+    _glitchTint.setHex(color);
+    for (const b of this._matBase) {
+      b.m.color.copy(b.color).lerp(_glitchTint, w);
+      if (b.emissive) b.m.emissive.copy(b.emissive).lerp(_glitchTint, w * 0.9);
+    }
+  }
+
+  // a glitched hit landed: another part of this frame turns to broken data
+  addGlitch(n = 1) {
+    if (!this.alive || this.state === 'glitched') return;
+    for (let i = 0; i < n && this.glitchStacks < GLITCH_OVERLOAD; i++) {
+      this.glitchStacks++;
+      const [jn, y0, y1] = GLITCH_SPOT_JOINTS[(Math.random() * GLITCH_SPOT_JOINTS.length) | 0];
+      if (this.mech.joints[jn]) {
+        this._glitchSpots.push({
+          joint: jn,
+          x: rand(-0.35, 0.35) * this.scale,
+          y: rand(y0, y1) * this.scale,
+          z: rand(-0.25, 0.4) * this.scale,
+        });
+      }
+    }
+    // the freshly-corrupted part visibly TEARS
+    const s = this._glitchSpots[this._glitchSpots.length - 1];
+    if (s && this.mech.joints[s.joint]) {
+      _v.set(s.x, s.y, s.z);
+      this.mech.joints[s.joint].localToWorld(_v);
+      this.world.effects.glitchBurst(_v, 9, 5, 0.8 * this.scale);
+    }
+    this.world.audio?.play('zap');
+    if (this.glitchStacks >= GLITCH_OVERLOAD) this.glitchOverload();
+  }
+
+  // 10 stacks: TOTAL CORRUPTION — engulfed head to toe, servos locked,
+  // spasming, taking double damage until the crash clears
+  glitchOverload() {
+    this.setState('glitched', GLITCH_STUN_TIME);
+    this.blocking = false;
+    this.firing = false;
+    this.hovering = false;
+    this.plunging = false;
+    this._whirlHold = null;
+    this._punchHold = null;
+    this._aimHold = false;
+    this.clearChargeGlow();
+    this.vel.x *= 0.15;
+    this.vel.z *= 0.15;
+    this.animator.stop(0.08);
+    const c = this.center();
+    this.world.effects.glitchBurst(c, 26, 11, 1.2 * this.scale);
+    this.world.effects.rings.spawn(this.pos, { from: 0.6, to: 6.5, dur: 0.45, color: 0xff2df2, y: 0.5 });
+    this.world.effects.addShake(0.5);
+    this.world.engine.addHitStop(0.08);
+    this.world.audio?.play('powerup');
+    this.world.audio?.play('zap');
+  }
+
+  clearGlitch() {
+    this.glitchStacks = 0;
+    this._glitchSpots.length = 0;
+    this._nullTear = 0;
+    this._tintHold = 0;
+    this.applyGlitchTint(0);
+  }
+
+  // per-frame corruption dressing: flecks strobing off every corrupted
+  // part, whole-body color tears scaling with how far gone the frame is
+  updateGlitch(dt) {
+    const engulfed = this.state === 'glitched';
+    if (!this.glitchStacks && !engulfed) return;
+    const fx = this.world.effects;
+    this._glitchFxT = (this._glitchFxT ?? 0) - dt;
+    if (this._glitchFxT <= 0) {
+      if (engulfed) {
+        // whole body: dense corruption shroud
+        this._glitchFxT = 0.02;
+        for (let i = 0; i < 3; i++) {
+          const a = rand(TAU), rr = rand(0.2, 1) * this.hitRadius * 0.85;
+          fx.glitchFleck(this.pos.x + Math.cos(a) * rr,
+            this.pos.y + rand(0.2, this.height),
+            this.pos.z + Math.sin(a) * rr, 1.1 * this.scale);
+        }
+      } else {
+        // each corrupted part keeps flickering where the hit landed
+        this._glitchFxT = clamp(0.13 - this.glitchStacks * 0.006, 0.05, 0.13);
+        for (let k = 0; k < Math.min(2, this._glitchSpots.length); k++) {
+          const s = this._glitchSpots[(Math.random() * this._glitchSpots.length) | 0];
+          const j = this.mech.joints[s.joint];
+          if (!j) continue;
+          _v.set(s.x + rand(-0.12, 0.12), s.y + rand(-0.12, 0.12), s.z);
+          j.localToWorld(_v);
+          fx.glitchFleck(_v.x, _v.y, _v.z, 0.75 * this.scale);
+        }
+      }
+    }
+    // material strobing: the shell renders in wrong colors
+    if (engulfed) {
+      this._tintT = (this._tintT ?? 0) - dt;
+      if (this._tintT <= 0) {
+        this._tintT = rand(0.05, 0.14);
+        this._tintC = glitchTint();
+        this._tintW = rand(0.3, 0.65);
+      }
+      this.applyGlitchTint(this._tintW, this._tintC);
+    } else if (this._tintHold > 0) {
+      this._tintHold -= dt;
+      if (this._tintHold <= 0) this.applyGlitchTint(0);
+    } else if (Math.random() < dt * (0.5 + this.glitchStacks * 0.45)) {
+      // one-beat full-body color tear, more often as stacks build
+      this._tintHold = rand(0.04, 0.1);
+      this.applyGlitchTint(rand(0.25, 0.55), glitchTint());
+    }
+  }
+
+  // NULLBOT's own ambient corruption: parts of his body constantly flash
+  // broken colors — he IS the virus (super scary, per the concept)
+  updateNullbotAura(dt) {
+    const fx = this.world.effects;
+    this._nullFxT = (this._nullFxT ?? 0) - dt;
+    if (this._nullFxT <= 0) {
+      this._nullFxT = rand(0.05, 0.14);
+      const names = ['torso', 'torso', 'head', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'kneeL', 'kneeR'];
+      const j = this.mech.joints[names[(Math.random() * names.length) | 0]];
+      if (j) {
+        j.getWorldPosition(_v);
+        fx.glitchFleck(_v.x + rand(-0.55, 0.55) * this.scale,
+          _v.y + rand(-0.5, 0.5) * this.scale,
+          _v.z + rand(-0.45, 0.55) * this.scale, 0.85 * this.scale);
+      }
+    }
+    // rare one-beat full-shell color tear
+    if (this._nullTear > 0) {
+      this._nullTear -= dt;
+      if (this._nullTear <= 0) this.applyGlitchTint(0);
+    } else if (Math.random() < dt * 0.45) {
+      this._nullTear = rand(0.04, 0.09);
+      this.applyGlitchTint(rand(0.2, 0.45), glitchTint());
+    }
+  }
+
   uncloak() {
     if (this.status.cloak) {
       delete this.status.cloak;
@@ -1090,6 +1270,7 @@ export class Fighter {
     this.hp = 0;
     this.alive = false;
     this.clearChargeGlow();
+    this.clearGlitch();
     this.setState('dead', 999);
     this.blocking = false;
     this.firing = false;
@@ -1159,6 +1340,29 @@ export class Fighter {
       if (this.stateT <= 0) this.setState('normal');
       this.applyPhysics(dt, 0, 0);
       return; // no animator update: frozen solid
+    }
+
+    // ---- TOTAL CORRUPTION: engulfed in glitch, servos locked, spasming.
+    // The crash runs its full 3s, then every stack clears at once ----
+    if (this.state === 'glitched') {
+      if (this.stateT <= 0) {
+        this.clearGlitch();
+        this.world.effects.rings.spawn(this.pos, { from: 4.5, to: 0.5, dur: 0.35, color: 0x27f6ff, y: 0.6 });
+        this.setState('normal');
+      } else {
+        this._spasmT = (this._spasmT ?? 0) - dt;
+        if (this._spasmT <= 0) {
+          this._spasmT = rand(0.05, 0.16);
+          const SPASM = ['torso', 'head', 'shoulderL', 'shoulderR', 'thighL', 'thighR'];
+          this.animator.addImpulse(SPASM[(Math.random() * SPASM.length) | 0],
+            [rand(-0.3, 0.3), rand(-0.25, 0.25), rand(-0.3, 0.3)], 42, 10);
+        }
+        this.applyPhysics(dt, 0, 0);
+        this.updateGlitch(dt);
+        this.animator.update(dt, { speed: 0, grounded: this.grounded });
+        this.group.rotation.y = this.yaw;
+        return;
+      }
     }
 
     // ---- state timers / transitions ----
@@ -1574,6 +1778,10 @@ export class Fighter {
     // NOVA: the staff apex crackles while the halo burns — brighter and
     // bigger the closer the crescents are to apex alignment
     if (this.def.id === 'nova' && this.alive) this.updateNovaAura(dt);
+    // NULLBOT: ambient corruption flickering over his own frame
+    if (this.def.id === 'nullbot' && this.alive) this.updateNullbotAura(dt);
+    // corruption stacks keep flickering on whoever carries them
+    this.updateGlitch(dt);
   }
 
   updateBladeTrail(dt) {
@@ -1750,6 +1958,7 @@ export class Fighter {
     this.group.rotation.y = yaw;
     this.setState('normal');
     this.status = {};
+    this.clearGlitch(); // corruption lasts exactly one round
     this.setOpacity(1);
     this.specialCd = 0;
     this.rangedCd = 0;

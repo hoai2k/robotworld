@@ -1503,3 +1503,41 @@ controllers via Gamepad API), AI opponents.
   stills reviewed (titanus mid-stomp standing ON the sprawled wreck,
   colossus with the ragdolled body riding his raised fist, vulcan spray
   pose with the tracer swarm curving in); ace soak crash-free.
+
+71. NULLBOT — 17TH MECH: THE FATAL EXCEPTION (user request, canonical images supplied) ✅
+  · NEW MECH from docs/canonical/mech_null.png: tall void-black shard-armor
+    frame (designs/nullbot.js) — crown horns, TWIN red eyes, red null-sigil
+    (Ø ring + slash) burning proud of the chest, spike-stacked pauldrons,
+    back spine-fan, clawed hands/feet, serrated fins — plus small glow2
+    "corruption shard" chips bolted at wrong angles all over the shell.
+    Ambient scare kit: the animator strobes the shards like a failing
+    display (random wrong colors), the head snaps in micro-ticks between
+    dead stillness, and fighter.updateNullbotAura pops multicolor square
+    data-flecks (new glitchCellsTexture atlas + pixels particle pool) off
+    random joints with rare one-beat full-shell color tears.
+  · GLITCH STATUS SYSTEM (fighter.js): nullbot's ordinary-looking punches,
+    the nullBackhand heavy (launches the victim flying) and the Null
+    Pointer bolt each convert a PART of the victim into flickering data —
+    a corruption spot pinned to a random joint + a stack, kept for the
+    WHOLE round. The 10th stack OVERLOADS: 3s fully engulfed ('glitched'
+    state — servos locked, spasming, dense fleck shroud, shell strobing
+    wrong colors) taking DOUBLE damage; then every stack clears and the
+    count restarts. Probe-verified: 9 stacks no-overload, 10th locks,
+    156 = 100×2×(1-armor) while engulfed, stays locked under hits,
+    clears to normal + 0 stacks at 3s, resetForRound wipes everything.
+  · MOVES: Null Pointer ranged (tumbling voxel-knot projectile, glitch
+    trail, color-strobing shard), SEGFAULT special (de-rez dash-through,
+    +1 stack per victim), SYSTEM CRASH ult (corruption nova, tri-color
+    rings + shard rain, +3 stacks), AI range/AoE gating wired.
+  · FINISHER — SYSTEM FAILURE: stalks in, hoists the victim one-handed
+    while corruption floods them (tint strobe + fleck shroud), drops the
+    husk, turns square into a locked-off lens shot... and PUNCHES THE
+    CAMERA: a full SYSTEM FAILURE bluescreen (matches docs/canonical/
+    null_bluescreen_of_death.png — fatal exception text, NULLBOT.EXE,
+    stop codes, NULLIFYING SYSTEM 100%, GOODBYE., animated corruption
+    bars + scanlines) holds for 3 s before the scene ends. Finisher class
+    gained a cleanups[] hook so end()/skip always tear the overlay down.
+  Verified: idle/walk/backhand/lineup/battle screenshots judged; finisher
+  probed at t=3.0 (engulf), 4.1 (lens turn), 6.0 (bluescreen, full text
+  legible); nullbot-vs-viper and titanus-vs-nullbot ace soaks crash-free;
+  select-screen thumb generated; npx vite build green.
