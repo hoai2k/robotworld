@@ -53,25 +53,29 @@ const CLIPS_RAW = {
   // ---------- melee ----------
   // exaggerated wind-ups, full-body twist (hipsRot), side leans and outBack
   // overshoot on the strikes — snappy anime energy instead of stiff robots.
-  light1: { // left jab — hips coil right, whip left through the punch
-    dur: 0.42,
+  light1: { // left jab — a REAL pull-back first (fist chambers, hips coil
+    // right), then the whip through the punch
+    dur: 0.52,
     keys: [
-      { t: 0, pose: { torso: [6, -22, -6], hipsRot: [0, -10, 0], shoulderL: [-30, 8, -18], elbowL: [-108, 0, 0], shoulderR: [10, 0, 18], head: [0, 10, 0] } },
-      { t: 0.13, ease: 'outBack', pose: { torso: [10, 26, 8], hipsRot: [0, 14, 0], hipsPos: [0, -0.12, 0], shoulderL: [-98, -14, 24], elbowL: [-4, 0, 0], shoulderR: [18, 0, 26], head: [0, -12, 0] } },
-      { t: 0.24, ease: 'inOutQuad', pose: { torso: [7, 18, 5], hipsRot: [0, 10, 0], shoulderL: [-84, -10, 18], elbowL: [-24, 0, 0] } },
-      { t: 0.42, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], head: [0, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.11, ease: 'outCubic', pose: { torso: [6, -22, -6], hipsRot: [0, -10, 0], shoulderL: [-26, 8, -20], elbowL: [-112, 0, 0], shoulderR: [10, 0, 18], head: [0, 10, 0] } },
+      { t: 0.23, ease: 'outBack', pose: { torso: [10, 26, 8], hipsRot: [0, 14, 0], hipsPos: [0, -0.12, 0], shoulderL: [-98, -14, 24], elbowL: [-4, 0, 0], shoulderR: [18, 0, 26], head: [0, -12, 0] } },
+      { t: 0.34, ease: 'inOutQuad', pose: { torso: [7, 18, 5], hipsRot: [0, 10, 0], shoulderL: [-84, -10, 18], elbowL: [-24, 0, 0] } },
+      { t: 0.52, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], head: [0, 0, 0] } },
     ],
-    events: [{ t: 0.11, type: 'sfx', arg: 'whoosh' }, { t: 0.13, type: 'hit', arg: 0 }],
+    events: [{ t: 0.2, type: 'sfx', arg: 'whoosh' }, { t: 0.23, type: 'hit', arg: 0 }],
   },
-  light2: { // right cross — bigger counter-twist, shoulders thrown through
-    dur: 0.46,
+  light2: { // right cross — chambers deep behind the shoulder, then the
+    // counter-twist throws it through
+    dur: 0.56,
     keys: [
-      { t: 0, pose: { torso: [7, 24, 6], hipsRot: [0, 12, 0], shoulderR: [-35, -8, 20], elbowR: [-112, 0, 0], shoulderL: [12, 0, -20], head: [0, -10, 0] } },
-      { t: 0.15, ease: 'outBack', pose: { torso: [10, -30, -8], hipsRot: [0, -16, 0], hipsPos: [0, -0.14, 0], shoulderR: [-100, 14, -24], elbowR: [-2, 0, 0], shoulderL: [20, 0, -28], head: [0, 12, 0] } },
-      { t: 0.27, ease: 'inOutQuad', pose: { torso: [7, -20, -5], hipsRot: [0, -11, 0], shoulderR: [-86, 10, -18], elbowR: [-22, 0, 0] } },
-      { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], head: [0, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.12, ease: 'outCubic', pose: { torso: [7, 24, 6], hipsRot: [0, 12, 0], shoulderR: [-30, -8, 22], elbowR: [-116, 0, 0], shoulderL: [12, 0, -20], head: [0, -10, 0] } },
+      { t: 0.25, ease: 'outBack', pose: { torso: [10, -30, -8], hipsRot: [0, -16, 0], hipsPos: [0, -0.14, 0], shoulderR: [-100, 14, -24], elbowR: [-2, 0, 0], shoulderL: [20, 0, -28], head: [0, 12, 0] } },
+      { t: 0.37, ease: 'inOutQuad', pose: { torso: [7, -20, -5], hipsRot: [0, -11, 0], shoulderR: [-86, 10, -18], elbowR: [-22, 0, 0] } },
+      { t: 0.56, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], head: [0, 0, 0] } },
     ],
-    events: [{ t: 0.13, type: 'sfx', arg: 'whoosh' }, { t: 0.15, type: 'hit', arg: 1 }],
+    events: [{ t: 0.22, type: 'sfx', arg: 'whoosh' }, { t: 0.25, type: 'hit', arg: 1 }],
   },
   light3: { // rising uppercut — deep coil, launch onto tiptoes, arm at full stretch
     dur: 0.62,
@@ -86,25 +90,29 @@ const CLIPS_RAW = {
   // ---------- VIPER: ninja sword forms ----------
   // blade-led arcs and lunging thrusts: the elbow stays near-straight so the
   // forearm energy daggers LEAD every move — never a punch holding a sword.
-  viperSlash1: { // right blade, horizontal right-to-left cut across the throat line
-    dur: 0.4,
+  viperSlash1: { // right blade: draws BACK across the far shoulder first,
+    // then the horizontal right-to-left cut across the throat line
+    dur: 0.5,
     keys: [
-      { t: 0, pose: { torso: [4, 30, 5], hipsRot: [0, 14, 0], head: [0, -14, 0], shoulderR: [-62, 42, 30], elbowR: [-26, 0, 0], handR: [0, 0, 35], shoulderL: [12, 0, -22], elbowL: [-40, 0, 0] } },
-      { t: 0.12, ease: 'outBack', pose: { torso: [8, -34, -7], hipsRot: [0, -17, 0], hipsPos: [0, -0.12, 0], head: [0, 14, 0], shoulderR: [-96, -30, -20], elbowR: [-3, 0, 0], handR: [0, 0, -30], shoulderL: [18, 0, -28] } },
-      { t: 0.24, ease: 'inOutQuad', pose: { torso: [6, -24, -5], hipsRot: [0, -12, 0], shoulderR: [-88, -24, -14] } },
-      { t: 0.4, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.1, ease: 'outCubic', pose: { torso: [4, 30, 5], hipsRot: [0, 14, 0], head: [0, -14, 0], shoulderR: [-62, 42, 30], elbowR: [-26, 0, 0], handR: [0, 0, 35], shoulderL: [12, 0, -22], elbowL: [-40, 0, 0] } },
+      { t: 0.22, ease: 'outBack', pose: { torso: [8, -34, -7], hipsRot: [0, -17, 0], hipsPos: [0, -0.12, 0], head: [0, 14, 0], shoulderR: [-96, -30, -20], elbowR: [-3, 0, 0], handR: [0, 0, -30], shoulderL: [18, 0, -28] } },
+      { t: 0.34, ease: 'inOutQuad', pose: { torso: [6, -24, -5], hipsRot: [0, -12, 0], shoulderR: [-88, -24, -14] } },
+      { t: 0.5, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
     ],
-    events: [{ t: 0.1, type: 'sfx', arg: 'slash' }, { t: 0.12, type: 'hit', arg: 0 }],
+    events: [{ t: 0.19, type: 'sfx', arg: 'slash' }, { t: 0.22, type: 'hit', arg: 0 }],
   },
-  viperSlash2: { // left blade, rising reverse diagonal — low hip to high shoulder
-    dur: 0.44,
+  viperSlash2: { // left blade: drops to the hip first, then the rising
+    // reverse diagonal — low hip to high shoulder
+    dur: 0.54,
     keys: [
-      { t: 0, pose: { torso: [10, -30, -6], hipsRot: [0, -14, 0], hipsPos: [0, -0.16, 0], head: [0, 12, 0], shoulderL: [-30, -40, -38], elbowL: [-20, 0, 0], handL: [0, 0, -35], shoulderR: [14, 0, 24], elbowR: [-45, 0, 0] } },
-      { t: 0.13, ease: 'outBack', pose: { torso: [-6, 32, 8], hipsRot: [0, 16, 0], hipsPos: [0, 0.05, 0], head: [-6, -12, 0], shoulderL: [-124, 26, 18], elbowL: [-4, 0, 0], handL: [0, 0, 30], shoulderR: [20, 0, 30] } },
-      { t: 0.26, ease: 'inOutQuad', pose: { torso: [-4, 22, 6], hipsRot: [0, 11, 0], shoulderL: [-112, 20, 14] } },
-      { t: 0.44, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], handL: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.11, ease: 'outCubic', pose: { torso: [10, -30, -6], hipsRot: [0, -14, 0], hipsPos: [0, -0.16, 0], head: [0, 12, 0], shoulderL: [-30, -40, -38], elbowL: [-20, 0, 0], handL: [0, 0, -35], shoulderR: [14, 0, 24], elbowR: [-45, 0, 0] } },
+      { t: 0.23, ease: 'outBack', pose: { torso: [-6, 32, 8], hipsRot: [0, 16, 0], hipsPos: [0, 0.05, 0], head: [-6, -12, 0], shoulderL: [-124, 26, 18], elbowL: [-4, 0, 0], handL: [0, 0, 30], shoulderR: [20, 0, 30] } },
+      { t: 0.36, ease: 'inOutQuad', pose: { torso: [-4, 22, 6], hipsRot: [0, 11, 0], shoulderL: [-112, 20, 14] } },
+      { t: 0.54, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], handL: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
     ],
-    events: [{ t: 0.11, type: 'sfx', arg: 'slash' }, { t: 0.13, type: 'hit', arg: 1 }],
+    events: [{ t: 0.2, type: 'sfx', arg: 'slash' }, { t: 0.23, type: 'hit', arg: 1 }],
   },
   viperStab: { // combo ender: coiled low, then a full-body lunging skewer
     dur: 0.6,
@@ -133,25 +141,29 @@ const CLIPS_RAW = {
   // ---------- AEGIS: spear-and-shield forms ----------
   // the shield arm NEVER punches: it holds a raised guard squared to the
   // front while the spear arm does the killing from behind it.
-  aegisStab1: { // quick mid-line thrust from behind the guard
-    dur: 0.44,
+  aegisStab1: { // spear draws BACK behind the guard first, then the
+    // quick mid-line thrust
+    dur: 0.54,
     keys: [
-      { t: 0, pose: { torso: [4, 16, 0], hipsRot: [0, 8, 0], head: [0, -8, 0], shoulderL: [-62, 28, -12], elbowL: [-100, 0, 0], shoulderR: [-36, 24, 16], elbowR: [-82, 0, 0] } },
-      { t: 0.13, ease: 'outBack', pose: { torso: [8, -12, -3], hipsRot: [0, -7, 0], hipsPos: [0, -0.1, 0.12], head: [0, 6, 0], shoulderL: [-64, 26, -12], elbowL: [-98, 0, 0], shoulderR: [-94, -8, 2], elbowR: [-2, 0, 0] } },
-      { t: 0.26, ease: 'inOutQuad', pose: { shoulderR: [-86, -4, 4], elbowR: [-14, 0, 0] } },
-      { t: 0.44, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.11, ease: 'outCubic', pose: { torso: [4, 16, 0], hipsRot: [0, 8, 0], head: [0, -8, 0], shoulderL: [-62, 28, -12], elbowL: [-100, 0, 0], shoulderR: [-34, 24, 16], elbowR: [-86, 0, 0] } },
+      { t: 0.23, ease: 'outBack', pose: { torso: [8, -12, -3], hipsRot: [0, -7, 0], hipsPos: [0, -0.1, 0.12], head: [0, 6, 0], shoulderL: [-64, 26, -12], elbowL: [-98, 0, 0], shoulderR: [-94, -8, 2], elbowR: [-2, 0, 0] } },
+      { t: 0.36, ease: 'inOutQuad', pose: { shoulderR: [-86, -4, 4], elbowR: [-14, 0, 0] } },
+      { t: 0.54, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
     ],
-    events: [{ t: 0.11, type: 'sfx', arg: 'whoosh' }, { t: 0.13, type: 'hit', arg: 0 }],
+    events: [{ t: 0.2, type: 'sfx', arg: 'whoosh' }, { t: 0.23, type: 'hit', arg: 0 }],
   },
-  aegisStab2: { // high overhand spear jab angled down over the shield rim
-    dur: 0.48,
+  aegisStab2: { // spear cocks high overhead first, then jabs down over the
+    // shield rim
+    dur: 0.58,
     keys: [
-      { t: 0, pose: { torso: [-4, 18, 2], hipsRot: [0, 9, 0], head: [4, -8, 0], shoulderL: [-64, 26, -12], elbowL: [-98, 0, 0], shoulderR: [-118, 20, 18], elbowR: [-92, 0, 0] } },
-      { t: 0.15, ease: 'outBack', pose: { torso: [12, -14, -4], hipsRot: [0, -8, 0], hipsPos: [0, -0.14, 0.1], head: [4, 7, 0], shoulderL: [-62, 28, -12], elbowL: [-100, 0, 0], shoulderR: [-104, -10, 0], elbowR: [-4, 0, 0] } },
-      { t: 0.29, ease: 'inOutQuad', pose: { shoulderR: [-92, -6, 2], elbowR: [-16, 0, 0], torso: [8, -10, -3] } },
-      { t: 0.48, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
+      { t: 0, pose: {} },
+      { t: 0.13, ease: 'outCubic', pose: { torso: [-4, 18, 2], hipsRot: [0, 9, 0], head: [4, -8, 0], shoulderL: [-64, 26, -12], elbowL: [-98, 0, 0], shoulderR: [-118, 20, 18], elbowR: [-92, 0, 0] } },
+      { t: 0.26, ease: 'outBack', pose: { torso: [12, -14, -4], hipsRot: [0, -8, 0], hipsPos: [0, -0.14, 0.1], head: [4, 7, 0], shoulderL: [-62, 28, -12], elbowL: [-100, 0, 0], shoulderR: [-104, -10, 0], elbowR: [-4, 0, 0] } },
+      { t: 0.39, ease: 'inOutQuad', pose: { shoulderR: [-92, -6, 2], elbowR: [-16, 0, 0], torso: [8, -10, -3] } },
+      { t: 0.58, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0] } },
     ],
-    events: [{ t: 0.13, type: 'sfx', arg: 'whoosh' }, { t: 0.15, type: 'hit', arg: 1 }],
+    events: [{ t: 0.23, type: 'sfx', arg: 'whoosh' }, { t: 0.26, type: 'hit', arg: 1 }],
   },
   aegisPierce: { // combo ender: shield tucks tight, whole frame lunges through one skewer
     dur: 0.62,

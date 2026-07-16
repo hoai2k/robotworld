@@ -2,6 +2,7 @@
 // Driven each frame by an intent (from human input or AI).
 import * as THREE from 'three';
 import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/utils.js';
+import { softCircleTexture } from '../core/textures.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
@@ -40,6 +41,21 @@ export class Fighter {
     this.radius = 1.15 * s;
     this.height = (this.mech.dims.hipHeight + this.mech.dims.torsoH + this.mech.dims.headSize * 2) * 1.02;
     this.hitRadius = 1.7 * s;
+
+    // drop shadow: a soft dark disc pinned to the ground DIRECTLY below the
+    // mech (rides terrain height) — always there, and most useful for
+    // aiming a landing mid-flight. Child of the group so wrap/view shifts
+    // carry it; rotation doesn't matter on a circle.
+    this.shadow = new THREE.Mesh(
+      new THREE.CircleGeometry(1, 24),
+      new THREE.MeshBasicMaterial({
+        map: softCircleTexture(), color: 0x000000, transparent: true,
+        opacity: 0.26, depthWrite: false,
+      })
+    );
+    this.shadow.rotation.x = -Math.PI / 2;
+    this.shadow.renderOrder = 1;
+    this.group.add(this.shadow);
 
     // ducking: hold to crouch — smaller/lower hitbox, slower movement.
     // duckDepth 1 = a full frog squat (FROGGER), default is a half-crouch.
@@ -1019,15 +1035,17 @@ export class Fighter {
     const acting = this.canAct();
     this.blocking = acting && I.block; // blocking works airborne/hovering too
 
-    // ---- crouch-charged dash (pad B): HOLD to crouch and stop — the coil
-    // winds up to CHARGE_DASH_MAX seconds. RELEASE with a direction held to
-    // dash that way (the longer the crouch, the farther the dash); release
-    // with no direction and the mech just stands back up ----
+    // ---- crouch-charged dash (pad B): HOLD to wind up a dash coil (up to
+    // CHARGE_DASH_MAX seconds' worth). Standing STILL crouches and winds at
+    // full rate; you can keep MOVING while holding B, but the coil winds
+    // much slower on the move. RELEASE with a direction held to dash that
+    // way; release with no direction and the charge just cancels ----
     this._dashCharging = !!I.chargeDash && this.alive && !this.blocking && this.grounded &&
       (this.state === 'normal' || this.state === 'attack');
+    this._chargeStill = this._dashCharging && Math.hypot(I.moveX, I.moveZ) <= 0.25;
     if (this._dashCharging) {
       const was = this._dashCharge || 0;
-      this._dashCharge = Math.min(CHARGE_DASH_MAX, was + dt);
+      this._dashCharge = Math.min(CHARGE_DASH_MAX, was + dt * (this._chargeStill ? 1 : 0.35));
       // wind-up tells: rings pulse quicker and wider as the coil tightens,
       // and a flash marks the moment the charge tops out
       this._chargeFxT = (this._chargeFxT ?? 0) - dt;
@@ -1059,7 +1077,7 @@ export class Fighter {
     // held-duck strike lands LOW and slips under a standing block); only
     // jumping/airborne or blocking pops you back up ----
     if (this._hangCoyote > 0) this._hangCoyote -= dt;
-    const wantDuck = (I.duck || this._dashCharging) && this.grounded && !this.blocking &&
+    const wantDuck = (I.duck || this._chargeStill) && this.grounded && !this.blocking &&
       (this.state === 'normal' || this.state === 'channel' || this.state === 'attack');
     this.duckT = clamp01(this.duckT + (wantDuck ? dt / 0.13 : -dt / 0.11));
 
@@ -1172,7 +1190,7 @@ export class Fighter {
     // ---- movement ----
     let ax = 0, az = 0;
     const canMove = (this.state === 'normal' || this.state === 'channel') &&
-      !this.blocking && !this._dashCharging; // charging a dash roots you
+      !this.blocking; // charging a dash no longer roots you — it just winds slower
     if (canMove) {
       ax = I.moveX; az = I.moveZ;
       const len = Math.hypot(ax, az);
@@ -1248,6 +1266,18 @@ export class Fighter {
     // face target yaw
     this.yaw = angleDamp(this.yaw, this.targetYaw, 14, dt);
     this.group.rotation.y = this.yaw;
+
+    // ---- drop shadow: pinned to the ground under the mech ----
+    {
+      const gy = this.world.arena?.terrainHeightAt?.(this.pos.x, this.pos.z) ?? 0;
+      const h = Math.max(0, this.pos.y - gy);
+      this.shadow.position.y = gy - this.pos.y + 0.06;
+      // shrinks and softens with altitude but never vanishes — it's the
+      // landing marker when flying
+      const s = this.hitRadius * 1.5 * clamp(1.1 - h * 0.012, 0.55, 1.1);
+      this.shadow.scale.set(s, s, 1);
+      this.shadow.material.opacity = this.alive ? (h > 1 ? 0.34 : 0.24) : 0.15;
+    }
 
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);

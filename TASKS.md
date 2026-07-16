@@ -1241,3 +1241,26 @@ controllers via Gamepad API), AI opponents.
   Verified: six stance stills reviewed (titanus guard, viper blades,
   aegis shield, tempest point, fenrir crouch, saurion raptor); battle
   probe of the 5s relax cycle; ace soak crash-free.
+
+60. STANCE REVERTS, MOVING CHARGE-DASH, DROP SHADOWS, ATTACK WIND-UPS ✅
+  · Combat stances REVERTED to plain neutral for aegis, colossus, titanus,
+    vulcan, nova and glacier (combatPose removed); the other ten keep
+    their signature ready stances + 5s relax behavior.
+  · PAD B charge-dash now works ON THE MOVE: holding B no longer roots the
+    mech — standing still crouches and winds the coil at full rate, moving
+    keeps full run speed but winds at 0.35x (probe: 7.8u covered in the
+    first second of a moving charge, 0.35 charge vs 1.0/s standing;
+    release still dashes/cancels as before). README + pause legend updated.
+  · DROP SHADOWS: every fighter carries a soft dark disc pinned to the
+    ground directly below them (terrain-aware — hills/bridge decks),
+    shrinking slightly and DARKENING airborne so it reads as the landing
+    marker for flights (probe: shadow sits at ground through a 3.6u jump,
+    opacity 0.24 grounded / 0.34 airborne).
+  · WIND-UPS: light1/light2 (shared jab & cross), viperSlash1/2 and
+    aegisStab1/2 now start from rest and PULL BACK through an explicit
+    chamber key before the strike (hit lands ~0.1s later per swing) —
+    every physical hit in the game now telegraphs before it lands
+    (heavies, uppercut, claw snap and haymakers already did).
+  Verified: build green; titanus-neutral + mid-chamber stills reviewed;
+  behavior probe (moving charge, crouch rates, dash release, shadow
+  tracking); ace soak crash-free.

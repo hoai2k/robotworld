@@ -83,11 +83,12 @@ ultimate charged by dealing/taking damage.
 | Taunt | B | Numpad . | View/Back |
 | Pause | Esc / P | — | Start |
 
-**Pad B — crouch & charged dash.** Hold B to crouch and stop: a dash charge
-winds up over 3 seconds. Release with a direction held on the left stick to
-dash that way — the longer the wind-up, the faster and farther the dash
-(i-frames scale too). Release with no direction held and the charge is
-cancelled; the mech just stands back up.
+**Pad B — charged dash.** Hold B to wind up a dash charge (3-second cap).
+Standing still crouches you and winds the coil at full rate; you can also
+keep moving while holding B, but the charge builds much more slowly on the
+move. Release with a direction held on the left stick to dash that way —
+the longer the wind-up, the faster and farther the dash (i-frames scale
+too). Release with no direction held and the charge simply cancels.
 
 **Pad LB — target lock.** Hold LB to lock onto the nearest enemy: your mech
 squares up and keeps facing them (so sideways movement becomes a natural

@@ -14,8 +14,6 @@ export const ROSTER = [
     body: { scale: 1.28, torsoW: 1.25, torsoH: 1.05, headSize: 0.9, armLen: 1.15, legLen: 1.0, hipW: 1.15, bulk: 1.1 },
     stats: { hp: 1250, speed: 7.2, jump: 12, weight: 1.0, armor: 0.22, blockMult: 0.09 },
     ui: { power: 10, speed: 3, defense: 9 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.14, 0], hipsRot: [0, -10, 0], torso: [6, 14, 0], head: [0, -10, 0], shoulderL: [-58, 10, -8], elbowL: [-88, 0, 0], shoulderR: [-42, -6, 12], elbowR: [-100, 0, 0], thighL: [-14, 0, -5], thighR: [4, 0, 6], kneeL: [22, 0, 0], kneeR: [12, 0, 0], ankleL: [-10, 0, 0] },
     // telegraphed haymakers: full wind-up, and a landed punch sends the
     // victim FLYING — nobody else's fists move people like this
     lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
@@ -41,8 +39,6 @@ export const ROSTER = [
     body: { scale: 1.16, torsoW: 1.28, torsoH: 1.0, headSize: 0.85, armLen: 0.95, legLen: 1.0, hipW: 1.1, bulk: 1.12 },
     stats: { hp: 950, speed: 9.5, jump: 13, weight: 0.62, armor: 0.1, blockMult: 0.12 },
     ui: { power: 7, speed: 5, defense: 5 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.1, 0], torso: [8, -8, 0], head: [-4, 8, 0], shoulderR: [-48, -8, 6], elbowR: [-30, 0, 0], shoulderL: [-38, 14, -8], elbowL: [-58, 0, 0], thighL: [-10, 0, -6], thighR: [2, 0, 6], kneeL: [16, 0, 0], kneeR: [10, 0, 0] },
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 2.9 },
       heavy: { dmg: 78, knock: 18, range: 3.2, launch: 7 },
@@ -63,8 +59,6 @@ export const ROSTER = [
     body: { scale: 1.15, torsoW: 1.08, torsoH: 1.05, headSize: 0.9, armLen: 1.05, legLen: 1.05, hipW: 1.0, bulk: 1.0 },
     stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.12, 0], torso: [4, 10, 0], head: [0, -8, 0], shoulderL: [-52, 24, -10], elbowL: [-92, 0, 0], shoulderR: [-16, 16, 10], elbowR: [-58, 0, 0], thighL: [-16, 0, -5], thighR: [6, 0, 6], kneeL: [24, 0, 0], kneeR: [10, 0, 0] },
     // spear-and-shield doctrine: the shield arm holds a squared guard while
     // the lance stabs around it; the heavy raises the spear overhead, WHIRLS
     // it like a rotor blade, then lunges it home
@@ -125,8 +119,6 @@ export const ROSTER = [
     body: { scale: 1.05, torsoW: 0.9, torsoH: 1.05, headSize: 0.85, armLen: 1.0, legLen: 1.08, hipW: 0.88, bulk: 0.85 },
     stats: { hp: 850, speed: 10, jump: 14, weight: 0.4, armor: 0.05, blockMult: 0.14 },
     ui: { power: 8, speed: 6, defense: 3 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.08, 0], torso: [2, 12, 0], head: [-4, -8, 0], shoulderR: [-62, -4, 8], elbowR: [-40, 0, 0], handR: [0, 0, -10], shoulderL: [-36, 10, -16], elbowL: [-48, 0, 0], thighL: [-8, 0, -5], thighR: [2, 0, 5], kneeL: [12, 0, 0] },
     // heavy: starlight strikes the raised staff, then she hammers it down —
     // the impact bursts in an area around the strike point
     heavyClip: 'novaSmite',
@@ -232,8 +224,6 @@ export const ROSTER = [
     body: { scale: 1.3, torsoW: 1.3, torsoH: 1.0, headSize: 0.85, armLen: 1.05, legLen: 0.95, hipW: 1.2, bulk: 1.15 },
     stats: { hp: 1300, speed: 6.5, jump: 11, weight: 1.0, armor: 0.24, blockMult: 0.09 },
     ui: { power: 9, speed: 2, defense: 9 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.12, 0], torso: [8, 8, 0], head: [-4, -6, 0], shoulderL: [-46, 8, -10], elbowL: [-92, 0, 0], shoulderR: [-38, -4, 12], elbowR: [-96, 0, 0], thighL: [-12, 0, -7], thighR: [2, 0, 7], kneeL: [18, 0, 0], kneeR: [10, 0, 0] },
     // same doctrine as TITANUS: wind the fist all the way back, then send
     // whatever it lands on across the street
     lightClips: ['bigPunch1', 'bigPunch2', 'light3'],
@@ -307,8 +297,6 @@ export const ROSTER = [
     body: { scale: 1.24, torsoW: 1.22, torsoH: 1.0, headSize: 0.9, armLen: 1.08, legLen: 0.98, hipW: 1.1, bulk: 1.08 },
     stats: { hp: 1200, speed: 7.5, jump: 12, weight: 0.92, armor: 0.2, blockMult: 0.10 },
     ui: { power: 8, speed: 3, defense: 8 },
-    // signature combat stance (additive over restPose; default carriage)
-    combatPose: { hipsPos: [0, -0.1, 0], torso: [4, 6, 0], shoulderL: [-56, 16, -8], elbowL: [-100, 0, 0], shoulderR: [-56, -16, 8], elbowR: [-100, 0, 0], thighL: [-10, 0, -8], thighR: [0, 0, 8], kneeL: [14, 0, 0], kneeR: [8, 0, 0] },
     moves: {
       light: { dmg: [38, 42, 58], knock: [5, 6, 13], range: 3.4 },
       heavy: { dmg: 92, knock: 22, range: 3.8, launch: 9 },
