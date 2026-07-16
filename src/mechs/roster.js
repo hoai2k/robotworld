@@ -59,13 +59,16 @@ export const ROSTER = [
     body: { scale: 1.15, torsoW: 1.08, torsoH: 1.05, headSize: 0.9, armLen: 1.05, legLen: 1.05, hipW: 1.0, bulk: 1.0 },
     stats: { hp: 1100, speed: 8.4, jump: 12.5, weight: 0.78, armor: 0.16, blockMult: 0.06 },
     ui: { power: 6, speed: 4, defense: 10 },
-    // spear-and-shield doctrine: the shield arm holds a squared guard while
-    // the lance stabs around it; the heavy raises the spear overhead, WHIRLS
-    // it like a rotor blade, then lunges it home
+    // spear-and-shield doctrine: the shield holds a squared low-front guard
+    // through EVERY form while the lance swings arcs around it. The heavy is
+    // hold-to-charge: the overhead rotor-whirl LOOPS while Y is held,
+    // banking power (2.4s cap), and the lunge lands it on release
     lightClips: ['aegisStab1', 'aegisStab2', 'aegisPierce'],
-    heavyClip: 'aegisWhirl',
-    heavySpin: { joint: 'handR', axis: 'y', rate: 30, t0: 0.16, t1: 0.66 },
-    heavyDrive: { t0: 0.66, t1: 0.82, speed: 16 },
+    heavyClip: 'aegisWhirlHold',
+    heavyHold: true,
+    heavyReleaseClip: 'aegisLunge',
+    heavySpin: { joint: 'handR', axis: 'y', rate: 30, t0: 0.12, t1: 999 },
+    heavyDrive: { clip: 'aegisLunge', t0: 0.02, t1: 0.24, speed: 14, kBoost: 0.7 },
     bladeTrail: { anchors: ['muzzleR'], color: 0x9fd8ff },
     moves: {
       light: { dmg: [34, 36, 50], knock: [5, 5, 12], range: 3.6 },
@@ -169,15 +172,16 @@ export const ROSTER = [
     ui: { power: 7, speed: 8, defense: 3 },
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.12, 0], hipsRot: [0, -18, 0], torso: [4, 20, 0], head: [0, -16, 0], shoulderR: [-72, -10, 6], elbowR: [-24, 0, 0], shoulderL: [-14, -6, -26], elbowL: [-60, 0, 0], thighL: [6, 0, -6], thighR: [-22, 0, 6], kneeL: [10, 0, 0], kneeR: [28, 0, 0] },
-    // heavy: spins up into a grinding tornado (two hit beats while the
-    // vortex churns — dmg is per-beat) with storm debris whirling around
+    // heavy: spins up into a grinding tornado that TRAVELS — real forward
+    // drive while whirling, two hit beats (dmg per-beat), and the hits
+    // launch/knock down like any other heavy
     heavyClip: 'tempestTornado',
     heavySpin: { joint: 'hips', axis: 'y', rate: 24, t0: 0.26, t1: 0.86 },
-    heavyDrive: { t0: 0.3, t1: 0.8, speed: 9 },
+    heavyDrive: { t0: 0.3, t1: 0.82, speed: 18 },
     heavyAura: 'tornado',
     moves: {
       light: { dmg: [28, 30, 44], knock: [4, 4, 10], range: 3.2 },
-      heavy: { dmg: 42, knock: 12, range: 3.6, launch: 8 },
+      heavy: { dmg: 42, knock: 16, range: 3.6, launch: 9 },
       ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8, ammo: 20 },
       special: { id: 'staticField', name: 'Static Overload', cooldown: 7, dmg: 70, radius: 8 },
       ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 55, strikes: 8, radius: 12 },

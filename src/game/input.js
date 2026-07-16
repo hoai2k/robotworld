@@ -127,6 +127,7 @@ export class Input {
       intent.light = kp('light');
       intent.lightHeld = k('light');
       intent.heavy = kp('heavy');
+      intent.heavyHeld = k('heavy');
       intent.block = k('block');
       intent.ranged = k('ranged');
       intent.special = kp('special');
@@ -151,6 +152,7 @@ export class Input {
       intent.light = this.padPressed(i, 'X');
       intent.lightHeld = this.padHeld(i, 'X');
       intent.heavy = this.padPressed(i, 'Y');
+      intent.heavyHeld = this.padHeld(i, 'Y');
       intent.block = this.padHeld(i, 'LT');
       // bumper shoots, trigger specials
       intent.ranged = this.padHeld(i, 'RB');
@@ -178,6 +180,7 @@ export class Input {
       intent.light = t.pressed.has('light');
       intent.lightHeld = t.held.has('light');
       intent.heavy = t.pressed.has('heavy');
+      intent.heavyHeld = t.held.has('heavy');
       intent.block = t.held.has('block');
       intent.ranged = t.held.has('ranged');
       intent.special = t.pressed.has('special');

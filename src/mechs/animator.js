@@ -503,7 +503,10 @@ export class Animator {
         // the natural forearm carry.
         const sh = J.shield;
         if (!sh) break;
-        const blocking = this.action && !this.action.fadingOut && this.action.clip.name === 'block';
+        // the shield presents square to the front while BLOCKING and through
+        // every aegis attack form — the guard never lifts or flips away
+        const act = this.action && !this.action.fadingOut ? this.action.clip.name : '';
+        const blocking = act === 'block' || act.startsWith('aegis');
         if (blocking) {
           sh.parent.updateWorldMatrix(true, false);
           sh.parent.getWorldQuaternion(_qa).invert();          // undo arm chain

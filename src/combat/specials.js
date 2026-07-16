@@ -213,7 +213,9 @@ export const SPECIALS = {
       onEvent: (t) => {
         if (t !== 'fire') return;
         const w = f.world;
-        const center = fwd(f, sp.radius * 0.55);
+        // storm placed well AHEAD of tempest — it's a zoning tool, not a
+        // self-centered burst
+        const center = fwd(f, sp.radius * 0.95);
         center.y = 0;
         const cloudY = 13;
         // the storm cloud: a heavy slab of churning dark smoke hanging over
@@ -272,7 +274,13 @@ export const SPECIALS = {
             w.effects.addShake(0.3);
             if (b.victim && b.victim.alive) {
               b.victim.takeHit(sp.dmg * f.dmgMult(), f, { knock: 14, srcPos: center, status: { slow: 0.6, slowT: 1.6 } });
-              w.effects.staticCling(b.victim, 1.1); // charge crackles off them
+              // ELECTRIFIED: the jolt locks their servos for a beat — a real
+              // stun on top of the slow, with the charge crackling off them
+              if (b.victim.alive && b.victim.state !== 'launched' && b.victim.state !== 'frozen') {
+                b.victim.setState('hitstun', 0.85);
+                b.victim.animator.addImpulse('torso', [rand(-0.3, 0.3), 0, rand(-0.3, 0.3)], 46, 8);
+              }
+              w.effects.staticCling(b.victim, 1.6); // charge crackles off them
             }
           });
         });

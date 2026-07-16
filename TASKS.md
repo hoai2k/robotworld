@@ -1264,3 +1264,26 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; titanus-neutral + mid-chamber stills reviewed;
   behavior probe (moving charge, crouch rates, dash release, shadow
   tracking); ace soak crash-free.
+
+61. SHADOW-DOT REMOVAL, TEMPEST BUFFS, AEGIS SWING FORMS + HOLD-CHARGE WHIRL ✅
+  · The drop-shadow disc is REMOVED (it read as a black dot); renderer
+    shadows carry placement again.
+  · TEMPEST: Static Overload storms now drop well AHEAD of him (0.95r,
+    was 0.55r) and every bolt ELECTRIFIES — 0.85s servo-lock stun + jolt
+    shudder + longer static crackle on top of the slow. The tornado heavy
+    now TRAVELS (drive 9→18, probe: 9.8u covered while spinning), and its
+    beats knock down like other heavies (knock 16, launch 9 — probe:
+    victim launched, both beats connected for 88).
+  · AEGIS melee re-authored as SWINGS: flat right-to-left sweep and a
+    high overhead chop (arcs, not spear-in-fist punches), pierce kept as
+    the lunging combo ender — and the shield arm NEVER lifts: one steady
+    low-front guard pose in every clip, plus the animator's face-forward
+    shield brace now applies through all aegis attack forms, not just
+    blocking.
+  · AEGIS heavy is HOLD-TO-CHARGE: the overhead rotor-whirl loops while Y
+    is held, banking power to a 2.4s cap (ring pulses tighten, white
+    flash at full), and releasing Y fires the lunge with the banked
+    power — dmg 0.8x..1.6x, knock up to 1.9x, drive speed boosted (probe:
+    tap 67 dmg vs full hold 172). New intent.heavyHeld on all devices.
+  Verified: build green; swing + whirl-hold stills (shield square in
+  front in both); probes above; aegis-vs-tempest ace soak crash-free.

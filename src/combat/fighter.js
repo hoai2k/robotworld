@@ -2,7 +2,6 @@
 // Driven each frame by an intent (from human input or AI).
 import * as THREE from 'three';
 import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/utils.js';
-import { softCircleTexture } from '../core/textures.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
@@ -41,21 +40,6 @@ export class Fighter {
     this.radius = 1.15 * s;
     this.height = (this.mech.dims.hipHeight + this.mech.dims.torsoH + this.mech.dims.headSize * 2) * 1.02;
     this.hitRadius = 1.7 * s;
-
-    // drop shadow: a soft dark disc pinned to the ground DIRECTLY below the
-    // mech (rides terrain height) — always there, and most useful for
-    // aiming a landing mid-flight. Child of the group so wrap/view shifts
-    // carry it; rotation doesn't matter on a circle.
-    this.shadow = new THREE.Mesh(
-      new THREE.CircleGeometry(1, 24),
-      new THREE.MeshBasicMaterial({
-        map: softCircleTexture(), color: 0x000000, transparent: true,
-        opacity: 0.26, depthWrite: false,
-      })
-    );
-    this.shadow.rotation.x = -Math.PI / 2;
-    this.shadow.renderOrder = 1;
-    this.group.add(this.shadow);
 
     // ducking: hold to crouch — smaller/lower hitbox, slower movement.
     // duckDepth 1 = a full frog squat (FROGGER), default is a half-crouch.
@@ -274,6 +258,16 @@ export class Fighter {
       return;
     }
     this.faceNearestEnemyIfClose(14);
+    // hold-to-charge heavy (AEGIS): the whirl LOOPS while Y stays held,
+    // banking power; the lunge and the hit come on release (updateHeavyHold)
+    if (this.def.heavyHold) {
+      this._whirlHold = 0.0001;
+      this._whirlFull = false;
+      this.animator.play(this.def.heavyClip);
+      this.setState('attack', 9);
+      this.comboIdx = 0;
+      return;
+    }
     const dur = this.animator.play(this.def.heavyClip || 'heavy', {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
         dmg: mv.dmg * this.dmgMult(),
@@ -557,6 +551,52 @@ export class Fighter {
     }
   }
 
+  // ---- hold-to-charge heavy: while the hold clip loops and the button
+  // stays down, power banks (capped); releasing fires the lunge with the
+  // banked damage/knock/launch — the longer the whirl, the harder it lands
+  updateHeavyHold(dt) {
+    const cap = 2.4;
+    if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(this.def.heavyClip)) {
+      this._whirlHold = null;
+      return;
+    }
+    if (this.intent.heavyHeld) {
+      this._whirlHold = Math.min(cap, this._whirlHold + dt);
+      this.stateT = Math.max(this.stateT, 0.3); // stay in the hold
+      // charge tell: rings tighten and quicken as the whirl banks power
+      const k = this._whirlHold / cap;
+      this._whirlFxT = (this._whirlFxT ?? 0) - dt;
+      if (this._whirlFxT <= 0) {
+        this._whirlFxT = 0.42 - 0.24 * k;
+        this.world.effects.rings.spawn(this.pos, {
+          from: 2.6, to: 0.8, dur: 0.26, color: 0x9fd8ff, y: 0.4,
+        });
+      }
+      if (k >= 1 && !this._whirlFull) {
+        this._whirlFull = true;
+        this.world.audio?.play('powerup');
+        this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4.5, dur: 0.35, color: 0xffffff, y: 0.5 });
+      }
+      return;
+    }
+    // released: discharge the banked whirl into the lunge
+    const k = clamp01(this._whirlHold / cap);
+    this._whirlHold = null;
+    this._heavyLungeK = k;
+    const mv = this.def.moves.heavy;
+    const dur = this.animator.play(this.def.heavyReleaseClip, {
+      onEvent: (type, arg) => this.onAttackEvent(type, arg, {
+        dmg: mv.dmg * (0.8 + 0.8 * k) * this.dmgMult(),
+        knock: mv.knock * (1 + 0.9 * k),
+        range: mv.range * this.scale * (1 + 0.15 * k),
+        launch: mv.launch * (1 + 0.5 * k),
+        heavy: true,
+      }),
+    });
+    this.setState('attack', dur * 0.9);
+    if (k > 0.4) this.world.audio?.play('whooshBig');
+  }
+
   // ---- signature heavy mechanics, driven every frame while the mech's own
   // heavy clip plays: heavySpin (post-pose joint whirl — rotor spear, drill
   // roll, tornado), heavyDrive (forward flight / leaps), heavyFlare
@@ -585,17 +625,25 @@ export class Fighter {
     }
 
     const dr = def.heavyDrive;
-    if (dr && playing && this.state === 'attack' && t >= dr.t0 && t <= dr.t1) {
-      this.vel.x = Math.sin(this.yaw) * dr.speed;
-      this.vel.z = Math.cos(this.yaw) * dr.speed;
-      if (dr.up && !this._droveUp) {
-        this._droveUp = true;
-        this.vel.y = dr.up;
-        this.grounded = false;
+    if (dr) {
+      // the drive may live on a different clip (e.g. aegis' release lunge)
+      const driveClip = dr.clip || def.heavyClip;
+      const drivePlaying = !!act && !act.fadingOut && act.clip.name === driveClip;
+      const dTime = drivePlaying ? act.t : 0;
+      if (drivePlaying && this.state === 'attack' && dTime >= dr.t0 && dTime <= dr.t1) {
+        // a banked hold-charge boosts the drive speed too
+        const sp = dr.speed * (1 + (dr.kBoost || 0) * (this._heavyLungeK || 0));
+        this.vel.x = Math.sin(this.yaw) * sp;
+        this.vel.z = Math.cos(this.yaw) * sp;
+        if (dr.up && !this._droveUp) {
+          this._droveUp = true;
+          this.vel.y = dr.up;
+          this.grounded = false;
+        }
+        if (dr.hold) this.vel.y = Math.max(this.vel.y, -2); // skim, don't faceplant
       }
-      if (dr.hold) this.vel.y = Math.max(this.vel.y, -2); // skim, don't faceplant
+      if (!drivePlaying) this._droveUp = false;
     }
-    if (!playing) this._droveUp = false;
 
     const fl = def.heavyFlare;
     if (fl) {
@@ -1267,18 +1315,8 @@ export class Fighter {
     this.yaw = angleDamp(this.yaw, this.targetYaw, 14, dt);
     this.group.rotation.y = this.yaw;
 
-    // ---- drop shadow: pinned to the ground under the mech ----
-    {
-      const gy = this.world.arena?.terrainHeightAt?.(this.pos.x, this.pos.z) ?? 0;
-      const h = Math.max(0, this.pos.y - gy);
-      this.shadow.position.y = gy - this.pos.y + 0.06;
-      // shrinks and softens with altitude but never vanishes — it's the
-      // landing marker when flying
-      const s = this.hitRadius * 1.5 * clamp(1.1 - h * 0.012, 0.55, 1.1);
-      this.shadow.scale.set(s, s, 1);
-      this.shadow.material.opacity = this.alive ? (h > 1 ? 0.34 : 0.24) : 0.15;
-    }
-
+    // ---- hold-to-charge heavy (whirl banking power until release) ----
+    if (this._whirlHold != null) this.updateHeavyHold(dt);
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
     // ---- thrown weapons re-forging in the grip ----
