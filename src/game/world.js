@@ -371,11 +371,29 @@ export class World {
         break;
       case 'fist': { // TITANUS: the fist itself is the round — it flies out
         // flat, swings around at range and comes home to the wrist,
-        // clobbering on both legs of the trip (boomerang + pierce)
+        // clobbering on both legs of the trip (boomerang + pierce).
+        // The projectile wears a CLONE of his real fist geometry (PBR
+        // materials and all) so it reads as HIS fist, not a glow blob.
+        let skin = null;
+        const hand = f.mech.joints.handR;
+        if (hand) {
+          const c = hand.clone(true);
+          const strip = [];
+          c.traverse((o) => { if (o.userData.chargeShell) strip.push(o); });
+          for (const o of strip) o.parent?.remove(o);
+          c.position.set(0, 0, 0);
+          c.rotation.set(0, 0, 0);
+          c.scale.setScalar(1);
+          c.updateMatrixWorld(true);
+          const ctr = new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3());
+          c.position.copy(ctr).negate(); // center the knuckle mass on the carrier
+          skin = new THREE.Group();
+          skin.add(c);
+        }
         const p = this.projectiles.spawn('fist', f, from, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffb43c,
           knock: mv.knock, launch: 5, pierce: true, boomerang: true,
-          maxDist: mv.range, life: 6, size: f.scale || 1,
+          maxDist: mv.range, life: 6, skin,
         });
         p.onReturn = () => f.catchFist();
         f.launchFist();

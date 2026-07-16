@@ -133,9 +133,14 @@ export class ProjectileSystem {
       soft: !!spec.soft,
       boomerang: !!spec.boomerang, // flies out, then homes back to its owner
       returning: false,
+      skin: spec.skin || null, // real-geometry dressing riding the carrier
       age: rand(0, 6.28), // desyncs flap/wobble phase across a swarm
     };
     if (p.size !== 1) p.mesh.scale.multiplyScalar(p.size);
+    if (p.skin) { // hide the glowing carrier; the real geometry rides it
+      p.mesh.material.opacity = 0;
+      p.mesh.add(p.skin);
+    }
     if (spec.arcTo) {
       // ballistic solve toward a ground target
       const dt = spec.arcTime || 1.4;
@@ -373,6 +378,7 @@ export class ProjectileSystem {
           world.effects.slime(p.mesh.position, 6, 5);
         }
         if (p.boomerang && p.onReturn) { p.onReturn(); p.onReturn = null; }
+        if (p.skin) { p.mesh.remove(p.skin); p.skin = null; }
         p.mesh.visible = false;
         p.mesh.scale.set(1, 1, 1);
         this.pool.get(p.type).push(p.mesh);

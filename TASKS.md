@@ -1363,3 +1363,15 @@ controllers via Gamepad API), AI opponents.
   pound arms / 24 legs / 6 lance, rate + opacity ramps, clean teardown on
   release for all four); 1080p battle still shows the lance streaking red
   mid-whirl; ace soak crash-free with a clean KO.
+
+65. ROCKET FIST WEARS THE REAL FIST ✅
+  · The fist projectile no longer flies as a glowing additive box: at
+    launch the round is dressed in a live CLONE of Titanus' actual handR
+    fist geometry (same PBR materials), recentered on its knuckle mass
+    and riding the carrier so faceVel keeps the knuckles punching
+    forward on both legs of the boomerang. Charge-flicker shells are
+    stripped from the clone; the smoke exhaust trail stays. Generic
+    spec.skin plumbing in projectiles (attached on spawn, detached on
+    death) so any future projectile can wear real geometry.
+  Verified: build green; mid-flight still shows the dark segmented fist
+  crossing the gap (hand hidden on the mech); ace soak crash-free.
