@@ -424,6 +424,40 @@ const CLIPS_RAW = {
     ],
   },
 
+  vulcanSpray: { // finisher: weight rocked back, the right gatling flung up
+    // PAST his shoulder hosing the sky — loose and casual, mid-laugh
+    dur: 0.9, loop: true,
+    keys: [
+      { t: 0, pose: { hipsPos: [0, -0.06, 0], hipsRot: [0, -10, 0], torso: [-14, 8, -4], head: [-16, -10, 4], shoulderR: [-148, 0, 34], elbowR: [-24, 0, 0], shoulderL: [-8, 0, -16], elbowL: [-30, 0, 0], thighL: [-8, 0, -6], thighR: [4, 0, 8], kneeL: [12, 0, 0], kneeR: [4, 0, 0] } },
+      { t: 0.45, ease: 'inOutQuad', pose: { torso: [-17, 8, -4], head: [-19, -10, 4], hipsPos: [0, -0.09, 0], shoulderR: [-152, 0, 36] } },
+      { t: 0.9, ease: 'inOutQuad', pose: { torso: [-14, 8, -4], head: [-16, -10, 4], hipsPos: [0, -0.06, 0], shoulderR: [-148, 0, 34] } },
+    ],
+  },
+  colossusSlamR: { // one-arm ragdoll hammer, DOWN THE RIGHT SIDE: the
+    // loaded fist swings from overhead to the dirt beside his right leg
+    // (the finisher LOCKS the victim to handR, so they ride this swing)
+    dur: 0.8,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.28, ease: 'inOutCubic', pose: { torso: [-14, 0, -10], hipsPos: [0, -0.08, 0], head: [-10, 0, 0], shoulderR: [-168, 0, 18], elbowR: [-14, 0, 0], shoulderL: [-24, 0, -30], elbowL: [-40, 0, 0], kneeL: [14, 0, 0], kneeR: [14, 0, 0] } },
+      { t: 0.5, ease: 'inCubic', pose: { torso: [26, 0, 16], hipsPos: [0, -0.34, 0], head: [12, 0, 0], shoulderR: [-24, 0, 58], elbowR: [-6, 0, 0], shoulderL: [-10, 0, -24], kneeL: [42, 0, 0], kneeR: [42, 0, 0], thighL: [-22, 0, 0], thighR: [-22, 0, 0] } },
+      { t: 0.64, ease: 'outQuad', pose: { torso: [22, 0, 13], hipsPos: [0, -0.28, 0] } },
+      { t: 0.8, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.12, type: 'sfx', arg: 'whooshBig' }, { t: 0.5, type: 'sfx', arg: 'slam' }, { t: 0.52, type: 'shake', arg: 0.4 }],
+  },
+  colossusSlamL: { // ...and swung ACROSS the body, down beside his left leg
+    dur: 0.8,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.28, ease: 'inOutCubic', pose: { torso: [-14, 0, 10], hipsPos: [0, -0.08, 0], head: [-10, 0, 0], shoulderR: [-168, 0, 20], elbowR: [-14, 0, 0], shoulderL: [-24, 0, -30], elbowL: [-40, 0, 0], kneeL: [14, 0, 0], kneeR: [14, 0, 0] } },
+      { t: 0.5, ease: 'inCubic', pose: { torso: [24, -18, -14], hipsPos: [0, -0.34, 0], head: [10, 10, 0], shoulderR: [-46, 0, -52], elbowR: [-24, 0, 0], shoulderL: [-8, 0, -34], kneeL: [42, 0, 0], kneeR: [42, 0, 0], thighL: [-22, 0, 0], thighR: [-22, 0, 0] } },
+      { t: 0.64, ease: 'outQuad', pose: { torso: [20, -14, -11], hipsPos: [0, -0.28, 0] } },
+      { t: 0.8, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.12, type: 'sfx', arg: 'whooshBig' }, { t: 0.5, type: 'sfx', arg: 'slam' }, { t: 0.52, type: 'shake', arg: 0.4 }],
+  },
+
   stomp: { // one heavy foot raised high and RAMMED straight down — the
     // finisher trample (stomp2 is the mirrored left foot)
     dur: 0.5,
@@ -538,6 +572,25 @@ const CLIPS_RAW = {
       { t: 0.4, ease: 'outQuad', pose: { hipsPos: [0, -2.55, 0.4], hipsRot: [-78, 0, 0], torso: [12, 0, 0], head: [25, 0, 0], shoulderL: [-40, 0, -55], shoulderR: [-40, 0, 55], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], thighL: [-25, 0, 0], thighR: [-40, 0, 0], kneeL: [45, 0, 0], kneeR: [70, 0, 0] } },
     ],
   },
+  // ---------- ragdoll: limp finisher-victim poses (loop = never fade back
+  // to the standing rest; the Finisher adds acceleration-driven flailing) --
+  ragdollAir: { // carried / whipped around: everything dangles loose
+    dur: 1.1, loop: true,
+    keys: [
+      { t: 0, pose: { hipsPos: [0, -0.1, 0], torso: [24, 6, 4], head: [34, -14, 8], shoulderL: [-24, 0, -58], shoulderR: [-14, 0, 66], elbowL: [-24, 0, 0], elbowR: [-42, 0, 0], handL: [20, 0, 0], handR: [26, 0, 0], thighL: [-14, 0, -10], thighR: [4, 0, 14], kneeL: [34, 0, 0], kneeR: [58, 0, 0], ankleL: [30, 0, 0], ankleR: [38, 0, 0] } },
+      { t: 0.55, ease: 'inOutQuad', pose: { head: [30, -10, 6], shoulderL: [-20, 0, -54], shoulderR: [-18, 0, 62], kneeR: [52, 0, 0] } },
+      { t: 1.1, ease: 'inOutQuad', pose: { head: [34, -14, 8], shoulderL: [-24, 0, -58], shoulderR: [-14, 0, 66], kneeR: [58, 0, 0] } },
+    ],
+  },
+  ragdoll: { // downed: flat on the back, limbs flung asymmetric — a wreck,
+    // not a fighter waiting to stand up
+    dur: 1, loop: true,
+    keys: [
+      { t: 0, pose: { hipsPos: [0, -2.55, 0.4], hipsRot: [-78, 0, 0], torso: [10, 8, 0], head: [28, 18, 0], shoulderL: [-70, 0, -70], shoulderR: [-15, 0, 80], elbowL: [-45, 0, 0], elbowR: [-10, 0, 0], thighL: [-15, 0, -8], thighR: [-45, 0, 12], kneeL: [30, 0, 0], kneeR: [80, 0, 0] } },
+      { t: 1, pose: { hipsPos: [0, -2.55, 0.4], hipsRot: [-78, 0, 0], torso: [10, 8, 0], head: [28, 18, 0], shoulderL: [-70, 0, -70], shoulderR: [-15, 0, 80], elbowL: [-45, 0, 0], elbowR: [-10, 0, 0], thighL: [-15, 0, -8], thighR: [-45, 0, 12], kneeL: [30, 0, 0], kneeR: [80, 0, 0] } },
+    ],
+  },
+
   getup: {
     dur: 0.75,
     keys: [

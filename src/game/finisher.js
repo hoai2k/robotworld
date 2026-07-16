@@ -126,7 +126,18 @@ export class Finisher {
     this.vic.animator.play('hitFlinch', { speed: 1.3 });
     this.vic.animator.addImpulse('torso', [-0.35, 0, 0], 30, 10);
   }
-  vicDown() { this.vic.animator.play('knockdown'); }
+  // fallen or carried victims go LIMP: a looping ragdoll pose plus
+  // acceleration-driven flailing (see update) — the pose never fades back
+  // to standing, so a stomped wreck stays a wreck
+  ragdoll(f, clip = 'ragdollAir') {
+    f.animator.play(clip);
+    this._rag = this._rag || new Map();
+    if (!this._rag.has(f)) {
+      this._rag.set(f, { px: f.pos.x, py: f.pos.y, pz: f.pos.z, vx: 0, vy: 0, vz: 0, cd: 0 });
+    }
+  }
+
+  vicDown() { this.ragdoll(this.vic, 'ragdoll'); }
   finaleBurst(color = 0xffa040) {
     const c = this.vic.center();
     this.w.effects.explosion(c, 4.5, { color });
@@ -258,6 +269,24 @@ export class Finisher {
     // staged a locomotion ctx for the winner this frame (approach, charge)
     this.win.animator.update(dt, this.winCtx || { speed: 0, grounded: true });
     this.winCtx = null;
+    // ragdolling bodies FLAIL under acceleration: every sharp velocity
+    // change jolts the limbs (additive impulses over the limp loop pose)
+    if (this._rag && dt > 0) {
+      for (const [f, st] of this._rag) {
+        const vx = (f.pos.x - st.px) / dt, vy = (f.pos.y - st.py) / dt, vz = (f.pos.z - st.pz) / dt;
+        const jolt = Math.hypot(vx - st.vx, vy - st.vy, vz - st.vz);
+        st.cd -= dt;
+        if (jolt > 5 && st.cd <= 0) {
+          st.cd = 0.08;
+          const k = Math.min(1.1, jolt / 30);
+          for (const j of ['shoulderL', 'shoulderR', 'thighL', 'thighR', 'head']) {
+            f.animator.addImpulse(j, [rand(-0.6, 0.6) * k, rand(-0.4, 0.4) * k, rand(-0.6, 0.6) * k], 16, 5);
+          }
+        }
+        st.vx = vx; st.vy = vy; st.vz = vz;
+        st.px = f.pos.x; st.py = f.pos.y; st.pz = f.pos.z;
+      }
+    }
     this.vic.animator.update(dt, { speed: 0, grounded: true });
     // carry spans stage a palm press: runs post-pose or it gets clobbered
     if (this._palmVic) {
@@ -273,6 +302,7 @@ export class Finisher {
   end() {
     if (this.ended) return;
     this.ended = true;
+    this._rag = null;
     this.hideSkipUI();
     this.dropSpectre();
     this.win.setOpacity?.(1);
@@ -321,7 +351,7 @@ const SCRIPTS = {
     const { win, vic, w } = F;
     F.approach(0.2, 1.0, 3.2);
     F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
-    F.at(1.45, () => { win.animator.play('liftHold'); vic.animator.play('launched'); F.beat('whooshBig', 0.3, 0); });
+    F.at(1.45, () => { win.animator.play('liftHold'); F.ragdoll(vic); F.beat('whooshBig', 0.3, 0); });
     // seized at the END of the reach (hands low, body rolled into them),
     // then the body rides the liftHold arm-swing itself all the way up —
     // constant contact, with the palm press squeezing onto the torso
@@ -377,7 +407,8 @@ const SCRIPTS = {
     F.at(3.46, () => {
       F.beat('slam', 1, 0.1);
       F.sparks(22, 13);
-      F.vicFlinch();
+      // jolt the wreck, never re-pose it — a flinch clip would stand it up
+      vic.animator.addImpulse('torso', [rand(-0.4, 0.4), 0.4, rand(-0.4, 0.4)], 22, 7);
       w.effects.dustPuff(vic.pos, 10);
       w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5.5, dur: 0.35, color: 0xffb43c, y: 0.3 });
     });
@@ -393,7 +424,10 @@ const SCRIPTS = {
       F.at(tS + 0.26, () => {
         F.beat('slam', 0.7, 0.06);
         F.sparks(14, 10);
-        F.vicFlinch();
+        // shudder the pinned wreck under the foot (additive — stays down)
+        for (const j of ['torso', 'thighL', 'thighR', 'head']) {
+          vic.animator.addImpulse(j, [rand(-0.5, 0.5), rand(-0.2, 0.4), rand(-0.5, 0.5)], 20, 6);
+        }
         w.effects.dustPuff(vic.pos, 5);
         w.effects.rings.spawn(vic.pos, { from: 0.5, to: 4, dur: 0.3, color: 0xffb43c, y: 0.3 });
       });
@@ -410,7 +444,7 @@ const SCRIPTS = {
     const S = win.scale;
     F.approach(0.2, 1.0, 3.2);
     F.at(1.1, () => { win.animator.play('grabReach'); w.audio?.play('servo'); });
-    F.at(1.45, () => { win.animator.play('liftHold'); vic.animator.play('launched'); F.beat('whooshBig', 0.3, 0); });
+    F.at(1.45, () => { win.animator.play('liftHold'); F.ragdoll(vic); F.beat('whooshBig', 0.3, 0); });
     let cx, cy2, cz;
     F.hold(1.28, 2.5, (k) => {
       if (cx === undefined) { cx = vic.pos.x; cy2 = vic.pos.y; cz = vic.pos.z; }
@@ -428,31 +462,25 @@ const SCRIPTS = {
     F.camShot(1.3, 2.55, { dist: 10, h: 6.5, az0: 0.5, az1: 0.05, lookH: 6.2 });
     F.camAction(2.55, 6.0, { dist: 13, h: 4.6, lookH: 2.6 });
     F.trackCenter(2.6, 5.6, 5);
-    // the one-arm ragdoll hammer: swung overhead and slammed down beside
-    // him, alternating sides, the grip never released
+    // the one-arm ragdoll hammer: the wreck is LOCKED to his right fist and
+    // goes exactly where the hand goes — swung overhead and slammed into
+    // the dirt beside his right leg, then ACROSS to his left, then right
     for (let i = 0; i < 3; i++) {
       const tS = 2.5 + i * 0.85;
-      const side = i % 2 ? -1 : 1;
-      F.at(tS, () => win.animator.play(side > 0 ? 'bigPunch2' : 'bigPunch1', { speed: 1.35 }));
-      let sx, sy, sz;
-      F.hold(tS, tS + 0.7, (k) => {
-        if (sx === undefined) { sx = vic.pos.x; sy = vic.pos.y; sz = vic.pos.z; }
-        const gx = win.pos.x + (Math.cos(win.yaw) * side * 2.7 + Math.sin(win.yaw) * 0.7) * S;
-        const gz = win.pos.z + (-Math.sin(win.yaw) * side * 2.7 + Math.cos(win.yaw) * 0.7) * S;
-        const q = smooth(k);
-        vic.pos.x = sx + (gx - sx) * q;
-        vic.pos.z = sz + (gz - sz) * q;
-        const apex = 7.4 * S;
-        vic.pos.y = k < 0.42
-          ? sy + (apex - sy) * smooth(k / 0.42)
-          : Math.max(0.35, apex * (1 - smooth((k - 0.42) / 0.58)));
-        vic.group.rotation.y = win.yaw;
-        vic.group.rotation.z = 1.45 + side * 0.55 * q; // whipped over the top
+      const cross = i % 2 === 1; // second smash swings across to his LEFT
+      F.at(tS, () => win.animator.play(cross ? 'colossusSlamL' : 'colossusSlamR'));
+      F.hold(tS, tS + 0.78, (k) => {
+        const hand = win.mech.joints.handR;
+        if (!hand) return;
+        hand.getWorldPosition(_ct);
+        vic.pos.set(_ct.x, Math.max(_ct.y - 0.75 * vic.scale, 0.02), _ct.z);
+        vic.yaw = vic.targetYaw = win.yaw;
+        vic.group.rotation.y = win.yaw + (cross ? -0.5 : 0.5) * smooth(k);
+        vic.group.rotation.z = 1.45;
       });
-      F.at(tS + 0.68, () => {
+      F.at(tS + 0.52, () => { // the fist bottoms out — impact
         F.beat('slam', 0.85, 0.08);
         F.sparks(20, 12);
-        F.vicFlinch();
         w.effects.dustPuff(vic.pos, 8);
         w.effects.rings.spawn(vic.pos, { from: 0.6, to: 5, dur: 0.32, color: 0xffc23c, y: 0.3 });
       });
@@ -611,15 +639,14 @@ const SCRIPTS = {
     const { win, vic, w } = F;
     F.approach(0.2, 1.0, 7);
     const shots = [];
-    F.at(1.05, () => { win.animator.play('castRaise'); w.audio?.play('charge'); });
-    // the fountain: tracers pour out of both gatlings in a full dome
-    F.hold(1.1, 1.85, (k, dt) => {
+    F.at(1.05, () => { win.animator.play('vulcanSpray'); w.audio?.play('charge'); });
+    // rocked back on his heels, one gatling flung casually over his
+    // shoulder — the whole magazine hoses out of it in a lazy dome while
+    // he shakes with laughter
+    F.hold(1.1, 1.7, (k, dt) => {
       F.winCtx = { speed: 0, grounded: true, firing: true };
-      const fromR = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
-      const fromL = win.mech.anchors.muzzleL
-        ? win.mech.anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : fromR;
+      const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
       for (let n = 0; n < 2; n++) {
-        const from = n ? fromL : fromR;
         const a = rand(Math.PI * 2), el = rand(0.45, 1.25);
         shots.push({
           x: from.x, y: from.y, z: from.z,
@@ -629,8 +656,17 @@ const SCRIPTS = {
           state: 0, tick: n,
         });
       }
-      w.effects.muzzleFlash(fromR);
+      w.effects.muzzleFlash(from);
       if (Math.random() < dt * 26) w.audio?.play('gatling');
+    });
+    // the laugh: rhythmic little heaves of the torso and head
+    F.hold(1.15, 2.8, (k, dt) => {
+      F._laughT = (F._laughT ?? 0) - dt;
+      if (F._laughT <= 0) {
+        F._laughT = 0.24;
+        win.animator.addImpulse('torso', [-0.14, 0, rand(-0.08, 0.08)], 15, 6);
+        win.animator.addImpulse('head', [0.18, rand(-0.1, 0.1), 0], 15, 6);
+      }
     });
     // the mark looks around, confused — head snapping after the streaks
     F.hold(1.4, 2.85, (k, dt) => { vic.yaw += Math.sin(k * 17) * dt * 2.2; });
@@ -652,7 +688,14 @@ const SCRIPTS = {
           const d = Math.hypot(tx, ty, tz);
           if (d < 1.5) {
             s.state = 2;
-            w.effects.impactSparks(new THREE.Vector3(s.x, s.y, s.z), 0xffd080, 3, 5);
+            // the barrage DETONATES on the mark: every few rounds a real
+            // explosion, sparks for the rest
+            F._swarmHits = (F._swarmHits || 0) + 1;
+            if (F._swarmHits % 4 === 0) {
+              w.effects.explosion(new THREE.Vector3(s.x, s.y, s.z), 1.7, { color: 0xffb43c });
+            } else {
+              w.effects.impactSparks(new THREE.Vector3(s.x, s.y, s.z), 0xffd080, 5, 6);
+            }
             continue;
           }
           const sp = 40, r = Math.min(1, dt * 8);
@@ -662,10 +705,14 @@ const SCRIPTS = {
         }
         s.x += s.vx * dt; s.y += s.vy * dt; s.z += s.vz * dt;
         if (s.y < 0.15) { s.y = 0.15; s.vy = Math.abs(s.vy) * 0.4; }
-        s.tick ^= 1; // tracer streak every other frame
+        // battle-scale tracer: a bright head with a trailing tail glow —
+        // the same fat streak the gatling fires in combat
+        w.effects.glows.emit(s.x, s.y, s.z, 0, 0, 0,
+          { life: 0.13, size: 1.15, color: 0xffd080, alpha: 0.95 });
+        s.tick ^= 1;
         if (s.tick) {
-          w.effects.glows.emit(s.x, s.y, s.z, 0, 0, 0,
-            { life: 0.14, size: 0.55, color: 0xffd080, alpha: 0.85 });
+          w.effects.glows.emit(s.x - s.vx * 0.022, s.y - s.vy * 0.022, s.z - s.vz * 0.022,
+            0, 0, 0, { life: 0.1, size: 0.8, color: 0xffb43c, alpha: 0.7 });
         }
       }
     });

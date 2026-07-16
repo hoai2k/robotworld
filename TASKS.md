@@ -1470,3 +1470,36 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; all four scripts probed to completion headless
   (charring hit full black 0x14100d mid-script); vulcan+saurion ace and
   inferno+colossus veteran soaks crash-free with clean KOs.
+
+70. FINISHER RAGDOLLS · TITANUS STOMP FIX · COLOSSUS HAND-LOCK · VULCAN SWARM POLISH ✅
+  · RAGDOLL SYSTEM for finisher victims: two limp looping poses
+    (ragdollAir for carried/whipped bodies, ragdoll for downed sprawls —
+    loops NEVER fade back to standing) plus acceleration-driven flailing
+    in Finisher.update: any sharp velocity change jolts shoulders/thighs/
+    head with additive impulses, so smashed bodies flail like ragdolls.
+    vicDown() now ragdollizes, so EVERY finisher's fallen victim goes
+    limp and stays down; the ledger clears at scene end.
+  · TITANUS STOMP FIX: the stomped victim no longer "stands back up" —
+    the culprit was vicFlinch() replacing the held knockdown clip with
+    hitFlinch, which faded back to the standing rest pose. Stomps (and
+    the landing) now use additive joint impulses that shudder the pinned
+    wreck without touching its pose clip (probe: victim's action clip
+    stayed 'ragdoll' through all four stomps, zero clip breaks).
+  · COLOSSUS HAND-LOCK: the victim is now LOCKED to his right fist —
+    vic.pos follows handR's world position every frame — and two new
+    one-arm clips (colossusSlamR: overhead -> dirt beside his right leg;
+    colossusSlamL: overhead -> ACROSS the body to his left) swing the
+    body exactly where the hand goes: right side, left side, right
+    again, then the one-hand hurl. Probe: max hand-to-body XZ gap over
+    the whole smash loop was 1.4u (transition frames between swings).
+  · VULCAN SWARM POLISH (user feedback): tracers are battle-scale now —
+    a fat bright head glow with a trailing tail streak per round (was a
+    faint dot); he fires from a new vulcanSpray pose — weight rocked
+    back, right gatling flung casually up PAST his shoulder — while
+    rhythmic torso/head heaves make him visibly LAUGH through the spray;
+    and the converging barrage DETONATES on the mark: every 4th round a
+    real explosion, sparks between, on top of the finale burst.
+  Verified: build green; ragdoll/hand-lock/clip-hold probes; frozen
+  stills reviewed (titanus mid-stomp standing ON the sprawled wreck,
+  colossus with the ragdolled body riding his raised fist, vulcan spray
+  pose with the tracer swarm curving in); ace soak crash-free.
