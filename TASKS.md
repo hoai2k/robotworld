@@ -1936,3 +1936,26 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; cranky-vs-titanus and cranky-vs-frogger (immune
   path) ace soaks crash-free; battle probe: wave rolls, titanus soaked
   with speedMult 0.5; demo still reviewed (feathered flood edges).
+
+## Phase 14e — Serpent Storm hunt fix + latch rework (user request, 2026-07-17)
+
+- ROOT CAUSE of "snakes don't seek or damage": angleDiff(a, b) returns
+  b - a (the turn FROM a TO b); the seek steer passed the args backwards
+  (angleDiff(want, s.a) added to s.a), so every snake steered AWAY from its
+  prey at max turn rate. Same latent inversion fixed in RHINO's bullRush
+  AI steer. Plus the old strike needed a 1.2u contact with a 4 rad/s turn
+  cap at 12 u/s (turning circle ~3u) — snakes ORBITED moving targets.
+- Rework per spec: fly out -> WANDER/spread for the first 2s -> HUNT the
+  nearest enemy (9 rad/s pursuit, speeds up to 15) -> within ~4u LEAP at
+  the face/upper body (tracked airborne strike, nose-down) -> FANGS IN:
+  bite dmg + venom on impact, then the snake STAYS LATCHED to that spot on
+  the body (thrashing tail, head buried) for 2.4-3.8s before dissolving.
+  Whiffed leaps drop back into the hunt. The brood no longer times out at
+  7s — it prowls until every snake has bitten and expired, nobody is left
+  to hunt, or the round sweeps it (60s failsafe); it also outlives Viper.
+  Venom pin is now per-victim (u.paralyze window from their first latch).
+- Verified: build green; scripted probe vs a STRAFING titanus — spread at
+  2s, closed from 17.7u, 34-47 snakes latched to the upper body, hp
+  1250 -> 963 with poison + pin, clean expiry and updater teardown at 12s;
+  screenshots VIEWED (leap swarm mid-air, drained target); ace soaks
+  (viper/titanus, viper/rhino) crash-free.
