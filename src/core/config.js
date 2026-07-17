@@ -11,4 +11,16 @@ export const CONFIG = {
   // ~7s cinematic KO finisher when a round is won by a kill (never on a
   // timeout). ?finishers=0 disables at load time.
   enable_finishers: params.get('finishers') !== '0',
+  // Infinite Ultimates: fire ults without a charged meter. Persisted from
+  // the settings menu; ?debug=ultimates still forces it on for a session.
+  debugUltimates: params.get('debug') === 'ultimates' || readPref('rw.infiniteUlts'),
 };
+
+function readPref(key) {
+  try { return localStorage.getItem(key) === '1'; } catch (e) { return false; }
+}
+
+export function setInfiniteUltimates(on) {
+  CONFIG.debugUltimates = on;
+  try { localStorage.setItem('rw.infiniteUlts', on ? '1' : '0'); } catch (e) { /* ok */ }
+}

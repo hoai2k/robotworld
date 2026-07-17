@@ -5,6 +5,7 @@ import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/u
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
+import { CONFIG } from '../core/config.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -15,6 +16,7 @@ const _carryOff = new THREE.Vector3();
 const _white = new THREE.Color(0xf4faff);
 const _charBlack = new THREE.Color(0x14100d); // burnt-out carbon shell
 const GRAVITY = 34;
+const ULT_RATE = 2;      // ult meter fills 2x faster (ultimates balance pass)
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
 const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
@@ -137,6 +139,17 @@ export class Fighter {
     this.wins = 0;
     this.lastAttacker = null;
     this.controlsLocked = false; // during intro/outro
+
+    // summoned help (SAURION's raptor pack): minions fight FOR their owner —
+    // no friendly fire either way, and they can never fire an ult of their own
+    this.allyOf = null;   // the fighter this one is summoned by (or null)
+    this.isMinion = false;
+  }
+
+  // same side? (owner<->minion, or two minions of the same owner)
+  isAllyOf(o) {
+    return !!o && (o.allyOf === this || this.allyOf === o ||
+      (!!this.allyOf && this.allyOf === o.allyOf));
   }
 
   center(out = _v2) {
@@ -203,7 +216,7 @@ export class Fighter {
     let best = null, bestD = Infinity;
     const w = this.world;
     for (const f of w.fighters) {
-      if (f === this || !f.alive) continue;
+      if (f === this || !f.alive || this.isAllyOf(f)) continue;
       const dx = w.wrapDelta(f.pos.x - this.pos.x);
       const dz = w.wrapDelta(f.pos.z - this.pos.z);
       const d = dx * dx + dz * dz;
@@ -439,7 +452,8 @@ export class Fighter {
   }
 
   doUlt() {
-    if (this.ult < 1) return;
+    if (this.isMinion) return; // summons never cascade their own ults
+    if (this.ult < 1 && !CONFIG.debugUltimates) return;
     const u = this.def.moves.ult;
     const impl = ULTS[u.id];
     if (!impl) return;
@@ -981,6 +995,7 @@ export class Fighter {
   // ================= damage =================
   takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false } = {}) {
     if (!this.alive || this.iframes > 0) return;
+    if (attacker && this.isAllyOf(attacker)) return; // no friendly fire on a summon team
     this.uncloak();
 
     const src = srcPos || (attacker ? attacker.pos : this.pos);
@@ -1009,7 +1024,7 @@ export class Fighter {
           this.hp = Math.max(1, this.hp - dmg);
           this.vel.x += (dirX / dLen) * knock * 0.5;
           this.vel.z += (dirZ / dLen) * knock * 0.5;
-          this.ult = clamp01(this.ult + dmg / 3000);
+          this.ult = clamp01(this.ult + (dmg / 3000) * ULT_RATE);
           return;
         }
         // guard beaten: orange spark, a jolt of extra hitstun, full damage
@@ -1024,8 +1039,8 @@ export class Fighter {
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
     this.lastAttacker = attacker;
-    this.ult = clamp01(this.ult + dmg / (this.maxHp * 1.35));
-    if (attacker) attacker.ult = clamp01(attacker.ult + dmg / (attacker.maxHp * 2.6));
+    this.ult = clamp01(this.ult + (dmg / (this.maxHp * 1.35)) * ULT_RATE);
+    if (attacker) attacker.ult = clamp01(attacker.ult + (dmg / (attacker.maxHp * 2.6)) * ULT_RATE);
 
     if (status) this.applyStatus(status);
 
@@ -1614,7 +1629,7 @@ export class Fighter {
     this.hitRadius = this.baseHitRadius * (1 - 0.22 * dk);
 
     if (acting && !this.blocking) {
-      if (I.ult && this.ult >= 1) this.doUlt();
+      if (I.ult && (this.ult >= 1 || CONFIG.debugUltimates)) this.doUlt();
       else if (I.special) this.doSpecial();
       else if (I.light) {
         if (this.state === 'attack') this.queuedLight = true;
@@ -1914,8 +1929,11 @@ export class Fighter {
       (this.state === 'channel' ? 0.45 : 1) * (1 - 0.55 * this.duckT);
 
     if (this.state !== 'dash') {
-      // hover jets give strong air control; plain jumps keep loose drift
-      const control = this.grounded ? 9 : this.hovering ? 6.5 : 3.2;
+      // hover jets give strong air control; plain jumps keep loose drift.
+      // GLACIER's ice field (status.slip) turns the ground to glass: barely
+      // any traction, so momentum carries and steering barely bites
+      let control = this.grounded ? 9 : this.hovering ? 6.5 : 3.2;
+      if (this.status.slip && this.grounded) control = 1.1;
       this.vel.x = lerp(this.vel.x, ax * speedCap, 1 - Math.exp(-control * dt));
       this.vel.z = lerp(this.vel.z, az * speedCap, 1 - Math.exp(-control * dt));
     } else {

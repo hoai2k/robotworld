@@ -218,7 +218,7 @@ export class FleaSystem {
           const dps = f.cosmetic ? 0 : f.dmg / 3.0;
           v.hp -= dps * dt;
           if (!f.cosmetic) v.lastAttacker = f.owner;
-          if (f.owner) f.owner.ult = clamp01(f.owner.ult + (dps * dt) / (f.owner.maxHp * 2.6));
+          if (f.owner) f.owner.ult = clamp01(f.owner.ult + (dps * dt) * 2 / (f.owner.maxHp * 2.6)); // x2: ult meter rate-up
           f.biteTick -= dt;
           if (f.biteTick <= 0) {
             f.biteTick = 0.5;
