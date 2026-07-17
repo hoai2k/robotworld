@@ -8,6 +8,8 @@ if (params.has('showcase')) {
   });
 } else if (params.has('battle') || params.get('debug') === 'finisher' || params.get('finisherdemo') === '1') {
   import('./dev/battletest.js').then(({ runBattleTest }) => runBattleTest());
+} else if (params.has('ultfx')) {
+  import('./dev/ultfxtest.js').then(({ runUltFxTest }) => runUltFxTest(params.get('ultfx')));
 } else if (params.has('fire')) {
   import('./dev/firetest.js').then(({ runFireTest }) => runFireTest());
 } else if (params.has('geyser')) {

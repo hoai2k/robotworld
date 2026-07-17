@@ -1675,3 +1675,23 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; cranky-vs-inferno ace soak crash-free (scald
   ticks land — inferno ground to 9hp/KO'd); finisher-demo probes shot
   mid-scene: geyser column behind the launch, victim engulfed in tongues.
+
+78. TIDAL WAVE + FIRE TORNADO PROTOTYPES (user request — ult candidates) ⏳
+  · src/combat/wavefx.js: TidalWaveFX — breaking-wave WALL (research:
+    waves are trochoid-profile meshes, foam driven by steepness, never
+    particles): ring-sector wall expanding outward; vertex shader builds
+    the profile (forward toe, concave face, crest lip hooking over) with
+    a noise-ragged crest line; frag scrolls dual noise UP the face,
+    foams crest/toe/streaks, erodes the lip into fingers. A churned
+    "flood" disc of scrolling foam fills the ring interior. Particles:
+    crest spray thrown forward, toe churn, mist, wet foam trail decals.
+  · src/combat/nadofx.js: FireTornadoFX — fire whirl (research: nested
+    tapered cylinders with HELICAL noise pan + vertex wobble): two
+    counter-rate shells, funnel profile (tight waist, flared top), axis
+    sway figure-eight, whole funnel ROAMS (wander); FlameFX gradient +
+    erosion (solid subtraction floor keeps the waist orange, not white);
+    ember spiral on tangential velocities, FlameFX burning base, smoke
+    crown flung off the flare. NORMAL blending (daylight lesson).
+  · ?ultfx=wave / ?ultfx=nado demo pages (cycle, &t warp+freeze, &orbit=0).
+  NOT wired into RIPTIDE / Inferno's ult yet — awaiting user judgment.
+  Verified: build green; stills + GIFs reviewed over 3 tuning rounds.
