@@ -196,8 +196,10 @@ export class CameraSystem {
       for (let i = 0; i < 8; i++) this._pts.push(new THREE.Vector3());
     }
     const pts = [];
+    let upperY = 0; // frame upper bodies, not waists
     for (let i = 0; i < framed.length && i < this._pts.length; i++) {
       const f = framed[i];
+      upperY += f.height * 0.75;
       const p = this._pts[i];
       if (soloRef && f !== soloRef && this.world.wrapHalf) {
         p.set(
@@ -213,7 +215,7 @@ export class CameraSystem {
     _center.set(0, 0, 0);
     for (const p of pts) _center.add(p);
     _center.divideScalar(pts.length);
-    _center.y += 4;
+    _center.y += upperY / pts.length;
 
     let radius = 10;
     for (const p of pts) {
@@ -236,7 +238,7 @@ export class CameraSystem {
       // the camera frames ONLY the player's mech — dead-center, always.
       // Enemies never pull the frame; the orbit azimuth alone turns the
       // view so the current threat tends to sit ahead of you.
-      _center.set(player.pos.x, player.pos.y + 4, player.pos.z);
+      _center.set(player.pos.x, player.pos.y + player.height * 0.75, player.pos.z);
       // LAZY FOLLOW, both ways: while running (velocity along the facing)
       // and the look control is idle, ease the orbit to the mech's BACK —
       // or, if they're charging AT the camera, hold the FRONT view instead
@@ -427,10 +429,9 @@ export class CameraSystem {
       // the chase cam tracks ONLY its own mech — opponents never pull the
       // frame; use the right stick to look around
       const lookAhead = _center.copy(f.pos);
-      lookAhead.y += 4.5;
-      // jet flight: keep the look target riding with the flyer so the mech
-      // doesn't graze the top of its viewport at altitude
-      lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
+      // aim at the mech's upper body/head; riding on f.pos.y also keeps the
+      // target with a flying mech so it doesn't graze the top of its viewport
+      lookAhead.y += f.height * 0.75;
 
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);

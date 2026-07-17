@@ -405,9 +405,9 @@ export async function bootGame() {
       const r = rects[i];
       const cam = new THREE.PerspectiveCamera(42, (r.w * W) / (r.h * H), 0.5, 2200);
       const dx = Math.sin(f.yaw), dz = Math.cos(f.yaw);
-      const d = 3.5 + f.height * 1.05; // frame the whole mech, head included
-      cam.position.set(f.pos.x + dx * d, f.height * 0.62, f.pos.z + dz * d);
-      cam.lookAt(f.pos.x, f.height * 0.5, f.pos.z);
+      const d = 5.5 + f.height * 1.45; // pulled back — whole mech with breathing room
+      cam.position.set(f.pos.x + dx * d, f.height * 0.78, f.pos.z + dz * d);
+      cam.lookAt(f.pos.x, f.height * 0.75, f.pos.z); // aim at the chest/head, not the waist
       return { camera: cam, ...r };
     });
     for (const f of fighters) {
