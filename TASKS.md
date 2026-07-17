@@ -1809,3 +1809,22 @@ controllers via Gamepad API), AI opponents.
   tornado launch, white sheet + slipping, wave wall mid-sweep, 3 raptors
   brawling, croak rings + paralysis, 20 hopping jerries, hot-pink corrupted
   city + sky re-entry).
+
+## Phase 14b — Settings menu + Infinite Ultimates toggle (2026-07-17)
+
+- New SettingsScreen (menus.js): modal panel that floats over any screen,
+  keyboard/pad/mouse/touch navigable, relabeling toggle rows.
+- Entry points: ⚙️ gear button beside the 🔊 button (bottom-right, hidden
+  during live combat like the mute button), and a SETTINGS item in the
+  pause menu.
+- Settings inside: SOUND ON/OFF (moved out of the pause menu) and
+  INFINITE ULTIMATES ON/OFF — persisted to localStorage (rw.infiniteUlts)
+  via setInfiniteUltimates(); flips CONFIG.debugUltimates live, so it takes
+  effect mid-match. ?debug=ultimates still forces it for a session.
+- FULLSCREEN and the SPLIT layout toggle stay at their existing top-level
+  spots (title + pause menus).
+- Verified: build green; E2E probes — gear opens panel on the title screen,
+  click-toggle flips the label and persists to localStorage, ESC closes;
+  full keyboard flow into a battle, pause → SETTINGS opens the panel over
+  the pause menu, ESC returns to the pause menu with the battle still
+  paused. Screenshots VIEWED.
