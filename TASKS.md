@@ -1880,12 +1880,15 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; stills + GIFs reviewed over 3 tuning rounds.
 
 80. INFERNO ULT = ROAMING FIRE TORNADO + TSUNAMI MODE (user request) ✅/⏳
-  · BACKDRAFT: nova hit unchanged; the burning-ring finale is replaced by
-    a FireTornadoFX spawned at Inferno, 3x HIS HEIGHT (f.height*3 ≈ 20u),
-    roaming (wander 3) for nadoDur 7s. world.tornados tick: fighters
-    within nadoRadius 4.5 take nadoDmg 16 soft hits every 0.5s with
-    launch 10 + burn status; a fire patch drops on the wander path every
-    1.1s. Roster knobs: nadoDur/nadoDmg/nadoRadius. clearTransient cleans.
+  · INFERNO ULT (merged with the concurrent FIRE TORNADO gameplay from
+    the ults-refinement branch): their hunt/sweep design (funnel chases
+    the nearest enemy, grows, swallows the catch and spirals them into
+    the sky, fire-patch trail, arena damage) now DRIVEN through a
+    FireTornadoFX — helical shader shells + ember spiral + burning base
+    replace the old glow-ribbon particles. Funnel height caps at 3x
+    Inferno's height; FX lifecycle owned by world.tornados (extinguish
+    on catch-throw/timeout/round sweep), steering via new setPose() and
+    live radius/height on FireTornadoFX.
   · CRITICAL FIX found via the tsunami: WAVE_VERT and NADO_VERT built
     local positions but used viewMatrix without the model transform —
     both meshes rendered at the WORLD ORIGIN when spawned anywhere else
