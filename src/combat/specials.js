@@ -232,7 +232,7 @@ export const SPECIALS = {
         const e0 = f.nearestEnemy();
         if (e0 && f.pos.distanceTo(e0.pos) < 40) {
           f.targetYaw = f.yawTo(e0);
-          f.yaw += clamp(angleDiff(f.targetYaw, f.yaw), -0.05, 0.05);
+          f.yaw += clamp(angleDiff(f.yaw, f.targetYaw), -0.05, 0.05);
         }
       }
       f.world.effects.dustPuff(f.pos, 2, 0x9a9088);
@@ -1250,70 +1250,148 @@ export const ULTS = {
         const a = (i / N) * TAU + rand(-0.12, 0.12);
         snakes.push({
           x: f.pos.x, y: f.pos.y + 1.2, z: f.pos.z,
-          a, vy: rand(5, 11), spd: rand(9.5, 14), ph: rand(TAU),
+          a, vy: rand(5, 11), spd: rand(8, 12), ph: rand(TAU),
+          turnT: rand(0.2, 0.7),  // wander re-heading timer
           state: 'fly', done: false,
+          // lunge bookkeeping
+          lx: 0, ly: 0, lz: 0, lt: 0, prey: null,
+          // latch bookkeeping: where on the body the fangs are planted
+          attachA: 0, attachY: 0, latchT: rand(2.4, 3.8),
         });
       }
-      let t = 0, latched = null;
+      // brood lifecycle: fly out -> WANDER (spreading) for the first couple
+      // of seconds -> HUNT the nearest enemy -> LEAP at the face/upper body
+      // -> stay LATCHED, fangs in, until the snake expires. The brood never
+      // times out on its own — it prowls until everyone has found a target,
+      // no target exists, or the round sweeps it (60s failsafe).
+      const SPREAD = 2.0;
+      const pinUntil = new Map(); // victim -> venom-pin deadline (first latch)
+      let t = 0;
       w.addUpdater((dt) => {
         t += dt;
-        let liveSnakes = 0;
+        let prowling = 0;
         for (let i = 0; i < N; i++) {
           const s = snakes[i];
           if (s.done) { M.makeScale(0, 0, 0); im.setMatrixAt(i, M); continue; }
-          liveSnakes++;
-          let heading = s.a;
+          let heading = s.a, pitch = 0;
           if (s.state === 'fly') {
+            prowling++;
             s.x += Math.sin(s.a) * s.spd * dt;
             s.z += Math.cos(s.a) * s.spd * dt;
             s.vy -= 30 * dt;
             s.y += s.vy * dt;
-            if (s.y <= 0.1) { s.y = 0.1; s.state = 'slither'; }
-          } else {
-            // hunt: slither at the pinned victim (or the nearest one)
-            const prey = (latched && latched.alive) ? latched : nearestEnemyTo(f, s.x, s.z);
-            if (prey) {
-              const dx = w.wrapDelta(prey.pos.x - s.x), dz = w.wrapDelta(prey.pos.z - s.z);
-              const want = Math.atan2(dx, dz);
-              s.a += clamp(angleDiff(want, s.a), -4 * dt, 4 * dt);
-              // the strike: fangs in
-              if (Math.hypot(dx, dz) < prey.hitRadius * 0.8) {
-                s.done = true;
-                if (!latched || !latched.alive) {
-                  latched = prey;
-                  w.audio?.play('dart');
-                }
-                // fangs in: bite damage plus VENOM — a poison drip that
-                // keeps draining after the strike (refreshed per bite)
-                prey.takeHit(u.dmg * f.dmgMult(), f, {
-                  knock: 0.6, srcPos: P.set(s.x, 0, s.z), soft: true,
-                  status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
-                });
-                if (Math.random() < 0.4) w.effects.impactSparks(prey.center(), 0x5aff2e, 6, 5);
-                continue;
+            if (s.y <= 0.12) { s.y = 0.12; s.state = 'slither'; }
+          } else if (s.state === 'slither') {
+            prowling++;
+            const prey = nearestEnemyTo(f, s.x, s.z);
+            const pd = prey
+              ? Math.hypot(w.wrapDelta(prey.pos.x - s.x), w.wrapDelta(prey.pos.z - s.z)) : Infinity;
+            if (prey && pd < 3.6 + prey.hitRadius) {
+              // close enough: LEAP at the face
+              s.state = 'lunge';
+              s.prey = prey;
+              s.lt = 0;
+              if (Math.random() < 0.25) w.audio?.play('dart');
+            } else if (t > SPREAD && prey) {
+              // hunting: fast, tight pursuit (turn rate high enough to
+              // actually close on a strafing mech, no more orbiting)
+              const want = Math.atan2(w.wrapDelta(prey.pos.x - s.x), w.wrapDelta(prey.pos.z - s.z));
+              // angleDiff(from, to): the delta that turns FROM onto TO
+              s.a += clamp(angleDiff(s.a, want), -9 * dt, 9 * dt);
+              s.spd = Math.min(15, s.spd + dt * 6);
+            } else {
+              // spreading out: loose random prowl
+              s.turnT -= dt;
+              if (s.turnT <= 0) {
+                s.turnT = rand(0.35, 0.9);
+                s.a += rand(-1.2, 1.2);
               }
+              s.spd = Math.max(8, s.spd - dt * 4);
             }
-            heading = s.a + Math.sin(t * 11 + s.ph) * 0.55; // the slither
+            heading = s.a + Math.sin(t * 11 + s.ph) * 0.5; // the slither
             s.x += Math.sin(heading) * s.spd * dt;
             s.z += Math.cos(heading) * s.spd * dt;
-            s.y = 0.1;
+            s.x = w.wrapCoord(s.x);
+            s.z = w.wrapCoord(s.z);
+            s.y = 0.12;
+          } else if (s.state === 'lunge') {
+            prowling++;
+            const prey = s.prey;
+            if (!prey || !prey.alive) { s.state = 'slither'; s.prey = null; }
+            else {
+              // airborne strike arcing up at the head — tracks the target
+              s.lt += dt;
+              const k = Math.min(1, s.lt / 0.3);
+              const face = P.set(
+                s.x + w.wrapDelta(prey.pos.x - s.x),
+                prey.pos.y + prey.height * rand(0.72, 0.88),
+                s.z + w.wrapDelta(prey.pos.z - s.z));
+              s.x += (face.x - s.x) * Math.min(1, dt * (4 + 26 * k));
+              s.z += (face.z - s.z) * Math.min(1, dt * (4 + 26 * k));
+              s.y += (face.y + Math.sin(k * Math.PI) * 1.6 - s.y) * Math.min(1, dt * 14);
+              heading = s.a = Math.atan2(w.wrapDelta(prey.pos.x - s.x) || 0.01, w.wrapDelta(prey.pos.z - s.z) || 0.01);
+              pitch = -0.5 * k; // nose-down onto the mark
+              const dx = w.wrapDelta(prey.pos.x - s.x), dz = w.wrapDelta(prey.pos.z - s.z);
+              if (Math.hypot(dx, dz) < prey.hitRadius * 0.9 && Math.abs(s.y - face.y) < 1.6) {
+                // FANGS IN — bite damage + venom, and the snake STAYS
+                s.state = 'latched';
+                s.attachA = Math.atan2(-dx || 0.01, -dz || 0.01); // side it struck from
+                s.attachY = clamp((s.y - prey.pos.y) / prey.height, 0.55, 0.9);
+                prey.takeHit(u.dmg * f.dmgMult(), f, {
+                  knock: 0.6, srcPos: P.set(s.x, s.y, s.z), soft: true,
+                  status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
+                });
+                w.effects.impactSparks(P.set(s.x, s.y, s.z), 0x5aff2e, 6, 5);
+                if (Math.random() < 0.35) w.audio?.play('slash');
+                if (!pinUntil.has(prey)) {
+                  pinUntil.set(prey, t + (u.paralyze || 2.4));
+                  w.audio?.play('dart');
+                }
+              } else if (s.lt > 0.7) {
+                s.state = 'slither'; // whiffed the leap — back to the hunt
+                s.y = 0.12;
+              }
+            }
+          } else if (s.state === 'latched') {
+            const prey = s.prey;
+            s.latchT -= dt;
+            if (!prey || !prey.alive || s.latchT <= 0) {
+              // spent: the snake dissolves off the body
+              s.done = true;
+              w.effects.glows.emit(s.x, s.y, s.z, 0, 1.5, 0,
+                { life: 0.3, size: 0.9, color: 0x5aff2e, alpha: 0.8, grow: -1 });
+              continue;
+            }
+            // ride the victim, fangs planted in the upper body, tail thrashing
+            const r = prey.hitRadius * 0.7;
+            s.x = prey.pos.x + Math.sin(s.attachA) * r;
+            s.z = prey.pos.z + Math.cos(s.attachA) * r;
+            s.y = prey.pos.y + prey.height * s.attachY;
+            heading = s.attachA + Math.PI + Math.sin(t * 9 + s.ph) * 0.3; // head buried inward
+            pitch = -0.35;
           }
-          Q.setFromEuler(E.set(0, heading, Math.sin(t * 13 + s.ph) * 0.25));
+          Q.setFromEuler(E.set(pitch, heading, Math.sin(t * 13 + s.ph) * 0.25));
           M.compose(P.set(s.x, s.y, s.z), Q, ONE);
           im.setMatrixAt(i, M);
         }
         im.instanceMatrix.needsUpdate = true;
-        // venom pin: the victim stays locked while the brood is still coming
-        if (latched && latched.alive && liveSnakes > 0 &&
-            latched.state !== 'launched' && latched.state !== 'frozen') {
-          latched.setState('hitstun', 0.3);
-          latched.vel.x *= 0.6;
-          latched.vel.z *= 0.6;
-          if (Math.random() < 0.5) {
-            latched.animator.addImpulse('torso', [rand(-0.2, 0.2), 0, rand(-0.2, 0.2)], 44, 9);
+        // venom pin: a freshly-bitten victim seizes up while the brood piles on
+        for (const [v, until] of pinUntil) {
+          if (t > until || !v.alive) { pinUntil.delete(v); continue; }
+          if (v.state !== 'launched' && v.state !== 'frozen') {
+            v.setState('hitstun', 0.3);
+            v.vel.x *= 0.6;
+            v.vel.z *= 0.6;
+            if (Math.random() < 0.5) {
+              v.animator.addImpulse('torso', [rand(-0.2, 0.2), 0, rand(-0.2, 0.2)], 44, 9);
+            }
           }
         }
-        if (!f.alive || t > 7 || liveSnakes === 0) return false;
+        const anyAlive = snakes.some((s) => !s.done);
+        // the brood outlives Viper; it only stands down when spent, when
+        // nobody is left to hunt, or at the 60s failsafe
+        if (!anyAlive || t > 60) return false;
+        if (prowling > 0 && !f.nearestEnemy()) return false;
         return true;
       }, () => { w.scene.remove(im); geo.dispose(); mat.dispose(); });
     });
