@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { rand, clamp, clamp01, angleDiff, TAU } from '../core/utils.js';
 import { GeyserFX } from './geyserfx.js';
+import { FireTornadoFX } from './nadofx.js';
 // deliberate cycle with fighter.js (and a reach into game/ai.js): both are
 // only touched at runtime, for SAURION's summoned raptor pack
 import { Fighter } from './fighter.js';
@@ -1811,10 +1812,20 @@ export const ULTS = {
         w.audio?.play('flame');
         w.audio?.play('whooshBig');
         let t = 0, r = 1.6, swept = null, sweptT = 0, fpT = 0.4;
+        // the funnel itself is a FireTornadoFX (helical shader shells +
+        // ember spiral + burning base); world.tornados owns its lifecycle,
+        // this updater steers it and runs the hunt/sweep gameplay
+        const fx = new FireTornadoFX(w.scene, w.effects, pos, {
+          height: f.height * 3, radius: 1.0, wander: 0,
+        });
+        w.tornados.push({ fx });
         w.addUpdater((dt) => {
           t += dt;
           r = Math.min(u.radius || 4.5, r + dt * 0.5); // growing larger and larger
-          const H = 7 + r * 2.8;
+          const H = Math.min(f.height * 3, 7 + r * 2.8); // caps at 3x his height
+          fx.setPose(pos);
+          fx.height = H;
+          fx.radius = 0.35 + r * 0.38; // waist widens as the funnel grows
           // it hunts (until it has swallowed someone)
           if (!swept) {
             const prey = nearestEnemyTo(f, pos.x, pos.z);
@@ -1825,20 +1836,15 @@ export const ULTS = {
               pos.z += (dz / d) * 6.5 * dt;
             }
           }
-          // the funnel: spiraling flame ribbons + a smoke crown
-          for (let i = 0; i < 6; i++) {
+          // extra spiraling ribbons riding the shader funnel (the shells,
+          // embers, base fire and smoke crown come from the FX itself)
+          for (let i = 0; i < 2; i++) {
             const a = rand(TAU), h = Math.random() ** 1.3 * H;
             const rr = (0.3 + 0.7 * (h / H)) * r * rand(0.75, 1.05);
             const tang = a + Math.PI / 2;
             w.effects.glows.emit(pos.x + Math.cos(a) * rr, h, pos.z + Math.sin(a) * rr,
               Math.cos(tang) * rand(10, 16), rand(2, 6), Math.sin(tang) * rand(10, 16),
               { life: rand(0.22, 0.45), size: rand(0.9, 1.9), color: h < H * 0.45 ? 0xff7a20 : 0xff4210, alpha: 0.92, drag: 0.4 });
-          }
-          for (let i = 0; i < 2; i++) {
-            const a = rand(TAU);
-            w.effects.smoke.emit(pos.x + Math.cos(a) * r * 0.7, H * rand(0.7, 1.05), pos.z + Math.sin(a) * r * 0.7,
-              Math.cos(a + 1.5) * 6, rand(2, 5), Math.sin(a + 1.5) * 6,
-              { life: rand(0.6, 1.1), size: rand(2, 3.4), color: 0x241a12, alpha: 0.5, grow: 1.6 });
           }
           // it BELCHES: gouts of flame spat out of the wall, burning ground
           if (Math.random() < 0.12) {
@@ -1890,11 +1896,13 @@ export const ULTS = {
                 const a = rand(TAU);
                 swept.vel.set(Math.cos(a) * 9, 5, Math.sin(a) * 9);
               }
+              fx.extinguish(0.9);
               return false;
             }
           }
-          return t <= (u.duration || 7);
-        });
+          if (t > (u.duration || 7)) { fx.extinguish(0.9); return false; }
+          return true;
+        }, () => fx.extinguish(0.3)); // round sweep: gutter out, world disposes
       },
     });
     f.setState('ult', dur);
