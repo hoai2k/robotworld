@@ -8,6 +8,7 @@ import { TidalWaveFX } from './wavefx.js';
 // only touched at runtime, for SAURION's summoned raptor pack
 import { Fighter } from './fighter.js';
 import { AIController } from '../game/ai.js';
+import { cloneMech } from '../mechs/factory.js';
 
 const _v = new THREE.Vector3();
 
@@ -1245,19 +1246,30 @@ export const ULTS = {
       f.animator.play('launched');
       w.audio?.play('jump');
       w.effects.rings.spawn(f.pos, { from: 0.5, to: 8, dur: 0.5, color: 0x5aff2e, y: 0.5 });
-      const geo = new THREE.BoxGeometry(0.32, 0.24, 2.2); // fat, LONG vipers
+      // each snake is a chain of tapered ball segments — head down to tail
+      // tip — that undulates as it moves; reads as a SNAKE, not a plank
+      const SEG = 7;
+      const SEG_R = [0.3, 0.27, 0.25, 0.22, 0.19, 0.15, 0.11];
+      const SEG_SP = 0.4; // spacing along the spine (~2.8u nose to tail)
+      const geo = new THREE.SphereGeometry(1, 8, 6);
       const mat = new THREE.MeshStandardMaterial({
-        color: 0x46b81e, roughness: 0.6, emissive: 0x1d5c0c, emissiveIntensity: 0.55,
+        color: 0xffffff, roughness: 0.55, emissive: 0x143f08, emissiveIntensity: 0.5,
       });
-      const im = new THREE.InstancedMesh(geo, mat, N);
+      const im = new THREE.InstancedMesh(geo, mat, N * SEG);
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.frustumCulled = false;
+      // banded scales: dark head, then alternating two greens down the body
+      const CB = new THREE.Color();
+      for (let i = 0; i < N; i++) {
+        for (let j = 0; j < SEG; j++) {
+          im.setColorAt(i * SEG + j, CB.setHex(j === 0 ? 0x2c7a10 : j % 2 ? 0x46b81e : 0x5fd22e));
+        }
+      }
       w.scene.add(im);
       const M = new THREE.Matrix4();
-      const E = new THREE.Euler();
       const Q = new THREE.Quaternion();
-      const ONE = new THREE.Vector3(1, 1, 1);
       const P = new THREE.Vector3();
+      const E2 = new THREE.Vector3(); // per-segment scale
       const snakes = [];
       for (let i = 0; i < N; i++) {
         const a = (i / N) * TAU + rand(-0.12, 0.12);
@@ -1285,7 +1297,11 @@ export const ULTS = {
         let prowling = 0;
         for (let i = 0; i < N; i++) {
           const s = snakes[i];
-          if (s.done) { M.makeScale(0, 0, 0); im.setMatrixAt(i, M); continue; }
+          if (s.done) {
+            M.makeScale(0, 0, 0);
+            for (let j = 0; j < SEG; j++) im.setMatrixAt(i * SEG + j, M);
+            continue;
+          }
           let heading = s.a, pitch = 0;
           if (s.state === 'fly') {
             prowling++;
@@ -1383,11 +1399,34 @@ export const ULTS = {
             heading = s.attachA + Math.PI + Math.sin(t * 9 + s.ph) * 0.3; // head buried inward
             pitch = -0.35;
           }
-          Q.setFromEuler(E.set(pitch, heading, Math.sin(t * 13 + s.ph) * 0.25));
-          M.compose(P.set(s.x, s.y, s.z), Q, ONE);
-          im.setMatrixAt(i, M);
+          // lay the body out segment by segment behind the head — a
+          // travelling sine wave down the spine is the slither itself
+          const hx = Math.sin(heading), hz = Math.cos(heading);
+          const wig = s.state === 'latched' ? 0.1 : 0.3; // coiled bodies hold still
+          for (let j = 0; j < SEG; j++) {
+            const sr = SEG_R[j];
+            let px, py, pz;
+            if (s.state === 'latched') {
+              // coiled AROUND the victim: segments wrap along the body arc
+              const prey = s.prey;
+              const aa = s.attachA + j * 0.42 + Math.sin(t * 6 + s.ph) * 0.06;
+              const r = prey.hitRadius * 0.72;
+              px = prey.pos.x + Math.sin(aa) * r;
+              pz = prey.pos.z + Math.cos(aa) * r;
+              py = prey.pos.y + prey.height * s.attachY - j * 0.16;
+            } else {
+              const lat = j === 0 ? 0 : Math.sin(t * 10 + s.ph - j * 1.05) * wig;
+              px = s.x - hx * SEG_SP * j + hz * lat;
+              pz = s.z - hz * SEG_SP * j - hx * lat;
+              py = s.state === 'slither' ? 0.02 + sr
+                : Math.max(0.02 + sr, s.y - j * 0.14 * (1 + pitch * -2));
+            }
+            M.compose(P.set(px, py, pz), Q.identity(), E2.set(sr * 1.15, sr * 0.85, sr * 1.45));
+            im.setMatrixAt(i * SEG + j, M);
+          }
         }
         im.instanceMatrix.needsUpdate = true;
+        if (im.instanceColor) im.instanceColor.needsUpdate = true;
         // venom pin: a freshly-bitten victim seizes up while the brood piles on
         for (const [v, until] of pinUntil) {
           if (t > until || !v.alive) { pinUntil.delete(v); continue; }
@@ -1781,7 +1820,9 @@ export const ULTS = {
   deathGaze(f, u) {
     const w = f.world;
     const CHARGE = 1.1, SEARCH_MAX = 12, BURN = 1.15;
-    f.setState('ult', CHARGE + 0.5);
+    // only the eye-charge roots him — once the light pours out he walks
+    // free, steering the searchlight with his own facing to hunt a target
+    f.setState('ult', CHARGE + 0.15);
     f.animator.play('aim', { speed: 0.5 });
     w.audio?.play('charge');
     const eyePos = () => {
@@ -1818,14 +1859,11 @@ export const ULTS = {
         }
         return true;
       }
-      // the gaze owns him while it hunts and burns — keep the lock alive
-      if (f.state === 'ult') f.stateT = Math.max(f.stateT, 0.4);
       dirV.set(Math.sin(f.yaw), -0.05, Math.cos(f.yaw)).normalize();
       if (!victim) {
         // failsafe cap / nobody left to judge — only then does it give up
         if (t > CHARGE + SEARCH_MAX || !f.nearestEnemy()) {
           cone.visible = false;
-          if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.2);
           return false;
         }
         // AI sweeps the light onto its prey; humans aim with their facing
@@ -1877,10 +1915,7 @@ export const ULTS = {
           w.audio?.play('beam');
         }
       }
-      if (burnT > BURN) {
-        if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.25);
-        return false;
-      }
+      if (burnT > BURN) return false;
       return true;
     }, () => {
       w.scene.remove(cone);
@@ -2185,8 +2220,11 @@ export const ULTS = {
         const a = f.yaw + Math.PI + (i - 1) * 0.85 + rand(-0.15, 0.15);
         const pos = new THREE.Vector3(
           f.pos.x + Math.sin(a) * 3.6, 0, f.pos.z + Math.cos(a) * 3.6);
+        // cloneMech shares the boss's geometry/textures — spawning is
+        // near-free instead of a triple buildMech frame-stall
         const clone = new Fighter(w, f.def, {
           pos, yaw: f.yaw, playerIndex: f.playerIndex, isAI: true,
+          mech: cloneMech(f.mech),
         });
         clone.isMinion = true;
         clone.allyOf = f;

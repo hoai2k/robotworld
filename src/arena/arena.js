@@ -264,7 +264,26 @@ export class Arena {
           const bb = new THREE.Box3().setFromObject(g);
           const rx = (bb.max.x - bb.min.x) / 2, rz = (bb.max.z - bb.min.z) / 2;
           const h = bb.max.y;
-          const r = Math.min(Math.max(rx, rz) * 0.72, 7);
+          // collider radius from the GROUND BAND only — what a walking mech
+          // can actually bump into. Boxing the WHOLE prop gave a billboard
+          // (thin pole, huge panel up top) a fat invisible cylinder at
+          // street level: the "invisible wall" bug. Only sub-meshes that
+          // reach below chest height count toward the footprint.
+          const bbLow = new THREE.Box3();
+          const mb = new THREE.Box3();
+          g.updateWorldMatrix(true, true);
+          g.traverse((o) => {
+            if (!o.isMesh) return;
+            mb.setFromObject(o);
+            if (mb.min.y < 3.2) bbLow.union(mb);
+          });
+          let rl = Math.max(rx, rz);
+          if (!bbLow.isEmpty()) {
+            rl = Math.max(
+              Math.abs(bbLow.max.x - x), Math.abs(bbLow.min.x - x),
+              Math.abs(bbLow.max.z - z), Math.abs(bbLow.min.z - z));
+          }
+          const r = Math.min(rl * 0.72, 7);
           if (h > 1.7 && r > 0.4 && r < 7.5 && h / Math.max(rx, rz) > 0.35) {
             this.propBodies.push({
               group: g, idx: this.propGroup.children.indexOf(g),

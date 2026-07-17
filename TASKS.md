@@ -1995,3 +1995,42 @@ controllers via Gamepad API), AI opponents.
     turns into a controller human under your focus springs you home.
     Verified: keyboard E2E probe (cycle ace → kb2 with selector held,
     wrap past to off, re-park as kb2, ring stop on the kb-human slot).
+
+## Phase 14f — Snake bodies, invisible-wall fix, mobile Death Gaze (user request, 2026-07-17)
+
+- SERPENT STORM visuals: each snake is now a chain of 7 tapered ball
+  segments (dark head, alternating green banding, 420 instances in one
+  InstancedMesh) laid out behind the head with a travelling sine wave down
+  the spine — they SLITHER instead of sliding as rectangle planks. Latched
+  snakes COIL around the victim's body, winding down from the bite point.
+- INVISIBLE WALL bug: prop cylinder colliders were sized from the whole
+  prop's bounding box — a billboard (thin pole, huge sign panel up top) got
+  a street-level collider metres wider than its visible pole; same for
+  holo-pillars etc. Colliders now measure only the GROUND BAND (sub-meshes
+  reaching below chest height), so street-level footprints match what you
+  can see. Neon radii dropped from ~4-6 to 1.2-2.5 on pole props.
+  (Investigated via lane-sweep probes: pristine + post-destruction sweeps
+  show no phantom blockers; every remaining grind maps to a visible wall.)
+- DEATH GAZE mobility: only the 1.1s eye-charge roots Wraith — during the
+  search he walks/repositions freely, steering the light with his facing
+  (probe: 18u of movement mid-search, then caught the repositioned target
+  for 349).
+- Verified: build green; probes above; screenshots VIEWED (segmented
+  S-curved brood mid-hunt, drained target); ace soaks (viper/wraith,
+  titanus/jerry, wraith/glacier) crash-free.
+
+## Phase 14g — Raptor Pack spawn hitch fix (user request, 2026-07-17)
+
+- SAURION's ult froze the game on cast: each of the 3 clones ran a full
+  synchronous buildMech (geometry sculpting + PBR texture synthesis,
+  ~42ms each headless, worse on real machines) AND added a new PointLight
+  — and mid-match light-count changes force a scene-wide shader recompile.
+- New factory.cloneMech(src): combat-time mech copy that shares every
+  geometry and texture with the source, clones only the material objects
+  (so the runt tint stays local), re-resolves joints/anchors by name, and
+  strips lights / charge shells / FX sprites. ~1.2ms per raptor, no
+  recompile. raptorPack now clones Saurion's own mech.
+- Verified: build green; in-page timing buildMech 41.8ms vs cloneMech
+  1.2ms, worst world.update frame through the cast now 4.3ms; screenshots
+  VIEWED (clones look right, pack-maul intact); saurion/cranky ace soak
+  crash-free with full minion lifecycle (8 raptor KOs logged).
