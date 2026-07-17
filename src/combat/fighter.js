@@ -532,7 +532,14 @@ export class Fighter {
     const reach = atk.range || 3.5;
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
     const cz = this.pos.z + Math.cos(this.yaw) * reach * 0.75;
-    const cy = this.pos.y + this.height * 0.5;
+    let cy = this.pos.y + this.height * 0.5;
+    // COLOSSAL FORM: a giant's mid-chest is high over everyone's head, so
+    // his swings drop the strike sphere to the victim's level (or street
+    // level) — a near-miss at 4x must not whiff clean over the target
+    if (this.scale > this.def.body.scale * 1.4) {
+      const tgt = this.nearestEnemy();
+      cy = Math.min(cy, tgt ? tgt.center().y : this.pos.y + 2.5);
+    }
     // an airborne punch HELD when the fist meets a building face becomes a
     // WALL GRAB instead of a strike — jump, punch-hold, hang, jump again:
     // that's how mechs climb
@@ -1090,6 +1097,7 @@ export class Fighter {
 
   applyStatus(st) {
     if (st.burn) this.status.burn = { dps: st.burn, t: st.burnT || 3 };
+    if (st.poison) this.status.poison = { dps: st.poison, t: st.poisonT || 3 };
     if (st.slow) this.status.slow = { f: st.slow, t: st.slowT || 2 };
     if (st.glitch) this.addGlitch(st.glitch);
     if (st.freeze) {
@@ -1368,6 +1376,17 @@ export class Fighter {
         if (Math.random() < dt * 20) {
           this.world.effects.glows.emit(this.pos.x, this.pos.y + Math.random() * this.height * 0.8, this.pos.z,
             0, 3, 0, { life: 0.4, size: 1.4, color: 0xff7a20, alpha: 0.8 });
+        }
+        if (this.hp <= 0 && this.alive) this.die(this.lastAttacker);
+      } else if (key === 'poison') {
+        // VIPER venom: same drain as burn, but the body WEEPS green — motes
+        // bead off the frame and drip down instead of flames licking up
+        this.hp -= s.dps * dt;
+        if (Math.random() < dt * 16) {
+          this.world.effects.glows.emit(
+            this.pos.x + rand(-0.8, 0.8) * this.scale, this.pos.y + Math.random() * this.height * 0.9,
+            this.pos.z + rand(-0.8, 0.8) * this.scale,
+            0, rand(-2.5, -0.5), 0, { life: 0.55, size: 1.1, color: 0x6ade2a, alpha: 0.85, drag: 0.5 });
         }
         if (this.hp <= 0 && this.alive) this.die(this.lastAttacker);
       }

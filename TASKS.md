@@ -1828,3 +1828,33 @@ controllers via Gamepad API), AI opponents.
   full keyboard flow into a battle, pause → SETTINGS opens the panel over
   the pause menu, ESC returns to the pause menu with the battle still
   paused. Screenshots VIEWED.
+
+## Phase 14c — Ultimate refinements round 2 (user request, 2026-07-17)
+
+- VIPER Serpent Storm: snakes 2x wider / 2.3x longer; every bite now also
+  injects VENOM — a new `poison` status (burn-style drain with green
+  weeping-mote FX instead of flames), refreshed per bite.
+- NOVA Supernova: the star has GRAVITY — enemies inside ~2.6x radius are
+  dragged toward the core through the swell (22/s²) and harder through the
+  collapse (52/s²), with infall streak FX; the final detonation radius
+  DOUBLED (u.radius * 2).
+- WRAITH Death Gaze: the searchlight now keeps hunting until it catches
+  someone (12s failsafe cap; ends early if nobody's left), holding his ult
+  lock alive per-frame; AI sweeps the light onto prey. The caught victim
+  GLOWS furnace-red (pulsing whole-body tint) for the whole burn, restored
+  cleanly after (updater end()). Damage 250 -> 330.
+- COLOSSUS Colossal Form: cameras zoom out to match the 4x frame — combined
+  cam grows framing radius/center/dist caps by the giant factor
+  (scale / body.scale, so normal fights are untouched), split chase cams
+  scale their whole envelope; and giant strikes now aim the hit sphere at
+  the VICTIM's level (or street level) instead of his towering mid-chest,
+  so near-misses at 4x don't whiff clean over everyone's head.
+- TITANUS Meteor Breaker: every rock in a volley now rides one shared
+  storm wind — slanted entry from a single quarter of the sky (~30°
+  descent) instead of vertical drops.
+- Verified: build green; ace ult-spam soaks of the five affected matchups
+  crash-free; screenshots VIEWED (slanted meteor streaks from one quarter,
+  fat green snake brood, victim red-hot under the gaze beam then restored,
+  whole 4x giant framed with viper at his feet, viper dragged 14u into the
+  supernova core); scripted probe confirms giant punch (59) and slam (112)
+  connect on a street-level target.

@@ -966,6 +966,9 @@ export const ULTS = {
         w.audio?.play('thunder');
         const center = fwd(f, u.radius * 0.85);
         center.y = 0;
+        // the weather comes in from ONE quarter of the sky — every rock
+        // rides the same slanted wind, so the volley reads as a STORM
+        const stormA = rand(TAU);
         w.effects.rings.spawn(center, { from: 1, to: u.radius * 2, dur: 0.8, color: 0xff8030, y: 0.4 });
         const rockGeo = new THREE.DodecahedronGeometry(1, 0);
         const rockMat = new THREE.MeshStandardMaterial({
@@ -992,10 +995,14 @@ export const ULTS = {
             const rock = new THREE.Mesh(rockGeo, rockMat);
             rock.scale.setScalar(s);
             const FALL = 0.8;
-            const ox = rand(-12, 12), oz = rand(-5, 5);
-            rock.position.set(gx + ox, 54, gz + oz);
+            // slanted entry: offset well to the storm side so the descent
+            // comes down at a real angle (~30°), not a vertical plummet
+            const slant = rand(24, 34);
+            const ox = Math.cos(stormA) * slant + rand(-4, 4);
+            const oz = Math.sin(stormA) * slant + rand(-4, 4);
+            rock.position.set(gx + ox, 48, gz + oz);
             w.scene.add(rock);
-            const vel = new THREE.Vector3(-ox / FALL, -54 / FALL, -oz / FALL);
+            const vel = new THREE.Vector3(-ox / FALL, -48 / FALL, -oz / FALL);
             const spin = rand(-7, 7);
             w.audio?.play('whoosh');
             w.addUpdater((dt) => {
@@ -1224,7 +1231,7 @@ export const ULTS = {
       f.animator.play('launched');
       w.audio?.play('jump');
       w.effects.rings.spawn(f.pos, { from: 0.5, to: 8, dur: 0.5, color: 0x5aff2e, y: 0.5 });
-      const geo = new THREE.BoxGeometry(0.16, 0.13, 0.95);
+      const geo = new THREE.BoxGeometry(0.32, 0.24, 2.2); // fat, LONG vipers
       const mat = new THREE.MeshStandardMaterial({
         color: 0x46b81e, roughness: 0.6, emissive: 0x1d5c0c, emissiveIntensity: 0.55,
       });
@@ -1275,8 +1282,13 @@ export const ULTS = {
                   latched = prey;
                   w.audio?.play('dart');
                 }
-                prey.takeHit(u.dmg * f.dmgMult(), f, { knock: 0.6, srcPos: P.set(s.x, 0, s.z), soft: true });
-                if (Math.random() < 0.3) w.effects.impactSparks(prey.center(), 0x5aff2e, 5, 5);
+                // fangs in: bite damage plus VENOM — a poison drip that
+                // keeps draining after the strike (refreshed per bite)
+                prey.takeHit(u.dmg * f.dmgMult(), f, {
+                  knock: 0.6, srcPos: P.set(s.x, 0, s.z), soft: true,
+                  status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
+                });
+                if (Math.random() < 0.4) w.effects.impactSparks(prey.center(), 0x5aff2e, 6, 5);
                 continue;
               }
             }
@@ -1333,6 +1345,25 @@ export const ULTS = {
       if (!f.alive) return false;
       t += dt;
       sun.position.set(f.pos.x, f.pos.y + f.height * 0.55, f.pos.z);
+      // the newborn star has GRAVITY: everyone else is dragged toward the
+      // core the whole time it swells — and harder as it collapses
+      const pull = t < GROW ? 22 : 52;
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || f.isAllyOf(e)) continue;
+        const dx = w.wrapDelta(f.pos.x - e.pos.x), dz = w.wrapDelta(f.pos.z - e.pos.z);
+        const d = Math.hypot(dx, dz) || 1;
+        if (d < u.radius * 2.6 && d > 2) {
+          const g = pull * clamp01(1.5 - d / (u.radius * 2)) * dt;
+          e.vel.x += (dx / d) * g;
+          e.vel.z += (dz / d) * g;
+          // infall streaks sell the drag
+          if (Math.random() < dt * 8) {
+            w.effects.glows.emit(e.pos.x, e.pos.y + rand(1, e.height), e.pos.z,
+              (dx / d) * 8, 0.5, (dz / d) * 8,
+              { life: 0.3, size: 0.9, color: 0xfff0d8, alpha: 0.7, drag: 0.5 });
+          }
+        }
+      }
       let r;
       if (t < GROW) {
         r = 0.2 + (rMax - 0.2) * ss(clamp01(t / GROW));
@@ -1341,13 +1372,13 @@ export const ULTS = {
         r = rMax + (rMin - rMax) * ss(clamp01((t - GROW) / SHRINK));
         mat.opacity = 0.98; // densening core
       } else {
-        // DETONATION
-        w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
+        // DETONATION — the collapse doubles the reach of the blast
+        w.explode(f.pos, u.radius * 2, u.dmg * f.dmgMult(), {
           owner: f, knock: 22, launch: 12, color: 0xfff0d8,
         });
-        w.effects.explosion(sun.position, u.radius * 0.7, { color: 0xffffff, smoke: false });
-        w.effects.rings.spawn(f.pos, { from: 2, to: u.radius * 2.2, dur: 0.6, color: 0xfff0d8, y: 0.6 });
-        w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 1.4, dur: 0.45, color: 0xff5ce8, y: 1.4 });
+        w.effects.explosion(sun.position, u.radius * 1.2, { color: 0xffffff, smoke: false });
+        w.effects.rings.spawn(f.pos, { from: 2, to: u.radius * 4.2, dur: 0.7, color: 0xfff0d8, y: 0.6 });
+        w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 2.6, dur: 0.5, color: 0xff5ce8, y: 1.4 });
         w.effects.addShake(1.6);
         w.engine.addHitStop(0.12);
         return false;
@@ -1652,12 +1683,13 @@ export const ULTS = {
   },
 
   // WRAITH: the red eye swells and BURNS, then pours out a widening
-  // searchlight of dread. If it finds a body, the light snaps down to one
-  // thick killing beam — eye to face — and burns until there's nothing left
+  // searchlight of dread. The light KEEPS searching until it finds a body
+  // (hard cap as a failsafe); then it snaps down to one thick killing beam
+  // — eye to face — and the victim glows furnace-red while it burns them
   deathGaze(f, u) {
     const w = f.world;
-    const CHARGE = 1.1, SWEEP = 2.0, BURN = 1.15;
-    f.setState('ult', CHARGE + SWEEP + BURN + 0.3);
+    const CHARGE = 1.1, SEARCH_MAX = 12, BURN = 1.15;
+    f.setState('ult', CHARGE + 0.5);
     f.animator.play('aim', { speed: 0.5 });
     w.audio?.play('charge');
     const eyePos = () => {
@@ -1694,9 +1726,18 @@ export const ULTS = {
         }
         return true;
       }
+      // the gaze owns him while it hunts and burns — keep the lock alive
+      if (f.state === 'ult') f.stateT = Math.max(f.stateT, 0.4);
       dirV.set(Math.sin(f.yaw), -0.05, Math.cos(f.yaw)).normalize();
       if (!victim) {
-        if (t > CHARGE + SWEEP) { cone.visible = false; return false; } // found nobody
+        // failsafe cap / nobody left to judge — only then does it give up
+        if (t > CHARGE + SEARCH_MAX || !f.nearestEnemy()) {
+          cone.visible = false;
+          if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.2);
+          return false;
+        }
+        // AI sweeps the light onto its prey; humans aim with their facing
+        f.faceNearestEnemyIfClose(120, true);
         // the wide red light, pouring out and widening with distance
         cone.visible = true;
         const pulse = 1 + Math.sin(t * 17) * 0.06;
@@ -1733,6 +1774,8 @@ export const ULTS = {
         w.effects.glows.emit(face.x, face.y, face.z, 0, 0, 0,
           { life: 0.12, size: 2.8, color: 0xff2030, alpha: 1 });
         if (Math.random() < 0.5) w.effects.impactSparks(face, 0xff2030, 4, 6);
+        // the whole frame glows furnace-red for as long as the beam is on it
+        victim.applyGlitchTint(0.42 + 0.2 * Math.sin(burnT * 26), 0xff2030);
         const PULSES = [0.12, 0.5, 0.9];
         if (pulses < 3 && burnT >= PULSES[pulses]) {
           pulses++;
@@ -1742,8 +1785,17 @@ export const ULTS = {
           w.audio?.play('beam');
         }
       }
-      return burnT <= BURN;
-    }, () => { w.scene.remove(cone); coneGeo.dispose(); coneMat.dispose(); });
+      if (burnT > BURN) {
+        if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.25);
+        return false;
+      }
+      return true;
+    }, () => {
+      w.scene.remove(cone);
+      coneGeo.dispose();
+      coneMat.dispose();
+      if (victim && victim.alive) victim.applyGlitchTint(0); // colors thaw back
+    });
   },
 
   // INFERNO: he conjures a FIRE TORNADO that wanders after his enemies,

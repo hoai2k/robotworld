@@ -118,7 +118,7 @@ export const ROSTER = [
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
       ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8 },
       special: { id: 'bladeCyclone', name: 'Blade Cyclone', cooldown: 6, dmg: 20 },
-      ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 4, count: 60, paralyze: 2.4 },
+      ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 5, count: 60, paralyze: 2.4, poison: 8, poisonT: 3 },
     },
   },
   {
@@ -287,7 +287,7 @@ export const ROSTER = [
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
       ranged: { name: 'Night Swarm', type: 'bats', dmg: 26, count: 3, speed: 24, cooldown: 1.5, ammo: 12 },
       special: { id: 'ghostWalk', name: 'Ghost Protocol', cooldown: 9, dmg: 60, speed: 17, duration: 5 },
-      ult: { id: 'deathGaze', name: 'DEATH GAZE', dmg: 250, range: 60 },
+      ult: { id: 'deathGaze', name: 'DEATH GAZE', dmg: 330, range: 60 },
     },
   },
   {
