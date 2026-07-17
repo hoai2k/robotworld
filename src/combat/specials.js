@@ -1062,7 +1062,7 @@ export const ULTS = {
       bullets.push({
         born: i * 0.011,              // stream out over ~1.1s
         a: rand(TAU),
-        r: rand(3.2, 6.6),
+        r: rand(8, 16.5), // a WIDE storm — the ring owns the whole street
         y: rand(1.2, f.height * 1.2),
         spd: rand(3.6, 4.8),          // rad/s — one shared direction: a whirlwind
         dive: rand(0, 0.5),           // stagger of the final strike
@@ -1082,7 +1082,7 @@ export const ULTS = {
           if (Math.random() < 0.4) w.audio?.play('gatling');
         }
         const e = f.nearestEnemy();
-        if (e && Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z)) < 8.5) {
+        if (e && Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z)) < 17.5) {
           mode = 'strike';
           target = e;
           strikeT = 0;
@@ -1934,17 +1934,58 @@ export const ULTS = {
           w.effects.glows.emit(center.x + Math.cos(a) * r, 0.4, center.z + Math.sin(a) * r,
             0, rand(1, 3), 0, { life: rand(0.4, 0.9), size: rand(1, 2.2), color: 0xd8f4ff, alpha: 0.85 });
         }
-        const DUR = u.duration || 8;
+        // the sheet is PERMANENT: it stays down until the round-end sweep
+        // (or a finisher) runs the cleanup below — even if Glacier falls
         let t = 0, tick = 0;
+        const iced = new Map(); // victim -> {phase, t, vx, vz, cd}
         w.addUpdater((dt) => {
           t += dt;
-          mat.opacity = 0.62 * clamp01(t / 0.3) * clamp01((DUR - t) / 0.8);
+          mat.opacity = 0.62 * clamp01(t / 0.3);
           // ambient frost shimmer
           if (Math.random() < 0.4) {
             const a = rand(TAU), r = rand(0, u.radius);
             w.effects.glows.emit(center.x + Math.cos(a) * r, 0.3, center.z + Math.sin(a) * r,
               0, rand(0.5, 1.5), 0, { life: 0.5, size: rand(0.5, 1.2), color: 0xeaf8ff, alpha: 0.7 });
           }
+          // stepping ON the ice: flash-frozen for a beat while the body
+          // whites out — then the thaw releases them INTO the slide, still
+          // carrying whatever momentum they walked on with (glass underfoot)
+          for (const e of w.fighters) {
+            if (e === f || !e.alive || f.isAllyOf(e)) continue;
+            const d = Math.hypot(w.wrapDelta(e.pos.x - center.x), w.wrapDelta(e.pos.z - center.z));
+            const onIce = d < u.radius && (e.grounded || e.pos.y < 1.5);
+            let st = iced.get(e);
+            if (onIce) {
+              if (!st) {
+                st = { phase: 'frozen', t: 0.65, vx: e.vel.x, vz: e.vel.z, cd: 0 };
+                iced.set(e, st);
+                if (e.state !== 'launched' && e.state !== 'frozen') {
+                  e.setState('frozen', st.t); // the whiteout rides this state
+                  e.vel.x = 0;
+                  e.vel.z = 0;
+                }
+                w.audio?.play('freeze');
+                w.effects.impactSparks(e.center(), 0x9be8ff, 10, 6);
+              } else if (st.phase === 'frozen') {
+                st.t -= dt;
+                if (st.t <= 0 || e.state !== 'frozen') {
+                  st.phase = 'slipping';
+                  if (e.state === 'frozen') e.setState('normal');
+                  e.vel.x = st.vx; // entry momentum carries onto the glass
+                  e.vel.z = st.vz;
+                }
+              }
+              st.cd = 0;
+              e._beamWhiteT = 0.35;         // frosted white while on the sheet
+              e.status.slip = { t: 0.6 };   // near-zero traction underfoot
+            } else if (st) {
+              // stepped off: a short grace before re-entry freezes them again
+              if (st.phase === 'frozen') st.phase = 'slipping';
+              st.cd += dt;
+              if (st.cd > 2.2) iced.delete(e);
+            }
+          }
+          // cold bites while standing on it
           tick -= dt;
           if (tick <= 0) {
             tick = 0.4;
@@ -1953,15 +1994,13 @@ export const ULTS = {
               if (!e.grounded && e.pos.y > 1.5) continue;
               const d = Math.hypot(w.wrapDelta(e.pos.x - center.x), w.wrapDelta(e.pos.z - center.z));
               if (d < u.radius) {
-                e._beamWhiteT = 0.55;              // frosted white while inside
-                e.status.slip = { t: 0.7 };        // glass underfoot
                 e.takeHit(u.dmg * f.dmgMult(), f, {
                   knock: 0.5, srcPos: center, soft: true, status: { slow: 0.85, slowT: 0.5 },
                 });
               }
             }
           }
-          return t <= DUR;
+          return true; // permanent — ends only via the cleanup sweep
         }, () => { w.scene.remove(sheet); geo.dispose(); mat.dispose(); });
       },
     });

@@ -1901,3 +1901,20 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; inferno-vs-cranky ace soak crash-free (2 KOs);
   battle probe: funnel at 20.2u over the mechs, roaming, patches trail;
   tsunami stills reviewed (bowed crest wall + flood swallowing rocks).
+
+## Phase 14d — Ultimate tuning round 3 (user request, 2026-07-17)
+
+- VULCAN Bullet Hurricane: orbit radius 2.5x (8-16.5u ring) with the strike
+  trigger widened to match (17.5u) — the whirlwind owns the whole street.
+- GLACIER Absolute Zero: the ice sheet is now PERMANENT — it stays down
+  until the round ends (cleanup via the round sweep / finisher interrupt),
+  even if Glacier falls. Anyone (non-ally) stepping onto it flash-FREEZES
+  for ~0.65s while their body whites out, then thaws INTO the slide, still
+  carrying the horizontal momentum they entered with (slip status = glass
+  traction); stepping off grants a 2.2s grace before re-entry re-freezes.
+  Cold damage ticks unchanged.
+- FROGGER Sonic Croak: radius doubled (15 -> 30).
+- Verified: build green; ace ult-spam soaks (vulcan/viper, glacier/rhino,
+  frogger/jerry) crash-free incl. finisher interrupts of the permanent
+  sheet; screenshots VIEWED (block-wide bullet ring, rhino frozen solid
+  white on the sheet, double-size croak rings).
