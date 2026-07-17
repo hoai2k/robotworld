@@ -1748,3 +1748,64 @@ controllers via Gamepad API), AI opponents.
   surrender/tap/rubble-pile beats with heads in frame; fx probes confirm
   shield 1.75x smash, 2 stuck quills, cyclone spin, overhand javelin;
   warmup framed COLOSSUS whole.
+
+## Phase 14 — Ultimates deep pass (user request, 2026-07-17)
+
+- **All 17 ultimates redesigned** as big area statements (specials.js ULTS
+  rewritten; roster ult params + AI self-AoE gating updated to match):
+  · TITANUS Meteor Breaker: sky-reach, then 14 burning rocks hammer a wide
+    zone ahead — each a fire blast that leaves burning craters.
+  · VULCAN Bullet Hurricane: torso-spin sprays 100 rounds into ORBIT around
+    him; the whirlwind rides along until an enemy strays close, then every
+    round folds onto them over one last rotation.
+  · AEGIS Judgement: 10 light beams up from the spear, "JUDGEMENT . . ."
+    spelled out on the banner, then a 50/50 verdict — GUILTY is a pillar of
+    light that lifts and erases the victim (uncredited kill, no finisher);
+    INNOCENT does nothing.
+  · VIPER Serpent Storm: coil + leap; 60 snakes burst out radially and
+    slither down the prey — first fang pins them (refreshed hitstun) while
+    the brood piles on.
+  · NOVA Supernova: white flash, sun swells to 2x her height, collapses to
+    half her size, detonates across a huge radius (caster immune).
+  · RHINO Stampede: 10-strong baked-shell herd charges the line, trampling
+    (herd-wide per-victim hit window) and wrecking facades.
+  · TEMPEST Thunderfall: black cloud deck descends over a 15u zone around
+    him; everyone inside eats 5 strikes/sec for ~2.6s.
+  · FENRIR Wild Hunt: one howl, then 20 crouch-pitched Fenrir shells gallop
+    every which way through a 20u zone, biting on contact.
+  · COLOSSUS Colossal Form: grows to 4x height for 9s — walks through the
+    fight crushing contacts, cracking buildings, thunder footfalls.
+  · WRAITH Death Gaze: eye swells red, pours a widening searchlight cone;
+    whoever it catches gets the narrowed eye-to-face killing beam.
+  · INFERNO Fire Tornado: wandering, growing flame funnel that belches fire
+    patches and hurls its first catch into the sky.
+  · GLACIER Absolute Zero: flash-freezes a 14u sheet ahead; enemies on it
+    whiteout, chip-tick, and skate (new `slip` status: traction 9 -> 1.1).
+  · CRANKY Tsunami: curled water wall rises behind him and sweeps 48u
+    forward, one heavy carried hit per victim, wrecks props.
+  · SAURION Raptor Pack: 3 real AI ('ace') Saurion clones — world.minions
+    with owner alliance (no friendly fire, excluded from rounds/finishers,
+    can't ult) — fight for 18s or until killed.
+  · FROGGER Sonic Croak: croak blast paralyzes everything in 15u (per-frame
+    re-pinned hitstun + servo shudder), damage lands on release.
+  · JERRY Flea Circus: 20 baked Jerry shells ricochet around like fleas,
+    biting on bump.
+  · NULLBOT System Crash: the ARENA de-rezzes — all reachable arena
+    materials scramble to blocky wrong colors for 7s; enemies randomly fall
+    through the floor and re-enter from the sky, taking landing damage.
+- **Infra:** world.addUpdater(tick,end) per-frame entity driver with
+  guaranteed cleanup (round sweep + finisher interrupt + re-entrancy safe);
+  world minion registry; fighter allyOf/isMinion; hud 'banner' event;
+  wraith `eye` anchor; bakeShell() pose-baked clone helper.
+- **Meter:** ult charge fills 2x faster (all four gain sites).
+- **Debug:** `?debug=ultimates` — humans and AI fire ults without charge.
+- **Tooling:** tools/ultshot.mjs — pins both bots, force-fires P1's ult,
+  fast-forwards the world synchronously, screenshots at frame marks.
+- Verified: build green; ace ult-spam soaks of all 12+5 matchups (2P + 4P)
+  crash-free incl. raptor-minion rounds; normal-mode soak green; screenshots
+  of all 17 ults VIEWED (meteors falling + craters burning, orbit swarm,
+  judgement beams + guilty rapture, snake brood + pinned prey, sun swell,
+  herd of 10, storm strikes, wolf pack of 20, 4x giant, red gaze beam,
+  tornado launch, white sheet + slipping, wave wall mid-sweep, 3 raptors
+  brawling, croak rings + paralysis, 20 hopping jerries, hot-pink corrupted
+  city + sky re-entry).

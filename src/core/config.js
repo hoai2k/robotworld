@@ -11,4 +11,6 @@ export const CONFIG = {
   // ~7s cinematic KO finisher when a round is won by a kill (never on a
   // timeout). ?finishers=0 disables at load time.
   enable_finishers: params.get('finishers') !== '0',
+  // ?debug=ultimates — ultimates fire without a charged meter (testing)
+  debugUltimates: params.get('debug') === 'ultimates',
 };
