@@ -1,7 +1,13 @@
 // Per-mech special & ultimate implementations, dispatched by id from roster.
 import * as THREE from 'three';
-import { rand, clamp, clamp01, angleDiff } from '../core/utils.js';
+import { rand, clamp, clamp01, angleDiff, TAU } from '../core/utils.js';
 import { GeyserFX } from './geyserfx.js';
+import { FireTornadoFX } from './nadofx.js';
+import { TidalWaveFX } from './wavefx.js';
+// deliberate cycle with fighter.js (and a reach into game/ai.js): both are
+// only touched at runtime, for SAURION's summoned raptor pack
+import { Fighter } from './fighter.js';
+import { AIController } from '../game/ai.js';
 
 const _v = new THREE.Vector3();
 
@@ -238,7 +244,7 @@ export const SPECIALS = {
         const e0 = f.nearestEnemy();
         if (e0 && f.pos.distanceTo(e0.pos) < 40) {
           f.targetYaw = f.yawTo(e0);
-          f.yaw += clamp(angleDiff(f.targetYaw, f.yaw), -0.05, 0.05);
+          f.yaw += clamp(angleDiff(f.yaw, f.targetYaw), -0.05, 0.05);
         }
       }
       f.world.effects.dustPuff(f.pos, 2, 0x9a9088);
@@ -648,6 +654,7 @@ export const SPECIALS = {
             const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);
             if (Math.hypot(dx, dz) < sp.radius + v.hitRadius * 0.5) {
               v.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, launch: sp.launch, srcPos: target, heavy: true });
+              v.applySoak?.(2.4); // drenched: dripping frame, half speed
             }
           }
         });
@@ -923,522 +930,1547 @@ export const SPECIALS = {
 };
 
 // ============================= ULTIMATES =============================
+// Every ultimate is a big AREA statement. Live entities (swarms, tornadoes,
+// giant forms, corrupted arenas) run on world.addUpdater(tick, end): tick
+// each frame until it returns false, end() guaranteed for cleanup even when
+// a finisher or round sweep interrupts mid-show.
+
+const ss = (x) => x * x * (3 - 2 * x); // smoothstep
+
+// bake a movable one-piece copy of the fighter's CURRENT pose. Meshes share
+// geometry+materials with the original (cheap); position/rotate the returned
+// group freely; cleanup is just scene.remove — nothing owned to dispose.
+function bakeShell(f) {
+  const root = new THREE.Group();
+  f.mech.group.updateWorldMatrix(true, true);
+  const inv = new THREE.Matrix4().copy(f.mech.group.matrixWorld).invert();
+  f.mech.group.traverse((o) => {
+    if (!o.isMesh || o.userData.chargeShell) return;
+    const m = new THREE.Mesh(o.geometry, o.material);
+    m.matrixAutoUpdate = false;
+    m.matrix.copy(o.matrixWorld).premultiply(inv);
+    root.add(m);
+  });
+  return root;
+}
+
+// nearest living opponent of `f` to an arbitrary world point
+function nearestEnemyTo(f, x, z, maxD = Infinity) {
+  const w = f.world;
+  let best = null, bestD = maxD * maxD;
+  for (const e of w.fighters) {
+    if (e === f || !e.alive || f.isAllyOf(e)) continue;
+    const dx = w.wrapDelta(e.pos.x - x), dz = w.wrapDelta(e.pos.z - z);
+    const d = dx * dx + dz * dz;
+    if (d < bestD) { best = e; bestD = d; }
+  }
+  return best;
+}
 
 export const ULTS = {
-  // TITANUS: leap + meteor slam
+  // TITANUS: he reaches to the sky and a METEOR SHOWER hammers a broad zone
+  // in front of him — burning rocks screaming down, each one a fire blast
+  // that leaves the ground burning where it lands
   meteorBreaker(f, u) {
-    f.setState('ult', 2.2);
-    f.animator.play('launched');
-    f.vel.y = 26;
-    f.grounded = false;
-    f.iframes = 1.2;
-    f.world.audio?.play('powerup');
-    const e = f.nearestEnemy();
-    if (e) {
-      const dx = e.pos.x - f.pos.x, dz = e.pos.z - f.pos.z;
-      f.vel.x = dx / 1.4; f.vel.z = dz / 1.4;
-    }
-    f.world.schedule(0.7, () => {
-      if (!f.alive) return;
-      f.vel.y = -46;
-      f.animator.play('groundPound', { speed: 1.6 });
-      const land = () => {
-        if (!f.alive) return;
-        if (f.grounded) {
-          f.world.groundShockwave(f, f.pos, u.radius, u.dmg * f.dmgMult(), u.knock, 0xffb43c, true);
-          f.world.effects.explosion(f.pos, u.radius * 0.8, { color: 0xffa040 });
-          f.world.effects.addShake(1.6);
-          f.world.engine.addHitStop(0.16);
-          f.world.audio?.play('explosionBig');
-          f.setState('normal');
-        } else f.world.schedule(0.04, land);
-      };
-      f.world.schedule(0.1, land);
-    });
-  },
-
-  // VULCAN: spinning 360 bullet storm
-  bulletHurricane(f, u) {
-    f.setState('ult', u.duration);
-    f.animator.play('spinFire');
-    f.world.audio?.play('powerup');
-    const ticks = Math.floor(u.duration / 0.05);
-    for (let i = 0; i < ticks; i++) {
-      f.world.schedule(i * 0.05, () => {
-        if (!f.alive || f.state !== 'ult') return;
-        f.firing = true;
-        f.yaw += 0.42;
-        f.targetYaw = f.yaw;
-        const from = muzzle(f);
-        // the spin pose raises the gatlings — pitch the ring down to chest
-        // height or the whole storm sails over everyone's head
-        const e = f.nearestEnemy();
-        const aimY = e ? e.center().y : 3.5;
-        const dy = clamp((aimY - from.y) / 14, -0.4, 0.08) + rand(-0.05, 0.05);
-        // every third round tracks the nearest enemy so the storm still
-        // punishes a lone circling target, not just crowds
-        let yawDir = f.yaw + rand(-0.15, 0.15);
-        if (e && i % 3 === 0) {
-          const c = e.center();
-          yawDir = Math.atan2(c.x - from.x, c.z - from.z) + rand(-0.05, 0.05);
-        }
-        const dir = new THREE.Vector3(Math.sin(yawDir), dy, Math.cos(yawDir));
-        f.world.projectiles.spawn('bullet', f, from, dir, {
-          dmg: u.dmg * f.dmgMult(), speed: 80, color: 0xffd080, knock: 4, life: 1.4,
-        });
-        if (i % 2 === 0) f.world.audio?.play('gatling');
-        f.world.effects.muzzleFlash(from);
-      });
-    }
-    f.world.schedule(u.duration + 0.02, () => { if (f.state === 'ult') { f.animator.stop(); f.setState('normal'); } });
-  },
-
-  // AEGIS: sky beam of judgment on nearest enemy
-  judgment(f, u) {
+    const w = f.world;
     const dur = f.animator.play('castRaise', {
       onEvent: (t) => {
         if (t !== 'fire') return;
-        const e = f.nearestEnemy();
-        const target = e ? leadPos(f, e, 0.45) : fwd(f, 12);
-        f.world.audio?.play('cast');
-        // warning ring, then the pillar
-        f.world.effects.rings.spawn(target, { from: u.radius, to: u.radius * 0.95, dur: 0.55, color: 0x49b7ff, y: 0.4 });
-        f.world.schedule(0.55, () => {
-          const top = target.clone(); top.y += 70;
-          f.world.effects.beams.spawn(top, target, { radius: u.radius * 0.55, dur: 0.7, color: 0xbfe8ff });
-          f.world.effects.explosion(target, u.radius, { color: 0x9fd8ff });
-          f.world.explode(target, u.radius, u.dmg * f.dmgMult(), { owner: f, knock: 18, color: 0x9fd8ff, launch: 10 });
-          f.world.effects.addShake(1.2);
-          f.world.audio?.play('beam');
+        w.audio?.play('powerup');
+        w.audio?.play('thunder');
+        const center = fwd(f, u.radius * 0.85);
+        center.y = 0;
+        // the weather comes in from ONE quarter of the sky — every rock
+        // rides the same slanted wind, so the volley reads as a STORM
+        const stormA = rand(TAU);
+        w.effects.rings.spawn(center, { from: 1, to: u.radius * 2, dur: 0.8, color: 0xff8030, y: 0.4 });
+        const rockGeo = new THREE.DodecahedronGeometry(1, 0);
+        const rockMat = new THREE.MeshStandardMaterial({
+          color: 0x4a3a30, roughness: 0.95, metalness: 0.05,
+          emissive: 0xff5a10, emissiveIntensity: 0.9,
         });
-      },
-    });
-    f.setState('ult', dur);
-  },
-
-  // VIPER: teleporting slash storm
-  serpentStorm(f, u) {
-    f.setState('ult', u.hits * 0.17 + 0.4);
-    f.iframes = u.hits * 0.17 + 0.3;
-    f.animator.play('flurry');
-    f.world.audio?.play('powerup');
-    for (let i = 0; i < u.hits; i++) {
-      f.world.schedule(0.17 * i, () => {
-        if (!f.alive) return;
-        const e = f.nearestEnemy();
-        if (!e) return;
-        // blink to a random side of the victim
-        const a = rand(Math.PI * 2);
-        f.pos.set(e.pos.x + Math.sin(a) * 3.2, e.pos.y, e.pos.z + Math.cos(a) * 3.2);
-        f.yaw = f.targetYaw = Math.atan2(e.pos.x - f.pos.x, e.pos.z - f.pos.z);
-        f.world.effects.dashTrail(f.pos, 0x6cff5c, f.scale * 1.6);
-        e.takeHit(u.dmg * f.dmgMult(), f, { knock: 2, srcPos: f.pos });
-        f.world.audio?.play('slash');
-        f.world.engine.addHitStop(0.03);
-      });
-    }
-    f.world.schedule(u.hits * 0.17 + 0.05, () => {
-      if (f.state === 'ult') {
-        f.animator.stop();
-        const e = f.nearestEnemy();
-        if (e) e.takeHit(u.dmg * 1.5 * f.dmgMult(), f, { knock: 16, launch: 11, srcPos: f.pos, heavy: true });
-        f.setState('normal');
-      }
-    });
-  },
-
-  // NOVA: expanding supernova blast
-  supernova(f, u) {
-    const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        const w = f.world;
-        w.audio?.play('explosionBig');
-        const c = f.center();
-        for (let i = 0; i < 3; i++) {
-          w.schedule(i * 0.16, () => {
-            const r = u.radius * (0.4 + i * 0.3);
-            w.effects.rings.spawn(f.pos, { from: r * 0.3, to: r * 2, dur: 0.5, color: 0xff5ce8, y: 0.6 });
-            w.effects.explosion(c, r * 0.7, { color: 0xff5ce8, smoke: false });
-            w.explode(f.pos, r, u.dmg * f.dmgMult() * (i === 2 ? 1 : 0.35), { owner: f, knock: 14 + i * 6, color: 0xff5ce8, launch: i === 2 ? 12 : 0 });
-          });
-        }
-        w.effects.addShake(1.3);
-      },
-    });
-    f.setState('ult', dur);
-    f.iframes = dur;
-  },
-
-  // RHINO: triple charging stampede
-  stampede(f, u) {
-    f.world.audio?.play('powerup');
-    const doCharge = (n) => {
-      if (n >= u.hits || !f.alive) { f.animator.stop(); f.setState('normal'); return; }
-      f.faceNearestEnemyIfClose(90, true);
-      f.animator.play('chargeLean');
-      f.setState('ult', 0.75);
-      const victims = new Set();
-      for (let i = 1; i <= 14; i++) {
-        f.world.schedule(i * 0.05, () => {
-          if (!f.alive) return;
-          const spd = f.def.stats.speed * 3.6;
-          f.vel.x = Math.sin(f.yaw) * spd;
-          f.vel.z = Math.cos(f.yaw) * spd;
-          f.world.effects.dustPuff(f.pos, 3, 0x9a9088);
-          for (const e of f.world.fighters) {
-            if (e === f || !e.alive || victims.has(e)) continue;
-            if (e.pos.distanceTo(f.pos) < 3.8 * f.scale) {
-              victims.add(e);
-              e.takeHit(u.dmg * f.dmgMult(), f, { knock: u.knock, launch: 9, srcPos: f.pos, heavy: true });
-              f.world.engine.addHitStop(0.09);
-              f.world.effects.addShake(0.7);
-            }
-          }
-        });
-      }
-      f.world.schedule(0.85, () => doCharge(n + 1));
-    };
-    doCharge(0);
-  },
-
-  // TEMPEST: lightning storm
-  thunderfall(f, u) {
-    const dur = f.animator.play('castRaise', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        f.world.audio?.play('thunder');
-        for (let i = 0; i < u.strikes; i++) {
-          f.world.schedule(0.28 * i, () => {
-            const enemies = f.world.fighters.filter((e) => e !== f && e.alive);
-            let target;
-            if (enemies.length && Math.random() < 0.75) {
-              const e = enemies[(Math.random() * enemies.length) | 0];
-              target = e.pos.clone().add(new THREE.Vector3(rand(-2.5, 2.5), 0, rand(-2.5, 2.5)));
+        for (let i = 0; i < u.count; i++) {
+          w.schedule(0.15 + i * 0.17, () => {
+            if (!f.alive) return;
+            // half the rocks hunt whoever is standing in the zone, the rest
+            // carpet it at random
+            let gx, gz;
+            const prey = i % 2 === 0 ? nearestEnemyTo(f, center.x, center.z, u.radius * 1.2) : null;
+            if (prey) {
+              const p = leadPos(f, prey, 0.8);
+              gx = p.x + rand(-2.5, 2.5);
+              gz = p.z + rand(-2.5, 2.5);
             } else {
-              const a = rand(Math.PI * 2), r = rand(3, u.radius);
-              target = f.pos.clone().add(new THREE.Vector3(Math.cos(a) * r, 0, Math.sin(a) * r));
+              const a = rand(TAU), r = Math.sqrt(Math.random()) * u.radius;
+              gx = center.x + Math.cos(a) * r;
+              gz = center.z + Math.sin(a) * r;
             }
-            target.y = 0;
-            const top = target.clone(); top.y = 55;
-            f.world.effects.lightning.spawn(top, target, { color: 0x9fdcff, dur: 0.3, jag: 3, thick: 0.22 });
-            f.world.effects.glows.emit(target.x, target.y + 1, target.z, 0, 0, 0, { life: 0.25, size: 6, color: 0xbfefff, alpha: 1 });
-            f.world.explode(target, 4.5, u.dmg * f.dmgMult(), { owner: f, knock: 12, color: 0x9fdcff, silentFx: true });
-            for (const e2 of f.world.fighters) { // charge lingers on the struck
-              if (e2 !== f && e2.alive && Math.hypot(e2.pos.x - target.x, e2.pos.z - target.z) < 4.5) {
-                f.world.effects.staticCling(e2, 1.1);
-              }
-            }
-            f.world.effects.addShake(0.4);
-            f.world.audio?.play('zap');
-          });
-        }
-      },
-    });
-    f.setState('ult', dur);
-  },
-
-  // FENRIR: berserk buff + immediate spin slash
-  wildHunt(f, u) {
-    f.status.buff = { spd: u.speedBoost, dmg: u.dmgBoost, t: u.duration };
-    f.world.audio?.play('howl');
-    f.world.effects.rings.spawn(f.pos, { from: 0.5, to: 8, dur: 0.6, color: 0x6cd8ff, y: 1 });
-    const dur = f.animator.play('flurry');
-    f.setState('ult', 0.9);
-    // aura ticks
-    const ticks = Math.floor(u.duration / 0.3);
-    for (let i = 0; i < ticks; i++) {
-      f.world.schedule(i * 0.3, () => {
-        if (!f.alive || !f.status.buff) return;
-        f.world.effects.glows.emit(f.pos.x + rand(-1.5, 1.5), f.pos.y + rand(1, f.height), f.pos.z + rand(-1.5, 1.5),
-          0, 2, 0, { life: 0.4, size: 1.6, color: 0x6cd8ff, alpha: 0.7 });
-      });
-    }
-    // spin slash burst
-    f.world.schedule(0.45, () => {
-      if (!f.alive) return;
-      for (const e of f.world.fighters) {
-        if (e === f || !e.alive) continue;
-        if (e.pos.distanceTo(f.pos) < 6.5 * f.scale) {
-          e.takeHit(55 * f.dmgMult(), f, { knock: 14, srcPos: f.pos, heavy: true });
-        }
-      }
-      f.setState('normal');
-    });
-  },
-
-  // COLOSSUS: one apocalyptic shell
-  bigBertha(f, u) {
-    const e = f.nearestEnemy();
-    const target = e ? leadPos(f, e, 1.0) : fwd(f, 30);
-    const dur = f.animator.play('brace', {
-      onEvent: (t, a) => {
-        if (t === 'shake') { f.world.effects.addShake(0.8); return; }
-        if (t !== 'fire') return;
-        f.world.audio?.play('mortarBig');
-        f.world.effects.rings.spawn(target, { from: u.radius, to: u.radius * 0.9, dur: 1.6, color: 0xff5040, y: 0.4 });
-        const from = muzzle(f, 'muzzleR');
-        f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
-          dmg: u.dmg * f.dmgMult(), splash: u.radius, color: 0xff8030, arcTo: target, arcTime: 1.7, knock: 24, launch: 13,
-        });
-        f.animator.addImpulse('torso', [-0.3, 0, 0], 24, 8);
-      },
-    });
-    f.setState('ult', dur);
-  },
-
-  // WRAITH: triple piercing railshots
-  deadeye(f, u) {
-    f.setState('ult', u.shots * 0.5 + 0.3);
-    f.animator.play('aim', { speed: 0.7 });
-    for (let i = 0; i < u.shots; i++) {
-      f.world.schedule(0.5 * i, () => {
-        if (!f.alive) return;
-        f.faceNearestEnemyIfClose(120, true);
-        const from = muzzle(f);
-        const dir = aimDir(f);
-        f.world.projectiles.railshot(f, from, dir, {
-          dmg: u.dmg * f.dmgMult(), range: 120, pierce: true, color: 0xff3838, knock: 14,
-        });
-        f.world.audio?.play('railgun');
-        f.animator.addImpulse('shoulderR', [0.5, 0, 0], 30, 10);
-        f.world.effects.addShake(0.5);
-      });
-    }
-    f.world.schedule(u.shots * 0.5 + 0.1, () => { if (f.state === 'ult') { f.animator.stop(); f.setState('normal'); } });
-  },
-
-  // INFERNO: fire nova + burning aura
-  backdraft(f, u) {
-    const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        const w = f.world;
-        w.audio?.play('explosionBig');
-        w.effects.explosion(f.center(), u.radius * 0.9, { color: 0xff6a20 });
-        w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
-          owner: f, knock: 18, color: 0xff6a20, launch: 10,
-          status: { burn: u.burnDmg, burnT: 4 },
-        });
-        w.effects.addShake(1.2);
-        // burning ground ring
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2;
-          w.addFirePatch(f, new THREE.Vector3(
-            f.pos.x + Math.cos(a) * u.radius * 0.55, 0, f.pos.z + Math.sin(a) * u.radius * 0.55
-          ), 2.6, 4, 12);
-        }
-      },
-    });
-    f.setState('ult', dur);
-    f.iframes = dur;
-  },
-
-  // CRANKY: fan of crushing waves, then a tidal surge around the shell
-  riptide(f, u) {
-    const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        const w = f.world;
-        w.audio?.play('wave');
-        const n = u.waves;
-        for (let i = 0; i < n; i++) {
-          const a = f.yaw + (i - (n - 1) / 2) * 0.16;
-          const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
-          from.y = Math.min(from.y, 3.2);
-          w.projectiles.spawn('wave', f, from, new THREE.Vector3(Math.sin(a), 0, Math.cos(a)), {
-            dmg: u.dmg * f.dmgMult(), speed: 42, color: 0x5fd0ff, knock: 16, launch: 7, pierce: true, maxDist: 46,
-          });
-        }
-        w.schedule(0.5, () => {
-          if (!f.alive) return;
-          w.groundShockwave(f, f.pos, u.radius, u.surgeDmg * f.dmgMult(), 20, 0x5fd0ff, true);
-          w.audio?.play('explosionBig');
-          w.effects.addShake(1.1);
-        });
-      },
-    });
-    f.setState('ult', dur);
-    f.iframes = dur;
-  },
-
-  // SAURION: chained sickle lunges, launcher on the final pass
-  extinction(f, u) {
-    f.world.audio?.play('powerup');
-    const doLunge = (n) => {
-      if (n >= u.hits || !f.alive) { f.animator.stop(); f.setState('normal'); return; }
-      f.faceNearestEnemyIfClose(120, true);
-      f.animator.play('lunge', { speed: 1.4 });
-      f.setState('ult', 0.5);
-      f.iframes = 0.3;
-      const spd = f.def.stats.speed * 4.2;
-      f.vel.x = Math.sin(f.yaw) * spd;
-      f.vel.z = Math.cos(f.yaw) * spd;
-      const last = n === u.hits - 1;
-      const victims = new Set();
-      for (let i = 1; i <= 7; i++) {
-        f.world.schedule(i * 0.05, () => {
-          if (!f.alive) return;
-          f.world.effects.dashTrail(f.pos, 0xff3826, f.scale * 1.5);
-          for (const e of f.world.fighters) {
-            if (e === f || !e.alive || victims.has(e)) continue;
-            const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
-            if (Math.hypot(dx, dz) < 3.6 * f.scale) {
-              victims.add(e);
-              e.takeHit(u.dmg * f.dmgMult(), f, {
-                knock: last ? u.knock : 6, launch: last ? 10 : 0, srcPos: f.pos, heavy: last,
+            const s = rand(1.0, 1.7);
+            const rock = new THREE.Mesh(rockGeo, rockMat);
+            rock.scale.setScalar(s);
+            const FALL = 0.8;
+            // slanted entry: offset well to the storm side so the descent
+            // comes down at a real angle (~30°), not a vertical plummet
+            const slant = rand(24, 34);
+            const ox = Math.cos(stormA) * slant + rand(-4, 4);
+            const oz = Math.sin(stormA) * slant + rand(-4, 4);
+            rock.position.set(gx + ox, 48, gz + oz);
+            w.scene.add(rock);
+            const vel = new THREE.Vector3(-ox / FALL, -48 / FALL, -oz / FALL);
+            const spin = rand(-7, 7);
+            w.audio?.play('whoosh');
+            w.addUpdater((dt) => {
+              rock.position.addScaledVector(vel, dt);
+              rock.rotation.x += spin * dt;
+              rock.rotation.z += spin * 0.6 * dt;
+              // burning tail
+              w.effects.glows.emit(
+                rock.position.x + rand(-0.4, 0.4), rock.position.y + rand(0, 1), rock.position.z + rand(-0.4, 0.4),
+                rand(-1, 1), rand(3, 7), rand(-1, 1),
+                { life: 0.3, size: rand(1.1, 2) * s, color: 0xff7a20, alpha: 0.9 });
+              w.effects.smoke.emit(rock.position.x, rock.position.y + 1.2, rock.position.z,
+                rand(-1, 1), rand(2, 4), rand(-1, 1),
+                { life: 0.6, size: 1.6 * s, color: 0x30241c, alpha: 0.4, grow: 1.6 });
+              if (rock.position.y > 0.5 * s) return true;
+              // IMPACT: fire blast + burning crater
+              const hit = new THREE.Vector3(gx, 0, gz);
+              w.explode(hit, 4.6, u.dmg * f.dmgMult(), {
+                owner: f, knock: u.knock, launch: 8, color: 0xff7a30,
+                status: { burn: 6, burnT: 2 },
               });
-              f.world.audio?.play('slash');
-              f.world.engine.addHitStop(last ? 0.1 : 0.05);
+              w.addFirePatch(f, hit, 2.4, 2.8, 9);
+              w.effects.addShake(0.5);
+              return false;
+            }, () => { w.scene.remove(rock); });
+          });
+        }
+      },
+    });
+    f.setState('ult', dur);
+  },
+
+  // VULCAN: his upper body spins loose and hoses out a hundred rounds that
+  // DON'T fly away — they fall into orbit around him, a whirlwind of lead
+  // that rides along as he moves, until someone strays close: then the
+  // whole storm folds onto them in one final rotation
+  bulletHurricane(f, u) {
+    const w = f.world;
+    const N = u.count || 100;
+    f.setState('ult', 1.15);
+    f.animator.play('spinFire');
+    f._spinFx = { joint: 'torso', axis: 'y', rate: 22, dur: 1.05, t: 0, acc: 0 };
+    w.audio?.play('powerup');
+    const geo = new THREE.SphereGeometry(0.24, 6, 5);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xffd080, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const im = new THREE.InstancedMesh(geo, mat, N);
+    im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    im.frustumCulled = false;
+    w.scene.add(im);
+    const M = new THREE.Matrix4();
+    const bullets = [];
+    for (let i = 0; i < N; i++) {
+      bullets.push({
+        born: i * 0.011,              // stream out over ~1.1s
+        a: rand(TAU),
+        r: rand(8, 16.5), // a WIDE storm — the ring owns the whole street
+        y: rand(1.2, f.height * 1.2),
+        spd: rand(3.6, 4.8),          // rad/s — one shared direction: a whirlwind
+        dive: rand(0, 0.5),           // stagger of the final strike
+        hit: false,
+        px: 0, py: 0, pz: 0,
+      });
+    }
+    let t = 0, mode = 'orbit', target = null, strikeT = 0, landed = 0;
+    w.addUpdater((dt) => {
+      t += dt;
+      if (!f.alive) return false;
+      if (mode === 'orbit') {
+        // gun-sound + muzzle flash while the storm is still pouring out
+        if (t < 1.1 && Math.random() < 0.5) {
+          const from = muzzle(f);
+          w.effects.muzzleFlash(from);
+          if (Math.random() < 0.4) w.audio?.play('gatling');
+        }
+        const e = f.nearestEnemy();
+        if (e && Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z)) < 17.5) {
+          mode = 'strike';
+          target = e;
+          strikeT = 0;
+          w.audio?.play('charge');
+        } else if (t > (u.duration || 9)) {
+          return false; // storm spun itself out un-spent
+        }
+      } else {
+        strikeT += dt;
+        if (!target.alive) return false;
+      }
+      let flying = 0;
+      for (const b of bullets) {
+        if (b.hit) { M.makeScale(0, 0, 0); im.setMatrixAt(bullets.indexOf(b), M); continue; }
+        flying++;
+        b.a += b.spd * dt;
+        const grow = clamp01((t - b.born) / 0.3); // streams outward from the guns
+        let x = f.pos.x + Math.cos(b.a) * b.r * grow;
+        let y = f.pos.y + b.y;
+        let z = f.pos.z + Math.sin(b.a) * b.r * grow;
+        if (mode === 'strike') {
+          // each round finishes its current lap while sliding onto the mark
+          const k = ss(clamp01((strikeT - b.dive) / 0.45));
+          const c = target.center();
+          x += (c.x + rand(-0.3, 0.3) - x) * k;
+          y += (c.y + rand(-0.3, 0.3) - y) * k;
+          z += (c.z + rand(-0.3, 0.3) - z) * k;
+          if (k >= 1) {
+            b.hit = true;
+            landed++;
+            target.takeHit(u.dmg * f.dmgMult(), f, {
+              knock: 1.2, srcPos: f.pos, soft: landed % 8 !== 0,
+            });
+            if (landed % 6 === 0) {
+              w.effects.impactSparks(target.center(), 0xffd080, 6, 7);
+              w.audio?.play('gatling');
             }
           }
-        });
+        }
+        b.px = x; b.py = y; b.pz = z;
+        M.makeTranslation(x, y, z);
+        im.setMatrixAt(bullets.indexOf(b), M);
       }
-      f.world.schedule(0.55, () => doLunge(n + 1));
-    };
-    doLunge(0);
+      im.instanceMatrix.needsUpdate = true;
+      if (mode === 'strike' && flying === 0) {
+        // the last round lands the exclamation point
+        if (target.alive) {
+          target.takeHit(u.dmg * 6 * f.dmgMult(), f, {
+            knock: 14, launch: 8, srcPos: f.pos, heavy: true,
+          });
+        }
+        w.effects.explosion(target.center(), 3.5, { color: 0xffd080 });
+        return false;
+      }
+      return true;
+    }, () => { w.scene.remove(im); geo.dispose(); mat.dispose(); });
   },
 
-  // FROGGER: moon-leap onto the target and detonate a slime splat
-  royalRibbit(f, u) {
-    f.setState('ult', 2.1);
-    f.animator.play('launched');
-    f.vel.y = 30;
-    f.grounded = false;
-    f.iframes = 1.1;
-    f.world.audio?.play('powerup');
-    const e = f.nearestEnemy();
-    if (e) {
-      const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
-      f.vel.x = dx / 1.2;
-      f.vel.z = dz / 1.2;
-    }
-    f.world.schedule(0.65, () => {
-      if (!f.alive) return;
-      f.vel.y = -52;
-      f.animator.play('groundPound', { speed: 1.7 });
-      const land = () => {
+  // AEGIS: the spear goes up, ten shafts of light climb into the heavens,
+  // and the court speaks: JUDGEMENT... then a coin-flip verdict. GUILTY is
+  // a death sentence — a pillar of light takes the condemned away entirely
+  // (no finisher; they are simply gone). INNOCENT and the defendant walks.
+  judgment(f, u) {
+    const w = f.world;
+    f.setState('ult', 4.6);
+    f.animator.play('castRaise', { speed: 0.55 });
+    w.audio?.play('cast');
+    w.effects.rings.spawn(f.pos, { from: 1, to: 9, dur: 0.8, color: 0xf6ecc2, y: 0.6 });
+    for (let i = 0; i < 10; i++) {
+      w.schedule(0.2 + i * 0.09, () => {
         if (!f.alive) return;
-        if (f.grounded) {
-          const w = f.world;
-          w.effects.explosion(f.pos, u.radius * 0.7, { color: 0x9ade2a });
-          w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 2.2, dur: 0.6, color: 0xaef23c, y: 0.4 });
-          w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
-            owner: f, knock: 18, color: 0x9ade2a, launch: 11, status: { slow: 0.5, slowT: 2.5 },
-          });
-          w.effects.addShake(1.4);
-          w.engine.addHitStop(0.14);
-          w.audio?.play('explosionBig');
-          f.setState('normal');
-        } else f.world.schedule(0.04, land);
-      };
-      f.world.schedule(0.1, land);
+        const from = muzzle(f);
+        const top = from.clone().add(new THREE.Vector3(rand(-8, 8), 78, rand(-8, 8)));
+        w.effects.beams.spawn(from, top, { radius: rand(0.22, 0.42), dur: 1.5, color: 0xf6ecc2 });
+        if (i % 3 === 0) w.audio?.play('beam');
+      });
+    }
+    const say = (text, color = null, hold = true) => w.events.emit('banner', { text, hold, color });
+    w.schedule(1.0, () => f.alive && say('JUDGEMENT'));
+    w.schedule(1.5, () => f.alive && say('JUDGEMENT .'));
+    w.schedule(2.0, () => f.alive && say('JUDGEMENT . .'));
+    w.schedule(2.5, () => f.alive && say('JUDGEMENT . . .'));
+    w.schedule(3.2, () => {
+      if (!f.alive) { say('', null, false); return; }
+      // the court tries the nearest REAL defendant (summons don't count)
+      let v = null, best = Infinity;
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || f.isAllyOf(e) || e.isMinion) continue;
+        const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
+        const d = dx * dx + dz * dz;
+        if (d < best) { best = d; v = e; }
+      }
+      if (!v) { say('CASE DISMISSED', '#9fd8ff', false); return; }
+      if (Math.random() < 0.5) {
+        say("INNOCENT: YOU'RE FREE TO GO", '#7dff9a', false);
+        w.effects.rings.spawn(v.pos, { from: 4, to: 0.5, dur: 0.6, color: 0x7dff9a, y: 0.5 });
+        w.audio?.play('uiConfirm');
+        return;
+      }
+      say('GUILTY: DEATH PENALTY', '#ff4d5e', false);
+      // heaven's pillar comes down on the condemned and TAKES them
+      const gp = v.pos.clone();
+      const top = gp.clone();
+      top.y += 85;
+      w.effects.beams.spawn(top, gp, { radius: u.radius || 3.4, dur: 1.6, color: 0xfff3c8 });
+      w.effects.beams.spawn(top, gp, { radius: (u.radius || 3.4) * 0.4, dur: 1.6, color: 0xffffff });
+      w.effects.rings.spawn(gp, { from: 1, to: 10, dur: 0.6, color: 0xfff3c8, y: 0.4 });
+      w.audio?.play('beam');
+      w.audio?.play('thunder');
+      w.effects.addShake(1.0);
+      v.setState('launched', 4);
+      v.iframes = 2.5; // nothing interrupts an execution
+      let lift = 0;
+      w.addUpdater((dt) => {
+        if (!v.alive) { v.setOpacity(1); return false; }
+        lift += dt;
+        v.pos.x = gp.x;
+        v.pos.z = gp.z;
+        v.pos.y = lift * lift * 24; // accelerating ascension
+        v.vel.set(0, 0, 0);
+        v.grounded = false;
+        v.setOpacity(Math.max(0.05, 1 - lift / 1.05));
+        w.effects.glows.emit(gp.x + rand(-1.2, 1.2), v.pos.y + rand(0, v.height), gp.z + rand(-1.2, 1.2),
+          0, 5, 0, { life: 0.4, size: 1.6, color: 0xfff3c8, alpha: 0.9 });
+        if (lift < 1.15) return true;
+        v.setOpacity(1);        // restored for the next round's body
+        v.die(null);            // no attacker credited: no finisher cinematic
+        v.group.visible = false; // taken — the sky keeps them
+        return false;
+      });
     });
   },
 
-  // JERRY: spring-crouch, colossal leap, and a landing quake that empties
-  // the whole nest — a ring of biting fleas swarms out of the impact
-  tidalPlague(f, u) {
-    f.setState('ult', 2.6);
-    f.iframes = 1.3;
-    f.world.audio?.play('powerup');
-    f.duckT = 1; // slam into the spring-crouch tell
-    f.world.schedule(0.24, () => {
+  // VIPER: coils to the ground, springs skyward — and SIXTY vipers leap out
+  // in every direction, slithering down whoever they find. The first fang
+  // pins the victim in place; the rest of the brood piles on.
+  serpentStorm(f, u) {
+    const w = f.world;
+    const N = u.count || 60;
+    f.setState('ult', 1.5);
+    f.duckT = 1;
+    w.audio?.play('cast');
+    w.schedule(0.35, () => {
       if (!f.alive) return;
-      f.vel.y = 34;
+      f.vel.y = 16;
       f.grounded = false;
       f.animator.play('launched');
-      const e = f.nearestEnemy();
-      if (e && f.isAI) {
-        const dx = f.world.wrapDelta(e.pos.x - f.pos.x), dz = f.world.wrapDelta(e.pos.z - f.pos.z);
-        f.vel.x = dx / 1.3;
-        f.vel.z = dz / 1.3;
-      } else {
-        f.vel.x = Math.sin(f.yaw) * 12;
-        f.vel.z = Math.cos(f.yaw) * 12;
+      w.audio?.play('jump');
+      w.effects.rings.spawn(f.pos, { from: 0.5, to: 8, dur: 0.5, color: 0x5aff2e, y: 0.5 });
+      const geo = new THREE.BoxGeometry(0.32, 0.24, 2.2); // fat, LONG vipers
+      const mat = new THREE.MeshStandardMaterial({
+        color: 0x46b81e, roughness: 0.6, emissive: 0x1d5c0c, emissiveIntensity: 0.55,
+      });
+      const im = new THREE.InstancedMesh(geo, mat, N);
+      im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      im.frustumCulled = false;
+      w.scene.add(im);
+      const M = new THREE.Matrix4();
+      const E = new THREE.Euler();
+      const Q = new THREE.Quaternion();
+      const ONE = new THREE.Vector3(1, 1, 1);
+      const P = new THREE.Vector3();
+      const snakes = [];
+      for (let i = 0; i < N; i++) {
+        const a = (i / N) * TAU + rand(-0.12, 0.12);
+        snakes.push({
+          x: f.pos.x, y: f.pos.y + 1.2, z: f.pos.z,
+          a, vy: rand(5, 11), spd: rand(8, 12), ph: rand(TAU),
+          turnT: rand(0.2, 0.7),  // wander re-heading timer
+          state: 'fly', done: false,
+          // lunge bookkeeping
+          lx: 0, ly: 0, lz: 0, lt: 0, prey: null,
+          // latch bookkeeping: where on the body the fangs are planted
+          attachA: 0, attachY: 0, latchT: rand(2.4, 3.8),
+        });
       }
-      f.world.schedule(0.75, () => {
-        if (!f.alive) return;
-        f.vel.y = -55;
-        f.animator.play('groundPound', { speed: 1.8 });
-        const land = () => {
-          if (!f.alive) return;
-          if (f.grounded) {
-            const w = f.world;
-            w.groundShockwave(f, f.pos, u.radius, u.dmg * f.dmgMult(), 20, 0xff5030, true);
-            w.effects.explosion(f.pos, u.radius * 0.6, { color: 0xc86a4a });
-            w.effects.addShake(1.4);
-            w.engine.addHitStop(0.13);
-            w.audio?.play('explosionBig');
-            // the nest empties: fleas burst outward in a hungry ring
-            for (let i = 0; i < u.count; i++) {
-              const a = (i / u.count) * Math.PI * 2 + rand(-0.25, 0.25);
-              w.fleas.spawn(f, f.center(), new THREE.Vector3(Math.sin(a), 0.85, Math.cos(a)), {
-                dmg: (u.fleaDmg || 24) * f.dmgMult(),
-              });
+      // brood lifecycle: fly out -> WANDER (spreading) for the first couple
+      // of seconds -> HUNT the nearest enemy -> LEAP at the face/upper body
+      // -> stay LATCHED, fangs in, until the snake expires. The brood never
+      // times out on its own — it prowls until everyone has found a target,
+      // no target exists, or the round sweeps it (60s failsafe).
+      const SPREAD = 2.0;
+      const pinUntil = new Map(); // victim -> venom-pin deadline (first latch)
+      let t = 0;
+      w.addUpdater((dt) => {
+        t += dt;
+        let prowling = 0;
+        for (let i = 0; i < N; i++) {
+          const s = snakes[i];
+          if (s.done) { M.makeScale(0, 0, 0); im.setMatrixAt(i, M); continue; }
+          let heading = s.a, pitch = 0;
+          if (s.state === 'fly') {
+            prowling++;
+            s.x += Math.sin(s.a) * s.spd * dt;
+            s.z += Math.cos(s.a) * s.spd * dt;
+            s.vy -= 30 * dt;
+            s.y += s.vy * dt;
+            if (s.y <= 0.12) { s.y = 0.12; s.state = 'slither'; }
+          } else if (s.state === 'slither') {
+            prowling++;
+            const prey = nearestEnemyTo(f, s.x, s.z);
+            const pd = prey
+              ? Math.hypot(w.wrapDelta(prey.pos.x - s.x), w.wrapDelta(prey.pos.z - s.z)) : Infinity;
+            if (prey && pd < 3.6 + prey.hitRadius) {
+              // close enough: LEAP at the face
+              s.state = 'lunge';
+              s.prey = prey;
+              s.lt = 0;
+              if (Math.random() < 0.25) w.audio?.play('dart');
+            } else if (t > SPREAD && prey) {
+              // hunting: fast, tight pursuit (turn rate high enough to
+              // actually close on a strafing mech, no more orbiting)
+              const want = Math.atan2(w.wrapDelta(prey.pos.x - s.x), w.wrapDelta(prey.pos.z - s.z));
+              // angleDiff(from, to): the delta that turns FROM onto TO
+              s.a += clamp(angleDiff(s.a, want), -9 * dt, 9 * dt);
+              s.spd = Math.min(15, s.spd + dt * 6);
+            } else {
+              // spreading out: loose random prowl
+              s.turnT -= dt;
+              if (s.turnT <= 0) {
+                s.turnT = rand(0.35, 0.9);
+                s.a += rand(-1.2, 1.2);
+              }
+              s.spd = Math.max(8, s.spd - dt * 4);
             }
-            f.setState('normal');
-          } else f.world.schedule(0.04, land);
-        };
-        f.world.schedule(0.1, land);
+            heading = s.a + Math.sin(t * 11 + s.ph) * 0.5; // the slither
+            s.x += Math.sin(heading) * s.spd * dt;
+            s.z += Math.cos(heading) * s.spd * dt;
+            s.x = w.wrapCoord(s.x);
+            s.z = w.wrapCoord(s.z);
+            s.y = 0.12;
+          } else if (s.state === 'lunge') {
+            prowling++;
+            const prey = s.prey;
+            if (!prey || !prey.alive) { s.state = 'slither'; s.prey = null; }
+            else {
+              // airborne strike arcing up at the head — tracks the target
+              s.lt += dt;
+              const k = Math.min(1, s.lt / 0.3);
+              const face = P.set(
+                s.x + w.wrapDelta(prey.pos.x - s.x),
+                prey.pos.y + prey.height * rand(0.72, 0.88),
+                s.z + w.wrapDelta(prey.pos.z - s.z));
+              s.x += (face.x - s.x) * Math.min(1, dt * (4 + 26 * k));
+              s.z += (face.z - s.z) * Math.min(1, dt * (4 + 26 * k));
+              s.y += (face.y + Math.sin(k * Math.PI) * 1.6 - s.y) * Math.min(1, dt * 14);
+              heading = s.a = Math.atan2(w.wrapDelta(prey.pos.x - s.x) || 0.01, w.wrapDelta(prey.pos.z - s.z) || 0.01);
+              pitch = -0.5 * k; // nose-down onto the mark
+              const dx = w.wrapDelta(prey.pos.x - s.x), dz = w.wrapDelta(prey.pos.z - s.z);
+              if (Math.hypot(dx, dz) < prey.hitRadius * 0.9 && Math.abs(s.y - face.y) < 1.6) {
+                // FANGS IN — bite damage + venom, and the snake STAYS
+                s.state = 'latched';
+                s.attachA = Math.atan2(-dx || 0.01, -dz || 0.01); // side it struck from
+                s.attachY = clamp((s.y - prey.pos.y) / prey.height, 0.55, 0.9);
+                prey.takeHit(u.dmg * f.dmgMult(), f, {
+                  knock: 0.6, srcPos: P.set(s.x, s.y, s.z), soft: true,
+                  status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
+                });
+                w.effects.impactSparks(P.set(s.x, s.y, s.z), 0x5aff2e, 6, 5);
+                if (Math.random() < 0.35) w.audio?.play('slash');
+                if (!pinUntil.has(prey)) {
+                  pinUntil.set(prey, t + (u.paralyze || 2.4));
+                  w.audio?.play('dart');
+                }
+              } else if (s.lt > 0.7) {
+                s.state = 'slither'; // whiffed the leap — back to the hunt
+                s.y = 0.12;
+              }
+            }
+          } else if (s.state === 'latched') {
+            const prey = s.prey;
+            s.latchT -= dt;
+            if (!prey || !prey.alive || s.latchT <= 0) {
+              // spent: the snake dissolves off the body
+              s.done = true;
+              w.effects.glows.emit(s.x, s.y, s.z, 0, 1.5, 0,
+                { life: 0.3, size: 0.9, color: 0x5aff2e, alpha: 0.8, grow: -1 });
+              continue;
+            }
+            // ride the victim, fangs planted in the upper body, tail thrashing
+            const r = prey.hitRadius * 0.7;
+            s.x = prey.pos.x + Math.sin(s.attachA) * r;
+            s.z = prey.pos.z + Math.cos(s.attachA) * r;
+            s.y = prey.pos.y + prey.height * s.attachY;
+            heading = s.attachA + Math.PI + Math.sin(t * 9 + s.ph) * 0.3; // head buried inward
+            pitch = -0.35;
+          }
+          Q.setFromEuler(E.set(pitch, heading, Math.sin(t * 13 + s.ph) * 0.25));
+          M.compose(P.set(s.x, s.y, s.z), Q, ONE);
+          im.setMatrixAt(i, M);
+        }
+        im.instanceMatrix.needsUpdate = true;
+        // venom pin: a freshly-bitten victim seizes up while the brood piles on
+        for (const [v, until] of pinUntil) {
+          if (t > until || !v.alive) { pinUntil.delete(v); continue; }
+          if (v.state !== 'launched' && v.state !== 'frozen') {
+            v.setState('hitstun', 0.3);
+            v.vel.x *= 0.6;
+            v.vel.z *= 0.6;
+            if (Math.random() < 0.5) {
+              v.animator.addImpulse('torso', [rand(-0.2, 0.2), 0, rand(-0.2, 0.2)], 44, 9);
+            }
+          }
+        }
+        const anyAlive = snakes.some((s) => !s.done);
+        // the brood outlives Viper; it only stands down when spent, when
+        // nobody is left to hunt, or at the 60s failsafe
+        if (!anyAlive || t > 60) return false;
+        if (prowling > 0 && !f.nearestEnemy()) return false;
+        return true;
+      }, () => { w.scene.remove(im); geo.dispose(); mat.dispose(); });
+    });
+  },
+
+  // NOVA: a blinding flash, then a newborn SUN swells off her frame to twice
+  // her height, collapses hard to half her size — and detonates across the
+  // whole neighborhood. She alone stands in the quiet center.
+  supernova(f, u) {
+    const w = f.world;
+    const GROW = 1.3, SHRINK = 0.45;
+    f.setState('ult', GROW + SHRINK + 0.5);
+    f.iframes = GROW + SHRINK + 0.6;
+    f.animator.play('burst', { speed: 0.7 });
+    w.audio?.play('charge');
+    // the flash
+    w.effects.glows.emit(f.pos.x, f.pos.y + f.height * 0.6, f.pos.z, 0, 0, 0,
+      { life: 0.28, size: 30, color: 0xffffff, alpha: 1 });
+    const geo = new THREE.SphereGeometry(1, 28, 20);
+    const mat = new THREE.MeshBasicMaterial({
+      color: 0xfff6ea, transparent: true, opacity: 0.9,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    const sun = new THREE.Mesh(geo, mat);
+    w.scene.add(sun);
+    // "twice her height" is the sphere's SIZE (diameter), not its radius
+    const rMax = f.height * 1.05, rMin = f.height * 0.27;
+    let t = 0;
+    w.addUpdater((dt) => {
+      if (!f.alive) return false;
+      t += dt;
+      sun.position.set(f.pos.x, f.pos.y + f.height * 0.55, f.pos.z);
+      // the newborn star has GRAVITY: everyone else is dragged toward the
+      // core the whole time it swells — and harder as it collapses
+      const pull = t < GROW ? 22 : 52;
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || f.isAllyOf(e)) continue;
+        const dx = w.wrapDelta(f.pos.x - e.pos.x), dz = w.wrapDelta(f.pos.z - e.pos.z);
+        const d = Math.hypot(dx, dz) || 1;
+        if (d < u.radius * 2.6 && d > 2) {
+          const g = pull * clamp01(1.5 - d / (u.radius * 2)) * dt;
+          e.vel.x += (dx / d) * g;
+          e.vel.z += (dz / d) * g;
+          // infall streaks sell the drag
+          if (Math.random() < dt * 8) {
+            w.effects.glows.emit(e.pos.x, e.pos.y + rand(1, e.height), e.pos.z,
+              (dx / d) * 8, 0.5, (dz / d) * 8,
+              { life: 0.3, size: 0.9, color: 0xfff0d8, alpha: 0.7, drag: 0.5 });
+          }
+        }
+      }
+      let r;
+      if (t < GROW) {
+        r = 0.2 + (rMax - 0.2) * ss(clamp01(t / GROW));
+        mat.opacity = 0.85;
+      } else if (t < GROW + SHRINK) {
+        r = rMax + (rMin - rMax) * ss(clamp01((t - GROW) / SHRINK));
+        mat.opacity = 0.98; // densening core
+      } else {
+        // DETONATION — the collapse doubles the reach of the blast
+        w.explode(f.pos, u.radius * 2, u.dmg * f.dmgMult(), {
+          owner: f, knock: 22, launch: 12, color: 0xfff0d8,
+        });
+        w.effects.explosion(sun.position, u.radius * 1.2, { color: 0xffffff, smoke: false });
+        w.effects.rings.spawn(f.pos, { from: 2, to: u.radius * 4.2, dur: 0.7, color: 0xfff0d8, y: 0.6 });
+        w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 2.6, dur: 0.5, color: 0xff5ce8, y: 1.4 });
+        w.effects.addShake(1.6);
+        w.engine.addHitStop(0.12);
+        return false;
+      }
+      sun.scale.setScalar(Math.max(0.01, r));
+      // boiling rim
+      const a = rand(TAU);
+      w.effects.glows.emit(
+        sun.position.x + Math.cos(a) * r, sun.position.y + rand(-r, r) * 0.6, sun.position.z + Math.sin(a) * r,
+        Math.cos(a) * 2, rand(1, 3), Math.sin(a) * 2,
+        { life: 0.25, size: rand(0.8, 1.6), color: 0xfff0d8, alpha: 0.9 });
+      return true;
+    }, () => { w.scene.remove(sun); geo.dispose(); mat.dispose(); });
+  },
+
+  // RHINO: he becomes a CROWD — ten of him shoulder to shoulder, and the
+  // whole herd thunders forward flattening everything on the line
+  stampede(f, u) {
+    const w = f.world;
+    const COPIES = (u.copies || 10) - 1; // he leads the charge himself
+    f.faceNearestEnemyIfClose(90, true);
+    f.animator.play('chargeLean');
+    const spd = f.def.stats.speed * 3.6;
+    const DUR = (u.range || 46) / spd;
+    f.setState('ult', DUR + 0.25);
+    f.iframes = 0.5;
+    w.audio?.play('powerup');
+    w.audio?.play('charge');
+    const dirX = Math.sin(f.yaw), dirZ = Math.cos(f.yaw);
+    const hitAt = new Map(); // herd-wide: nobody gets trampled twice in a beat
+    let t = 0;
+    const trample = (px, pz) => {
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || f.isAllyOf(e)) continue;
+        if (t - (hitAt.get(e) ?? -9) < 0.45) continue;
+        const dx = w.wrapDelta(e.pos.x - px), dz = w.wrapDelta(e.pos.z - pz);
+        if (Math.hypot(dx, dz) < 3.4 * f.scale) {
+          hitAt.set(e, t);
+          e.takeHit(u.dmg * f.dmgMult(), f, {
+            knock: u.knock, launch: 9, srcPos: P2.set(px, 0, pz), heavy: true,
+          });
+          w.engine.addHitStop(0.06);
+          w.effects.addShake(0.5);
+        }
+      }
+    };
+    const P2 = new THREE.Vector3();
+    // bake the herd a beat in, once the charge lean has taken the pose
+    w.schedule(0.18, () => {
+      if (!f.alive) return;
+      const shells = [];
+      for (let i = 0; i < COPIES; i++) {
+        const g = bakeShell(f);
+        const lane = (i % 2 ? 1 : -1) * Math.ceil((i + 1) / 2); // ±1 ±1 ±2 ±2...
+        const off = lane * 3.3 + rand(-0.4, 0.4);
+        g.position.set(
+          f.pos.x + dirZ * off - dirX * rand(0.5, 4),
+          0,
+          f.pos.z - dirX * off - dirZ * rand(0.5, 4)
+        );
+        g.rotation.y = f.yaw;
+        w.scene.add(g);
+        shells.push({ g, ph: rand(TAU) });
+      }
+      w.addUpdater((dt) => {
+        t += dt;
+        // the real Rhino gallops point
+        if (f.alive && f.state === 'ult') {
+          f.vel.x = dirX * spd;
+          f.vel.z = dirZ * spd;
+          trample(f.pos.x, f.pos.z);
+          if (Math.random() < 0.6) w.effects.dustPuff(f.pos, 2, 0x9a9088);
+        }
+        for (const s of shells) {
+          s.g.position.x += dirX * spd * dt;
+          s.g.position.z += dirZ * spd * dt;
+          s.g.position.y = Math.abs(Math.sin(t * 11 + s.ph)) * 0.45;
+          s.g.rotation.x = 0.1 + Math.sin(t * 11 + s.ph) * 0.05;
+          if (Math.random() < 0.4) w.effects.dustPuff(s.g.position, 1, 0x9a9088);
+          trample(s.g.position.x, s.g.position.z);
+          // the herd wrecks facades too
+          if (Math.random() < 0.25) {
+            _v.set(s.g.position.x + dirX * 2, 2, s.g.position.z + dirZ * 2);
+            w.arena?.damageSphere(_v, 3, 40, null, true);
+          }
+        }
+        if (t > DUR || !f.alive) return false;
+        return true;
+      }, () => {
+        for (const s of shells) w.scene.remove(s.g);
       });
     });
   },
 
-  // NULLBOT: SYSTEM CRASH — the whole area re-renders WRONG: a detonation
-  // of corrupted data that hands everyone caught inside three glitch
-  // stacks at once (a third of the way to a full crash, instantly)
-  systemCrash(f, u) {
+  // TEMPEST: black stormclouds descend over the whole block around him —
+  // and inside the dark, everyone else gets hammered by lightning strike
+  // after strike after strike
+  thunderfall(f, u) {
+    const w = f.world;
+    const dur = f.animator.play('castRaise', {
+      onEvent: (tt) => {
+        if (tt !== 'fire') return;
+        const center = f.pos.clone();
+        center.y = 0;
+        const R = u.radius, cloudY = 14;
+        w.audio?.play('thunder');
+        w.effects.rings.spawn(center, { from: 1, to: R * 2, dur: 0.7, color: 0x53e8ff, y: 0.4 });
+        // the deck rolls in — waves of churning black smoke over the zone
+        for (const delay of [0, 0.5, 1.1, 1.8]) {
+          w.schedule(delay, () => {
+            for (let i = 0; i < 40; i++) {
+              const a = rand(TAU), r = Math.sqrt(Math.random()) * R * 0.95;
+              w.effects.smoke.emit(
+                center.x + Math.cos(a) * r, cloudY + rand(-1.6, 1.8), center.z + Math.sin(a) * r,
+                rand(-1.6, 1.6), rand(-0.4, 0.4), rand(-1.6, 1.6),
+                { life: rand(1.4, 2.2), size: rand(5.5, 9), color: 0x0c1016, alpha: 0.95, grow: 1.2 });
+            }
+            for (let i = 0; i < 10; i++) {
+              const a = rand(TAU), r = rand(0, R * 0.8);
+              w.effects.glows.emit(center.x + Math.cos(a) * r, cloudY + rand(-1, 1), center.z + Math.sin(a) * r,
+                0, 0, 0, { life: rand(0.2, 0.4), size: rand(1.5, 3), color: 0x9fdcff, alpha: 0.9 });
+            }
+          });
+        }
+        let t = 0, tick = 0.2;
+        w.addUpdater((dt) => {
+          if (!f.alive) return false;
+          t += dt;
+          tick -= dt;
+          if (tick <= 0) {
+            tick = 0.2; // 5 strikes a second on everyone caught inside
+            for (const e of w.fighters) {
+              if (e === f || !e.alive || f.isAllyOf(e)) continue;
+              const dx = w.wrapDelta(e.pos.x - center.x), dz = w.wrapDelta(e.pos.z - center.z);
+              if (Math.hypot(dx, dz) > R) continue;
+              const gx = e.pos.x + rand(-0.6, 0.6), gz = e.pos.z + rand(-0.6, 0.6);
+              w.effects.lightning.spawn(
+                new THREE.Vector3(gx + rand(-1, 1), cloudY, gz + rand(-1, 1)),
+                new THREE.Vector3(gx, 0.1, gz),
+                { color: 0xeaffff, dur: 0.14, jag: 3, thick: 0.2 });
+              w.effects.glows.emit(gx, 1.2, gz, 0, 0, 0, { life: 0.18, size: 4.5, color: 0xbfefff, alpha: 1 });
+              e.takeHit(u.dmg * f.dmgMult(), f, {
+                knock: 2, srcPos: center, soft: true, status: { slow: 0.7, slowT: 0.8 },
+              });
+              w.effects.staticCling(e, 0.8);
+              if (Math.random() < 0.4) w.audio?.play('zap');
+            }
+            // stray ground strikes sell the storm
+            if (Math.random() < 0.6) {
+              const a = rand(TAU), r = rand(2, R);
+              const gx = center.x + Math.cos(a) * r, gz = center.z + Math.sin(a) * r;
+              w.effects.lightning.spawn(
+                new THREE.Vector3(gx, cloudY, gz), new THREE.Vector3(gx, 0.1, gz),
+                { color: 0x9fdcff, dur: 0.18, jag: 2.6, thick: 0.13 });
+            }
+            // the deck stays dark through the strikes
+            if (Math.random() < 0.5) {
+              const a = rand(TAU), r = Math.sqrt(Math.random()) * R * 0.95;
+              w.effects.smoke.emit(
+                center.x + Math.cos(a) * r, cloudY + rand(-1.4, 1.6), center.z + Math.sin(a) * r,
+                rand(-1.4, 1.4), 0, rand(-1.4, 1.4),
+                { life: 1.6, size: rand(5, 8), color: 0x0c1016, alpha: 0.9, grow: 1.1 });
+            }
+          }
+          return t <= (u.duration || 2.6) + 0.4;
+        });
+      },
+    });
+    f.setState('ult', dur);
+  },
+
+  // FENRIR: one howl at the sky — and a PACK of twenty low-running Fenrirs
+  // floods the block, tearing through everything they brush past
+  wildHunt(f, u) {
+    const w = f.world;
+    f.setState('ult', 1.2);
+    f.animator.play('castRaise', { speed: 1.1 });
+    w.audio?.play('howl');
+    w.effects.rings.spawn(f.pos, { from: 0.5, to: u.radius, dur: 0.9, color: 0x6cd8ff, y: 0.8 });
+    // drop into the hunting crouch right before the pack bakes off him
+    w.schedule(0.45, () => { if (f.alive) f.animator.play('lunge', { speed: 0.6 }); });
+    w.schedule(0.62, () => {
+      if (!f.alive) return;
+      const N = u.count || 20;
+      const wolves = [];
+      for (let i = 0; i < N; i++) {
+        const g = bakeShell(f);
+        g.rotation.x = 0.5; // pitched down onto all fours
+        g.scale.setScalar(0.92);
+        const a = (i / N) * TAU + rand(-0.2, 0.2);
+        g.position.set(f.pos.x + Math.cos(a) * rand(1, 3), 0.2, f.pos.z + Math.sin(a) * rand(1, 3));
+        w.scene.add(g);
+        wolves.push({ g, yaw: rand(TAU), turnT: rand(0, 0.2), spd: rand(16, 22), ph: rand(TAU) });
+      }
+      f.animator.stop(0.2);
+      const hitAt = new Map(); // pack-wide bite cadence per victim
+      let t = 0;
+      w.addUpdater((dt) => {
+        t += dt;
+        for (const wl of wolves) {
+          wl.turnT -= dt;
+          const px = wl.g.position.x, pz = wl.g.position.z;
+          if (wl.turnT <= 0) {
+            wl.turnT = rand(0.3, 0.7);
+            const homeDx = w.wrapDelta(f.pos.x - px), homeDz = w.wrapDelta(f.pos.z - pz);
+            const prey = Math.random() < 0.55 ? nearestEnemyTo(f, px, pz, u.radius * 1.3) : null;
+            if (Math.hypot(homeDx, homeDz) > u.radius) {
+              wl.yaw = Math.atan2(homeDx, homeDz) + rand(-0.6, 0.6); // stay with the hunt
+            } else if (prey) {
+              wl.yaw = Math.atan2(w.wrapDelta(prey.pos.x - px), w.wrapDelta(prey.pos.z - pz)) + rand(-0.4, 0.4);
+            } else {
+              wl.yaw = rand(TAU); // every which way
+            }
+          }
+          wl.g.position.x += Math.sin(wl.yaw) * wl.spd * dt;
+          wl.g.position.z += Math.cos(wl.yaw) * wl.spd * dt;
+          wl.g.position.y = 0.15 + Math.abs(Math.sin(t * 13 + wl.ph)) * 0.5; // the gallop
+          wl.g.rotation.y = wl.yaw;
+          wl.g.rotation.x = 0.5 + Math.sin(t * 13 + wl.ph) * 0.09;
+          // bites and claws on the way through
+          for (const e of w.fighters) {
+            if (e === f || !e.alive || f.isAllyOf(e)) continue;
+            if (t - (hitAt.get(e) ?? -9) < 0.25) continue;
+            const dx = w.wrapDelta(e.pos.x - wl.g.position.x), dz = w.wrapDelta(e.pos.z - wl.g.position.z);
+            if (Math.hypot(dx, dz) < e.hitRadius + 1.2) {
+              hitAt.set(e, t);
+              e.takeHit(u.dmg * f.dmgMult(), f, { knock: 3, srcPos: wl.g.position, soft: Math.random() < 0.7 });
+              w.effects.impactSparks(e.center(), 0x6cd8ff, 6, 6);
+              if (Math.random() < 0.25) w.audio?.play('slash');
+            }
+          }
+        }
+        if (Math.random() < 0.02) w.audio?.play('howl', { vol: 0.3, pitch: rand(0.9, 1.3) });
+        return t <= (u.duration || 4.5) && f.alive;
+      }, () => {
+        for (const wl of wolves) w.scene.remove(wl.g);
+      });
+    });
+  },
+
+  // COLOSSUS: no shell this time — HE is the ordnance. He grows to four
+  // times his height and simply walks through the fight, flattening
+  // whatever he steps on or shoulders into.
+  colossalForm(f, u) {
+    if (f._giantK) return; // already grown
+    const w = f.world;
+    f._giantK = true;
+    f.setState('ult', 1.3);
+    f.animator.play('burst');
+    w.audio?.play('powerup');
+    w.effects.rings.spawn(f.pos, { from: 1, to: 12, dur: 0.7, color: 0xffd23c, y: 0.5 });
+    const base = { scale: f.scale, h: f.baseHeight, hr: f.baseHitRadius, r: f.radius };
+    const S = u.scale || 4;
+    const GROW = 1.3, DUR = u.duration || 9;
+    f.status.buff = { spd: 1.3, dmg: 1.4, t: DUR };
+    let t = 0, crushT = 0, stompT = 0;
+    const apply = (s) => {
+      f.group.scale.setScalar(s);
+      f.scale = base.scale * s;
+      f.baseHeight = base.h * s;
+      f.baseHitRadius = base.hr * s;
+      f.radius = base.r * s;
+    };
+    w.addUpdater((dt) => {
+      t += dt;
+      let k;
+      if (t < GROW) k = ss(t / GROW);
+      else if (t < DUR - 1.1) k = 1;
+      else k = ss(clamp01((DUR - t) / 1.1));
+      if (!f.alive) k = Math.min(k, Math.max(0, 1 - (t - DUR) )); // dead: just end
+      apply(1 + (S - 1) * k);
+      if (f.alive && k > 0.25) {
+        // everything underfoot is a casualty
+        crushT -= dt;
+        if (crushT <= 0) {
+          crushT = 0.28;
+          for (const e of w.fighters) {
+            if (e === f || !e.alive || f.isAllyOf(e)) continue;
+            const d = Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z));
+            if (d < f.radius + e.radius + 1 && e.pos.y < f.height * 0.55) {
+              e.takeHit(u.dmg * f.dmgMult(), f, { knock: 20, launch: 8, srcPos: f.pos, heavy: true });
+              w.effects.dustPuff(e.pos, 6);
+            }
+          }
+          _v.set(f.pos.x, f.pos.y + 1.5, f.pos.z);
+          w.arena?.damageSphere(_v, f.radius * 1.9, 55 * k, null, true);
+        }
+        // thundering footfalls
+        stompT -= dt;
+        if (stompT <= 0 && Math.hypot(f.vel.x, f.vel.z) > 3 && f.grounded) {
+          stompT = 0.38;
+          w.effects.dustPuff(f.pos, 6, 0x9a9088);
+          w.effects.addShake(0.3 * k);
+          w.audio?.play('slam', { vol: 0.35 });
+        }
+      }
+      return t <= DUR;
+    }, () => {
+      apply(1);
+      f._giantK = false;
+    });
+  },
+
+  // WRAITH: the red eye swells and BURNS, then pours out a widening
+  // searchlight of dread. The light KEEPS searching until it finds a body
+  // (hard cap as a failsafe); then it snaps down to one thick killing beam
+  // — eye to face — and the victim glows furnace-red while it burns them
+  deathGaze(f, u) {
+    const w = f.world;
+    const CHARGE = 1.1, SEARCH_MAX = 12, BURN = 1.15;
+    f.setState('ult', CHARGE + 0.5);
+    f.animator.play('aim', { speed: 0.5 });
+    w.audio?.play('charge');
+    const eyePos = () => {
+      const a = f.mech.anchors.eye;
+      return a ? a.getWorldPosition(new THREE.Vector3())
+        : new THREE.Vector3(f.pos.x, f.pos.y + f.height * 0.92, f.pos.z);
+    };
+    const R = u.range || 60;
+    const HALF = 0.4; // cone half-angle
+    const coneGeo = new THREE.ConeGeometry(1, 1, 26, 1, true);
+    coneGeo.translate(0, -0.5, 0); // apex at origin, opening down -Y
+    const coneMat = new THREE.MeshBasicMaterial({
+      color: 0xff2030, transparent: true, opacity: 0.2,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    const cone = new THREE.Mesh(coneGeo, coneMat);
+    cone.visible = false;
+    w.scene.add(cone);
+    const DOWN = new THREE.Vector3(0, -1, 0);
+    const dirV = new THREE.Vector3();
+    let t = 0, victim = null, burnT = 0, pulses = 0;
+    w.addUpdater((dt) => {
+      if (!f.alive) return false;
+      t += dt;
+      const ep = eyePos();
+      if (t < CHARGE) {
+        // the eye grows and glows blinding red
+        const k = t / CHARGE;
+        w.effects.glows.emit(ep.x, ep.y, ep.z, 0, 0, 0,
+          { life: 0.09, size: 0.5 + 3.8 * k, color: 0xff2030, alpha: 0.95 });
+        if (Math.random() < 0.3) {
+          w.effects.glows.emit(ep.x, ep.y, ep.z, rand(-1, 1), rand(0, 2), rand(-1, 1),
+            { life: 0.3, size: 0.5, color: 0xff8090, alpha: 0.9 });
+        }
+        return true;
+      }
+      // the gaze owns him while it hunts and burns — keep the lock alive
+      if (f.state === 'ult') f.stateT = Math.max(f.stateT, 0.4);
+      dirV.set(Math.sin(f.yaw), -0.05, Math.cos(f.yaw)).normalize();
+      if (!victim) {
+        // failsafe cap / nobody left to judge — only then does it give up
+        if (t > CHARGE + SEARCH_MAX || !f.nearestEnemy()) {
+          cone.visible = false;
+          if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.2);
+          return false;
+        }
+        // AI sweeps the light onto its prey; humans aim with their facing
+        f.faceNearestEnemyIfClose(120, true);
+        // the wide red light, pouring out and widening with distance
+        cone.visible = true;
+        const pulse = 1 + Math.sin(t * 17) * 0.06;
+        cone.position.copy(ep);
+        cone.quaternion.setFromUnitVectors(DOWN, dirV);
+        cone.scale.set(R * Math.tan(HALF) * pulse, R, R * Math.tan(HALF) * pulse);
+        coneMat.opacity = 0.14 + Math.sin(t * 23) * 0.04;
+        w.effects.glows.emit(ep.x, ep.y, ep.z, 0, 0, 0,
+          { life: 0.08, size: 3.4, color: 0xff2030, alpha: 0.95 });
+        // does the light catch anyone?
+        for (const e of w.fighters) {
+          if (e === f || !e.alive || f.isAllyOf(e)) continue;
+          const c = e.center();
+          const to = new THREE.Vector3(w.wrapDelta(c.x - ep.x), c.y - ep.y, w.wrapDelta(c.z - ep.z));
+          const d = to.length();
+          if (d < R && to.normalize().dot(dirV) > Math.cos(HALF)) {
+            victim = e;
+            burnT = 0;
+            pulses = 0;
+            cone.visible = false;
+            w.audio?.play('railgun');
+            w.engine.addHitStop(0.08);
+            break;
+          }
+        }
+        return true;
+      }
+      // CAUGHT: one thick intense beam, eye to face
+      burnT += dt;
+      if (victim.alive) {
+        const face = new THREE.Vector3(victim.pos.x, victim.pos.y + victim.height * 0.85, victim.pos.z);
+        w.effects.beams.spawn(ep, face, { radius: 0.6, dur: 0.09, color: 0xff2030 });
+        w.effects.beams.spawn(ep, face, { radius: 0.24, dur: 0.09, color: 0xfff0f0 });
+        w.effects.glows.emit(face.x, face.y, face.z, 0, 0, 0,
+          { life: 0.12, size: 2.8, color: 0xff2030, alpha: 1 });
+        if (Math.random() < 0.5) w.effects.impactSparks(face, 0xff2030, 4, 6);
+        // the whole frame glows furnace-red for as long as the beam is on it
+        victim.applyGlitchTint(0.42 + 0.2 * Math.sin(burnT * 26), 0xff2030);
+        const PULSES = [0.12, 0.5, 0.9];
+        if (pulses < 3 && burnT >= PULSES[pulses]) {
+          pulses++;
+          victim.takeHit((u.dmg / 3) * f.dmgMult(), f, {
+            knock: 3, srcPos: ep, heavy: pulses === 3, status: { burn: 8, burnT: 2 },
+          });
+          w.audio?.play('beam');
+        }
+      }
+      if (burnT > BURN) {
+        if (f.state === 'ult') f.stateT = Math.min(f.stateT, 0.25);
+        return false;
+      }
+      return true;
+    }, () => {
+      w.scene.remove(cone);
+      coneGeo.dispose();
+      coneMat.dispose();
+      if (victim && victim.alive) victim.applyGlitchTint(0); // colors thaw back
+    });
+  },
+
+  // INFERNO: he conjures a FIRE TORNADO that wanders after his enemies,
+  // belching flame and smoke, growing as it goes — and whoever it finally
+  // catches gets ripped into the sky inside the funnel
+  fireTornado(f, u) {
+    const w = f.world;
     const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        const w = f.world;
+      onEvent: (tt) => {
+        if (tt !== 'fire') return;
+        const pos = fwd(f, 5);
+        pos.y = 0;
+        w.audio?.play('flame');
+        w.audio?.play('whooshBig');
+        let t = 0, r = 1.6, swept = null, sweptT = 0, fpT = 0.4;
+        // the funnel itself is a FireTornadoFX (helical shader shells +
+        // ember spiral + burning base); world.tornados owns its lifecycle,
+        // this updater steers it and runs the hunt/sweep gameplay
+        const fx = new FireTornadoFX(w.scene, w.effects, pos, {
+          height: f.height * 3, radius: 1.0, wander: 0,
+        });
+        w.tornados.push({ fx });
+        w.addUpdater((dt) => {
+          t += dt;
+          r = Math.min(u.radius || 4.5, r + dt * 0.5); // growing larger and larger
+          const H = Math.min(f.height * 3, 7 + r * 2.8); // caps at 3x his height
+          fx.setPose(pos);
+          fx.height = H;
+          fx.radius = 0.35 + r * 0.38; // waist widens as the funnel grows
+          // it hunts (until it has swallowed someone)
+          if (!swept) {
+            const prey = nearestEnemyTo(f, pos.x, pos.z);
+            if (prey) {
+              const dx = w.wrapDelta(prey.pos.x - pos.x), dz = w.wrapDelta(prey.pos.z - pos.z);
+              const d = Math.hypot(dx, dz) || 1;
+              pos.x += (dx / d) * 6.5 * dt;
+              pos.z += (dz / d) * 6.5 * dt;
+            }
+          }
+          // extra spiraling ribbons riding the shader funnel (the shells,
+          // embers, base fire and smoke crown come from the FX itself)
+          for (let i = 0; i < 2; i++) {
+            const a = rand(TAU), h = Math.random() ** 1.3 * H;
+            const rr = (0.3 + 0.7 * (h / H)) * r * rand(0.75, 1.05);
+            const tang = a + Math.PI / 2;
+            w.effects.glows.emit(pos.x + Math.cos(a) * rr, h, pos.z + Math.sin(a) * rr,
+              Math.cos(tang) * rand(10, 16), rand(2, 6), Math.sin(tang) * rand(10, 16),
+              { life: rand(0.22, 0.45), size: rand(0.9, 1.9), color: h < H * 0.45 ? 0xff7a20 : 0xff4210, alpha: 0.92, drag: 0.4 });
+          }
+          // it BELCHES: gouts of flame spat out of the wall, burning ground
+          if (Math.random() < 0.12) {
+            const a = rand(TAU);
+            w.effects.fire(new THREE.Vector3(pos.x, rand(1, 4), pos.z),
+              new THREE.Vector3(Math.cos(a), 0.35, Math.sin(a)), 24, 0.4);
+          }
+          fpT -= dt;
+          if (fpT <= 0) {
+            fpT = 1.2;
+            w.addFirePatch(f, new THREE.Vector3(pos.x + rand(-r, r) * 0.5, 0, pos.z + rand(-r, r) * 0.5), 2.0, 2.2, 8);
+            if (Math.random() < 0.6) w.audio?.play('flame');
+          }
+          w.arena?.damageSphere(_v.set(pos.x, 2, pos.z), r * 1.2, 26 * dt * 8, null, true);
+          if (!swept) {
+            // the catch
+            for (const e of w.fighters) {
+              if (e === f || !e.alive || f.isAllyOf(e)) continue;
+              const dx = w.wrapDelta(e.pos.x - pos.x), dz = w.wrapDelta(e.pos.z - pos.z);
+              if (Math.hypot(dx, dz) < r + e.hitRadius * 0.5 && e.pos.y < H) {
+                swept = e;
+                sweptT = 0;
+                e.takeHit(u.dmg * f.dmgMult(), f, {
+                  knock: 3, launch: 14, srcPos: pos, heavy: true, status: { burn: 10, burnT: 3 },
+                });
+                w.audio?.play('explosionBig');
+                w.effects.addShake(0.8);
+                break;
+              }
+            }
+          } else {
+            // swept UP into the sky, riding the funnel wall
+            sweptT += dt;
+            if (swept.alive && sweptT < 1.3) {
+              const a = sweptT * 8.5;
+              swept.pos.x = pos.x + Math.cos(a) * r * 0.55;
+              swept.pos.z = pos.z + Math.sin(a) * r * 0.55;
+              swept.pos.y = Math.min(swept.pos.y + 15 * dt, H + 5);
+              swept.vel.set(0, 2, 0);
+              swept.grounded = false;
+              swept.setState('launched', 3);
+              if (Math.random() < 0.6) {
+                w.effects.glows.emit(swept.pos.x, swept.pos.y + rand(0, swept.height), swept.pos.z,
+                  0, 3, 0, { life: 0.3, size: 1.4, color: 0xff7a20, alpha: 0.9 });
+              }
+            } else {
+              // hurled clear at the top; the tornado gutters out
+              if (swept.alive) {
+                const a = rand(TAU);
+                swept.vel.set(Math.cos(a) * 9, 5, Math.sin(a) * 9);
+              }
+              fx.extinguish(0.9);
+              return false;
+            }
+          }
+          if (t > (u.duration || 7)) { fx.extinguish(0.9); return false; }
+          return true;
+        }, () => fx.extinguish(0.3)); // round sweep: gutter out, world disposes
+      },
+    });
+    f.setState('ult', dur);
+  },
+
+  // GLACIER: flash-freezes a huge round sheet of ground ahead — everything
+  // inside turns white. Anyone else on the sheet frosts over, takes cold
+  // damage, and skates helplessly on the glass
+  absoluteZero(f, u) {
+    const w = f.world;
+    const dur = f.animator.play('burst', {
+      onEvent: (tt) => {
+        if (tt !== 'fire') return;
+        const center = fwd(f, u.radius * 0.75);
+        center.y = w.arena?.terrainHeightAt?.(center.x, center.z) || 0;
+        w.audio?.play('freezeBig');
+        const geo = new THREE.CircleGeometry(u.radius, 44);
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0xdceefc, roughness: 0.14, metalness: 0.05,
+          transparent: true, opacity: 0, emissive: 0x9fc8e8, emissiveIntensity: 0.07,
+        });
+        const sheet = new THREE.Mesh(geo, mat);
+        sheet.rotation.x = -Math.PI / 2;
+        sheet.position.set(center.x, center.y + 0.08, center.z);
+        w.scene.add(sheet);
+        w.effects.rings.spawn(center, { from: 1, to: u.radius * 2, dur: 0.7, color: 0x9be8ff, y: 0.4 });
+        for (let i = 0; i < 26; i++) {
+          const a = rand(TAU), r = rand(1, u.radius);
+          w.effects.glows.emit(center.x + Math.cos(a) * r, 0.4, center.z + Math.sin(a) * r,
+            0, rand(1, 3), 0, { life: rand(0.4, 0.9), size: rand(1, 2.2), color: 0xd8f4ff, alpha: 0.85 });
+        }
+        // the sheet is PERMANENT: it stays down until the round-end sweep
+        // (or a finisher) runs the cleanup below — even if Glacier falls
+        let t = 0, tick = 0;
+        const iced = new Map(); // victim -> {phase, t, vx, vz, cd}
+        w.addUpdater((dt) => {
+          t += dt;
+          mat.opacity = 0.62 * clamp01(t / 0.3);
+          // ambient frost shimmer
+          if (Math.random() < 0.4) {
+            const a = rand(TAU), r = rand(0, u.radius);
+            w.effects.glows.emit(center.x + Math.cos(a) * r, 0.3, center.z + Math.sin(a) * r,
+              0, rand(0.5, 1.5), 0, { life: 0.5, size: rand(0.5, 1.2), color: 0xeaf8ff, alpha: 0.7 });
+          }
+          // stepping ON the ice: flash-frozen for a beat while the body
+          // whites out — then the thaw releases them INTO the slide, still
+          // carrying whatever momentum they walked on with (glass underfoot)
+          for (const e of w.fighters) {
+            if (e === f || !e.alive || f.isAllyOf(e)) continue;
+            const d = Math.hypot(w.wrapDelta(e.pos.x - center.x), w.wrapDelta(e.pos.z - center.z));
+            const onIce = d < u.radius && (e.grounded || e.pos.y < 1.5);
+            let st = iced.get(e);
+            if (onIce) {
+              if (!st) {
+                st = { phase: 'frozen', t: 0.65, vx: e.vel.x, vz: e.vel.z, cd: 0 };
+                iced.set(e, st);
+                if (e.state !== 'launched' && e.state !== 'frozen') {
+                  e.setState('frozen', st.t); // the whiteout rides this state
+                  e.vel.x = 0;
+                  e.vel.z = 0;
+                }
+                w.audio?.play('freeze');
+                w.effects.impactSparks(e.center(), 0x9be8ff, 10, 6);
+              } else if (st.phase === 'frozen') {
+                st.t -= dt;
+                if (st.t <= 0 || e.state !== 'frozen') {
+                  st.phase = 'slipping';
+                  if (e.state === 'frozen') e.setState('normal');
+                  e.vel.x = st.vx; // entry momentum carries onto the glass
+                  e.vel.z = st.vz;
+                }
+              }
+              st.cd = 0;
+              e._beamWhiteT = 0.35;         // frosted white while on the sheet
+              e.status.slip = { t: 0.6 };   // near-zero traction underfoot
+            } else if (st) {
+              // stepped off: a short grace before re-entry freezes them again
+              if (st.phase === 'frozen') st.phase = 'slipping';
+              st.cd += dt;
+              if (st.cd > 2.2) iced.delete(e);
+            }
+          }
+          // cold bites while standing on it
+          tick -= dt;
+          if (tick <= 0) {
+            tick = 0.4;
+            for (const e of w.fighters) {
+              if (e === f || !e.alive || f.isAllyOf(e)) continue;
+              if (!e.grounded && e.pos.y > 1.5) continue;
+              const d = Math.hypot(w.wrapDelta(e.pos.x - center.x), w.wrapDelta(e.pos.z - center.z));
+              if (d < u.radius) {
+                e.takeHit(u.dmg * f.dmgMult(), f, {
+                  knock: 0.5, srcPos: center, soft: true, status: { slow: 0.85, slowT: 0.5 },
+                });
+              }
+            }
+          }
+          return true; // permanent — ends only via the cleanup sweep
+        }, () => { w.scene.remove(sheet); geo.dispose(); mat.dispose(); });
+      },
+    });
+    f.setState('ult', dur);
+    f.iframes = dur;
+  },
+
+  // CRANKY: the sea answers — a TSUNAMI rises behind him and rolls forward
+  // across the whole arena front, smashing everything in its path
+  tsunami(f, u) {
+    const w = f.world;
+    f.setState('ult', 1.5);
+    f.animator.play('castRaise');
+    w.audio?.play('cast');
+    const dirX = Math.sin(f.yaw), dirZ = Math.cos(f.yaw);
+    const perpX = dirZ, perpZ = -dirX;
+    const ox = f.pos.x, oz = f.pos.z;
+    const W = u.width || 30, R = u.range || 48, H = 9, SPD = 17;
+    w.schedule(0.45, () => {
+      if (!f.alive) return;
+      w.audio?.play('wave');
+      w.audio?.play('explosionBig');
+      // the wall is a real TidalWaveFX in tsunami mode: breaking-wave
+      // profile, foam-by-steepness, crest spray, and a flood rectangle
+      // dragged behind the front. world.waves owns its lifecycle; this
+      // updater runs the gameplay against the same travel integration.
+      const fx = new TidalWaveFX(w.scene, w.effects, new THREE.Vector3(ox, 0, oz), {
+        height: H, r0: -3, r1: R + 9, speed: SPD,
+        dir: new THREE.Vector3(dirX, 0, dirZ), width: W,
+      });
+      w.waves.push({ fx });
+      let travel = -3;
+      const victims = new Set();
+      const P = new THREE.Vector3();
+      w.addUpdater((dt) => {
+        travel += SPD * dt;
+        if (Math.random() < 0.3) w.audio?.play('wave', { vol: 0.35 });
+        for (const e of w.fighters) {
+          if (e === f || !e.alive || f.isAllyOf(e)) continue;
+          const rx = w.wrapDelta(e.pos.x - ox), rz = w.wrapDelta(e.pos.z - oz);
+          const along = rx * dirX + rz * dirZ;
+          const lat = rx * perpX + rz * perpZ;
+          if (Math.abs(lat) > W / 2) continue;
+          if (!victims.has(e) && Math.abs(along - travel) < 2.4 && e.pos.y < H) {
+            // the front hits ONCE, hard, and CARRIES them downrange
+            victims.add(e);
+            e.takeHit(u.dmg * f.dmgMult(), f, {
+              knock: u.knock, launch: 10, srcPos: P.set(e.pos.x - dirX * 3, 0, e.pos.z - dirZ * 3), heavy: true,
+            });
+            e.vel.x += dirX * 20;
+            e.vel.z += dirZ * 20;
+            e.applySoak?.(2.6);
+            w.effects.splash(e.center(), 14, 9, 1.4);
+            w.effects.addShake(0.7);
+          } else if (along > 0 && along < travel - 2 && e.grounded) {
+            // wading in the trailing floodwater: dripping wet, half speed
+            e.applySoak?.(2.2);
+          }
+        }
+        // it wrecks the street furniture too
+        if (Math.random() < 0.5) {
+          const lat = rand(-W / 2, W / 2);
+          _v.set(ox + dirX * (travel + 1.5) + perpX * lat, 2, oz + dirZ * (travel + 1.5) + perpZ * lat);
+          w.arena?.damageSphere(_v, 3.4, 70, new THREE.Vector3(dirX, 0.25, dirZ), true);
+        }
+        if (travel >= R) {
+          // collapses into foam at the end of its run
+          for (let i = 0; i < 10; i++) {
+            const lat = rand(-W / 2, W / 2);
+            w.effects.splash(P.set(ox + dirX * travel + perpX * lat, 0.3, oz + dirZ * travel + perpZ * lat), 5, 6, 1);
+          }
+          return false;
+        }
+        return true;
+      });
+    });
+  },
+
+  // SAURION: calls the pack — three full raptor clones drop in and fight
+  // alongside him with everything he has (specials, pounces, quills), each
+  // with a fraction of his plating and a timer on the visit
+  raptorPack(f, u) {
+    const w = f.world;
+    f.setState('ult', 1.1);
+    f.animator.play('taunt', { speed: 1.3 });
+    w.audio?.play('howl');
+    w.audio?.play('powerup');
+    for (let i = 0; i < (u.count || 3); i++) {
+      w.schedule(0.25 + i * 0.22, () => {
+        if (!f.alive) return;
+        const a = f.yaw + Math.PI + (i - 1) * 0.85 + rand(-0.15, 0.15);
+        const pos = new THREE.Vector3(
+          f.pos.x + Math.sin(a) * 3.6, 0, f.pos.z + Math.cos(a) * 3.6);
+        const clone = new Fighter(w, f.def, {
+          pos, yaw: f.yaw, playerIndex: f.playerIndex, isAI: true,
+        });
+        clone.isMinion = true;
+        clone.allyOf = f;
+        clone.maxHp = clone.hp = Math.round(f.maxHp * (u.hpFrac || 0.35));
+        // runts of the litter: a shade smaller, darker plumage
+        clone.group.scale.setScalar(0.85);
+        clone.scale *= 0.85;
+        clone.baseHeight *= 0.85;
+        clone.height *= 0.85;
+        clone.baseHitRadius *= 0.85;
+        clone.hitRadius *= 0.85;
+        clone.radius *= 0.85;
+        for (const m of Object.values(clone.mech.materials)) {
+          if (m && m.color) m.color.multiplyScalar(0.7);
+        }
+        w.addMinion(clone, new AIController(clone, 'ace'), u.duration || 18);
+        w.effects.rings.spawn(pos, { from: 3.5, to: 0.5, dur: 0.4, color: 0xff3826, y: 1 });
+        w.effects.impactSparks(clone.center(), 0xff3826, 12, 8);
+        w.audio?.play('cast');
+      });
+    }
+  },
+
+  // FROGGER: jaw drops open and a CROAK comes out — a resonant blast wave
+  // that sets every nearby bot shuddering, locks their servos solid, and
+  // then lets the stored resonance tear loose all at once
+  sonicCroak(f, u) {
+    const w = f.world;
+    f.setState('ult', 1.4);
+    f.duckT = 1;
+    f.animator.play('burst', { speed: 0.8 });
+    w.audio?.play('howl', { pitch: 0.42, vol: 1 });
+    w.audio?.play('wave', { pitch: 0.6 });
+    // ribbiting shock rings pour outward at throat height
+    for (let i = 0; i < 6; i++) {
+      w.schedule(i * 0.12, () => {
+        if (!f.alive) return;
+        w.effects.rings.spawn(f.pos, {
+          from: 1, to: u.radius * 2, dur: 0.55, color: 0x9ade2a, y: 0.8 + i * 0.6,
+        });
+      });
+    }
+    w.schedule(0.25, () => {
+      if (!f.alive) return;
+      w.effects.addShake(0.8);
+      const caught = [];
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || f.isAllyOf(e)) continue;
+        if (Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z)) < u.radius) {
+          caught.push(e);
+          w.effects.impactSparks(e.center(), 0x9ade2a, 8, 6);
+        }
+      }
+      const P = u.paralyze || 2.2;
+      let t = 0;
+      w.addUpdater((dt) => {
+        t += dt;
+        if (t < P) {
+          for (const e of caught) {
+            if (!e.alive || e.state === 'launched' || e.state === 'frozen') continue;
+            e.setState('hitstun', 0.3); // re-pinned every frame: paralyzed
+            e.vel.x = 0;
+            e.vel.z = 0;
+            // the whole frame VIBRATES with the resonance
+            if (Math.random() < 0.8) {
+              e.animator.addImpulse('torso', [rand(-0.28, 0.28), rand(-0.1, 0.1), rand(-0.28, 0.28)], 52, 9);
+            }
+            if (Math.random() < 0.15) {
+              w.effects.glows.emit(e.pos.x + rand(-1, 1), e.pos.y + rand(1, e.height), e.pos.z + rand(-1, 1),
+                0, 1, 0, { life: 0.2, size: 0.8, color: 0x9ade2a, alpha: 0.8 });
+            }
+          }
+          return true;
+        }
+        // release: the banked resonance detonates in every seized frame
+        for (const e of caught) {
+          if (!e.alive) continue;
+          e.takeHit(u.dmg * f.dmgMult(), f, {
+            knock: 16, launch: 9, srcPos: f.pos, heavy: true,
+          });
+          w.effects.explosion(e.center(), 2.6, { color: 0x9ade2a, smoke: false });
+        }
+        if (caught.length) {
+          w.audio?.play('explosionBig');
+          w.effects.addShake(1.0);
+        }
+        return false;
+      });
+    });
+  },
+
+  // JERRY: the colony stops pretending — twenty of him spring off in every
+  // direction and ricochet around like fleas, biting whatever they land on
+  fleaCircus(f, u) {
+    const w = f.world;
+    f.setState('ult', 1.0);
+    f.duckT = 1; // the spring-crouch tell
+    w.audio?.play('powerup');
+    w.schedule(0.25, () => {
+      if (!f.alive) return;
+      f.vel.y = 14;
+      f.grounded = false;
+      w.audio?.play('jump');
+      const N = u.count || 20;
+      const clones = [];
+      for (let i = 0; i < N; i++) {
+        const g = bakeShell(f);
+        g.scale.setScalar(rand(0.55, 0.8));
+        g.position.set(f.pos.x + rand(-1.5, 1.5), 0, f.pos.z + rand(-1.5, 1.5));
+        const yaw = rand(TAU);
+        const sp = rand(6, 14);
+        w.scene.add(g);
+        clones.push({
+          g, yaw, vx: Math.sin(yaw) * sp, vz: Math.cos(yaw) * sp, vy: rand(9, 17),
+        });
+      }
+      const hitAt = new Map(); // circus-wide bite cadence per victim
+      let t = 0;
+      w.addUpdater((dt) => {
+        t += dt;
+        for (const c of clones) {
+          c.vy -= 34 * dt;
+          c.g.position.x += c.vx * dt;
+          c.g.position.y += c.vy * dt;
+          c.g.position.z += c.vz * dt;
+          c.g.rotation.y = c.yaw;
+          c.g.rotation.x = clamp(-c.vy * 0.018, -0.35, 0.5); // pitches with the hop
+          if (c.g.position.y <= 0) {
+            // touch down, re-aim (biased at the nearest victim), spring again
+            c.g.position.y = 0;
+            const prey = nearestEnemyTo(f, c.g.position.x, c.g.position.z);
+            c.yaw = prey
+              ? Math.atan2(w.wrapDelta(prey.pos.x - c.g.position.x), w.wrapDelta(prey.pos.z - c.g.position.z)) + rand(-0.7, 0.7)
+              : rand(TAU);
+            const sp = rand(7, 15);
+            c.vx = Math.sin(c.yaw) * sp;
+            c.vz = Math.cos(c.yaw) * sp;
+            c.vy = rand(9, 17);
+            if (Math.random() < 0.35) w.effects.dustPuff(c.g.position, 1, 0x9a8f80);
+            if (Math.random() < 0.1) w.audio?.play('jump', { vol: 0.25, pitch: rand(1.2, 1.8) });
+          }
+          // a body to bump is a body to bite
+          for (const e of w.fighters) {
+            if (e === f || !e.alive || f.isAllyOf(e)) continue;
+            if (t - (hitAt.get(e) ?? -9) < 0.22) continue;
+            const dx = w.wrapDelta(e.pos.x - c.g.position.x), dz = w.wrapDelta(e.pos.z - c.g.position.z);
+            if (dx * dx + dz * dz < (e.hitRadius + 1.1) ** 2 &&
+                c.g.position.y < e.pos.y + e.height && c.g.position.y + 2 > e.pos.y) {
+              hitAt.set(e, t);
+              e.takeHit(u.dmg * f.dmgMult(), f, {
+                knock: 6, srcPos: c.g.position, soft: Math.random() < 0.6,
+              });
+              w.effects.impactSparks(e.center(), 0xc86a4a, 7, 7);
+            }
+          }
+        }
+        return t <= (u.duration || 6) && f.alive;
+      }, () => {
+        for (const c of clones) w.scene.remove(c.g);
+      });
+    });
+  },
+
+  // NULLBOT: SYSTEM CRASH — the ARENA ITSELF stops rendering right. Ground,
+  // buildings, sky: everything re-decodes in blocky streaks of wrong color,
+  // and every so often the floor simply fails under an opponent — they drop
+  // through the world and re-enter from the sky, hard.
+  systemCrash(f, u) {
+    const w = f.world;
+    const dur = f.animator.play('burst', {
+      onEvent: (tt) => {
+        if (tt !== 'fire') return;
         w.audio?.play('explosionBig');
         w.audio?.play('zap');
         w.effects.glitchBurst(f.center(), 40, 16, 1.4 * f.scale);
-        const RING_COLORS = [0xff2038, 0x27f6ff, 0xff2df2];
-        for (let i = 0; i < 3; i++) {
-          w.schedule(i * 0.14, () => {
-            if (!f.alive) return;
-            w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * (1.1 + i * 0.5), dur: 0.5, color: RING_COLORS[i], y: 0.5 });
-            // square data-shards raining over the whole blast zone
-            for (let k = 0; k < 14; k++) {
-              const a = rand(Math.PI * 2), r = rand(1, u.radius);
-              w.effects.glitchFleck(f.pos.x + Math.cos(a) * r, rand(0.5, 6), f.pos.z + Math.sin(a) * r, 1.6);
+        w.effects.addShake(1.2);
+        // corrupt the renderer: harvest every arena material we can reach
+        const mats = new Map(); // mat -> original {color, emissive, ei}
+        const roots = [...(w.arena?.objects || [])];
+        if (w.arena?.propGroup) roots.push(w.arena.propGroup);
+        if (w.arena?.destructo?.mesh) roots.push(w.arena.destructo.mesh);
+        for (const root of roots) {
+          root.traverse?.((o) => {
+            if (!o.isMesh) return;
+            for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+              if (m && m.color && !mats.has(m)) {
+                mats.set(m, {
+                  color: m.color.clone(),
+                  emissive: m.emissive ? m.emissive.clone() : null,
+                  ei: m.emissiveIntensity,
+                });
+              }
             }
           });
         }
-        w.explode(f.pos, u.radius, u.dmg * f.dmgMult(), {
-          owner: f, knock: u.knock, color: 0xff2df2, launch: 9,
-          status: { glitch: 3, slow: 0.6, slowT: 2 },
-        });
-        w.effects.addShake(1.2);
-      },
-    });
-    f.setState('ult', dur);
-    f.iframes = dur;
-  },
-
-  // GLACIER: freeze everything nearby
-  absoluteZero(f, u) {
-    const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
-        const w = f.world;
-        w.audio?.play('freezeBig');
-        w.effects.rings.spawn(f.pos, { from: 1, to: u.radius * 2, dur: 0.7, color: 0x9be8ff, y: 0.5 });
-        for (let i = 0; i < 30; i++) {
-          const a = rand(Math.PI * 2), r = rand(2, u.radius);
-          w.effects.glows.emit(f.pos.x + Math.cos(a) * r, rand(0.5, 5), f.pos.z + Math.sin(a) * r,
-            0, rand(1, 3), 0, { life: rand(0.5, 1), size: rand(1.5, 3), color: 0xaef0ff, alpha: 0.8 });
-        }
-        for (const e of w.fighters) {
-          if (e === f || !e.alive) continue;
-          if (e.pos.distanceTo(f.pos) < u.radius) {
-            e.takeHit(u.dmg * f.dmgMult(), f, { knock: 4, srcPos: f.pos, status: { freeze: u.freezeTime } });
+        const GLITCH_COLORS = [0xff2df2, 0x27f6ff, 0xffe93c, 0x39ff5a, 0xff2038, 0x2438ff, 0xffffff, 0x101010];
+        const DUR = u.duration || 7;
+        const falls = []; // {v, t, phase}
+        let t = 0, scramT = 0, fallT = 0.7;
+        w.addUpdater((dt) => {
+          t += dt;
+          // the whole world re-decodes wrong, over and over
+          scramT -= dt;
+          if (scramT <= 0) {
+            scramT = rand(0.09, 0.22);
+            for (const [m, base] of mats) {
+              if (Math.random() < 0.45) {
+                m.color.setHex(GLITCH_COLORS[(Math.random() * GLITCH_COLORS.length) | 0]);
+                if (m.emissive) {
+                  m.emissive.setHex(GLITCH_COLORS[(Math.random() * GLITCH_COLORS.length) | 0]);
+                  m.emissiveIntensity = rand(0.15, 0.8);
+                }
+              } else {
+                m.color.copy(base.color);
+                if (m.emissive && base.emissive) {
+                  m.emissive.copy(base.emissive);
+                  m.emissiveIntensity = base.ei;
+                }
+              }
+            }
+            // square data-tears strobing all over the block
+            for (let k = 0; k < 4; k++) {
+              w.effects.glitchFleck(
+                f.pos.x + rand(-40, 40), rand(0.5, 14), f.pos.z + rand(-40, 40), rand(1.2, 2.6));
+            }
+            if (Math.random() < 0.2) w.audio?.play('zap', { vol: 0.3 });
           }
-        }
-        w.effects.addShake(0.9);
+          // floor de-rez: an opponent falls through the world...
+          fallT -= dt;
+          if (fallT <= 0 && t < DUR - 2) {
+            fallT = rand(1.0, 1.8);
+            const pool = w.fighters.filter((e) =>
+              e !== f && e.alive && !f.isAllyOf(e) && e.grounded && !falls.some((fl) => fl.v === e));
+            if (pool.length) {
+              const v = pool[(Math.random() * pool.length) | 0];
+              falls.push({ v, t: 0, phase: 'void' });
+              w.effects.glitchBurst(v.center(), 18, 9, v.scale);
+              w.audio?.play('zap');
+              v.group.visible = false; // gone through the floor
+              v.setState('launched', 4);
+              v.iframes = 0.6;
+            }
+          }
+          for (let i = falls.length - 1; i >= 0; i--) {
+            const fl = falls[i];
+            const v = fl.v;
+            fl.t += dt;
+            if (!v.alive) {
+              v.group.visible = true;
+              falls.splice(i, 1);
+              continue;
+            }
+            if (fl.phase === 'void') {
+              v.vel.set(0, 0, 0);
+              if (fl.t > 0.55) {
+                // ...and the sky spits them back out
+                fl.phase = 'sky';
+                v.group.visible = true;
+                v.pos.y = 40;
+                v.vel.set(rand(-3, 3), 0, rand(-3, 3));
+                v.grounded = false;
+                v.setState('launched', 4);
+                w.effects.glitchBurst(v.center(), 14, 8, v.scale);
+              }
+            } else if (v.grounded) {
+              v.takeHit(u.dmg * f.dmgMult(), f, {
+                knock: 4, srcPos: _v.set(v.pos.x, -2, v.pos.z), status: { glitch: 1 },
+              });
+              w.effects.glitchBurst(v.center(), 12, 7, v.scale);
+              w.effects.addShake(0.5);
+              falls.splice(i, 1);
+            }
+          }
+          return t <= DUR || falls.length > 0;
+        }, () => {
+          for (const [m, base] of mats) {
+            m.color.copy(base.color);
+            if (m.emissive && base.emissive) {
+              m.emissive.copy(base.emissive);
+              m.emissiveIntensity = base.ei;
+            }
+          }
+          for (const fl of falls) fl.v.group.visible = true;
+        });
       },
     });
     f.setState('ult', dur);

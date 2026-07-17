@@ -42,10 +42,18 @@ export class World {
     this.tasks = [];        // {t, fn}
     this.firePatches = [];  // {pos, radius, t, dps, owner, flame}
     this.geysers = [];      // live GeyserFX instances (CRANKY's special)
+    this.tornados = [];     // {fx, owner, dmg, radius, burn, tick, patch}
+    this.waves = [];        // {fx} live TidalWaveFX walls (CRANKY's tsunami)
     this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.debris = [];       // finisher wreckage (frozen rubble): cleared each round
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
+    // per-frame ultimate entities (orbit swarms, tornadoes, giant forms...):
+    // {tick(dt) -> false when done, end()} — end() ALWAYS runs (natural
+    // finish, finisher interrupt, or round sweep), so cleanup lives there
+    this.updaters = [];
+    // summoned AI fighters (SAURION's raptors): {f, ai, t, linger}
+    this.minions = [];
     this.time = 0;
     // toroidal arena: coordinates wrap at ±wrapHalf on X and Z (0 = off).
     // Set from the arena in bind(); all combat queries use nearest-image
@@ -118,6 +126,45 @@ export class World {
 
   schedule(delay, fn) {
     this.tasks.push({ t: this.time + delay, fn });
+  }
+
+  // register a per-frame driver for a live combat entity. tick(dt) returns
+  // false when the entity is finished; end() is the cleanup (scene removal,
+  // material restore) and is guaranteed to run exactly once.
+  addUpdater(tick, end = null) {
+    this.updaters.push({ tick, end });
+  }
+
+  endUpdaters() {
+    for (let i = this.updaters.length - 1; i >= 0; i--) {
+      const u = this.updaters[i];
+      if (u && !u.ended) { u.ended = true; u.end?.(); }
+    }
+    this.updaters.length = 0;
+  }
+
+  // ---- summoned fighters (they join world.fighters but never the match
+  // roster, so rounds/KO logic ignore them) ----
+  addMinion(fighter, ai, life = 15) {
+    this.fighters.push(fighter);
+    this.minions.push({ f: fighter, ai, t: life, linger: 1.4 });
+  }
+
+  removeMinion(fighter, silent = false) {
+    const i = this.minions.findIndex((m) => m.f === fighter);
+    if (i >= 0) this.minions.splice(i, 1);
+    const j = this.fighters.indexOf(fighter);
+    if (j >= 0) this.fighters.splice(j, 1);
+    this.scene.remove(fighter.group);
+    if (!silent) {
+      this.effects.rings.spawn(fighter.pos, { from: 3, to: 0.5, dur: 0.35, color: 0xff3826, y: 1 });
+      this.effects.impactSparks(fighter.center(), 0xff3826, 10, 7);
+      this.audio?.play('cloak');
+    }
+  }
+
+  clearMinions(silent = true) {
+    for (let i = this.minions.length - 1; i >= 0; i--) this.removeMinion(this.minions[i].f, silent);
   }
 
   // ---- ammo crates: every mech's ranged weapon runs on ammo now ----
@@ -203,12 +250,39 @@ export class World {
         fn();
       }
     }
+    // summoned minions think first (their bodies move in the fighters pass)
+    for (let i = this.minions.length - 1; i >= 0; i--) {
+      const m = this.minions[i];
+      if (!m) continue; // a KO handler may sweep the list mid-walk
+      if (m.f.alive && m.t > 0) {
+        m.t -= dt;
+        m.ai.update(dt);
+        if (m.t <= 0) this.removeMinion(m.f); // time's up: de-rez
+      } else if (!m.f.alive) {
+        m.linger -= dt; // dead: let the wreck sit a beat, then sweep it
+        if (m.linger <= 0) this.removeMinion(m.f);
+      }
+    }
+
     for (const f of this.fighters) f.update(dt);
     this.projectiles.update(dt);
     this.fleas.update(dt);
     this.effects.update(dt);
     this.arena?.update(dt);
     this.updatePickups(dt);
+
+    // live ultimate entities (post-physics so they see settled positions).
+    // A tick can cascade into clearTransient (a KO handler resetting the
+    // round), which empties this list mid-walk — hence the guards.
+    for (let i = this.updaters.length - 1; i >= 0; i--) {
+      const u = this.updaters[i];
+      if (!u || u.ended) continue;
+      if (u.tick(dt) === false) {
+        const j = this.updaters.indexOf(u);
+        if (j >= 0) this.updaters.splice(j, 1);
+        if (!u.ended) { u.ended = true; u.end?.(); }
+      }
+    }
 
     // geysers run their own lifecycle (telegraph -> erupt -> collapse);
     // combat geysers ({owner, dmg}) also SCALD: anyone standing in the
@@ -231,7 +305,45 @@ export class World {
         if (Math.hypot(dx, dz) < g.radius * 0.55 + v.hitRadius * 0.5) {
           v.takeHit(g.dmg * 0.2 * g.owner.dmgMult(), g.owner,
             { knock: 3, launch: g.launch * 0.55, srcPos: g.fx.pos, soft: true });
+          v.applySoak?.(2.4); // drenched: dripping frame, half speed
           this.effects.splash(v.center(), 6, 5, 1);
+        }
+      }
+    }
+
+    // tidal waves roll until they collapse into foam at the end of the run
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      if (!this.waves[i].fx.update(dt)) {
+        this.waves[i].fx.dispose();
+        this.waves.splice(i, 1);
+      }
+    }
+
+    // fire tornados roam, scorch whoever they touch, and torch the ground
+    for (let i = this.tornados.length - 1; i >= 0; i--) {
+      const n = this.tornados[i];
+      if (!n.fx.update(dt)) {
+        n.fx.dispose();
+        this.tornados.splice(i, 1);
+        continue;
+      }
+      if (!n.owner || n.fx.env < 0.4) continue;
+      n.patch -= dt;
+      if (n.patch <= 0) { // burning trail along the wander path
+        n.patch = 1.1;
+        this.addFirePatch(n.owner, n.fx.pos.clone().setY(0), 2, 3, 8);
+      }
+      n.tick -= dt;
+      if (n.tick > 0) continue;
+      n.tick = 0.5;
+      for (const v of this.fighters) {
+        if (v === n.owner || !v.alive) continue;
+        const dx = this.wrapDelta(v.pos.x - n.fx.pos.x), dz = this.wrapDelta(v.pos.z - n.fx.pos.z);
+        if (Math.hypot(dx, dz) < n.radius + v.hitRadius * 0.5) {
+          v.takeHit(n.dmg * n.owner.dmgMult(), n.owner, {
+            knock: 6, launch: 10, srcPos: n.fx.pos, soft: true,
+            status: { burn: n.burn || 8, burnT: 2.5 },
+          });
         }
       }
     }
@@ -701,15 +813,25 @@ export class World {
 
 
   startFinisher(winner, victim, onDone) {
+    // the cinematic owns the stage: sweep live ult entities and summons so
+    // nothing keeps hitting (or upstaging) the two actors
+    this.endUpdaters();
+    this.clearMinions();
     this.finisher = new Finisher(this, winner, victim, onDone);
   }
 
   clearTransient() {
     this.tasks.length = 0;
+    this.endUpdaters();
+    this.clearMinions();
     for (const p of this.firePatches) p.flame.dispose();
     this.firePatches.length = 0;
     for (const g of this.geysers) g.fx.dispose();
     this.geysers.length = 0;
+    for (const n of this.tornados) n.fx.dispose();
+    this.tornados.length = 0;
+    for (const wv of this.waves) wv.fx.dispose();
+    this.waves.length = 0;
     for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
     this.flameJets.clear();
     for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);

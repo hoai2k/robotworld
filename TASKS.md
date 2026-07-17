@@ -1749,7 +1749,218 @@ controllers via Gamepad API), AI opponents.
   shield 1.75x smash, 2 stuck quills, cyclone spin, overhand javelin;
   warmup framed COLOSSUS whole.
 
-80. AEGIS THROW/BASH POLISH · SLOT SELECTOR (user feedback) ✅
+## Phase 14 — Ultimates deep pass (user request, 2026-07-17)
+
+- **All 17 ultimates redesigned** as big area statements (specials.js ULTS
+  rewritten; roster ult params + AI self-AoE gating updated to match):
+  · TITANUS Meteor Breaker: sky-reach, then 14 burning rocks hammer a wide
+    zone ahead — each a fire blast that leaves burning craters.
+  · VULCAN Bullet Hurricane: torso-spin sprays 100 rounds into ORBIT around
+    him; the whirlwind rides along until an enemy strays close, then every
+    round folds onto them over one last rotation.
+  · AEGIS Judgement: 10 light beams up from the spear, "JUDGEMENT . . ."
+    spelled out on the banner, then a 50/50 verdict — GUILTY is a pillar of
+    light that lifts and erases the victim (uncredited kill, no finisher);
+    INNOCENT does nothing.
+  · VIPER Serpent Storm: coil + leap; 60 snakes burst out radially and
+    slither down the prey — first fang pins them (refreshed hitstun) while
+    the brood piles on.
+  · NOVA Supernova: white flash, sun swells to 2x her height, collapses to
+    half her size, detonates across a huge radius (caster immune).
+  · RHINO Stampede: 10-strong baked-shell herd charges the line, trampling
+    (herd-wide per-victim hit window) and wrecking facades.
+  · TEMPEST Thunderfall: black cloud deck descends over a 15u zone around
+    him; everyone inside eats 5 strikes/sec for ~2.6s.
+  · FENRIR Wild Hunt: one howl, then 20 crouch-pitched Fenrir shells gallop
+    every which way through a 20u zone, biting on contact.
+  · COLOSSUS Colossal Form: grows to 4x height for 9s — walks through the
+    fight crushing contacts, cracking buildings, thunder footfalls.
+  · WRAITH Death Gaze: eye swells red, pours a widening searchlight cone;
+    whoever it catches gets the narrowed eye-to-face killing beam.
+  · INFERNO Fire Tornado: wandering, growing flame funnel that belches fire
+    patches and hurls its first catch into the sky.
+  · GLACIER Absolute Zero: flash-freezes a 14u sheet ahead; enemies on it
+    whiteout, chip-tick, and skate (new `slip` status: traction 9 -> 1.1).
+  · CRANKY Tsunami: curled water wall rises behind him and sweeps 48u
+    forward, one heavy carried hit per victim, wrecks props.
+  · SAURION Raptor Pack: 3 real AI ('ace') Saurion clones — world.minions
+    with owner alliance (no friendly fire, excluded from rounds/finishers,
+    can't ult) — fight for 18s or until killed.
+  · FROGGER Sonic Croak: croak blast paralyzes everything in 15u (per-frame
+    re-pinned hitstun + servo shudder), damage lands on release.
+  · JERRY Flea Circus: 20 baked Jerry shells ricochet around like fleas,
+    biting on bump.
+  · NULLBOT System Crash: the ARENA de-rezzes — all reachable arena
+    materials scramble to blocky wrong colors for 7s; enemies randomly fall
+    through the floor and re-enter from the sky, taking landing damage.
+- **Infra:** world.addUpdater(tick,end) per-frame entity driver with
+  guaranteed cleanup (round sweep + finisher interrupt + re-entrancy safe);
+  world minion registry; fighter allyOf/isMinion; hud 'banner' event;
+  wraith `eye` anchor; bakeShell() pose-baked clone helper.
+- **Meter:** ult charge fills 2x faster (all four gain sites).
+- **Debug:** `?debug=ultimates` — humans and AI fire ults without charge.
+- **Tooling:** tools/ultshot.mjs — pins both bots, force-fires P1's ult,
+  fast-forwards the world synchronously, screenshots at frame marks.
+- Verified: build green; ace ult-spam soaks of all 12+5 matchups (2P + 4P)
+  crash-free incl. raptor-minion rounds; normal-mode soak green; screenshots
+  of all 17 ults VIEWED (meteors falling + craters burning, orbit swarm,
+  judgement beams + guilty rapture, snake brood + pinned prey, sun swell,
+  herd of 10, storm strikes, wolf pack of 20, 4x giant, red gaze beam,
+  tornado launch, white sheet + slipping, wave wall mid-sweep, 3 raptors
+  brawling, croak rings + paralysis, 20 hopping jerries, hot-pink corrupted
+  city + sky re-entry).
+
+## Phase 14b — Settings menu + Infinite Ultimates toggle (2026-07-17)
+
+- New SettingsScreen (menus.js): modal panel that floats over any screen,
+  keyboard/pad/mouse/touch navigable, relabeling toggle rows.
+- Entry points: ⚙️ gear button beside the 🔊 button (bottom-right, hidden
+  during live combat like the mute button), and a SETTINGS item in the
+  pause menu.
+- Settings inside: SOUND ON/OFF (moved out of the pause menu) and
+  INFINITE ULTIMATES ON/OFF — persisted to localStorage (rw.infiniteUlts)
+  via setInfiniteUltimates(); flips CONFIG.debugUltimates live, so it takes
+  effect mid-match. ?debug=ultimates still forces it for a session.
+- FULLSCREEN and the SPLIT layout toggle stay at their existing top-level
+  spots (title + pause menus).
+- Verified: build green; E2E probes — gear opens panel on the title screen,
+  click-toggle flips the label and persists to localStorage, ESC closes;
+  full keyboard flow into a battle, pause → SETTINGS opens the panel over
+  the pause menu, ESC returns to the pause menu with the battle still
+  paused. Screenshots VIEWED.
+
+## Phase 14c — Ultimate refinements round 2 (user request, 2026-07-17)
+
+- VIPER Serpent Storm: snakes 2x wider / 2.3x longer; every bite now also
+  injects VENOM — a new `poison` status (burn-style drain with green
+  weeping-mote FX instead of flames), refreshed per bite.
+- NOVA Supernova: the star has GRAVITY — enemies inside ~2.6x radius are
+  dragged toward the core through the swell (22/s²) and harder through the
+  collapse (52/s²), with infall streak FX; the final detonation radius
+  DOUBLED (u.radius * 2).
+- WRAITH Death Gaze: the searchlight now keeps hunting until it catches
+  someone (12s failsafe cap; ends early if nobody's left), holding his ult
+  lock alive per-frame; AI sweeps the light onto prey. The caught victim
+  GLOWS furnace-red (pulsing whole-body tint) for the whole burn, restored
+  cleanly after (updater end()). Damage 250 -> 330.
+- COLOSSUS Colossal Form: cameras zoom out to match the 4x frame — combined
+  cam grows framing radius/center/dist caps by the giant factor
+  (scale / body.scale, so normal fights are untouched), split chase cams
+  scale their whole envelope; and giant strikes now aim the hit sphere at
+  the VICTIM's level (or street level) instead of his towering mid-chest,
+  so near-misses at 4x don't whiff clean over everyone's head.
+- TITANUS Meteor Breaker: every rock in a volley now rides one shared
+  storm wind — slanted entry from a single quarter of the sky (~30°
+  descent) instead of vertical drops.
+- Verified: build green; ace ult-spam soaks of the five affected matchups
+  crash-free; screenshots VIEWED (slanted meteor streaks from one quarter,
+  fat green snake brood, victim red-hot under the gaze beam then restored,
+  whole 4x giant framed with viper at his feet, viper dragged 14u into the
+  supernova core); scripted probe confirms giant punch (59) and slam (112)
+  connect on a street-level target.
+
+78. TIDAL WAVE + FIRE TORNADO PROTOTYPES (user request — ult candidates) ⏳
+  · src/combat/wavefx.js: TidalWaveFX — breaking-wave WALL (research:
+    waves are trochoid-profile meshes, foam driven by steepness, never
+    particles): ring-sector wall expanding outward; vertex shader builds
+    the profile (forward toe, concave face, crest lip hooking over) with
+    a noise-ragged crest line; frag scrolls dual noise UP the face,
+    foams crest/toe/streaks, erodes the lip into fingers. A churned
+    "flood" disc of scrolling foam fills the ring interior. Particles:
+    crest spray thrown forward, toe churn, mist, wet foam trail decals.
+  · src/combat/nadofx.js: FireTornadoFX — fire whirl (research: nested
+    tapered cylinders with HELICAL noise pan + vertex wobble): two
+    counter-rate shells, funnel profile (tight waist, flared top), axis
+    sway figure-eight, whole funnel ROAMS (wander); FlameFX gradient +
+    erosion (solid subtraction floor keeps the waist orange, not white);
+    ember spiral on tangential velocities, FlameFX burning base, smoke
+    crown flung off the flare. NORMAL blending (daylight lesson).
+  · ?ultfx=wave / ?ultfx=nado demo pages (cycle, &t warp+freeze, &orbit=0).
+  NOT wired into RIPTIDE / Inferno's ult yet — awaiting user judgment.
+  Verified: build green; stills + GIFs reviewed over 3 tuning rounds.
+
+80. INFERNO ULT = ROAMING FIRE TORNADO + TSUNAMI MODE (user request) ✅/⏳
+  · INFERNO ULT (merged with the concurrent FIRE TORNADO gameplay from
+    the ults-refinement branch): their hunt/sweep design (funnel chases
+    the nearest enemy, grows, swallows the catch and spirals them into
+    the sky, fire-patch trail, arena damage) now DRIVEN through a
+    FireTornadoFX — helical shader shells + ember spiral + burning base
+    replace the old glow-ribbon particles. Funnel height caps at 3x
+    Inferno's height; FX lifecycle owned by world.tornados (extinguish
+    on catch-throw/timeout/round sweep), steering via new setPose() and
+    live radius/height on FireTornadoFX.
+  · CRITICAL FIX found via the tsunami: WAVE_VERT and NADO_VERT built
+    local positions but used viewMatrix without the model transform —
+    both meshes rendered at the WORLD ORIGIN when spawned anywhere else
+    (demos at 0,0,0 masked it; in-battle tornados would have broken).
+    Both now use modelViewMatrix.
+  · TidalWaveFX TSUNAMI mode (?ultfx=tsunami, prototype — awaiting user
+    judgment): dir+width opts turn the ring into ONE straight wall
+    travelling along dir — mid-front bows forward, flood becomes a
+    rectangle dragged behind the front, all emitters go front-relative.
+  Verified: build green; inferno-vs-cranky ace soak crash-free (2 KOs);
+  battle probe: funnel at 20.2u over the mechs, roaming, patches trail;
+  tsunami stills reviewed (bowed crest wall + flood swallowing rocks).
+
+## Phase 14d — Ultimate tuning round 3 (user request, 2026-07-17)
+
+- VULCAN Bullet Hurricane: orbit radius 2.5x (8-16.5u ring) with the strike
+  trigger widened to match (17.5u) — the whirlwind owns the whole street.
+- GLACIER Absolute Zero: the ice sheet is now PERMANENT — it stays down
+  until the round ends (cleanup via the round sweep / finisher interrupt),
+  even if Glacier falls. Anyone (non-ally) stepping onto it flash-FREEZES
+  for ~0.65s while their body whites out, then thaws INTO the slide, still
+  carrying the horizontal momentum they entered with (slip status = glass
+  traction); stepping off grants a 2.2s grace before re-entry re-freezes.
+  Cold damage ticks unchanged.
+- FROGGER Sonic Croak: radius doubled (15 -> 30).
+- Verified: build green; ace ult-spam soaks (vulcan/viper, glacier/rhino,
+  frogger/jerry) crash-free incl. finisher interrupts of the permanent
+  sheet; screenshots VIEWED (block-wide bullet ring, rhino frozen solid
+  white on the sheet, double-size croak rings).
+
+81. TSUNAMI ULT GETS THE WAVE SIM + SOAKED DEBUFF (user request) ✅
+  · CRANKY's TSUNAMI ult (merged gameplay from the ults-refinement
+    branch: one hard front hit + downrange carry, arena wreckage, foam
+    collapse) now renders through TidalWaveFX tsunami mode — breaking
+    profile wall, foam-by-steepness, crest spray, feathered flood sheet
+    (new soft-edge alphaMap) dragged behind the front. world.waves owns
+    the FX lifecycle; the gameplay updater integrates the same travel.
+  · SOAKED debuff (fighter.applySoak): dripping-water status — beads
+    sheet off the whole frame, puddles pool underfoot — and HALF SPEED
+    (speedMult 0.5) while active. FROGGER / GLACIER / CRANKY are immune
+    (water/ice frames). Applied by: the tsunami front hit (2.6s), wading
+    in the trailing floodwater (refreshed 2.2s while in the lane behind
+    the front), the geyser blowout hit (2.4s), and every geyser scald
+    tick (2.4s).
+  Verified: build green; cranky-vs-titanus and cranky-vs-frogger (immune
+  path) ace soaks crash-free; battle probe: wave rolls, titanus soaked
+  with speedMult 0.5; demo still reviewed (feathered flood edges).
+
+## Phase 14e — Serpent Storm hunt fix + latch rework (user request, 2026-07-17)
+
+- ROOT CAUSE of "snakes don't seek or damage": angleDiff(a, b) returns
+  b - a (the turn FROM a TO b); the seek steer passed the args backwards
+  (angleDiff(want, s.a) added to s.a), so every snake steered AWAY from its
+  prey at max turn rate. Same latent inversion fixed in RHINO's bullRush
+  AI steer. Plus the old strike needed a 1.2u contact with a 4 rad/s turn
+  cap at 12 u/s (turning circle ~3u) — snakes ORBITED moving targets.
+- Rework per spec: fly out -> WANDER/spread for the first 2s -> HUNT the
+  nearest enemy (9 rad/s pursuit, speeds up to 15) -> within ~4u LEAP at
+  the face/upper body (tracked airborne strike, nose-down) -> FANGS IN:
+  bite dmg + venom on impact, then the snake STAYS LATCHED to that spot on
+  the body (thrashing tail, head buried) for 2.4-3.8s before dissolving.
+  Whiffed leaps drop back into the hunt. The brood no longer times out at
+  7s — it prowls until every snake has bitten and expired, nobody is left
+  to hunt, or the round sweeps it (60s failsafe); it also outlives Viper.
+  Venom pin is now per-victim (u.paralyze window from their first latch).
+- Verified: build green; scripted probe vs a STRAFING titanus — spread at
+  2s, closed from 17.7u, 34-47 snakes latched to the upper body, hp
+  1250 -> 963 with poison + pin, clean expiry and updater teardown at 12s;
+  screenshots VIEWED (leap swarm mid-air, drained target); ace soaks
+  (viper/titanus, viper/rhino) crash-free.
+
+82. AEGIS THROW/BASH POLISH · SLOT SELECTOR (user feedback) ✅
   · Javelin throw rebuilt from real javelin form: the grip flips to the
     flat overhand carry (arm extended straight back at shoulder height,
     body coiled side-on, lance held LEVEL on the target line), then the

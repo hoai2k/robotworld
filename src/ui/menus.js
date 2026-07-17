@@ -771,11 +771,11 @@ export class ArenaSelectScreen {
       s++;
       if (s >= seq.length) {
         this.audio?.play('uiSelect');
-        this._rollT = setTimeout(() => this.onDone(THEMES[target - 1].id), 450);
+        this._rollT = setTimeout(() => this.onDone(THEMES[target - 1].id), 225);
         return;
       }
       const f = s / seq.length;
-      this._rollT = setTimeout(step, 34 + 280 * f * f * f); // fast → hard ease-out
+      this._rollT = setTimeout(step, 17 + 140 * f * f * f); // fast → hard ease-out
     };
     step();
   }
@@ -797,7 +797,7 @@ export class ArenaSelectScreen {
 
 // ---------------- PAUSE ----------------
 export class PauseScreen {
-  constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null, soundToggle = null }) {
+  constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null, onSettings = null }) {
     this.audio = audio;
     this.el = el('div', 'screen dim fade-in');
     this.el.innerHTML = `<div class="mega-title pause-title">PAUSED</div>`;
@@ -822,7 +822,7 @@ export class PauseScreen {
       });
     };
     addToggle(splitToggle, 'split');
-    addToggle(soundToggle, 'sound');
+    if (onSettings) this.items.push({ t: 'SETTINGS', fn: onSettings });
     this.items.push({ t: 'QUIT TO MENU', fn: onQuit });
     this.sel = 0;
     this.itemEls = this.items.map((it, i) => {
@@ -862,6 +862,57 @@ export class PauseScreen {
     if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.confirm) this.confirm();
     if (ev.back || ev.pause) this.items[0].fn();
+  }
+  destroy() { this.el.remove(); }
+}
+
+// ---------------- SETTINGS ----------------
+// Modal settings panel: floats over whatever is beneath it (title screen,
+// select screens, or the pause menu) and owns menu input while open.
+// `items` are relabeling toggles: { label(), fn() } — the row re-labels in
+// place on each activation and the panel stays open.
+export class SettingsScreen {
+  constructor(root, { audio, items, onBack }) {
+    this.audio = audio;
+    this.onBack = onBack;
+    this.el = el('div', 'screen dim fade-in');
+    this.el.style.zIndex = 30;
+    this.el.style.background = 'rgba(5, 8, 14, 0.86)'; // hide the menu beneath
+    this.el.innerHTML = `<div class="mega-title pause-title">SETTINGS</div>`;
+    this.menu = el('div', 'menu-list');
+    this.items = [
+      ...items.map((toggle) => ({
+        t: toggle.label(),
+        fn: () => {
+          toggle.fn();
+          const i = this.items.findIndex((it) => it.toggle === toggle);
+          this.items[i].t = toggle.label();
+          this.itemEls[i].textContent = this.items[i].t;
+        },
+        toggle,
+      })),
+      { t: 'BACK', fn: () => this.onBack() },
+    ];
+    this.sel = 0;
+    this.itemEls = this.items.map((it, i) => {
+      const e = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), it.t);
+      e.addEventListener('click', () => { this.sel = i; this.confirm(); });
+      e.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
+      this.menu.appendChild(e);
+      return e;
+    });
+    this.el.appendChild(this.menu);
+    appendTouchBack(this.el, () => { this.audio?.play('uiBack'); this.onBack(); });
+    root.appendChild(this.el);
+  }
+  refresh() { this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel)); }
+  confirm() { this.audio?.play('uiSelect'); this.items[this.sel].fn(); }
+  update(ev) {
+    const n = this.items.length;
+    if (ev.up) { this.sel = (this.sel + n - 1) % n; this.audio?.play('uiMove'); this.refresh(); }
+    if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
+    if (ev.confirm) this.confirm();
+    if (ev.back || ev.pause) { this.audio?.play('uiBack'); this.onBack(); }
   }
   destroy() { this.el.remove(); }
 }

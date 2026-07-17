@@ -196,8 +196,10 @@ export class CameraSystem {
       for (let i = 0; i < 8; i++) this._pts.push(new THREE.Vector3());
     }
     const pts = [];
+    let upperY = 0; // frame upper bodies, not waists
     for (let i = 0; i < framed.length && i < this._pts.length; i++) {
       const f = framed[i];
+      upperY += f.height * 0.75;
       const p = this._pts[i];
       if (soloRef && f !== soloRef && this.world.wrapHalf) {
         p.set(
@@ -213,11 +215,21 @@ export class CameraSystem {
     _center.set(0, 0, 0);
     for (const p of pts) _center.add(p);
     _center.divideScalar(pts.length);
-    _center.y += 4;
+    // giant factor: how far past its natural size the biggest framed mech
+    // is grown (COLOSSAL FORM). 1 in a normal fight — framing unchanged.
+    // (upperY already tracks the giant's inflated height, so the center
+    // rides up with him on its own.)
+    let giantF = 1;
+    for (const f of framed) {
+      giantF = Math.max(giantF, f.scale / (f.def.body.scale || 1));
+    }
+    _center.y += upperY / pts.length;
 
     let radius = 10;
-    for (const p of pts) {
-      radius = Math.max(radius, p.distanceTo(_center) + 6);
+    for (let i = 0; i < pts.length; i++) {
+      const gf = framed[i].scale / (framed[i].def.body.scale || 1);
+      const headroom = gf > 1.05 ? framed[i].height * 0.8 : 0; // fit the whole giant
+      radius = Math.max(radius, pts[i].distanceTo(_center) + 6 + headroom);
     }
     // Single human: bias framing toward them (Override-style) and swing the
     // camera BEHIND the player, looking toward the nearest enemy — a proper
@@ -236,7 +248,7 @@ export class CameraSystem {
       // the camera frames ONLY the player's mech — dead-center, always.
       // Enemies never pull the frame; the orbit azimuth alone turns the
       // view so the current threat tends to sit ahead of you.
-      _center.set(player.pos.x, player.pos.y + 4, player.pos.z);
+      _center.set(player.pos.x, player.pos.y + player.height * 0.75, player.pos.z);
       // LAZY FOLLOW, both ways: while running (velocity along the facing)
       // and the look control is idle, ease the orbit to the mech's BACK —
       // or, if they're charging AT the camera, hold the FRONT view instead
@@ -279,11 +291,12 @@ export class CameraSystem {
     }
 
     const fovHalf = (this.engine.camera.fov * Math.PI / 360);
-    let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95);
+    let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95 * giantF);
     // Solo: pull in close for an over-the-shoulder chase (the enemy stays
     // framed because the camera is directly behind the player, facing them).
     // Tight max — a distant enemy must not shrink YOUR mech into the void.
-    if (solo) wantDist = clamp(wantDist * 0.58, 22, 34);
+    // (A COLOSSAL-FORM giant in frame scales the whole envelope out.)
+    if (solo) wantDist = clamp(wantDist * 0.58, 22 * giantF, 34 * giantF);
     if (!this.init) this.dist = wantDist;
     this.dist = damp(this.dist, wantDist, 3, dt);
 
@@ -417,20 +430,22 @@ export class CameraSystem {
         }
       }
 
-      // stacked viewports are short — pull back a touch so mechs fit
-      const dist = vp.h < 0.75 && vp.w > 0.75 ? 25 : 22;
+      // stacked viewports are short — pull back a touch so mechs fit.
+      // A COLOSSAL-FORM giant needs the whole chase envelope scaled out.
+      const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+      const dist = (vp.h < 0.75 && vp.w > 0.75 ? 25 : 22) * gf;
       const el = ch.el;
       _v.set(
         Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)
       ).multiplyScalar(dist);
-      const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2, 0));
+      const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2 * gf, 0));
       // the chase cam tracks ONLY its own mech — opponents never pull the
       // frame; use the right stick to look around
       const lookAhead = _center.copy(f.pos);
-      lookAhead.y += 4.5;
-      // jet flight: keep the look target riding with the flyer so the mech
-      // doesn't graze the top of its viewport at altitude
-      lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
+      // aim at the mech's upper body/head; riding on f.pos.y also keeps the
+      // target with a flying mech, and f.height carries the COLOSSAL-FORM
+      // giant's inflated size automatically
+      lookAhead.y += f.height * 0.75;
 
       if (!ch.init) { ch.pos.copy(wantPos); ch.target.copy(lookAhead); ch.init = true; }
       ch.pos.x = damp(ch.pos.x, wantPos.x, 5, dt);

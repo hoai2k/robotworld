@@ -30,7 +30,7 @@ export const ROSTER = [
       heavy: { dmg: 105, knock: 38, range: 3.8, launch: 9 },
       ranged: { name: 'Rocket Fist', type: 'fist', dmg: 55, speed: 46, cooldown: 2.4, range: 42, knock: 14 },
       special: { id: 'grabThrow', name: 'Skyline Slam', cooldown: 8, dmg: 88, range: 4.2, throw: 32, radius: 5 },
-      ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 220, radius: 13, knock: 34 },
+      ult: { id: 'meteorBreaker', name: 'METEOR BREAKER', dmg: 62, count: 14, radius: 16, knock: 18 },
     },
   },
   {
@@ -52,7 +52,7 @@ export const ROSTER = [
       heavy: { dmg: 78, knock: 18, range: 3.2, launch: 7 },
       ranged: { name: 'Gatling Burst', type: 'gatling', dmg: 9, speed: 90, cooldown: 0.085, spread: 0.05, ammo: 160 },
       special: { id: 'missileVolley', name: 'Micro-Missile Volley', cooldown: 6.5, dmg: 22, count: 6 },
-      ult: { id: 'bulletHurricane', name: 'BULLET HURRICANE', dmg: 12, duration: 3.2 },
+      ult: { id: 'bulletHurricane', name: 'BULLET HURRICANE', dmg: 2.6, count: 100, duration: 9 },
     },
   },
   {
@@ -86,7 +86,7 @@ export const ROSTER = [
       heavy: { dmg: 88, knock: 20, range: 4.2, launch: 8 },
       ranged: { name: 'Dawn Javelin', type: 'spear', dmg: 46, speed: 46, cooldown: 1.2 },
       special: { id: 'shieldBash', name: 'Bulwark Bash', cooldown: 6, dmg: 60, knock: 22, guard: 2.2 },
-      ult: { id: 'judgment', name: 'JUDGMENT RAY', dmg: 200, radius: 8 },
+      ult: { id: 'judgment', name: 'JUDGEMENT', radius: 3.4 },
     },
   },
   {
@@ -118,7 +118,7 @@ export const ROSTER = [
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
       ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8 },
       special: { id: 'bladeCyclone', name: 'Blade Cyclone', cooldown: 6, dmg: 20 },
-      ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 24, hits: 8 },
+      ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 5, count: 60, paralyze: 2.4, poison: 8, poisonT: 3 },
     },
   },
   {
@@ -142,7 +142,7 @@ export const ROSTER = [
       heavy: { dmg: 72, knock: 17, range: 3.8, launch: 8 },
       ranged: { name: 'Plasma Lance', type: 'plasma', dmg: 55, speed: 28, cooldown: 1.3, splash: 3, ammo: 14 },
       special: { id: 'starfall', name: 'Starfall Trio', cooldown: 7, dmg: 34, count: 3 },
-      ult: { id: 'supernova', name: 'SUPERNOVA', dmg: 190, radius: 14 },
+      ult: { id: 'supernova', name: 'SUPERNOVA', dmg: 240, radius: 16 },
     },
   },
   {
@@ -164,7 +164,7 @@ export const ROSTER = [
       heavy: { dmg: 95, knock: 24, range: 3.8, launch: 9 },
       ranged: { name: 'Shoulder Cannon', type: 'shell', dmg: 56, speed: 42, cooldown: 1.3, splash: 3, ammo: 14 },
       special: { id: 'bullRush', name: 'Bull Rush', cooldown: 6.5, dmg: 75, knock: 26, dashLen: 16 },
-      ult: { id: 'stampede', name: 'STAMPEDE', dmg: 60, hits: 3, knock: 30 },
+      ult: { id: 'stampede', name: 'STAMPEDE', dmg: 70, copies: 10, knock: 26, range: 46 },
     },
   },
   {
@@ -195,7 +195,7 @@ export const ROSTER = [
       heavy: { dmg: 42, knock: 16, range: 3.6, launch: 9 },
       ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8, ammo: 20 },
       special: { id: 'staticField', name: 'Static Overload', cooldown: 7, dmg: 70, radius: 8 },
-      ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 55, strikes: 8, radius: 12 },
+      ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 13, radius: 15, duration: 2.6 },
     },
   },
   {
@@ -225,7 +225,7 @@ export const ROSTER = [
       heavy: { dmg: 76, knock: 18, range: 3.7, launch: 8 },
       ranged: { name: 'Rend Wave', type: 'wave', dmg: 36, speed: 34, cooldown: 1.0, ammo: 18 },
       special: { id: 'pounce', name: 'Lunar Pounce', cooldown: 5.5, dmg: 65, leap: 14 },
-      ult: { id: 'wildHunt', name: 'WILD HUNT', duration: 6, speedBoost: 1.5, dmgBoost: 1.6 },
+      ult: { id: 'wildHunt', name: 'WILD HUNT', dmg: 9, count: 20, radius: 20, duration: 4.5 },
     },
   },
   {
@@ -254,7 +254,7 @@ export const ROSTER = [
       heavy: { dmg: 100, knock: 36, range: 3.9, launch: 9 },
       ranged: { name: 'Mortar Lob', type: 'mortar', dmg: 68, speed: 30, cooldown: 1.7, splash: 5.5, ammo: 10 },
       special: { id: 'grabThrow', name: 'Skyline Toss', cooldown: 8, dmg: 85, range: 4.5, throw: 36, radius: 5 },
-      ult: { id: 'bigBertha', name: 'BIG BERTHA', dmg: 240, radius: 15 },
+      ult: { id: 'colossalForm', name: 'COLOSSAL FORM', dmg: 34, scale: 4, duration: 9 },
     },
   },
   {
@@ -287,7 +287,7 @@ export const ROSTER = [
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
       ranged: { name: 'Night Swarm', type: 'bats', dmg: 26, count: 3, speed: 24, cooldown: 1.5, ammo: 12 },
       special: { id: 'ghostWalk', name: 'Ghost Protocol', cooldown: 9, dmg: 60, speed: 17, duration: 5 },
-      ult: { id: 'deadeye', name: 'DEADEYE', dmg: 110, shots: 3 },
+      ult: { id: 'deathGaze', name: 'DEATH GAZE', dmg: 330, range: 60 },
     },
   },
   {
@@ -309,7 +309,7 @@ export const ROSTER = [
       heavy: { dmg: 86, knock: 20, range: 3.7, launch: 8 },
       ranged: { name: 'Dragon\'s Breath', type: 'flame', dmg: 6.5, cooldown: 0.09, range: 12, ammo: 130 },
       special: { id: 'napalm', name: 'Napalm Carpet', cooldown: 7.5, dmg: 14, patches: 5, duration: 5 },
-      ult: { id: 'backdraft', name: 'BACKDRAFT', dmg: 170, radius: 12, burnDmg: 10 },
+      ult: { id: 'fireTornado', name: 'FIRE TORNADO', dmg: 130, radius: 4.5, duration: 7 },
     },
   },
   {
@@ -329,7 +329,7 @@ export const ROSTER = [
       heavy: { dmg: 92, knock: 22, range: 3.8, launch: 9 },
       ranged: { name: 'Shard Burst', type: 'shard', dmg: 34, speed: 46, cooldown: 0.8, ammo: 22 },
       special: { id: 'freezeBeam', name: 'Cryo Beam', cooldown: 8, dmg: 12, duration: 1.8, slow: 0.45 },
-      ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 150, radius: 13, freezeTime: 2.5 },
+      ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 9, radius: 14 },
     },
   },
   {
@@ -356,7 +356,7 @@ export const ROSTER = [
       heavy: { dmg: 100, knock: 24, range: 3.9, launch: 9 },
       ranged: { name: 'Hydro Hose', type: 'hose', dmg: 7, cooldown: 0.075, range: 20, ammo: 150 },
       special: { id: 'geyser', name: 'Geyser', cooldown: 7, dmg: 62, radius: 11, launch: 15, duration: 6 },
-      ult: { id: 'riptide', name: 'RIPTIDE', dmg: 42, waves: 8, surgeDmg: 70, radius: 13 },
+      ult: { id: 'tsunami', name: 'TSUNAMI', dmg: 135, width: 30, range: 48, knock: 20 },
     },
   },
   {
@@ -402,7 +402,7 @@ export const ROSTER = [
       heavy: { dmg: 80, knock: 19, range: 3.8, launch: 8 },
       ranged: { name: 'Quill Fan', type: 'spikes', dmg: 20, count: 3, speed: 54, cooldown: 0.9 },
       special: { id: 'sickleRush', name: 'Sickle Pounce', cooldown: 6, dmg: 62, bleed: 9, leap: 22 },
-      ult: { id: 'extinction', name: 'EXTINCTION PROTOCOL', dmg: 46, hits: 4, knock: 26 },
+      ult: { id: 'raptorPack', name: 'RAPTOR PACK', count: 3, hpFrac: 0.35, duration: 18 },
     },
   },
   {
@@ -427,7 +427,7 @@ export const ROSTER = [
       heavy: { dmg: 78, knock: 18, range: 3.3, launch: 9 },
       ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4, ammo: 20 },
       special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 11, radius: 8 },
-      ult: { id: 'royalRibbit', name: 'ROYAL RIBBIT', dmg: 190, radius: 12 },
+      ult: { id: 'sonicCroak', name: 'SONIC CROAK', dmg: 140, radius: 30, paralyze: 2.2 },
     },
   },
   {
@@ -454,7 +454,7 @@ export const ROSTER = [
       heavy: { dmg: 76, knock: 18, range: 3.6, launch: 8 },
       ranged: { name: 'Flea Pod', type: 'flea', dmg: 34, speed: 26, cooldown: 0.95, ammo: 14 },
       special: { id: 'fleaSwarm', name: 'Brine Swarm', cooldown: 7.5, dmg: 26, count: 6 },
-      ult: { id: 'tidalPlague', name: 'TIDAL PLAGUE', dmg: 150, radius: 11, count: 10, fleaDmg: 24 },
+      ult: { id: 'fleaCircus', name: 'FLEA CIRCUS', dmg: 14, count: 20, duration: 6 },
     },
   },
   {
@@ -486,7 +486,7 @@ export const ROSTER = [
       heavy: { dmg: 84, knock: 30, range: 3.7, launch: 9, status: { glitch: 1 } },
       ranged: { name: 'Null Pointer', type: 'glitch', dmg: 30, speed: 50, cooldown: 0.75, ammo: 18 },
       special: { id: 'segfault', name: 'SEGFAULT', cooldown: 6.5, dmg: 55, dashLen: 14 },
-      ult: { id: 'systemCrash', name: 'SYSTEM CRASH', dmg: 170, radius: 13, knock: 16 },
+      ult: { id: 'systemCrash', name: 'SYSTEM CRASH', dmg: 50, duration: 7 },
     },
   },
 ];

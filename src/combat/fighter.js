@@ -5,6 +5,7 @@ import { clamp, clamp01, lerp, angleDamp, angleDiff, TAU, rand } from '../core/u
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
+import { CONFIG } from '../core/config.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -15,6 +16,7 @@ const _carryOff = new THREE.Vector3();
 const _white = new THREE.Color(0xf4faff);
 const _charBlack = new THREE.Color(0x14100d); // burnt-out carbon shell
 const GRAVITY = 34;
+const ULT_RATE = 2;      // ult meter fills 2x faster (ultimates balance pass)
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
 const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
@@ -137,6 +139,17 @@ export class Fighter {
     this.wins = 0;
     this.lastAttacker = null;
     this.controlsLocked = false; // during intro/outro
+
+    // summoned help (SAURION's raptor pack): minions fight FOR their owner —
+    // no friendly fire either way, and they can never fire an ult of their own
+    this.allyOf = null;   // the fighter this one is summoned by (or null)
+    this.isMinion = false;
+  }
+
+  // same side? (owner<->minion, or two minions of the same owner)
+  isAllyOf(o) {
+    return !!o && (o.allyOf === this || this.allyOf === o ||
+      (!!this.allyOf && this.allyOf === o.allyOf));
   }
 
   center(out = _v2) {
@@ -203,7 +216,7 @@ export class Fighter {
     let best = null, bestD = Infinity;
     const w = this.world;
     for (const f of w.fighters) {
-      if (f === this || !f.alive) continue;
+      if (f === this || !f.alive || this.isAllyOf(f)) continue;
       const dx = w.wrapDelta(f.pos.x - this.pos.x);
       const dz = w.wrapDelta(f.pos.z - this.pos.z);
       const d = dx * dx + dz * dz;
@@ -231,6 +244,7 @@ export class Fighter {
   speedMult() {
     let m = 1;
     if (this.status.slow) m *= this.status.slow.f;
+    if (this.status.soaked) m *= 0.5; // waterlogged: servos sputter
     if (this.status.buff) m *= this.status.buff.spd;
     if (this.status.cloak) m *= this.status.cloak.spd || 1.25;
     return m;
@@ -439,7 +453,8 @@ export class Fighter {
   }
 
   doUlt() {
-    if (this.ult < 1) return;
+    if (this.isMinion) return; // summons never cascade their own ults
+    if (this.ult < 1 && !CONFIG.debugUltimates) return;
     const u = this.def.moves.ult;
     const impl = ULTS[u.id];
     if (!impl) return;
@@ -518,7 +533,14 @@ export class Fighter {
     const reach = atk.range || 3.5;
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
     const cz = this.pos.z + Math.cos(this.yaw) * reach * 0.75;
-    const cy = this.pos.y + this.height * 0.5;
+    let cy = this.pos.y + this.height * 0.5;
+    // COLOSSAL FORM: a giant's mid-chest is high over everyone's head, so
+    // his swings drop the strike sphere to the victim's level (or street
+    // level) — a near-miss at 4x must not whiff clean over the target
+    if (this.scale > this.def.body.scale * 1.4) {
+      const tgt = this.nearestEnemy();
+      cy = Math.min(cy, tgt ? tgt.center().y : this.pos.y + 2.5);
+    }
     // an airborne punch HELD when the fist meets a building face becomes a
     // WALL GRAB instead of a strike — jump, punch-hold, hang, jump again:
     // that's how mechs climb
@@ -981,6 +1003,7 @@ export class Fighter {
   // ================= damage =================
   takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false } = {}) {
     if (!this.alive || this.iframes > 0) return;
+    if (attacker && this.isAllyOf(attacker)) return; // no friendly fire on a summon team
     this.uncloak();
 
     const src = srcPos || (attacker ? attacker.pos : this.pos);
@@ -1009,7 +1032,7 @@ export class Fighter {
           this.hp = Math.max(1, this.hp - dmg);
           this.vel.x += (dirX / dLen) * knock * 0.5;
           this.vel.z += (dirZ / dLen) * knock * 0.5;
-          this.ult = clamp01(this.ult + dmg / 3000);
+          this.ult = clamp01(this.ult + (dmg / 3000) * ULT_RATE);
           return;
         }
         // guard beaten: orange spark, a jolt of extra hitstun, full damage
@@ -1024,8 +1047,8 @@ export class Fighter {
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
     this.lastAttacker = attacker;
-    this.ult = clamp01(this.ult + dmg / (this.maxHp * 1.35));
-    if (attacker) attacker.ult = clamp01(attacker.ult + dmg / (attacker.maxHp * 2.6));
+    this.ult = clamp01(this.ult + (dmg / (this.maxHp * 1.35)) * ULT_RATE);
+    if (attacker) attacker.ult = clamp01(attacker.ult + (dmg / (attacker.maxHp * 2.6)) * ULT_RATE);
 
     if (status) this.applyStatus(status);
 
@@ -1073,8 +1096,17 @@ export class Fighter {
     if (this.isAI === false && navigator.getGamepads) this.world.input?.rumble(this.playerIndex, heavy ? 0.7 : 0.35, heavy ? 220 : 120);
   }
 
+  // waterlogged: dripping frame + half speed while it lasts. The water/ice
+  // mechs (FROGGER, GLACIER, CRANKY) live in the stuff — they shrug it off.
+  applySoak(t = 2.2) {
+    const id = this.def.id;
+    if (id === 'frogger' || id === 'glacier' || id === 'cranky') return;
+    this.status.soaked = { t: Math.max(t, this.status.soaked?.t || 0) };
+  }
+
   applyStatus(st) {
     if (st.burn) this.status.burn = { dps: st.burn, t: st.burnT || 3 };
+    if (st.poison) this.status.poison = { dps: st.poison, t: st.poisonT || 3 };
     if (st.slow) this.status.slow = { f: st.slow, t: st.slowT || 2 };
     if (st.glitch) this.addGlitch(st.glitch);
     if (st.freeze) {
@@ -1355,6 +1387,31 @@ export class Fighter {
             0, 3, 0, { life: 0.4, size: 1.4, color: 0xff7a20, alpha: 0.8 });
         }
         if (this.hp <= 0 && this.alive) this.die(this.lastAttacker);
+      } else if (key === 'poison') {
+        // VIPER venom: same drain as burn, but the body WEEPS green — motes
+        // bead off the frame and drip down instead of flames licking up
+        this.hp -= s.dps * dt;
+        if (Math.random() < dt * 16) {
+          this.world.effects.glows.emit(
+            this.pos.x + rand(-0.8, 0.8) * this.scale, this.pos.y + Math.random() * this.height * 0.9,
+            this.pos.z + rand(-0.8, 0.8) * this.scale,
+            0, rand(-2.5, -0.5), 0, { life: 0.55, size: 1.1, color: 0x6ade2a, alpha: 0.85, drag: 0.5 });
+        }
+        if (this.hp <= 0 && this.alive) this.die(this.lastAttacker);
+      } else if (key === 'soaked') {
+        // waterlogged: beads sheet off the whole frame and rain down,
+        // pooling underfoot — the visible tell for the half-speed debuff
+        if (Math.random() < dt * 26) {
+          this.world.effects.drops.emit(
+            this.pos.x + rand(-0.9, 0.9) * this.scale, this.pos.y + Math.random() * this.height,
+            this.pos.z + rand(-0.9, 0.9) * this.scale,
+            rand(-0.6, 0.6), rand(-2, -0.2), rand(-0.6, 0.6),
+            { life: rand(0.4, 0.7), size: rand(0.5, 1.0), color: 0xd8ecf8, color2: 0x5580a8,
+              alpha: 0.9, gravity: 24, fadeIn: 0.03 });
+        }
+        if (this.grounded && Math.random() < dt * 1.6) {
+          this.world.effects.puddle(this.pos, { size: rand(1.4, 2.2), life: 1.5 });
+        }
       }
     }
 
@@ -1614,7 +1671,7 @@ export class Fighter {
     this.hitRadius = this.baseHitRadius * (1 - 0.22 * dk);
 
     if (acting && !this.blocking) {
-      if (I.ult && this.ult >= 1) this.doUlt();
+      if (I.ult && (this.ult >= 1 || CONFIG.debugUltimates)) this.doUlt();
       else if (I.special) this.doSpecial();
       else if (I.light) {
         if (this.state === 'attack') this.queuedLight = true;
@@ -1923,8 +1980,11 @@ export class Fighter {
       (this.state === 'channel' ? 0.45 : 1) * (1 - 0.55 * this.duckT);
 
     if (this.state !== 'dash') {
-      // hover jets give strong air control; plain jumps keep loose drift
-      const control = this.grounded ? 9 : this.hovering ? 6.5 : 3.2;
+      // hover jets give strong air control; plain jumps keep loose drift.
+      // GLACIER's ice field (status.slip) turns the ground to glass: barely
+      // any traction, so momentum carries and steering barely bites
+      let control = this.grounded ? 9 : this.hovering ? 6.5 : 3.2;
+      if (this.status.slip && this.grounded) control = 1.1;
       this.vel.x = lerp(this.vel.x, ax * speedCap, 1 - Math.exp(-control * dt));
       this.vel.z = lerp(this.vel.z, az * speedCap, 1 - Math.exp(-control * dt));
     } else {
