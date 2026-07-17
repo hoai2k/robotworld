@@ -1902,7 +1902,6 @@ controllers via Gamepad API), AI opponents.
   battle probe: funnel at 20.2u over the mechs, roaming, patches trail;
   tsunami stills reviewed (bowed crest wall + flood swallowing rocks).
 
-<<<<<<< HEAD
 ## Phase 14d — Ultimate tuning round 3 (user request, 2026-07-17)
 
 - VULCAN Bullet Hurricane: orbit radius 2.5x (8-16.5u ring) with the strike
@@ -1919,7 +1918,7 @@ controllers via Gamepad API), AI opponents.
   frogger/jerry) crash-free incl. finisher interrupts of the permanent
   sheet; screenshots VIEWED (block-wide bullet ring, rhino frozen solid
   white on the sheet, double-size croak rings).
-=======
+
 81. TSUNAMI ULT GETS THE WAVE SIM + SOAKED DEBUFF (user request) ✅
   · CRANKY's TSUNAMI ult (merged gameplay from the ults-refinement
     branch: one hard front hit + downrange carry, arena wreckage, foam
@@ -1937,4 +1936,3 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; cranky-vs-titanus and cranky-vs-frogger (immune
   path) ace soaks crash-free; battle probe: wave rolls, titanus soaked
   with speedMult 0.5; demo still reviewed (feathered flood edges).
->>>>>>> claude/geyser-water-simulation-zifya0
