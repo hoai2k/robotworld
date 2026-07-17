@@ -2,6 +2,7 @@
 // Behavior: range management per archetype, strafing, combos, blocking,
 // dodging, special/ult usage. Three difficulty tiers.
 import { rand, clamp, angleDiff } from '../core/utils.js';
+import { CONFIG } from '../core/config.js';
 
 // blockP/dodgeP are PER-SECOND reaction rates (they used to be rolled per
 // FRAME, which made even a veteran block/dodge nearly everything — the #1
@@ -29,7 +30,7 @@ function preferredRange(def) {
 // self-centered AoE moves only connect up close — gate them by their radius
 // instead of the weapon's preferred range
 const SELF_AOE_SPECIALS = new Set(['groundPound', 'staticField', 'grabThrow']);
-const SELF_AOE_ULTS = new Set(['supernova', 'backdraft', 'absoluteZero', 'systemCrash']);
+const SELF_AOE_ULTS = new Set(['supernova', 'wildHunt', 'sonicCroak', 'thunderfall', 'absoluteZero', 'fleaCircus']);
 
 export class AIController {
   constructor(fighter, difficulty = 'veteran') {
@@ -169,7 +170,7 @@ export class AIController {
       const ultRange = SELF_AOE_ULTS.has(uMv.id) ? (uMv.radius || 12) - 2 : 24;
       const spMv = f.def.moves.special;
       const spRange = SELF_AOE_SPECIALS.has(spMv.id) ? (spMv.radius || 8) - 1 : this.rangedPref * 1.6;
-      if (f.ult >= 1 && dist < ultRange && Math.random() < dt / this.d.ultDelay) {
+      if ((f.ult >= 1 || CONFIG.debugUltimates) && dist < ultRange && Math.random() < dt / this.d.ultDelay) {
         I.ult = true;
       } else if (f.specialCd <= 0 && dist < spRange && Math.random() < dt * 1.4) {
         I.special = true;

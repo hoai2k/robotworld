@@ -46,6 +46,12 @@ export class World {
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.debris = [];       // finisher wreckage (frozen rubble): cleared each round
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
+    // per-frame ultimate entities (orbit swarms, tornadoes, giant forms...):
+    // {tick(dt) -> false when done, end()} — end() ALWAYS runs (natural
+    // finish, finisher interrupt, or round sweep), so cleanup lives there
+    this.updaters = [];
+    // summoned AI fighters (SAURION's raptors): {f, ai, t, linger}
+    this.minions = [];
     this.time = 0;
     // toroidal arena: coordinates wrap at ±wrapHalf on X and Z (0 = off).
     // Set from the arena in bind(); all combat queries use nearest-image
@@ -118,6 +124,45 @@ export class World {
 
   schedule(delay, fn) {
     this.tasks.push({ t: this.time + delay, fn });
+  }
+
+  // register a per-frame driver for a live combat entity. tick(dt) returns
+  // false when the entity is finished; end() is the cleanup (scene removal,
+  // material restore) and is guaranteed to run exactly once.
+  addUpdater(tick, end = null) {
+    this.updaters.push({ tick, end });
+  }
+
+  endUpdaters() {
+    for (let i = this.updaters.length - 1; i >= 0; i--) {
+      const u = this.updaters[i];
+      if (u && !u.ended) { u.ended = true; u.end?.(); }
+    }
+    this.updaters.length = 0;
+  }
+
+  // ---- summoned fighters (they join world.fighters but never the match
+  // roster, so rounds/KO logic ignore them) ----
+  addMinion(fighter, ai, life = 15) {
+    this.fighters.push(fighter);
+    this.minions.push({ f: fighter, ai, t: life, linger: 1.4 });
+  }
+
+  removeMinion(fighter, silent = false) {
+    const i = this.minions.findIndex((m) => m.f === fighter);
+    if (i >= 0) this.minions.splice(i, 1);
+    const j = this.fighters.indexOf(fighter);
+    if (j >= 0) this.fighters.splice(j, 1);
+    this.scene.remove(fighter.group);
+    if (!silent) {
+      this.effects.rings.spawn(fighter.pos, { from: 3, to: 0.5, dur: 0.35, color: 0xff3826, y: 1 });
+      this.effects.impactSparks(fighter.center(), 0xff3826, 10, 7);
+      this.audio?.play('cloak');
+    }
+  }
+
+  clearMinions(silent = true) {
+    for (let i = this.minions.length - 1; i >= 0; i--) this.removeMinion(this.minions[i].f, silent);
   }
 
   // ---- ammo crates: every mech's ranged weapon runs on ammo now ----
@@ -203,12 +248,39 @@ export class World {
         fn();
       }
     }
+    // summoned minions think first (their bodies move in the fighters pass)
+    for (let i = this.minions.length - 1; i >= 0; i--) {
+      const m = this.minions[i];
+      if (!m) continue; // a KO handler may sweep the list mid-walk
+      if (m.f.alive && m.t > 0) {
+        m.t -= dt;
+        m.ai.update(dt);
+        if (m.t <= 0) this.removeMinion(m.f); // time's up: de-rez
+      } else if (!m.f.alive) {
+        m.linger -= dt; // dead: let the wreck sit a beat, then sweep it
+        if (m.linger <= 0) this.removeMinion(m.f);
+      }
+    }
+
     for (const f of this.fighters) f.update(dt);
     this.projectiles.update(dt);
     this.fleas.update(dt);
     this.effects.update(dt);
     this.arena?.update(dt);
     this.updatePickups(dt);
+
+    // live ultimate entities (post-physics so they see settled positions).
+    // A tick can cascade into clearTransient (a KO handler resetting the
+    // round), which empties this list mid-walk — hence the guards.
+    for (let i = this.updaters.length - 1; i >= 0; i--) {
+      const u = this.updaters[i];
+      if (!u || u.ended) continue;
+      if (u.tick(dt) === false) {
+        const j = this.updaters.indexOf(u);
+        if (j >= 0) this.updaters.splice(j, 1);
+        if (!u.ended) { u.ended = true; u.end?.(); }
+      }
+    }
 
     // geysers run their own lifecycle (telegraph -> erupt -> collapse);
     // combat geysers ({owner, dmg}) also SCALD: anyone standing in the
@@ -701,11 +773,17 @@ export class World {
 
 
   startFinisher(winner, victim, onDone) {
+    // the cinematic owns the stage: sweep live ult entities and summons so
+    // nothing keeps hitting (or upstaging) the two actors
+    this.endUpdaters();
+    this.clearMinions();
     this.finisher = new Finisher(this, winner, victim, onDone);
   }
 
   clearTransient() {
     this.tasks.length = 0;
+    this.endUpdaters();
+    this.clearMinions();
     for (const p of this.firePatches) p.flame.dispose();
     this.firePatches.length = 0;
     for (const g of this.geysers) g.fx.dispose();

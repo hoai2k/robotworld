@@ -61,6 +61,8 @@ export class Hud {
       world.events.on('damage', (d) => this.onDamage(d)),
       world.events.on('special', (d) => this.callout(`${d.fighter.def.name} — ${d.name}`)),
       world.events.on('ult', (d) => this.callout(`⚡ ${d.fighter.def.name}: ${d.name}! ⚡`, true)),
+      // combat-driven center-screen text (AEGIS's JUDGEMENT verdict)
+      world.events.on('banner', (d) => this.announce(d.text || '', !!d.hold, d.color || null)),
     ];
     this.popupBudget = 0;
   }

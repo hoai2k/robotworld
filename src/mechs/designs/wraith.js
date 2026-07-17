@@ -144,6 +144,8 @@ export function wraith(A, D, J, anchors, def) {
   // black void face: dark ball, ONE deep-set red eye — nothing else
   A.ball('head', 'dark', hs * 0.52, { p: [0, hy + hs * 0.42, 0], seg: 16 });
   A.ball('head', 'glow', hs * 0.11, { p: [0, hy + hs * 0.48, hs * 0.42], seg: 10 });
+  // the DEATH GAZE ult fires from the eye itself
+  anchors.eye = addAnchor(J.head, 0, hy + hs * 0.48, hs * 0.42);
   // cowl shell: open-front partial lathe, rising steeply
   const hoodProfile = [
     [-hs * 0.7, hs * 0.82],

@@ -14,7 +14,8 @@ import { AIController } from './ai.js';
 import { CameraSystem } from './camera.js';
 import { Match } from './match.js';
 import { Hud, toast } from '../ui/hud.js';
-import { TitleScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen } from '../ui/menus.js';
+import { TitleScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen, SettingsScreen } from '../ui/menus.js';
+import { CONFIG, setInfiniteUltimates } from '../core/config.js';
 import { GameAudio } from '../core/audio.js';
 import { createMech, preloadMechModels } from '../mechs/gltf.js';
 import { TouchControls } from './touch.js';
@@ -233,12 +234,46 @@ export async function bootGame() {
   }
   muteBtn.addEventListener('click', () => setMuted(!muted));
   setMuted(muted);
+
+  // ---- settings: gear button beside the sound button; opens a modal
+  // panel that floats over whatever screen is up (incl. the pause menu) ----
+  const gearBtn = document.createElement('div');
+  gearBtn.id = 'settings-btn';
+  gearBtn.title = 'settings';
+  gearBtn.textContent = '⚙️';
+  gearBtn.style.cssText =
+    'position:absolute;right:56px;bottom:14px;z-index:40;cursor:pointer;font-size:26px;' +
+    'opacity:0.8;user-select:none;text-shadow:0 2px 6px #000;pointer-events:auto;';
+  uiRoot.appendChild(gearBtn);
+  const settingsItems = () => [
+    { label: () => (muted ? 'SOUND: OFF' : 'SOUND: ON'), fn: () => setMuted(!muted) },
+    {
+      label: () => (CONFIG.debugUltimates ? 'INFINITE ULTIMATES: ON' : 'INFINITE ULTIMATES: OFF'),
+      fn: () => setInfiniteUltimates(!CONFIG.debugUltimates),
+    },
+  ];
+  function openSettings() {
+    if (S.modal) return;
+    audio.play('uiSelect');
+    S.modal = new SettingsScreen(uiRoot, {
+      audio,
+      items: settingsItems(),
+      onBack: () => closeModal(),
+    });
+  }
+  function closeModal() {
+    S.modal?.destroy();
+    S.modal = null;
+  }
+  gearBtn.addEventListener('click', () => openSettings());
+
   let muteVisible = true;
   function updateMuteBtn() {
     const show = !(S.mode === 'battle' && S.battle && !S.battle.paused);
     if (show !== muteVisible) {
       muteVisible = show;
       muteBtn.style.display = show ? '' : 'none';
+      gearBtn.style.display = show ? '' : 'none';
     }
   }
 
@@ -336,8 +371,15 @@ export async function bootGame() {
   };
 
   function setScreen(screen) {
+    closeModal(); // a floating settings panel never outlives a screen change
     S.screen?.destroy();
     S.screen = screen;
+  }
+
+  // menu input goes to the settings modal when one is open, else the screen
+  function screenUpdate(ev) {
+    if (S.modal) S.modal.update(ev);
+    else S.screen?.update(ev);
   }
 
   function ensureStage(kind) {
@@ -617,10 +659,7 @@ export async function bootGame() {
       onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
       onFullscreen: toggleFullscreen,
-      soundToggle: {
-        label: () => (muted ? 'SOUND: OFF' : 'SOUND: ON'),
-        fn: () => setMuted(!muted),
-      },
+      onSettings: () => openSettings(),
       splitToggle: S.battle.humans.length === 2 ? {
         label: () => S.battle.cameraSys.layout2p === 'lr' ? 'SPLIT: SIDE BY SIDE' : 'SPLIT: STACKED',
         fn: () => toggleSplitLayout(),
@@ -649,15 +688,15 @@ export async function bootGame() {
         const ev = input.menuEvents();
         if (ev.pause) pauseBattle();
       } else {
-        S.screen?.update(input.menuEvents());
+        screenUpdate(input.menuEvents());
       }
     } else if (S.mode === 'results' && B) {
       // battle keeps simmering behind the results panel
       world_update(B, dt * 0.4);
-      S.screen?.update(input.menuEvents());
+      screenUpdate(input.menuEvents());
     } else {
       S.stage?.update(dt);
-      S.screen?.update(input.menuEvents());
+      screenUpdate(input.menuEvents());
     }
     updateMuteBtn();
     input.endFrame();
