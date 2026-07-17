@@ -42,6 +42,7 @@ export class World {
     this.tasks = [];        // {t, fn}
     this.firePatches = [];  // {pos, radius, t, dps, owner, flame}
     this.geysers = [];      // live GeyserFX instances (CRANKY's special)
+    this.tornados = [];     // {fx, owner, dmg, radius, burn, tick, patch}
     this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
@@ -231,6 +232,35 @@ export class World {
           v.takeHit(g.dmg * 0.2 * g.owner.dmgMult(), g.owner,
             { knock: 3, launch: g.launch * 0.55, srcPos: g.fx.pos, soft: true });
           this.effects.splash(v.center(), 6, 5, 1);
+        }
+      }
+    }
+
+    // fire tornados roam, scorch whoever they touch, and torch the ground
+    for (let i = this.tornados.length - 1; i >= 0; i--) {
+      const n = this.tornados[i];
+      if (!n.fx.update(dt)) {
+        n.fx.dispose();
+        this.tornados.splice(i, 1);
+        continue;
+      }
+      if (!n.owner || n.fx.env < 0.4) continue;
+      n.patch -= dt;
+      if (n.patch <= 0) { // burning trail along the wander path
+        n.patch = 1.1;
+        this.addFirePatch(n.owner, n.fx.pos.clone().setY(0), 2, 3, 8);
+      }
+      n.tick -= dt;
+      if (n.tick > 0) continue;
+      n.tick = 0.5;
+      for (const v of this.fighters) {
+        if (v === n.owner || !v.alive) continue;
+        const dx = this.wrapDelta(v.pos.x - n.fx.pos.x), dz = this.wrapDelta(v.pos.z - n.fx.pos.z);
+        if (Math.hypot(dx, dz) < n.radius + v.hitRadius * 0.5) {
+          v.takeHit(n.dmg * n.owner.dmgMult(), n.owner, {
+            knock: 6, launch: 10, srcPos: n.fx.pos, soft: true,
+            status: { burn: n.burn || 8, burnT: 2.5 },
+          });
         }
       }
     }
@@ -701,6 +731,8 @@ export class World {
     this.firePatches.length = 0;
     for (const g of this.geysers) g.fx.dispose();
     this.geysers.length = 0;
+    for (const n of this.tornados) n.fx.dispose();
+    this.tornados.length = 0;
     for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
     this.flameJets.clear();
     for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);

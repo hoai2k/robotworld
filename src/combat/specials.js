@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { rand, clamp, clamp01, angleDiff } from '../core/utils.js';
 import { GeyserFX } from './geyserfx.js';
+import { FireTornadoFX } from './nadofx.js';
 
 const _v = new THREE.Vector3();
 
@@ -1167,13 +1168,16 @@ export const ULTS = {
           status: { burn: u.burnDmg, burnT: 4 },
         });
         w.effects.addShake(1.2);
-        // burning ground ring
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * Math.PI * 2;
-          w.addFirePatch(f, new THREE.Vector3(
-            f.pos.x + Math.cos(a) * u.radius * 0.55, 0, f.pos.z + Math.sin(a) * u.radius * 0.55
-          ), 2.6, 4, 12);
-        }
+        // the nova births a FIRE TORNADO: a roaming funnel 3x his height
+        // that scorches whoever it touches and torches the ground it
+        // crosses (damage + patch-drops run in world.update's tornado tick)
+        w.tornados.push({
+          fx: new FireTornadoFX(w.scene, w.effects, f.pos, {
+            height: f.height * 3, radius: 2.1, wander: 3, life: u.nadoDur || 7,
+          }),
+          owner: f, dmg: u.nadoDmg || 16, radius: u.nadoRadius || 4.5,
+          burn: u.burnDmg, tick: 0, patch: 0.9,
+        });
       },
     });
     f.setState('ult', dur);

@@ -1695,3 +1695,23 @@ controllers via Gamepad API), AI opponents.
   · ?ultfx=wave / ?ultfx=nado demo pages (cycle, &t warp+freeze, &orbit=0).
   NOT wired into RIPTIDE / Inferno's ult yet — awaiting user judgment.
   Verified: build green; stills + GIFs reviewed over 3 tuning rounds.
+
+79. INFERNO ULT = ROAMING FIRE TORNADO + TSUNAMI MODE (user request) ✅/⏳
+  · BACKDRAFT: nova hit unchanged; the burning-ring finale is replaced by
+    a FireTornadoFX spawned at Inferno, 3x HIS HEIGHT (f.height*3 ≈ 20u),
+    roaming (wander 3) for nadoDur 7s. world.tornados tick: fighters
+    within nadoRadius 4.5 take nadoDmg 16 soft hits every 0.5s with
+    launch 10 + burn status; a fire patch drops on the wander path every
+    1.1s. Roster knobs: nadoDur/nadoDmg/nadoRadius. clearTransient cleans.
+  · CRITICAL FIX found via the tsunami: WAVE_VERT and NADO_VERT built
+    local positions but used viewMatrix without the model transform —
+    both meshes rendered at the WORLD ORIGIN when spawned anywhere else
+    (demos at 0,0,0 masked it; in-battle tornados would have broken).
+    Both now use modelViewMatrix.
+  · TidalWaveFX TSUNAMI mode (?ultfx=tsunami, prototype — awaiting user
+    judgment): dir+width opts turn the ring into ONE straight wall
+    travelling along dir — mid-front bows forward, flood becomes a
+    rectangle dragged behind the front, all emitters go front-relative.
+  Verified: build green; inferno-vs-cranky ace soak crash-free (2 KOs);
+  battle probe: funnel at 20.2u over the mechs, roaming, patches trail;
+  tsunami stills reviewed (bowed crest wall + flood swallowing rocks).

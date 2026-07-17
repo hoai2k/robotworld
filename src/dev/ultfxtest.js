@@ -15,7 +15,7 @@ export function runUltFxTest(which) {
   const engine = new Engine(document.getElementById('game-canvas'));
   const { scene, camera } = engine;
   const params = new URLSearchParams(location.search);
-  const mode = which === 'nado' ? 'nado' : 'wave';
+  const mode = which === 'nado' ? 'nado' : which === 'tsunami' ? 'tsunami' : 'wave';
 
   scene.background = new THREE.Color(0x0d1118);
   scene.fog = new THREE.Fog(0x0d1118, 80, 260);
@@ -51,9 +51,17 @@ export function runUltFxTest(which) {
   document.getElementById('ui-root')?.appendChild(label);
 
   function spawn() {
-    fxObj = mode === 'wave'
-      ? new TidalWaveFX(scene, effects, origin, { height: 8.5, r1: 36, speed: 14 })
-      : new FireTornadoFX(scene, effects, origin.clone(), { height: 18, radius: 1.6, wander: 2.2, life: 7 });
+    if (mode === 'wave') {
+      fxObj = new TidalWaveFX(scene, effects, origin, { height: 8.5, r1: 36, speed: 14 });
+    } else if (mode === 'tsunami') {
+      // one straight wall starting behind the scene, sweeping across it
+      fxObj = new TidalWaveFX(scene, effects, new THREE.Vector3(-38, 0, 0), {
+        height: 10, r0: 4, r1: 80, speed: 13,
+        dir: new THREE.Vector3(1, 0, 0), width: 46,
+      });
+    } else {
+      fxObj = new FireTornadoFX(scene, effects, origin.clone(), { height: 18, radius: 1.6, wander: 2.2, life: 7 });
+    }
   }
 
   function sim(dt) {
@@ -73,10 +81,10 @@ export function runUltFxTest(which) {
   }
 
   const orbit = params.get('orbit') !== '0';
-  let camA = 0.4;
-  const camDist = mode === 'wave' ? 46 : 34;
-  const camH = mode === 'wave' ? 15 : 11;
-  const lookY = mode === 'wave' ? 3 : 7.5;
+  let camA = mode === 'tsunami' ? 2.1 : 0.4;
+  const camDist = mode === 'nado' ? 34 : 46;
+  const camH = mode === 'nado' ? 11 : 15;
+  const lookY = mode === 'nado' ? 7.5 : 3;
   const placeCamera = () => {
     camera.position.set(Math.sin(camA) * camDist, camH, Math.cos(camA) * camDist);
     camera.lookAt(0, lookY, 0);

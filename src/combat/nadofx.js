@@ -38,7 +38,9 @@ const NADO_VERT = /* glsl */`
     // the whole funnel SWAYS: axis wanders in a slow figure-eight
     vec2 sway = vec2(sin(uTime * 0.9 + h * 2.4), cos(uTime * 0.7 + h * 1.9)) * uSway * h;
     vec3 wp = vec3(ring.x * r + sway.x, h * uH, ring.y * r + sway.y);
-    gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+    // modelViewMatrix, NOT viewMatrix — wp is local to the funnel's base;
+    // without the model transform the funnel renders at the world origin
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(wp, 1.0);
   }
 `;
 
