@@ -213,11 +213,20 @@ export class CameraSystem {
     _center.set(0, 0, 0);
     for (const p of pts) _center.add(p);
     _center.divideScalar(pts.length);
-    _center.y += 4;
+    // giant factor: how far past its natural size the biggest framed mech
+    // is grown (COLOSSAL FORM). 1 in a normal fight — framing unchanged.
+    let giantF = 1, giantH = 0;
+    for (const f of framed) {
+      const gf = f.scale / (f.def.body.scale || 1);
+      if (gf > giantF) { giantF = gf; giantH = f.height; }
+    }
+    _center.y += 4 + (giantF > 1.05 ? giantH * 0.22 : 0);
 
     let radius = 10;
-    for (const p of pts) {
-      radius = Math.max(radius, p.distanceTo(_center) + 6);
+    for (let i = 0; i < pts.length; i++) {
+      const gf = framed[i].scale / (framed[i].def.body.scale || 1);
+      const headroom = gf > 1.05 ? framed[i].height * 0.8 : 0; // fit the whole giant
+      radius = Math.max(radius, pts[i].distanceTo(_center) + 6 + headroom);
     }
     // Single human: bias framing toward them (Override-style) and swing the
     // camera BEHIND the player, looking toward the nearest enemy — a proper
@@ -279,11 +288,12 @@ export class CameraSystem {
     }
 
     const fovHalf = (this.engine.camera.fov * Math.PI / 360);
-    let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95);
+    let wantDist = clamp(radius / Math.tan(fovHalf) * 1.15, 26, 95 * giantF);
     // Solo: pull in close for an over-the-shoulder chase (the enemy stays
     // framed because the camera is directly behind the player, facing them).
     // Tight max — a distant enemy must not shrink YOUR mech into the void.
-    if (solo) wantDist = clamp(wantDist * 0.58, 22, 34);
+    // (A COLOSSAL-FORM giant in frame scales the whole envelope out.)
+    if (solo) wantDist = clamp(wantDist * 0.58, 22 * giantF, 34 * giantF);
     if (!this.init) this.dist = wantDist;
     this.dist = damp(this.dist, wantDist, 3, dt);
 
@@ -417,17 +427,19 @@ export class CameraSystem {
         }
       }
 
-      // stacked viewports are short — pull back a touch so mechs fit
-      const dist = vp.h < 0.75 && vp.w > 0.75 ? 25 : 22;
+      // stacked viewports are short — pull back a touch so mechs fit.
+      // A COLOSSAL-FORM giant needs the whole chase envelope scaled out.
+      const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+      const dist = (vp.h < 0.75 && vp.w > 0.75 ? 25 : 22) * gf;
       const el = ch.el;
       _v.set(
         Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)
       ).multiplyScalar(dist);
-      const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2, 0));
+      const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2 * gf, 0));
       // the chase cam tracks ONLY its own mech — opponents never pull the
       // frame; use the right stick to look around
       const lookAhead = _center.copy(f.pos);
-      lookAhead.y += 4.5;
+      lookAhead.y += 4.5 * gf;
       // jet flight: keep the look target riding with the flyer so the mech
       // doesn't graze the top of its viewport at altitude
       lookAhead.y = Math.max(lookAhead.y, f.pos.y + 3.5);
