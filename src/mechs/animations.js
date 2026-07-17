@@ -219,19 +219,25 @@ const CLIPS_RAW = {
     ],
     events: [{ t: 0.04, type: 'sfx', arg: 'whooshBig' }, { t: 0.16, type: 'hit', arg: 0 }, { t: 0.18, type: 'shake', arg: 0.4 }],
   },
-  aegisThrow: { // ranged: a true OVERHAND javelin throw — the lance is
-    // carried UP high over the shoulder (body arched back, elbow cocked),
-    // then whipped forward OVER THE TOP and released at the highest
-    // forward point of the arc (fire event) while the shield guard never
-    // drops. Same handR identity as the stabs keeps the tip on target.
-    dur: 0.62,
+  aegisThrow: { // ranged: textbook javelin throw. WITHDRAWAL: the grip flips
+    // to the flat overhand carry — arm EXTENDED STRAIGHT BACK at shoulder
+    // height, body coiled side-on, the lance held LEVEL pointing at the
+    // target the whole time (handR counter-rotates the shoulder so the tip
+    // never lifts off the line). STRIKE: hips drive, chest whips through,
+    // the elbow leads HIGH and the arm snaps over the top — release (fire)
+    // at the highest forward point of the stretch. Shield guard never drops.
+    dur: 0.74,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.2, ease: 'outCubic', pose: { torso: [-16, 28, 6], hipsRot: [-4, 13, 0], hipsPos: [0, -0.1, -0.1], head: [6, -13, 0], shoulderR: [-142, 16, 22], elbowR: [-34, 0, 0], handR: [118, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-20, 0, 0], kneeL: [26, 0, 0], thighR: [10, 0, 0], kneeR: [20, 0, 0] } },
-      { t: 0.32, ease: 'outBack', pose: { torso: [22, -24, -6], hipsRot: [6, -13, 0], hipsPos: [0, -0.16, 0.18], head: [0, 11, 0], shoulderR: [-98, -8, -4], elbowR: [-4, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-38, 0, 0], kneeL: [48, 0, 0], thighR: [22, 0, 0], kneeR: [50, 0, 0], ankleR: [20, 0, 0] } },
-      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
+      // withdrawal — side-on coil, arm back, spear level over the shoulder
+      { t: 0.22, ease: 'outCubic', pose: { torso: [-8, 44, 5], hipsRot: [-2, 20, 0], hipsPos: [0, -0.12, -0.08], head: [4, -36, 0], shoulderR: [44, -16, 12], elbowR: [-6, 0, 0], handR: [-38, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-26, 0, 0], kneeL: [22, 0, 0], thighR: [14, 0, 0], kneeR: [26, 0, 0] } },
+      // the whip — elbow leads high past the ear, hand and lance trailing
+      { t: 0.31, ease: 'inQuad', pose: { torso: [6, 8, -1], hipsRot: [2, -2, 0], hipsPos: [0, -0.12, 0.04], head: [2, -6, 0], shoulderR: [-72, 2, 4], elbowR: [-68, 0, 0], handR: [46, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-32, 0, 0], kneeL: [36, 0, 0], thighR: [18, 0, 0], kneeR: [38, 0, 0] } },
+      // release — full overhand stretch through the top of the arc
+      { t: 0.4, ease: 'outBack', pose: { torso: [26, -26, -6], hipsRot: [6, -14, 0], hipsPos: [0, -0.16, 0.2], head: [0, 12, 0], shoulderR: [-112, -10, -4], elbowR: [-2, 0, 0], handR: [104, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-40, 0, 0], kneeL: [50, 0, 0], thighR: [24, 0, 0], kneeR: [52, 0, 0], ankleR: [20, 0, 0] } },
+      { t: 0.74, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
-    events: [{ t: 0.24, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'fire' }],
+    events: [{ t: 0.29, type: 'sfx', arg: 'whooshBig' }, { t: 0.37, type: 'fire' }],
   },
   shieldWhirlHold: { // AEGIS Bulwark Bash wind-up: the tower shield is
     // hoisted straight overhead FACE-UP and whirled like a rotor (the

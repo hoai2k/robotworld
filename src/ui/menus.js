@@ -154,7 +154,7 @@ export class MechSelectScreen {
     this.el.appendChild(el('div', 'hint-bar',
       'press <b>A</b> / <b>ENTER</b> on a controller or keyboard to JOIN&nbsp;&nbsp;·&nbsp;&nbsp;' +
       '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back' +
-      '&nbsp;&nbsp;·&nbsp;&nbsp;locked: <b>↑</b> add CPU&nbsp;&nbsp;<b>↓</b> remove CPU'));
+      '&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) select a CPU / empty slot: <b>↑↓</b> change&nbsp;&nbsp;<b>B</b> done'));
     root.appendChild(this.el);
 
     if (this.touch) {
@@ -277,27 +277,46 @@ export class MechSelectScreen {
     if (this.activeCount() === 0) this.onBack();
   }
 
-  // locked players can pad the field: DPad UP drops a CPU into the first
-  // free slot, DPad DOWN removes the last CPU again
-  addCpu() {
-    const slot = this.firstOff();
-    if (slot < 0) return;
-    this.slots[slot] = { kind: 'ai', diff: 'veteran' };
-    this.audio?.play('uiSelect');
-    this.syncPickers();
+  // ---- slot selector: LB/RB walk your focus onto any EMPTY or CPU slot
+  // (never another human's) so anyone at the table can add/remove/retune
+  // AI bots. ↑/↓ cycle what lives in the focused slot, B comes home. ----
+
+  // ring of selectable stops for a picker: home (null) + every non-human slot
+  moveSel(pk, dir) {
+    const ring = [null];
+    this.slots.forEach((s, i) => { if (s.kind !== 'human') ring.push(i); });
+    if (ring.length === 1) { pk.sel = null; return; } // nothing to edit
+    const cur = Math.max(0, ring.indexOf(pk.sel));
+    pk.sel = ring[(cur + dir + ring.length) % ring.length];
+    this.audio?.play('uiMove');
     this.refresh();
   }
 
-  removeCpu() {
-    for (let i = 3; i >= 0; i--) {
-      if (this.slots[i].kind === 'ai') {
-        this.slots[i] = { kind: 'off' };
-        this.audio?.play('uiBack');
-        this.syncPickers();
-        this.refresh();
-        return;
-      }
+  // what a remote slot can be cycled through: empty → CPU (three tempers) →
+  // any keyboard seat that isn't already claimed
+  remoteOptions(i) {
+    const opts = [{ kind: 'off' },
+      { kind: 'ai', diff: 'rookie' }, { kind: 'ai', diff: 'veteran' }, { kind: 'ai', diff: 'ace' }];
+    if (!this.deviceTaken('kb1', i)) opts.push({ kind: 'human', device: 'kb1' });
+    if (!this.deviceTaken('kb2', i)) opts.push({ kind: 'human', device: 'kb2' });
+    return opts;
+  }
+
+  cycleRemote(i, dir) {
+    const opts = this.remoteOptions(i);
+    const s = this.slots[i];
+    let cur = opts.findIndex((o) => o.kind === s.kind &&
+      (o.kind !== 'ai' || o.diff === s.diff) && (o.kind !== 'human' || o.device === s.device));
+    if (cur < 0) cur = 0;
+    this.slots[i] = { ...opts[(cur + dir + opts.length) % opts.length] };
+    this.audio?.play(this.slots[i].kind === 'off' ? 'uiBack' : 'uiSelect');
+    this.syncPickers();
+    // cycled into a human (keyboard) seat: it belongs to that player now —
+    // every selector parked on it springs home
+    if (this.slots[i].kind === 'human') {
+      for (const p of this.pickers) if (p.sel === i) p.sel = null;
     }
+    this.refresh();
   }
 
   // rebuild pickers to match the human slots, preserving per-slot state
@@ -355,19 +374,26 @@ export class MechSelectScreen {
       const pc = this.playerCards[i];
       const col = COLOR_CSS[i];
       pc.className = 'player-card';
+      // slot-selector focus: frame the card in the visiting player's color
+      const ed = this.pickers.find((p) => p.sel === i);
+      const edTag = ed
+        ? `<div class="pc-sub" style="color:${COLOR_CSS[ed.slotIdx]};font-weight:800;">
+             ▶ P${ed.slotIdx + 1} EDITING · ↑↓ change · B done</div>`
+        : '';
+      pc.style.boxShadow = ed ? `0 0 0 3px ${COLOR_CSS[ed.slotIdx]}, 0 0 18px ${COLOR_CSS[ed.slotIdx]}` : '';
       if (s.kind === 'off') {
         pc.classList.add('empty');
         pc.style.borderColor = 'rgba(120,150,180,0.28)';
         pc.innerHTML = `<div class="pc-role" style="color:#6f8aa2">PLAYER ${i + 1}</div>
           <div class="pc-add">＋ ADD PLAYER</div>
-          <div class="pc-sub">press A / ENTER to join · click to add CPU / KB</div>`;
+          <div class="pc-sub">press A / ENTER to join · LB/RB from your seat, or click, to add CPU / KB</div>${edTag}`;
         return;
       }
       pc.style.borderColor = col;
       if (s.kind === 'ai') {
         pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1}</div>
           <div class="pc-dev">🤖 CPU · ${s.diff.toUpperCase()}</div>
-          <div class="pc-sub">◀ difficulty ▶ &nbsp;·&nbsp; tap center to remove</div>`;
+          <div class="pc-sub">◀ difficulty ▶ &nbsp;·&nbsp; tap center to remove</div>${edTag}`;
         return;
       }
       const pk = this.pickers.find((p) => p.slotIdx === i);
@@ -547,6 +573,20 @@ export class MechSelectScreen {
       const alt = ev.alt || (solo && evAll?.alt);
       pk.justJoined = false;
 
+      // ---- slot selector: LB/RB step the focus across empty/CPU slots ----
+      // (a slot that turned human under our focus — e.g. a pad joined into
+      // it — is no longer ours to edit, so the selector springs home)
+      if (pk.sel != null && this.slots[pk.sel]?.kind === 'human') pk.sel = null;
+      if (ev.lb || ev.rb) { this.moveSel(pk, ev.rb ? 1 : -1); continue; }
+      if (pk.sel != null) {
+        // while visiting another slot, your own pick stays parked: nav and
+        // confirm belong to the visited slot until B brings you home
+        if (up) { this.cycleRemote(pk.sel, 1); return; }
+        if (down) { this.cycleRemote(pk.sel, -1); return; }
+        if (back) { pk.sel = null; this.audio?.play('uiBack'); this.refresh(); }
+        continue;
+      }
+
       if (!pk.locked) {
         const N = ROSTER.length + 1, cols = 4; // +1: the RANDOM cell
         let moved = false;
@@ -567,9 +607,6 @@ export class MechSelectScreen {
           this.audio?.play('uiMove');
           this.refresh();
         }
-        // locked: DPad UP adds a CPU, DPad DOWN removes one
-        if (up) { this.addCpu(); return; }
-        if (down) { this.removeCpu(); return; }
         // the everyone-locked gate: a fresh confirm (well after the lock-in
         // press itself) is what actually advances to arena select
         if (confirm && this.ready && performance.now() - this._readyAt > 350) {

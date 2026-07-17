@@ -256,9 +256,10 @@ export class Input {
     return ev;
   }
 
-  // per-player menu navigation (multi-cursor mech select), same repeat feel
+  // per-player menu navigation (multi-cursor mech select), same repeat feel.
+  // lb/rb drive the slot selector (editing empty/CPU slots from your seat).
   menuEventsFor(device) {
-    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, alt: false };
+    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, alt: false, lb: false, rb: false };
     const k = (c) => this.keys.has(c) || this.keysPressed.has(c);
     if (device === 'kb1') {
       ev.up = this._navRepeat(device, 'up', k('KeyW'));
@@ -268,6 +269,8 @@ export class Input {
       ev.confirm = this.keysPressed.has('KeyF') || this.keysPressed.has('Space') || this.keysPressed.has('Enter');
       ev.back = this.keysPressed.has('KeyG') || this.keysPressed.has('Escape');
       ev.alt = this.keysPressed.has('KeyR'); // cycle color scheme
+      ev.lb = this.keysPressed.has('KeyQ');
+      ev.rb = this.keysPressed.has('KeyE');
     } else if (device === 'kb2') {
       ev.up = this._navRepeat(device, 'up', k('ArrowUp'));
       ev.down = this._navRepeat(device, 'down', k('ArrowDown'));
@@ -277,6 +280,8 @@ export class Input {
       ev.confirm = this.keysPressed.has('Numpad1') || this.keysPressed.has('Comma') || this.keysPressed.has('NumpadEnter');
       ev.back = this.keysPressed.has('Numpad2') || this.keysPressed.has('Period');
       ev.alt = this.keysPressed.has('Numpad4') || this.keysPressed.has('KeyM'); // cycle color scheme
+      ev.lb = this.keysPressed.has('Numpad7');
+      ev.rb = this.keysPressed.has('Numpad9');
     } else if (device.startsWith('pad')) {
       const i = +device[3];
       ev.up = this._navRepeat(device, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6);
@@ -286,6 +291,8 @@ export class Input {
       ev.confirm = this.padPressed(i, 'A');
       ev.back = this.padPressed(i, 'B');
       ev.alt = this.padPressed(i, 'X'); // cycle color scheme
+      ev.lb = this.padPressed(i, 'LB');
+      ev.rb = this.padPressed(i, 'RB');
     } else if (device === 'touch') {
       const tm = this.touchMenu;
       ev.up = tm.up; ev.down = tm.down; ev.left = tm.left; ev.right = tm.right;

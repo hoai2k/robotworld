@@ -1748,3 +1748,31 @@ controllers via Gamepad API), AI opponents.
   surrender/tap/rubble-pile beats with heads in frame; fx probes confirm
   shield 1.75x smash, 2 stuck quills, cyclone spin, overhand javelin;
   warmup framed COLOSSUS whole.
+
+80. AEGIS THROW/BASH POLISH · SLOT SELECTOR (user feedback) ✅
+  · Javelin throw rebuilt from real javelin form: the grip flips to the
+    flat overhand carry (arm extended straight back at shoulder height,
+    body coiled side-on, lance held LEVEL on the target line), then the
+    elbow leads high and the arm whips over the top — release at the
+    highest forward point. The bolt now spawns at the lance TIP on the
+    throw line (it used to leave from over the wrong shoulder mid-lift).
+  · Bulwark Bash: the shield itself now tips FLAT — decorated face to the
+    sky — and spins about its own face normal like an umbrella/top over
+    his raised fist (was a revolving-door face-changing spin), then the
+    smash DRIVES: a 25 u/s shield-rush through the strike window plus a
+    longer reach (6.4×scale), still growing to a bot-tall wall.
+    (_spinFx gained an optional `set` base orientation that overrides the
+    posed value with the spin layered on one axis.)
+  · Mech select SLOT SELECTOR: LB/RB (Q/E · Numpad7/9) walk your focus
+    onto any EMPTY or CPU slot — never another human's. ↑/↓ cycle what
+    lives there (empty → CPU rookie/veteran/ace → free keyboard seat),
+    B springs home. Cycling a slot into a keyboard seat hands it to that
+    player and releases every selector on it; a slot that turns human
+    under your focus (pad join) also springs you home. Focused cards get
+    the visiting player's colored frame + "P<n> EDITING" tag. Replaces
+    the locked-only DPad add/remove-CPU shortcut.
+  Verified: build green; aegis-vs-viper ace soak crash-free; fx probes
+  (flat spinning shield overhead, grown wall mid-rush hitting viper,
+  javelin cock/whip/release with bolt on the throw line); keyboard E2E
+  probe of the selector (focus → difficulty cycle → kb seat conversion
+  with spring-home → B home → lock).

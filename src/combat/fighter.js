@@ -1831,7 +1831,16 @@ export class Fighter {
       sp.t = (sp.t || 0) + dt;
       sp.acc = (sp.acc || 0) + sp.rate * dt;
       const j = this.mech.joints[sp.joint];
-      if (j) j.rotation[sp.axis] += sp.acc; // on top of the posed value
+      if (j) {
+        if (sp.set) {
+          // base orientation OVERRIDES the posed/signature value (blended in
+          // over the first beats), with the spin layered on the given axis —
+          // e.g. AEGIS tips his shield flat face-up, then tops it
+          const b = Math.min(1, sp.t / (sp.blend || 0.18));
+          j.rotation.set(sp.set[0] * b, sp.set[1] * b, sp.set[2] * b);
+        }
+        j.rotation[sp.axis] += sp.acc; // on top of the posed value
+      }
       if (sp.t >= sp.dur || !this.alive) this._spinFx = null;
     }
     const sc = this._scaleFx;

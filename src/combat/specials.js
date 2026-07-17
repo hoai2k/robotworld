@@ -97,8 +97,10 @@ export const SPECIALS = {
     const RAISE = 0.95;
     f.setState('special', RAISE + 0.9);
     f.animator.play('shieldWhirlHold');
-    // post-pose rotor whirl on the shield arm (survives the pose writes)
-    f._spinFx = { joint: 'elbowL', axis: 'y', rate: 26, dur: RAISE, t: 0, acc: 0 };
+    // the shield itself tips FLAT — decorated face to the sky — and spins
+    // about its own face normal like an umbrella/top balanced on the raised
+    // fist (set overrides the rest-carry, z is the face axis once tipped)
+    f._spinFx = { joint: 'shield', axis: 'z', rate: 26, dur: RAISE, set: [Math.PI / 2, 0, 0], t: 0, acc: 0 };
     w.audio?.play('whooshBig');
     // whirl tell: tightening rings overhead
     for (let i = 0; i < 3; i++) {
@@ -114,7 +116,7 @@ export const SPECIALS = {
         onEvent: (t) => {
           if (t === 'hit') {
             f.onAttackEvent('hit', 0, {
-              dmg: sp.dmg * f.dmgMult(), knock: sp.knock, range: 5.4 * f.scale, heavy: true,
+              dmg: sp.dmg * f.dmgMult(), knock: sp.knock, range: 6.4 * f.scale, heavy: true,
             });
             w.effects.rings.spawn(f.pos, { from: 1, to: 6, dur: 0.4, color: 0x9fd8ff, y: 1 });
           }
@@ -124,6 +126,15 @@ export const SPECIALS = {
       // the wall: the shield GROWS to a full mech's height through the
       // strike, then eases back to carry size
       f._scaleFx = { joint: 'shield', t: 0, grow: 0.2, hold: 0.5, back: 0.3, max: 1.75 };
+      // and the smash CARRIES — a driving shield-rush through the strike
+      // window instead of a standing shove
+      for (let i = 1; i <= 9; i++) {
+        w.schedule(i * 0.045, () => {
+          if (!f.alive || f.state !== 'special') return;
+          f.vel.x = Math.sin(f.yaw) * 25;
+          f.vel.z = Math.cos(f.yaw) * 25;
+        });
+      }
     });
     f.status.guard = { f: 0.6, t: sp.guard };
     f.world.effects.rings.spawn(f.pos, { from: 1, to: 5, dur: 0.5, color: 0x49b7ff, y: 1 });
