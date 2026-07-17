@@ -154,7 +154,7 @@ export class MechSelectScreen {
     this.el.appendChild(el('div', 'hint-bar',
       'press <b>A</b> / <b>ENTER</b> on a controller or keyboard to JOIN&nbsp;&nbsp;·&nbsp;&nbsp;' +
       '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back' +
-      '&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) select a CPU / empty slot: <b>↑↓</b> change&nbsp;&nbsp;<b>B</b> done'));
+      '&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) select a CPU / empty / KB slot: <b>↑↓</b> change&nbsp;&nbsp;<b>B</b> done'));
     root.appendChild(this.el);
 
     if (this.touch) {
@@ -277,14 +277,23 @@ export class MechSelectScreen {
     if (this.activeCount() === 0) this.onBack();
   }
 
-  // ---- slot selector: LB/RB walk your focus onto any EMPTY or CPU slot
-  // (never another human's) so anyone at the table can add/remove/retune
-  // AI bots. ↑/↓ cycle what lives in the focused slot, B comes home. ----
+  // ---- slot selector: LB/RB walk your focus onto any slot that isn't a
+  // controller's (empty, CPU, or keyboard seat — never a pad/touch human,
+  // never your own) so anyone at the table can add/remove/retune AI bots
+  // and stage keyboard seats. ↑/↓ cycle what lives in the focused slot,
+  // B comes home. ----
 
-  // ring of selectable stops for a picker: home (null) + every non-human slot
+  // a slot the selector may sit on: empty, CPU, or a keyboard-seat human
+  editable(i, pk) {
+    const s = this.slots[i];
+    if (i === pk.slotIdx) return false; // that's home, not a stop
+    return s.kind !== 'human' || s.device === 'kb1' || s.device === 'kb2';
+  }
+
+  // ring of selectable stops for a picker: home (null) + every editable slot
   moveSel(pk, dir) {
     const ring = [null];
-    this.slots.forEach((s, i) => { if (s.kind !== 'human') ring.push(i); });
+    this.slots.forEach((s, i) => { if (this.editable(i, pk)) ring.push(i); });
     if (ring.length === 1) { pk.sel = null; return; } // nothing to edit
     const cur = Math.max(0, ring.indexOf(pk.sel));
     pk.sel = ring[(cur + dir + ring.length) % ring.length];
@@ -310,12 +319,11 @@ export class MechSelectScreen {
     if (cur < 0) cur = 0;
     this.slots[i] = { ...opts[(cur + dir + opts.length) % opts.length] };
     this.audio?.play(this.slots[i].kind === 'off' ? 'uiBack' : 'uiSelect');
+    // NOTE: keyboard seats do NOT eject the selector — landing on kb1/kb2
+    // mid-cycle is just a stop on the wheel, so a controller can keep
+    // cycling straight past it (syncPickers keeps picker objects, so every
+    // pk.sel survives the rebuild)
     this.syncPickers();
-    // cycled into a human (keyboard) seat: it belongs to that player now —
-    // every selector parked on it springs home
-    if (this.slots[i].kind === 'human') {
-      for (const p of this.pickers) if (p.sel === i) p.sel = null;
-    }
     this.refresh();
   }
 
@@ -402,7 +410,7 @@ export class MechSelectScreen {
       pc.classList.toggle('locked', pk.locked);
       pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
         <div class="pc-dev" style="color:${mc}">${mechIcon(m, 18)}${m.name}${pk.locked ? ' ✓' : ''}</div>
-        <div class="pc-sub">${pk.locked ? `LOCKED · ${SCHEME_NAMES[pk.variant]}` : 'picking…'}</div>`;
+        <div class="pc-sub">${pk.locked ? `LOCKED · ${SCHEME_NAMES[pk.variant]}` : 'picking…'}</div>${edTag}`;
     });
   }
 
@@ -573,10 +581,11 @@ export class MechSelectScreen {
       const alt = ev.alt || (solo && evAll?.alt);
       pk.justJoined = false;
 
-      // ---- slot selector: LB/RB step the focus across empty/CPU slots ----
-      // (a slot that turned human under our focus — e.g. a pad joined into
-      // it — is no longer ours to edit, so the selector springs home)
-      if (pk.sel != null && this.slots[pk.sel]?.kind === 'human') pk.sel = null;
+      // ---- slot selector: LB/RB step the focus across editable slots ----
+      // (a slot that turned into a CONTROLLER human under our focus — e.g.
+      // a pad joined into it — is no longer ours to edit, so the selector
+      // springs home; keyboard seats stay editable)
+      if (pk.sel != null && !this.editable(pk.sel, pk)) pk.sel = null;
       if (ev.lb || ev.rb) { this.moveSel(pk, ev.rb ? 1 : -1); continue; }
       if (pk.sel != null) {
         // while visiting another slot, your own pick stays parked: nav and

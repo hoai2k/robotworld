@@ -1987,3 +1987,11 @@ controllers via Gamepad API), AI opponents.
   javelin cock/whip/release with bolt on the throw line); keyboard E2E
   probe of the selector (focus → difficulty cycle → kb seat conversion
   with spring-home → B home → lock).
+  · Follow-up (user feedback): selector stops now include KEYBOARD-seat
+    slots (any non-controller slot except your own; pad/touch humans stay
+    off-limits), and cycling a slot INTO kb1/kb2 no longer ejects the
+    selector — it's just a stop on the wheel, so a controller can cycle
+    straight past keyboard choices while setting up AIs. Only a slot that
+    turns into a controller human under your focus springs you home.
+    Verified: keyboard E2E probe (cycle ace → kb2 with selector held,
+    wrap past to off, re-park as kb2, ring stop on the kb-human slot).
