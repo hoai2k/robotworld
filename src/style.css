@@ -84,8 +84,10 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 .menu-item.selected::after  { content: '◀'; position: absolute; right: 8px; color: var(--hud-cyan); font-style: normal; }
 
 .hint-bar {
-  position: absolute; bottom: 3vh; left: 0; right: 0; text-align: center;
+  position: absolute; bottom: 0; left: 0; right: 0; text-align: center;
+  padding: 9px 12px 1.4vh;
   font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: #6f93ad;
+  background: linear-gradient(0deg, rgba(4, 8, 14, 0.75), transparent);
 }
 .hint-bar b { color: #cdeeff; font-weight: 700; }
 
@@ -106,10 +108,20 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 }
 
 /* ---------- mech select ---------- */
+/* Responsive contract (built for a growing roster): the grid stays
+   vertically centered until it outgrows the space between the heading and
+   the players bar, then it CAPS and scrolls internally — cells never bleed
+   off the top, and the hint bar keeps its own reserved strip. */
 .roster-grid {
   position: absolute; left: 3vw; top: 50%; transform: translateY(-50%);
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; width: min(36vw, 470px);
+  max-height: calc(100vh - 12vh - 6vh - 128px); /* heading strip · bottom bars */
+  overflow-y: auto; overflow-x: hidden; align-content: start;
+  padding: 2px 6px 2px 2px;
+  scrollbar-width: thin; scrollbar-color: rgba(96, 200, 255, 0.45) transparent;
 }
+.roster-grid::-webkit-scrollbar { width: 6px; }
+.roster-grid::-webkit-scrollbar-thumb { background: rgba(96, 200, 255, 0.45); border-radius: 3px; }
 .roster-cell {
   aspect-ratio: 1; border-radius: 6px; cursor: pointer; position: relative;
   background: linear-gradient(160deg, rgba(30,50,80,0.85), rgba(10,18,32,0.9));
@@ -135,6 +147,8 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 .mech-info-card {
   position: absolute; right: 3vw; top: 50%; transform: translateY(-50%);
   width: min(30vw, 400px); padding: 22px 26px;
+  max-height: calc(100vh - 12vh - 6vh - 128px);
+  overflow-y: auto; scrollbar-width: thin;
 }
 .mech-info-card .mi-name {
   font-size: clamp(26px, 3vw, 42px); font-weight: 900; font-style: italic;
@@ -165,10 +179,26 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 .picker-chip.done { color: var(--hud-green); border-color: rgba(98,255,154,0.5); }
 
 /* ---------- players bar (join + pick status) ---------- */
+/* sits ABOVE the hint bar's reserved strip instead of overlapping it */
 .players-bar {
-  position: absolute; bottom: 4vh; left: 0; right: 0;
+  position: absolute; bottom: calc(2vh + 38px); left: 0; right: 0;
   display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; padding: 0 12px;
 }
+
+/* everyone-locked gate: pulsing "confirm to continue" chip */
+.ready-banner {
+  position: absolute; left: 0; right: 0; bottom: calc(4vh + 128px);
+  display: flex; justify-content: center; pointer-events: none; z-index: 3;
+}
+.ready-banner .rb-chip {
+  padding: 10px 26px; border-radius: 24px; font-weight: 800;
+  letter-spacing: 0.16em; text-transform: uppercase; font-size: 13px;
+  color: #061018; background: linear-gradient(180deg, #8fffb4, #28c86a);
+  box-shadow: 0 0 26px rgba(98, 255, 154, 0.55);
+  animation: pulse 1.15s ease-in-out infinite;
+}
+.ready-banner .rb-chip b { color: #04230f; }
+body.touch-mode .ready-banner { position: fixed; bottom: 15vh; z-index: 26; }
 .player-card {
   width: min(19vw, 215px); min-height: 76px; padding: 9px 14px; border-radius: 9px;
   background: rgba(10,18,30,0.82); border: 2px solid rgba(120,170,220,0.3);
@@ -279,6 +309,8 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 
 /* pause */
 .pause-title { font-size: clamp(34px, 5vw, 64px); }
+/* the CONTROLS reference can outgrow small screens — let it scroll */
+.screen .panel { max-height: 60vh; overflow-y: auto; scrollbar-width: thin; }
 
 /* damage popups layer */
 #popup-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
@@ -318,6 +350,37 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 #loading-screen .load-bar { width: min(40vw, 420px); height: 6px; margin-top: 26px;
   background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
 #loading-screen .load-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #1c86c8, #38e8ff); transition: width 0.2s; }
+
+/* ---------- pre-fight warm-up (asset loading) ---------- */
+/* Transparent chrome over the live per-fighter camera views: the 3D scene
+   renders (and warms textures/shaders) behind these captions. */
+.warmup-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 12; }
+.warmup-overlay .wu-head {
+  position: absolute; top: 2.2vh; left: 0; right: 0; text-align: center;
+}
+.warmup-overlay .wu-sub {
+  font-size: 12px; letter-spacing: 0.5em; text-transform: uppercase; color: #9fd8ef; text-indent: 0.5em;
+}
+.warmup-overlay .wu-arena {
+  font-size: clamp(28px, 4.6vw, 58px); font-weight: 900; font-style: italic;
+  letter-spacing: 0.08em; text-transform: uppercase; color: #fff;
+  text-shadow: 0 0 26px rgba(56, 232, 255, 0.6), 0 3px 5px rgba(0, 0, 0, 0.8);
+}
+.warmup-overlay .wu-cap { position: absolute; text-align: center; padding: 0 2vw; }
+.warmup-overlay .wu-name {
+  font-size: clamp(18px, 2.4vw, 34px); font-weight: 900; font-style: italic;
+  letter-spacing: 0.07em; text-transform: uppercase;
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.9), 0 2px 3px #000;
+}
+.warmup-overlay .wu-quote {
+  margin-top: 4px; font-size: clamp(11px, 1.25vw, 15px); font-style: italic;
+  color: #cfe4f4; text-shadow: 0 1px 3px #000;
+}
+.warmup-overlay .wu-loading {
+  position: absolute; bottom: 1.8vh; right: 2.2vw;
+  font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase; color: #7fa8c4;
+  animation: pulse 1.2s ease-in-out infinite;
+}
 
 /* ============ TOUCH CONTROLS (phones / tablets) ============ */
 /* Overlay layer above the HUD; only the controls themselves catch pointers. */
@@ -409,6 +472,16 @@ body.touch-mode .hint-bar { display: none; }
   .roster-grid { gap: 6px; }
   .mech-info-card { font-size: 12px; }
 }
+
+/* short viewports: the centered heading would crowd the roster grid, so it
+   tucks into the top-RIGHT corner (the grid owns the left edge) */
+@media (max-height: 730px) {
+  .screen:has(.roster-grid) .screen-heading {
+    left: auto; right: 3vw; top: 1.6vh; text-align: right;
+    font-size: clamp(18px, 3vw, 34px);
+  }
+  .screen:has(.roster-grid) .mech-info-card { top: calc(1.6vh + 52px); transform: none; }
+}
 @media (max-width: 560px) {
   .touch-btn { width: 58px; height: 58px; }
   .touch-btn.b-light, .touch-btn.b-heavy { width: 66px; height: 66px; }
@@ -417,11 +490,20 @@ body.touch-mode .hint-bar { display: none; }
 }
 
 /* ============ MOBILE-OPTIMIZED MENUS ============ */
-/* Base arena grid (desktop) — replaces the old inline style. */
+/* Base arena grid (desktop): bounded between the heading and the hint bar,
+   scrolling internally (13+ cards) — the roulette's scrollIntoView keeps
+   the spinning cursor on screen. */
 .arena-grid {
+  position: absolute; top: 12vh; bottom: calc(1.5vh + 42px);
+  left: 50%; transform: translateX(-50%);
+  width: min(88vw, 1240px);
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px;
-  max-width: min(88vw, 1240px); margin-top: 8vh;
+  overflow-y: auto; overflow-x: hidden; align-content: start; padding: 6px;
+  scrollbar-width: thin; scrollbar-color: rgba(96, 200, 255, 0.45) transparent;
 }
+.arena-grid::-webkit-scrollbar { width: 6px; }
+.arena-grid::-webkit-scrollbar-thumb { background: rgba(96, 200, 255, 0.45); border-radius: 3px; }
+.arena-card { width: auto; }
 
 /* Portrait "rotate your device" nudge — landscape is the intended play mode. */
 #rotate-hint {

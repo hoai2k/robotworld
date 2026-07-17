@@ -72,6 +72,29 @@ class MenuStage {
     this.showPreviews([{ id, slotIdx: 0 }]);
   }
 
+  // big floating "?" stand-in for the RANDOM roster pick, tinted by the
+  // chosen color scheme (the scheme carries onto whatever robot is dealt)
+  questionSprite(variant = 0) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = 128;
+    const ctx = cv.getContext('2d');
+    ctx.font = '900 italic 104px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.shadowColor = 'rgba(160,220,255,0.9)';
+    ctx.shadowBlur = 22;
+    ctx.fillStyle = '#eaf6ff';
+    ctx.fillText('?', 64, 70);
+    const tex = new THREE.CanvasTexture(cv);
+    const RANDOM_TINTS = [0x9fd8ef, 0xff7a28, 0x3fc8ff, 0x6a7280]; // stock/ember/tide/midnight
+    const spr = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: tex, transparent: true, depthWrite: false,
+      color: RANDOM_TINTS[variant % RANDOM_TINTS.length],
+    }));
+    spr.scale.set(5.2, 5.2, 1);
+    return spr;
+  }
+
   // one preview mech per human picker, each on a player-colored ring
   showPreviews(entries) {
     if (!entries || !entries.length) return;
@@ -84,12 +107,21 @@ class MenuStage {
     const cx = n === 1 ? 6.5 : 2.5;
     const spacing = 6.5;
     entries.forEach((e, i) => {
-      const mech = buildMech(applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0));
-      mech.animator = new Animator(mech);
       const x = cx + (i - (n - 1) / 2) * spacing;
-      mech.group.position.set(x, 0, 0);
-      this.group.add(mech.group);
-      this.mechs.push(mech);
+      if (e.id === 'random') {
+        // mystery unit: a hovering "?" instead of a mech
+        const spr = this.questionSprite(e.variant || 0);
+        spr.position.set(x, 4.8, 0);
+        this.group.add(spr);
+        this.extras = this.extras || [];
+        this.extras.push(spr);
+      } else {
+        const mech = buildMech(applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0));
+        mech.animator = new Animator(mech);
+        mech.group.position.set(x, 0, 0);
+        this.group.add(mech.group);
+        this.mechs.push(mech);
+      }
       if (n > 1) {
         const ring = new THREE.Mesh(
           new THREE.RingGeometry(2.3, 2.7, 40),
@@ -117,6 +149,12 @@ class MenuStage {
       r.material.dispose();
     }
     this.rings = [];
+    for (const s of this.extras || []) {
+      this.group.remove(s);
+      s.material.map?.dispose();
+      s.material.dispose();
+    }
+    this.extras = [];
   }
 
   update(dt) {
@@ -335,12 +373,90 @@ export async function bootGame() {
 
   function goArenaSelect() {
     S.mode = 'arenaselect';
-    preloadMechModels(S.picks.filter(Boolean)); // warm GLB cache while browsing arenas
+    preloadMechModels(S.picks.filter((p) => p && p !== 'random')); // warm GLB cache while browsing arenas
     setScreen(new ArenaSelectScreen(uiRoot, {
       audio,
       onDone: (themeId) => { S.themeId = themeId; startBattle(); },
       onBack: () => goMechSelect(),
     }));
+  }
+
+  // ---------------- pre-fight warm-up (asset loading) ----------------
+  // While the arena's texture pack streams in, the match holds on a
+  // "get ready" screen: the board title up top, and each fighter in its
+  // own camera view shadow-boxing with its intro quote — meanwhile the
+  // real scene renders behind it all, compiling shaders and uploading
+  // textures so the fight starts with zero pop-in.
+  let texBusy = false;
+  THREE.DefaultLoadingManager.onStart = () => { texBusy = true; };
+  THREE.DefaultLoadingManager.onLoad = () => { texBusy = false; };
+
+  function startWarmup(B, theme) {
+    const { fighters } = B;
+    const n = fighters.length;
+    const rects = n === 2
+      ? [{ x: 0, y: 0, w: 0.5, h: 1 }, { x: 0.5, y: 0, w: 0.5, h: 1 }]
+      : n === 3
+        ? [{ x: 0, y: 0, w: 1 / 3, h: 1 }, { x: 1 / 3, y: 0, w: 1 / 3, h: 1 }, { x: 2 / 3, y: 0, w: 1 / 3, h: 1 }]
+        : [{ x: 0, y: 0.5, w: 0.5, h: 0.5 }, { x: 0.5, y: 0.5, w: 0.5, h: 0.5 },
+          { x: 0, y: 0, w: 0.5, h: 0.5 }, { x: 0.5, y: 0, w: 0.5, h: 0.5 }];
+    const W = Math.max(1, window.innerWidth), H = Math.max(1, window.innerHeight);
+    engine.views = fighters.map((f, i) => {
+      const r = rects[i];
+      const cam = new THREE.PerspectiveCamera(42, (r.w * W) / (r.h * H), 0.5, 2200);
+      const dx = Math.sin(f.yaw), dz = Math.cos(f.yaw);
+      const d = 3.5 + f.height * 1.05; // frame the whole mech, head included
+      cam.position.set(f.pos.x + dx * d, f.height * 0.62, f.pos.z + dz * d);
+      cam.lookAt(f.pos.x, f.height * 0.5, f.pos.z);
+      return { camera: cam, ...r };
+    });
+    for (const f of fighters) {
+      f.controlsLocked = true;
+      f.animator.play('intro');
+      f._wuNext = 2.6 + Math.random() * 1.2;
+      f._wuSeq = 0;
+    }
+    const ov = document.createElement('div');
+    ov.className = 'warmup-overlay';
+    const caps = fighters.map((f, i) => {
+      const r = rects[i];
+      const glow = '#' + f.def.colors.glow.toString(16).padStart(6, '0');
+      return `<div class="wu-cap" style="left:${r.x * 100}%;width:${r.w * 100}%;bottom:calc(${r.y * 100}% + 4vh);">
+        <div class="wu-name" style="color:${glow}">${f.def.name}</div>
+        <div class="wu-quote">${f.def.quotes.intro}</div>
+      </div>`;
+    }).join('');
+    ov.innerHTML = `
+      <div class="wu-head"><div class="wu-sub">NOW ENTERING</div><div class="wu-arena">${theme.name}</div></div>
+      ${caps}
+      <div class="wu-loading">LOADING ARENA…</div>`;
+    uiRoot.appendChild(ov);
+    B.hud.el.style.display = 'none';
+    B.loading = { t: 0, settle: 0, minT: 3.4, maxT: 9, ov };
+  }
+
+  function updateWarmup(B, dt) {
+    const L = B.loading;
+    L.t += dt;
+    L.settle = texBusy ? 0 : L.settle + dt;
+    // shadow-boxing beats while the arena streams in
+    for (const f of B.fighters) {
+      if (f.alive && L.t >= f._wuNext) {
+        f._wuNext = L.t + 2.2 + Math.random() * 1.3;
+        const seq = ['light1', 'taunt', 'light2'];
+        f.animator.play(seq[f._wuSeq++ % seq.length]);
+      }
+    }
+    // go when the loader has been idle for a beat (and never before the
+    // quotes have had their moment; hard cap so a stall can't trap us)
+    if (L.t >= L.minT && (L.settle > 0.45 || L.t >= L.maxT)) {
+      L.ov.remove();
+      engine.views = null;
+      B.hud.el.style.display = '';
+      B.loading = null;
+      if (B.usesTouch) touchControls?.setVisible(true);
+      B.match.begin();
+    }
   }
 
   // ---------------- battle ----------------
@@ -389,8 +505,11 @@ export async function bootGame() {
       });
       fighters.push(f);
       world.fighters.push(f);
-      if (a.slot.kind === 'ai') ais.push(new AIController(f, a.slot.diff));
-      else humans.push({ fighter: f, device: a.slot.device, idx: humans.length });
+      if (a.slot.kind === 'ai') {
+        const ctrl = new AIController(f, a.slot.diff);
+        ctrl.diffName = a.slot.diff;
+        ais.push(ctrl);
+      } else humans.push({ fighter: f, device: a.slot.device, idx: humans.length });
     });
 
     const cameraSys = new CameraSystem(engine, world);
@@ -414,11 +533,55 @@ export async function bootGame() {
       },
     });
 
+    // ---- RANDOM roster picks: a fresh robot is dealt every round ----
+    const randomIdx = active
+      .map((a, i) => (S.picks[a.slotIdx] === 'random' ? i : -1))
+      .filter((i) => i >= 0);
+    match.onRoundStart = (round) => {
+      if (round < 2 || !randomIdx.length) return;
+      for (const i of randomIdx) {
+        const old = fighters[i];
+        const exclude = new Set(fighters.filter((f) => f !== old).map((f) => f.def.id));
+        const pool = ROSTER.filter((m) => !exclude.has(m.id));
+        const base = pool.length ? pool[(Math.random() * pool.length) | 0]
+          : ROSTER[(Math.random() * ROSTER.length) | 0];
+        let variant = S.variants?.[old.playerIndex] || 0;
+        for (let t = 0; fighters.some((o) => o !== old && o.def.id === base.id && (o.def.variant || 0) === variant) && t < SCHEME_COUNT; t++) {
+          variant = (variant + 1) % SCHEME_COUNT;
+        }
+        const def = applyColorScheme(base, variant);
+        // retire the old body cleanly (patches, quills, scene, geometry)
+        world.effects.clearGlitchOn(old);
+        world.scene.remove(old.group);
+        old.group.traverse((o) => { if (o.isMesh) o.geometry?.dispose?.(); });
+        const nf = new Fighter(world, def, {
+          pos: old.pos.clone(), yaw: old.yaw,
+          playerIndex: old.playerIndex, isAI: old.isAI,
+        });
+        nf.wins = old.wins;
+        fighters[i] = nf;
+        const wi = world.fighters.indexOf(old);
+        if (wi >= 0) world.fighters[wi] = nf;
+        const h = humans.find((x) => x.fighter === old);
+        if (h) h.fighter = nf;
+        const ci = ais.findIndex((x) => x.f === old);
+        if (ci >= 0) {
+          const ctrl = new AIController(nf, ais[ci].diffName);
+          ctrl.diffName = ais[ci].diffName;
+          ais[ci] = ctrl;
+        }
+      }
+      hud.buildPlates(fighters);
+      hud.positionPlates(cameraSys.layoutKind(humans.length), humans.map((h) => fighters.indexOf(h.fighter)));
+    };
+
     const usesTouch = humans.some((h) => h.device === 'touch');
-    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false, usesTouch };
-    if (touchControls) touchControls.setVisible(usesTouch);
+    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false, usesTouch, loading: null };
+    if (touchControls) touchControls.setVisible(false); // hidden until the bell
     audio.music(theme.music);
-    match.begin();
+    // pre-fight warm-up screen: the match is gated behind it while the
+    // texture pack streams in and the first frames compile every shader
+    startWarmup(S.battle, theme);
 
     // pad rumble helper reaches humans by playerIndex
     world.input.rumble = ((orig) => (playerIndex, s, ms) => {
@@ -430,6 +593,11 @@ export async function bootGame() {
   function teardownBattle() {
     if (!S.battle) return;
     touchControls?.setVisible(false);
+    if (S.battle.loading) { // quit mid-warm-up: drop the overlay + cameras
+      S.battle.loading.ov.remove();
+      S.battle.loading = null;
+      engine.views = null;
+    }
     S.battle.match.destroy();
     S.battle.hud.destroy();
     S.battle.cameraSys.dividerEl.remove();
@@ -476,6 +644,7 @@ export async function bootGame() {
         }
         for (const ai of B.ais) ai.update(dt);
         world_update(B, dt);
+        if (B.loading) updateWarmup(B, dt);
         B.match.update(dt);
         const ev = input.menuEvents();
         if (ev.pause) pauseBattle();
@@ -501,6 +670,7 @@ export async function bootGame() {
 
   engine.onRender = (dtReal) => {
     const B = S.battle;
+    if (B?.loading) return; // warm-up owns the fixed per-fighter cameras
     if ((S.mode === 'battle' || S.mode === 'results') && B) {
       // right stick = camera control, per player
       if (!B.paused) {

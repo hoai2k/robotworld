@@ -88,43 +88,86 @@ export const SPECIALS = {
     }
   },
 
-  // AEGIS: shield bash + guard buff
+  // AEGIS: Bulwark Bash — the tower shield goes UP over his head face-up
+  // and WHIRLS like a rotor (same showmanship as the spear heavy), then
+  // comes down and RAMS forward, swelling into a bot-tall wall of steel
+  // as it strikes
   shieldBash(f, sp) {
-    const dur = f.animator.play('shieldBash', {
-      onEvent: (t) => {
-        if (t === 'hit') {
-          f.onAttackEvent('hit', 0, {
-            dmg: sp.dmg * f.dmgMult(), knock: sp.knock, range: 4.2 * f.scale, heavy: true,
-          });
-        } else if (t === 'sfx') f.world.audio?.play('whooshBig');
-      },
+    const w = f.world;
+    const RAISE = 0.95;
+    f.setState('special', RAISE + 0.9);
+    f.animator.play('shieldWhirlHold');
+    // post-pose rotor whirl on the shield arm (survives the pose writes)
+    f._spinFx = { joint: 'elbowL', axis: 'y', rate: 26, dur: RAISE, t: 0, acc: 0 };
+    w.audio?.play('whooshBig');
+    // whirl tell: tightening rings overhead
+    for (let i = 0; i < 3; i++) {
+      w.schedule(i * 0.3, () => {
+        if (!f.alive || f.state !== 'special') return;
+        w.effects.rings.spawn(f.pos, { from: 3.4, to: 1, dur: 0.28, color: 0x49b7ff, y: f.height * 0.95 });
+      });
+    }
+    w.schedule(RAISE, () => {
+      if (!f.alive || f.state !== 'special') return;
+      f.faceNearestEnemyIfClose(14);
+      const dur = f.animator.play('aegisShieldSmash', {
+        onEvent: (t) => {
+          if (t === 'hit') {
+            f.onAttackEvent('hit', 0, {
+              dmg: sp.dmg * f.dmgMult(), knock: sp.knock, range: 5.4 * f.scale, heavy: true,
+            });
+            w.effects.rings.spawn(f.pos, { from: 1, to: 6, dur: 0.4, color: 0x9fd8ff, y: 1 });
+          }
+        },
+      });
+      f.setState('special', dur * 0.95);
+      // the wall: the shield GROWS to a full mech's height through the
+      // strike, then eases back to carry size
+      f._scaleFx = { joint: 'shield', t: 0, grow: 0.2, hold: 0.5, back: 0.3, max: 1.75 };
     });
-    f.setState('special', dur * 0.85);
     f.status.guard = { f: 0.6, t: sp.guard };
     f.world.effects.rings.spawn(f.pos, { from: 1, to: 5, dur: 0.5, color: 0x49b7ff, y: 1 });
   },
 
-  // VIPER: dash-through strike with i-frames
-  phantomStrike(f, sp) {
-    const dur = f.animator.play('lunge');
-    f.setState('special', 0.42);
-    f.iframes = 0.4;
-    const sp2 = f.def.stats.speed * 4.6;
-    f.vel.x = Math.sin(f.yaw) * sp2;
-    f.vel.z = Math.cos(f.yaw) * sp2;
-    f.world.audio?.play('dash');
-    // damage everyone passed through, checked over the dash
-    const victims = new Set();
-    for (let i = 1; i <= 8; i++) {
-      f.world.schedule(i * 0.045, () => {
-        if (!f.alive) return;
-        f.world.effects.dashTrail(f.pos, 0x6cff5c, f.scale * 1.4);
-        for (const e of f.world.fighters) {
-          if (e === f || !e.alive || victims.has(e)) continue;
-          if (e.pos.distanceTo(f.pos) < 3.4 * f.scale) {
-            victims.add(e);
-            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 10, srcPos: f.pos });
-            f.world.engine.addHitStop(0.05);
+  // VIPER: BLADE CYCLONE — IG-11 doctrine: the legs keep WALKING straight
+  // ahead while everything above the waist spins free, both swords thrown
+  // out level — a striding whirlwind that saws repeatedly through anything
+  // it overlaps
+  bladeCyclone(f, sp) {
+    const w = f.world;
+    const DUR = 1.35;
+    f.setState('special', DUR + 0.15);
+    f.animator.play('viperWhirl');
+    // post-pose torso spin: the waist is a free bearing — head and blades
+    // whirl while the gait below stays forward
+    f._spinFx = { joint: 'torso', axis: 'y', rate: 21, dur: DUR, t: 0, acc: 0 };
+    w.audio?.play('dash');
+    const hitAt = new Map(); // per-victim saw cadence: re-hit every 0.22s
+    const ticks = Math.floor(DUR / 0.05);
+    for (let i = 1; i <= ticks; i++) {
+      w.schedule(i * 0.05, () => {
+        if (!f.alive || f.state !== 'special') return;
+        const t = i * 0.05;
+        const spd = f.def.stats.speed * 1.7;
+        f.vel.x = Math.sin(f.yaw) * spd;
+        f.vel.z = Math.cos(f.yaw) * spd;
+        // the spinning edges shed a green shimmer ring
+        for (const bn of ['bladeL', 'bladeR']) {
+          const a = f.mech.anchors[bn];
+          if (a && i % 2 === 0) {
+            a.getWorldPosition(_v);
+            w.effects.glows.emit(_v.x, _v.y, _v.z, 0, 0, 0,
+              { life: 0.16, size: 0.7 * f.scale, color: 0x5aff2e, alpha: 0.85, grow: -1 });
+          }
+        }
+        for (const e of w.fighters) {
+          if (e === f || !e.alive) continue;
+          const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
+          if (Math.hypot(dx, dz) < 3.6 * f.scale && (hitAt.get(e) ?? -1) <= t - 0.22) {
+            hitAt.set(e, t);
+            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, srcPos: f.pos });
+            w.audio?.play('slash');
+            w.engine.addHitStop(0.03);
           }
         }
       });

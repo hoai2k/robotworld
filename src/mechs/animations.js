@@ -125,6 +125,18 @@ const CLIPS_RAW = {
     ],
     events: [{ t: 0.24, type: 'sfx', arg: 'whoosh' }, { t: 0.28, type: 'hit', arg: 2 }],
   },
+  viperWhirl: { // BLADE CYCLONE carriage (upper-body only, so the LEGS keep
+    // walking underneath): both swords thrown out level like rotor blades,
+    // arms see-sawing so the cuts carve different heights — the special
+    // spins the torso joint post-pose, IG-11 style
+    dur: 0.5, loop: true, upper: true,
+    keys: [
+      { t: 0, pose: { torso: [6, 0, 0], head: [-4, 0, 0], shoulderL: [-18, 0, -86], shoulderR: [-10, 0, 86], elbowL: [-6, 0, 0], elbowR: [-6, 0, 0], handL: [0, 0, -10], handR: [0, 0, 10] } },
+      { t: 0.25, ease: 'inOutQuad', pose: { shoulderL: [-8, 0, -84], shoulderR: [-22, 0, 84], torso: [8, 0, 0] } },
+      { t: 0.5, ease: 'inOutQuad', pose: { shoulderL: [-18, 0, -86], shoulderR: [-10, 0, 86], torso: [6, 0, 0] } },
+    ],
+    events: [{ t: 0.1, type: 'sfx', arg: 'whoosh' }, { t: 0.35, type: 'sfx', arg: 'whoosh' }],
+  },
   viperHeavy: { // kesa-giri: blade raised high behind the head, then one great
     // diagonal cut down through the target with full follow-through
     dur: 0.8,
@@ -207,18 +219,64 @@ const CLIPS_RAW = {
     ],
     events: [{ t: 0.04, type: 'sfx', arg: 'whooshBig' }, { t: 0.16, type: 'hit', arg: 0 }, { t: 0.18, type: 'shake', arg: 0.4 }],
   },
-  aegisThrow: { // ranged: a proper JAVELIN throw — the lance chambers back
-    // level past the ear, then whips forward and releases at full reach
-    // (fire event) while the shield guard never drops. Same handR identity
-    // as the stabs keeps the tip aimed at the target the whole way.
-    dur: 0.55,
+  aegisThrow: { // ranged: a true OVERHAND javelin throw — the lance is
+    // carried UP high over the shoulder (body arched back, elbow cocked),
+    // then whipped forward OVER THE TOP and released at the highest
+    // forward point of the arc (fire event) while the shield guard never
+    // drops. Same handR identity as the stabs keeps the tip on target.
+    dur: 0.62,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.16, ease: 'outCubic', pose: { torso: [-4, 30, 5], hipsRot: [0, 14, 0], hipsPos: [0, -0.08, -0.06], head: [2, -14, 0], shoulderR: [-52, 20, 18], elbowR: [-44, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.28, ease: 'outBack', pose: { torso: [14, -22, -5], hipsRot: [3, -12, 0], hipsPos: [0, -0.12, 0.14], head: [0, 10, 0], shoulderR: [-96, -8, -2], elbowR: [-4, 0, 0], handR: [92, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.55, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
+      { t: 0.2, ease: 'outCubic', pose: { torso: [-16, 28, 6], hipsRot: [-4, 13, 0], hipsPos: [0, -0.1, -0.1], head: [6, -13, 0], shoulderR: [-142, 16, 22], elbowR: [-34, 0, 0], handR: [118, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-20, 0, 0], kneeL: [26, 0, 0], thighR: [10, 0, 0], kneeR: [20, 0, 0] } },
+      { t: 0.32, ease: 'outBack', pose: { torso: [22, -24, -6], hipsRot: [6, -13, 0], hipsPos: [0, -0.16, 0.18], head: [0, 11, 0], shoulderR: [-98, -8, -4], elbowR: [-4, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-38, 0, 0], kneeL: [48, 0, 0], thighR: [22, 0, 0], kneeR: [50, 0, 0], ankleR: [20, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
-    events: [{ t: 0.2, type: 'sfx', arg: 'whooshBig' }, { t: 0.26, type: 'fire' }],
+    events: [{ t: 0.24, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'fire' }],
+  },
+  shieldWhirlHold: { // AEGIS Bulwark Bash wind-up: the tower shield is
+    // hoisted straight overhead FACE-UP and whirled like a rotor (the
+    // special spins elbowL post-pose) while the spear arm guards low.
+    // Deliberately NOT 'aegis'-prefixed: the signature's square-to-front
+    // shield brace must not fight the face-up carry.
+    dur: 0.6, loop: true,
+    keys: [
+      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.2, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-26, 0, 18], elbowR: [-52, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
+      { t: 0.3, ease: 'inOutQuad', pose: { hipsPos: [0, -0.24, 0], torso: [-8, 0, -3], shoulderL: [-174, 0, -8] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { hipsPos: [0, -0.2, 0], torso: [-6, 0, -3], shoulderL: [-176, 0, -10] } },
+    ],
+    events: [{ t: 0.08, type: 'sfx', arg: 'whoosh' }, { t: 0.38, type: 'sfx', arg: 'whoosh' }],
+  },
+  aegisShieldSmash: { // Bulwark Bash release: the whirling shield comes
+    // DOWN off the crown and RAMS forward face-first — the special grows
+    // it to a bot-tall wall through the strike ('aegis' prefix so the
+    // signature squares the face to the front for the impact)
+    dur: 0.62,
+    keys: [
+      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.2, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-26, 0, 18], elbowR: [-52, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
+      { t: 0.16, ease: 'outBack', pose: { torso: [16, 12, -3], hipsRot: [4, 6, 0], hipsPos: [0, -0.22, 0.26], head: [0, -6, 0], shoulderL: [-88, 14, -6], elbowL: [-18, 0, 0], shoulderR: [8, 0, 18], elbowR: [-30, 0, 0], thighL: [-40, 0, 0], kneeL: [50, 0, 0], thighR: [20, 0, 0], kneeR: [46, 0, 0], ankleR: [18, 0, 0] } },
+      { t: 0.36, ease: 'inOutQuad', pose: { torso: [13, 10, -2], hipsPos: [0, -0.2, 0.2] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.06, type: 'sfx', arg: 'whooshBig' }, { t: 0.18, type: 'hit', arg: 0 }, { t: 0.2, type: 'shake', arg: 0.5 }],
+  },
+  frozenSurrender: { // GLACIER's finisher victim: iced over mid-surrender —
+    // both hands thrown in the air, slight cower, held solid
+    dur: 0.55, hold: true,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.55, ease: 'outCubic', pose: { shoulderL: [-160, 0, -18], shoulderR: [-160, 0, 18], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], torso: [-10, 0, 0], head: [-14, 0, 0], hipsPos: [0, -0.1, 0], kneeL: [14, 0, 0], kneeR: [14, 0, 0], thighL: [-8, 0, 0], thighR: [-8, 0, 0] } },
+    ],
+  },
+  daintyTap: { // GLACIER's finisher: one delicate outstretched poke —
+    // barely a touch, all it takes
+    dur: 0.85,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.32, ease: 'inOutCubic', pose: { torso: [4, -10, 0], head: [2, 8, 0], hipsPos: [0, -0.04, 0.05], shoulderR: [-60, 0, 6], elbowR: [-48, 0, 0], handR: [-16, 0, 0], shoulderL: [4, 0, -14] } },
+      { t: 0.46, ease: 'outCubic', pose: { shoulderR: [-74, 0, 2], elbowR: [-10, 0, 0], torso: [6, -12, 0], hipsPos: [0, -0.05, 0.09] } },
+      { t: 0.85, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10] } },
+    ],
+    events: [{ t: 0.42, type: 'sfx', arg: 'servo' }],
   },
   viperDrill: { // heavy: ninja coil, then the whole body launches FLAT and
     // corkscrews forward — both blades speared ahead as the drill point

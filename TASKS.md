@@ -1697,3 +1697,54 @@ controllers via Gamepad API), AI opponents.
   over the body from both sides, gold/white body-color smears visible);
   finisher probed at rise/full-cover/bluescreen; both ace soaks
   crash-free; build green.
+
+79. MEGA-BATCH: MENUS, LOADING, FINISHERS, SIGNATURE-MOVE REWORKS (user requests) ✅
+  · Glitch stun: no more 2x damage while stunned (helpless is enough).
+    NULLBOT finisher leaves the corruption ON the wreck after the BSOD —
+    the corpse lies there glitching until the next round resets it.
+  · AEGIS javelin: ranged throw re-animated as a true overhand javelin
+    (cock high above the shoulder, arch back, step-through release).
+  · AEGIS Bulwark Bash reworked: shield held OVERHEAD spinning face-up
+    (like his spear heavy), then a forward smash — shield squares up
+    face-front and GROWS to ~full bot height (joint scaleFx 1.75x) as it
+    strikes. Generic _spinFx/_scaleFx post-pose hooks added to fighter.
+  · VIPER special replaced: Phantom Strike → BLADE CYCLONE, an IG-11
+    walking whirlwind — legs keep striding forward (upper:true clip)
+    while the torso spins 21 rad/s with both blades out, re-hitting
+    everyone in the spiral every 0.22s.
+  · SAURION quills now stick in the victim (bone-attached, 2.4-3.4s).
+  · GLACIER finisher re-choreographed: spray until the victim is frozen
+    SOLID WHITE with hands surrendered in the air, walk up, one dainty
+    tap — and the statue shatters into 18 tumbling white-ice chunks that
+    settle into a rubble pile (persists as debris until next round).
+  · Finisher cameras: headSafe() clamp on every camShot/camAction/triumph
+    — no midsection close-ups; look target lifts until the tallest head
+    fits the lens (per-fighter distance aware). LB lock-aim crosshair now
+    tracks the target's HEAD (0.88h) instead of the midsection.
+  · Arena select: RANDOM tile at top-left — visible roulette (2 laps +
+    ease-out lap) before landing on the chosen board. Grid is a bounded,
+    scrollable region (13 cards never clip off-screen; selection
+    auto-scrolls into view).
+  · Roster select: RANDOM cell (❓) as the last tile — question-mark
+    preview, color choice kept (it tints the dealt bots), and a NEW
+    random robot is dealt EVERY ROUND (match.onRoundStart re-deal).
+  · Ready gate: after the last player locks in, the game WAITS — a
+    pulsing banner asks for one more confirm (A/Enter) so late players
+    can still tweak colors. While locked: DPad UP adds a CPU (random
+    veteran), DPad DOWN removes one. Sparse slots (e.g. P1+P4 only)
+    verified to start correctly.
+  · Pre-match warmup/loading screen: per-fighter camera strips (2/3/4
+    splits) with each bot shadow-boxing + its intro quote, board title
+    ("NOW ENTERING <ARENA>") up top, until the texture loader has been
+    idle 0.45s (min 3.4s / cap 9s) — kills the texture pop-in at round 1.
+  · Select-screen responsiveness: heading hops to the top-right corner
+    when vertical space is tight (<=730px), hint bar reserves its own
+    strip, roster grid is bounded + scrollable with auto-scroll, pause
+    panels get max-height + scroll.
+  Verified: build green; ace soaks (viper/aegis, glacier/saurion,
+  nullbot/glacier post-changes) crash-free; E2E keyboard probes of the
+  full menu flow (ready gate, RANDOM pick dealing nullbot, roulette to
+  jungle, warmup screen, sparse-slot start); finisher probes show frozen
+  surrender/tap/rubble-pile beats with heads in frame; fx probes confirm
+  shield 1.75x smash, 2 stuck quills, cyclone spin, overhand javelin;
+  warmup framed COLOSSUS whole.

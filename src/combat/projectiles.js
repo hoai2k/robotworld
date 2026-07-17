@@ -106,6 +106,31 @@ export class ProjectileSystem {
     this.world = world;
     this.pool = new Map(); // type -> mesh[]
     this.active = [];
+    this.stuck = []; // quills left embedded in fighters: {mesh, f, t}
+  }
+
+  // SAURION's quills don't vanish on impact — a copy stays SKEWERED into
+  // the victim for a few seconds, riding the body wherever it staggers
+  stickQuill(f, p) {
+    const src = p.mesh;
+    const m = new THREE.Mesh(src.geometry, src.material.clone());
+    m.material.opacity = 1;
+    const dir = _v.copy(p.vel).normalize();
+    // pull back along the flight line so the tip reads buried, shaft out
+    m.position.copy(src.position).addScaledVector(dir, -0.6);
+    m.quaternion.copy(src.quaternion);
+    this.scene.add(m);
+    const bone = f.mech?.joints?.torso;
+    if (bone) bone.attach(m); // keep the world pose, ride the torso
+    this.stuck.push({ mesh: m, f, t: rand(2.4, 3.4) });
+  }
+
+  clearStuck() {
+    for (const s of this.stuck) {
+      s.mesh.parent?.remove(s.mesh);
+      s.mesh.material.dispose();
+    }
+    this.stuck.length = 0;
   }
 
   obtain(type, color) {
@@ -202,6 +227,7 @@ export class ProjectileSystem {
   }
 
   update(dt) {
+    this.updateStuck(dt);
     const world = this.world;
     for (let i = this.active.length - 1; i >= 0; i--) {
       const p = this.active[i];
@@ -347,6 +373,7 @@ export class ProjectileSystem {
           } else {
             f.takeHit(p.dmg, p.owner, { knock: p.knock, launch: p.launch, srcPos: p.mesh.position, status: p.status, soft: p.soft });
             world.effects.impactSparks(p.mesh.position, p.color, 10, 8);
+            if (p.type === 'quill') this.stickQuill(f, p);
           }
           if (p.goop) { // gel wad BURSTS on them: blotch stuck on, spatter
             world.effects.blotchOn(f);
@@ -426,6 +453,20 @@ export class ProjectileSystem {
         p.mesh.scale.set(1, 1, 1);
         this.pool.get(p.type).push(p.mesh);
         this.active.splice(i, 1);
+      }
+    }
+  }
+
+  // embedded quills: ride the body a few seconds, then drop away (also
+  // gone the moment the carrier dies or the round tears the scene down)
+  updateStuck(dt) {
+    for (let i = this.stuck.length - 1; i >= 0; i--) {
+      const s = this.stuck[i];
+      s.t -= dt;
+      if (s.t <= 0 || !s.f.alive || !s.mesh.parent) {
+        s.mesh.parent?.remove(s.mesh);
+        s.mesh.material.dispose();
+        this.stuck.splice(i, 1);
       }
     }
   }

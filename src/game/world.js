@@ -44,6 +44,7 @@ export class World {
     this.geysers = [];      // live GeyserFX instances (CRANKY's special)
     this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
     this.iceBlocks = [];    // {mesh, t, fighter}
+    this.debris = [];       // finisher wreckage (frozen rubble): cleared each round
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
     this.time = 0;
     // toroidal arena: coordinates wrap at ±wrapHalf on X and Z (0 = off).
@@ -332,6 +333,14 @@ export class World {
         });
       }
     }
+  }
+
+  // persistent set-dressing wreckage (e.g. GLACIER's shattered-victim
+  // rubble): stays through the round-end beat, swept by clearTransient
+  addDebris(mesh) {
+    this.debris.push(mesh);
+    this.scene.add(mesh);
+    return mesh;
   }
 
   addFirePatch(owner, pos, radius, duration, dps) {
@@ -707,6 +716,13 @@ export class World {
     this.iceBlocks.length = 0;
     for (const p of this.projectiles.active) p.mesh.visible = false;
     this.projectiles.active.length = 0;
+    this.projectiles.clearStuck();
+    for (const d of this.debris) {
+      this.scene.remove(d);
+      d.geometry?.dispose?.();
+      d.material?.dispose?.();
+    }
+    this.debris.length = 0;
     this.fleas.clear();
   }
 }

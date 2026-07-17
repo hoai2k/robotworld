@@ -117,7 +117,7 @@ export const ROSTER = [
       light: { dmg: [26, 28, 40], knock: [3, 4, 9], range: 3.2 },
       heavy: { dmg: 70, knock: 15, range: 3.6, launch: 8 },
       ranged: { name: 'Fang Throw', type: 'blade', dmg: 32, speed: 55, cooldown: 0.8 },
-      special: { id: 'phantomStrike', name: 'Phantom Strike', cooldown: 5, dmg: 55, dashLen: 12 },
+      special: { id: 'bladeCyclone', name: 'Blade Cyclone', cooldown: 6, dmg: 20 },
       ult: { id: 'serpentStorm', name: 'SERPENT STORM', dmg: 24, hits: 8 },
     },
   },
@@ -477,8 +477,8 @@ export const ROSTER = [
     // combat doctrine: the punches LOOK ordinary — it's the impacts that
     // corrupt. Every landed punch, backhand or bolt turns a piece of the
     // victim into flickering data (a glitch stack, kept for the round);
-    // the 10th stack crashes them outright: 3s engulfed + stunned at
-    // double damage, then the corruption clears and the count restarts.
+    // the 10th stack crashes them outright: 3s engulfed + stunned and
+    // helpless, then the corruption clears and the count restarts.
     combatPose: { hipsPos: [0, -0.1, 0], torso: [6, -8, 0], head: [-4, 6, 0], shoulderL: [-24, 0, -16], elbowL: [-46, 0, 0], shoulderR: [-24, 0, 14], elbowR: [-40, 0, 0], thighL: [-10, 0, -5], thighR: [2, 0, 5], kneeL: [14, 0, 0], kneeR: [6, 0, 0] },
     heavyClip: 'nullBackhand',
     moves: {

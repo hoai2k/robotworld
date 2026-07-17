@@ -27,6 +27,9 @@ export class Match {
 
   startRound() {
     this.round++;
+    // boot hooks in here to re-deal RANDOM-pick fighters a fresh robot
+    // (it swaps entries of this.fighters in place before the resets below)
+    this.onRoundStart?.(this.round);
     const w = this.world;
     w.clearTransient();
     this.engine.timeScale = 1;

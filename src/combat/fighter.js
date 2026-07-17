@@ -24,7 +24,7 @@ const HEAVY_HOLD_CAP = 2.4; // seconds to fully bank a held heavy
 // ---- NULLBOT corruption ----
 // Every glitched hit converts another PART of the victim into flickering
 // data. Stacks last the whole round. The 10th stack OVERLOADS the frame:
-// fully engulfed for 3s — stunned, eating DOUBLE damage — then every trace
+// fully engulfed for 3s — stunned and helpless — then every trace
 // of corruption clears and the count starts from zero.
 const GLITCH_OVERLOAD = 10;
 const GLITCH_STUN_TIME = 3;
@@ -1020,7 +1020,6 @@ export class Fighter {
     }
 
     if (this.status.guard) dmg *= 1 - this.status.guard.f;
-    if (this.state === 'glitched') dmg *= 2; // corrupted frames can't shield themselves
     dmg *= 1 - this.def.stats.armor;
     dmg = Math.max(1, Math.round(dmg));
     this.hp -= dmg;
@@ -1172,9 +1171,10 @@ export class Fighter {
     if (this.glitchStacks >= GLITCH_OVERLOAD) this.glitchOverload();
   }
 
-  // 10 stacks: TOTAL CORRUPTION — engulfed head to toe, servos locked,
-  // spasming, taking double damage until the crash clears. "Engulfed"
-  // means corruption patches over EVERY body part, not a color wash.
+  // 10 stacks: TOTAL CORRUPTION — engulfed head to toe, servos locked and
+  // spasming until the crash clears (a free punish window; damage taken is
+  // normal). "Engulfed" means corruption patches over EVERY body part,
+  // not a color wash.
   glitchOverload() {
     this.setState('glitched', GLITCH_STUN_TIME);
     for (const sizes of [1.9, 1.2]) { // two layers: big tears + fill
@@ -1788,14 +1788,16 @@ export class Fighter {
     // a beat until it catches up) and any ranged attack fired during the
     // lock flies at the crosshair's world point, height included ----
     if (this.intent.lockOn && this.lockTarget?.alive && !this.isAI && this.alive) {
-      const c = this.lockTarget.center();
-      const tx = this.pos.x + this.world.wrapDelta(c.x - this.pos.x);
-      const tz = this.pos.z + this.world.wrapDelta(c.z - this.pos.z);
-      if (!this._lockAim) this._lockAim = new THREE.Vector3(tx, c.y, tz);
+      const T = this.lockTarget;
+      // aim at the HEAD, not the midsection — headshots feel like aiming
+      const ty = T.pos.y + T.height * 0.88;
+      const tx = this.pos.x + this.world.wrapDelta(T.pos.x - this.pos.x);
+      const tz = this.pos.z + this.world.wrapDelta(T.pos.z - this.pos.z);
+      if (!this._lockAim) this._lockAim = new THREE.Vector3(tx, ty, tz);
       else {
         const r = 1 - Math.exp(-9 * dt);
         this._lockAim.x += (tx - this._lockAim.x) * r;
-        this._lockAim.y += (c.y - this._lockAim.y) * r;
+        this._lockAim.y += (ty - this._lockAim.y) * r;
         this._lockAim.z += (tz - this._lockAim.z) * r;
       }
     } else {
@@ -1803,6 +1805,8 @@ export class Fighter {
     }
     // ---- signature heavy mechanics (post-pose joint spins, drives, flares) ----
     this.updateHeavySignature(dt);
+    // ---- generic special FX: scripted joint whirls / grows (bulwark bash) ----
+    this.updateSpecialFx(dt);
     // ---- thrown weapons re-forging in the grip ----
     this.updateRegrow(dt);
     // ---- weapon trails: glowing streaks ride the blade/spear tips while a
@@ -1815,6 +1819,37 @@ export class Fighter {
     if (this.def.id === 'nullbot' && this.alive) this.updateNullbotAura(dt);
     // corruption stacks keep flickering on whoever carries them
     this.updateGlitch(dt);
+  }
+
+  // ---- generic post-pose special FX, driven by specials.js: a scripted
+  // joint WHIRL (_spinFx — e.g. the bulwark shield rotor) and a scripted
+  // joint GROW (_scaleFx — the smash's bot-tall shield wall). Applied
+  // after the animator pose so clips can't clobber them. ----
+  updateSpecialFx(dt) {
+    const sp = this._spinFx;
+    if (sp) {
+      sp.t = (sp.t || 0) + dt;
+      sp.acc = (sp.acc || 0) + sp.rate * dt;
+      const j = this.mech.joints[sp.joint];
+      if (j) j.rotation[sp.axis] += sp.acc; // on top of the posed value
+      if (sp.t >= sp.dur || !this.alive) this._spinFx = null;
+    }
+    const sc = this._scaleFx;
+    if (sc) {
+      sc.t = (sc.t || 0) + dt;
+      const j = this.mech.joints[sc.joint];
+      if (!j) { this._scaleFx = null; return; }
+      const holdEnd = sc.grow + sc.hold;
+      let k;
+      if (sc.t < sc.grow) k = sc.t / sc.grow;
+      else if (sc.t < holdEnd) k = 1;
+      else k = Math.max(0, 1 - (sc.t - holdEnd) / sc.back);
+      j.scale.setScalar(1 + (sc.max - 1) * k);
+      if (sc.t >= holdEnd + sc.back || !this.alive) {
+        j.scale.setScalar(1);
+        this._scaleFx = null;
+      }
+    }
   }
 
   updateBladeTrail(dt) {
@@ -1982,7 +2017,11 @@ export class Fighter {
     this.hanging = null;
     this._carry = null;
     this.cinePuppet = false;
+    this.group.visible = true; // a shattered finisher victim comes back whole
     this.group.rotation.set(0, yaw, 0); // clear any carry/slam roll
+    this._spinFx = null;
+    this._scaleFx = null;
+    this.mech.joints.shield?.scale.setScalar(1);
     if (this._whiteW > 0) { this._whiteW = 0; this.applyWhiteout(0); }
     if (this._charK) { this._charK = 0; this.applyCharring(0); }
     this.pos.copy(pos);

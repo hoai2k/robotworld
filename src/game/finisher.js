@@ -70,6 +70,24 @@ export class Finisher {
     });
   }
 
+  // never a midsection close-up: if the taller combatant's head would fall
+  // outside the ~46° lens at this framing, lift the look target until the
+  // head fits back in frame (wide shots are untouched — only genuinely
+  // tight shots get corrected)
+  headSafe() {
+    // a fighter standing much closer to the lens than the look point sits
+    // angularly far higher than the look-point distance suggests, so clamp
+    // against each fighter's own distance, not just the look point's
+    const dLook = this.cam.pos.distanceTo(this.cam.look) || 1;
+    for (const f of [this.win, this.vic]) {
+      if (!f.group.visible) continue;
+      const dF = Math.hypot(f.pos.x - this.cam.pos.x, f.pos.z - this.cam.pos.z);
+      const maxUp = 0.36 * Math.min(dLook, Math.max(2.5, dF));
+      const headY = f.pos.y + f.height;
+      if (headY - this.cam.look.y > maxUp) this.cam.look.y = headY - maxUp;
+    }
+  }
+
   // orbiting camera around the action center (angles relative to the axis).
   // All distances/heights scale with the combatants' stature so a 9-unit
   // colossus gets the same framing as a lean viper.
@@ -80,6 +98,7 @@ export class Finisher {
       const d = (dist + dolly * smooth(k)) * S;
       this.cam.pos.set(this.center.x + Math.sin(az) * d, h * S, this.center.z + Math.cos(az) * d);
       this.cam.look.set(this.center.x, lookH * S, this.center.z);
+      this.headSafe();
     });
   }
 
@@ -104,6 +123,7 @@ export class Finisher {
       mz += (tz - mz) * a;
       this.cam.pos.set(mx + Math.sin(az) * dist * S, h * S, mz + Math.cos(az) * dist * S);
       this.cam.look.set(mx, lookH * S, mz);
+      this.headSafe();
     });
   }
 
@@ -159,6 +179,7 @@ export class Finisher {
       const d = (10.5 - 3 * smooth(k)) * S;
       this.cam.pos.set(this.win.pos.x + Math.sin(az) * d, (2 + 1.6 * smooth(k)) * S, this.win.pos.z + Math.cos(az) * d);
       this.cam.look.set(this.win.pos.x, this.win.height * 0.7, this.win.pos.z);
+      this.headSafe();
     });
   }
 
@@ -1185,43 +1206,90 @@ const SCRIPTS = {
 
   // GLACIER: freezes them solid white, walks up, and SHATTERS the statue —
   // the frozen husk goes skittering and spinning across the ice
+  // GLACIER: hoses them down until they freeze solid WHITE — hands thrown
+  // up in surrender — then strolls over, reaches out DAINTILY, taps them
+  // once... and the whole statue bursts into a pile of frozen rubble.
   glacier(F) {
     const { win, vic, w } = F;
-    F.at(0.4, () => { win.animator.play('shootLoop'); w.audio?.play('freeze'); });
-    F.hold(0.5, 2.2, (k, dt) => {
+    F.at(0.35, () => { win.animator.play('shootLoop'); w.audio?.play('freeze'); });
+    // the ice takes hold mid-panic: hands go UP and stay up
+    F.at(0.9, () => vic.animator.play('frozenSurrender'));
+    F.hold(0.45, 2.3, (k, dt) => {
       const from = win.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
       w.effects.beams.spawn(from, vic.center(), { radius: 0.5, dur: 0.14, color: 0x9be8ff });
       if (Math.random() < dt * 12) w.effects.snowCone(from, _dirTo(win, vic));
       vic._beamWhiteT = 0.2; // stays white under the beam
-      vic.applyWhiteout(Math.min(1, k * 2));
+      vic.applyWhiteout(Math.min(1, k * 1.6));
     });
-    F.at(2.2, () => { w.freezeOverlay?.(vic, 2.4); w.audio?.play('freezeBig'); });
-    F.approach(2.3, 3.3, 3.0);
-    F.at(3.5, () => win.animator.play('heavy', { speed: 1.2 }));
-    F.at(3.95, () => {
+    F.at(2.3, () => { vic.applyWhiteout(1); w.audio?.play('freezeBig'); });
+    F.hold(2.3, F.dur, () => vic.applyWhiteout(1)); // frozen stays frozen
+    F.approach(2.4, 3.35, 2.9);
+    // the dainty tap
+    F.at(3.55, () => win.animator.play('daintyTap'));
+    F.camShot(2.4, 3.95, { dist: 9.5, h: 3.2, az0: 2.15, az1: 2.55, lookH: 3 });
+    F.at(3.98, () => {
+      // ...tink. The statue shatters into a pile of white frozen rubble.
       F.beat('shatter', 1.1, 0.16);
+      vic.group.visible = false; // comes back at the next round's reset
+      F._rubble = [];
+      const S = vic.scale;
+      for (let i = 0; i < 18; i++) {
+        const r = rand(0.22, 0.55) * S;
+        const m = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(r, 0),
+          new THREE.MeshStandardMaterial({
+            color: 0xeaf6ff, roughness: 0.32, metalness: 0.05,
+            emissive: 0x9fd8ff, emissiveIntensity: 0.12,
+          }));
+        const a = rand(Math.PI * 2), rr = rand(0, vic.hitRadius * 0.7);
+        m.position.set(vic.pos.x + Math.cos(a) * rr,
+          rand(0.4, vic.height * 0.95), vic.pos.z + Math.sin(a) * rr);
+        m.rotation.set(rand(Math.PI * 2), rand(Math.PI * 2), rand(Math.PI * 2));
+        w.addDebris(m); // persists as set dressing; swept at next round
+        F._rubble.push({
+          m, r,
+          vx: Math.cos(a) * rand(1, 3.5), vy: rand(-1, 2.5), vz: Math.sin(a) * rand(1, 3.5),
+          wx: rand(-6, 6), wz: rand(-6, 6),
+        });
+      }
       w.effects.impactSparks(vic.center(), 0xbfeaff, 34, 16);
-      for (let i = 0; i < 14; i++) {
+      for (let i = 0; i < 16; i++) {
         w.effects.glows.emit(vic.pos.x + rand(-1, 1), rand(1, vic.height), vic.pos.z + rand(-1, 1),
           rand(-6, 6), rand(4, 10), rand(-6, 6),
           { life: rand(0.5, 0.9), size: rand(0.8, 1.6), color: 0xd8f4ff, alpha: 0.95, gravity: 18 });
       }
-      F.vicDown();
-      vic.applyWhiteout(1);
     });
-    // the statue skids away spinning, shedding ice the whole slide
-    F.vicBash(3.97, F.axis, 4.5, 0.8, 2.8);
-    F.hold(4.0, 4.6, (k, dt) => {
-      if (Math.random() < dt * 22) {
-        w.effects.glows.emit(vic.pos.x + rand(-0.8, 0.8), rand(0.3, 1.5), vic.pos.z + rand(-0.8, 0.8),
-          rand(-3, 3), rand(2, 6), rand(-3, 3),
-          { life: rand(0.4, 0.7), size: rand(0.6, 1.2), color: 0xd8f4ff, alpha: 0.9, gravity: 16 });
+    // the chunks tumble down and settle into the pile
+    F.hold(3.98, 6.4, (k, dt) => {
+      if (!F._rubble) return;
+      for (const c of F._rubble) {
+        if (c.rest) continue;
+        c.vy -= 22 * dt;
+        c.m.position.x += c.vx * dt;
+        c.m.position.y += c.vy * dt;
+        c.m.position.z += c.vz * dt;
+        c.m.rotation.x += c.wx * dt;
+        c.m.rotation.z += c.wz * dt;
+        if (c.m.position.y <= c.r * 0.8) {
+          c.m.position.y = c.r * 0.8;
+          if (Math.abs(c.vy) > 3) { // one soft bounce, then settle
+            c.vy = Math.abs(c.vy) * 0.3;
+            c.vx *= 0.5; c.vz *= 0.5;
+          } else {
+            c.rest = true;
+          }
+        }
+      }
+      if (Math.random() < dt * 10) { // cold mist off the fresh pile
+        w.effects.glows.emit(vic.pos.x + rand(-1.2, 1.2), rand(0.2, 1.2), vic.pos.z + rand(-1.2, 1.2),
+          rand(-0.5, 0.5), rand(0.5, 1.5), rand(-0.5, 0.5),
+          { life: rand(0.5, 1), size: rand(0.5, 1), color: 0xd8f4ff, alpha: 0.5 });
       }
     });
-    F.trackCenter(3.95, 5.2, 6);
-    F.camShot(2.3, 4.6, { dist: 8, h: 3, az0: 2.4, az1: 2.9, lookH: 2.8 });
-    F.hold(4.0, 6.0, (k) => vic.applyWhiteout(1 - k)); // thaw as they lie dead
-    F.triumph(4.8, 'victory', 'freezeBig');
+    // side angle so the winner stands in profile beside the pile instead of
+    // filling the lens from behind
+    F.camShot(3.95, 5.4, { dist: 13, h: 4.4, az0: 4.05, az1: 4.4, lookH: 2 });
+    F.triumph(5.2, 'victory', 'freezeBig');
   },
 
   // CRANKY: three colossal claw CLAMPS batting the victim side to side,
@@ -1433,11 +1501,12 @@ const SCRIPTS = {
         w.effects.glitchBurst(vic.center(), 8, 5, 0.8 * vic.scale);
         if (Math.random() < 0.4) w.audio?.play('zap');
       }
-      // accumulating patches: long-lived, spawning ever faster
+      // accumulating patches: long-lived (they persist on the downed wreck
+      // AFTER the bluescreen too), spawning ever faster
       F._pt = (F._pt ?? 0) - dt;
       if (F._pt <= 0) {
         F._pt = 0.5 - 0.44 * k * k;
-        vicPatch(rand(1.3, 1.8), rand(5, 9));
+        vicPatch(rand(1.3, 1.8), rand(14, 22));
       }
     });
     // side-front quarter, lens lifted to follow the rising body
@@ -1446,8 +1515,8 @@ const SCRIPTS = {
     // whatever was still recognizable stops rendering entirely
     F.at(4.2, () => {
       for (let i = 0; i < GRAB_JOINTS.length; i++) {
-        vicPatch(rand(1.8, 2.2), 3.9);
-        vicPatch(rand(1.1, 1.5), 3.9);
+        vicPatch(rand(1.8, 2.2), 25); // outlives the scene: the wreck stays corrupted
+        vicPatch(rand(1.1, 1.5), 25);
       }
       w.effects.glitchBurst(vic.center(), 26, 10, vic.scale);
       F.beat('zap', 0.6, 0.06);
@@ -1470,9 +1539,11 @@ const SCRIPTS = {
       w.effects.glitchBurst(win.center(), 24, 12, win.scale);
       showBluescreen(F);
     });
-    F.cleanups.push(() => w.effects.clearGlitchOn(vic));
-    // the SYSTEM FAILURE screen owns the last three seconds; end() (or a
-    // skip) tears it down via cleanups
+    // NOTE: no clearGlitchOn cleanup here — the corruption deliberately
+    // STAYS on the wreck after the bluescreen lifts (patch lifetimes cover
+    // the round-end beat; the next round's resetForRound wipes them).
+    // The SYSTEM FAILURE screen owns the last three seconds; end() (or a
+    // skip) tears the overlay down via cleanups.
   },
 };
 

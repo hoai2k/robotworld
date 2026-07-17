@@ -7,6 +7,16 @@ import { mechIcon } from './icons.js';
 
 const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
 
+// pseudo roster entry: the RANDOM pick (last cell in the grid). Locking it
+// deals you a DIFFERENT random robot every round; the color scheme you pick
+// here is applied to whatever shows up.
+export const RANDOM_PICK = {
+  id: 'random', name: 'RANDOM', title: 'Mystery Unit', icon: '❓',
+  colors: { primary: 0x3a4a5e, glow: 0x9fd8ef },
+  blurb: 'A different robot every round — dealt fresh at each bell. Pick a color scheme; it carries onto whatever shows up.',
+};
+const pickAt = (cursor) => (cursor >= ROSTER.length ? RANDOM_PICK : ROSTER[cursor]);
+
 function el(tag, cls, html) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -95,12 +105,15 @@ export class MechSelectScreen {
     this._padCount = this.input.connectedPadCount();
 
     this.grid = el('div', 'roster-grid');
-    this.cells = ROSTER.map((m, i) => {
+    this.cells = [...ROSTER, RANDOM_PICK].map((m, i) => {
       const c = el('div', 'roster-cell');
-      c.innerHTML = `
-        <div class="cell-tint" style="background:linear-gradient(150deg, #${m.colors.primary.toString(16).padStart(6, '0')}, transparent)"></div>
-        <div class="cell-icon">${mechIcon(m, 52)}</div>
-        <div class="cell-name">${m.name}</div>`;
+      c.innerHTML = m === RANDOM_PICK
+        ? `<div class="cell-tint" style="background:linear-gradient(150deg, #2a3a52, transparent)"></div>
+           <div class="cell-icon" style="font-size:clamp(26px,3vw,42px)">❓</div>
+           <div class="cell-name">RANDOM</div>`
+        : `<div class="cell-tint" style="background:linear-gradient(150deg, #${m.colors.primary.toString(16).padStart(6, '0')}, transparent)"></div>
+           <div class="cell-icon">${mechIcon(m, 52)}</div>
+           <div class="cell-name">${m.name}</div>`;
       c.addEventListener('mouseenter', () => {
         if (this.mousePicker && !this.mousePicker.locked) { this.mousePicker.cursor = i; this.refresh(); }
       });
@@ -130,16 +143,28 @@ export class MechSelectScreen {
     }
     this.el.appendChild(this.playersBar);
 
+    // everyone-locked gate: the match does NOT advance until someone
+    // confirms again, so the last player still has time to tweak colors
+    this.ready = false;
+    this.readyBar = el('div', 'ready-banner',
+      '<div class="rb-chip">ALL LOCKED — PRESS <b>A / ENTER</b> TO CONTINUE · COLORS CAN STILL BE CHANGED</div>');
+    this.readyBar.style.display = 'none';
+    this.el.appendChild(this.readyBar);
+
     this.el.appendChild(el('div', 'hint-bar',
       'press <b>A</b> / <b>ENTER</b> on a controller or keyboard to JOIN&nbsp;&nbsp;·&nbsp;&nbsp;' +
-      '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back'));
+      '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back' +
+      '&nbsp;&nbsp;·&nbsp;&nbsp;locked: <b>↑</b> add CPU&nbsp;&nbsp;<b>↓</b> remove CPU'));
     root.appendChild(this.el);
 
     if (this.touch) {
       const bar = el('div', 'touch-navbar');
       bar.appendChild(touchBtn('◀ BACK', 'nav-back', () => this.input.touchMenuEvent('back')));
       bar.appendChild(touchBtn('🎨 COLOR', 'nav-back', () => this.input.touchMenuEvent('alt')));
-      bar.appendChild(touchBtn('LOCK IN ▶', 'nav-next', () => { if (this.mousePicker) this.lockIn(this.mousePicker); }));
+      bar.appendChild(touchBtn('LOCK IN ▶', 'nav-next', () => {
+        if (this.ready) this.finish();
+        else if (this.mousePicker) this.lockIn(this.mousePicker);
+      }));
       this.el.appendChild(bar);
     }
 
@@ -252,6 +277,29 @@ export class MechSelectScreen {
     if (this.activeCount() === 0) this.onBack();
   }
 
+  // locked players can pad the field: DPad UP drops a CPU into the first
+  // free slot, DPad DOWN removes the last CPU again
+  addCpu() {
+    const slot = this.firstOff();
+    if (slot < 0) return;
+    this.slots[slot] = { kind: 'ai', diff: 'veteran' };
+    this.audio?.play('uiSelect');
+    this.syncPickers();
+    this.refresh();
+  }
+
+  removeCpu() {
+    for (let i = 3; i >= 0; i--) {
+      if (this.slots[i].kind === 'ai') {
+        this.slots[i] = { kind: 'off' };
+        this.audio?.play('uiBack');
+        this.syncPickers();
+        this.refresh();
+        return;
+      }
+    }
+  }
+
   // rebuild pickers to match the human slots, preserving per-slot state
   syncPickers() {
     const keep = new Map(this.pickers.map((p) => [p.slotIdx, p]));
@@ -266,6 +314,11 @@ export class MechSelectScreen {
     });
     this.mousePicker = this.pickers.find((p) => p.device === 'touch')
       || this.pickers.find((p) => p.device === 'kb1') || this.pickers[0];
+    // line-up changed (join/leave/device cycle): the everyone-locked gate
+    // only stays armed while every current picker is still locked
+    if (this.ready && !(this.pickers.length > 0 && this.pickers.every((p) => p.locked) && this.activeCount() >= 2)) {
+      this.disarmReady();
+    }
   }
 
   refresh() {
@@ -276,10 +329,14 @@ export class MechSelectScreen {
         if (pk.locked && pk.cursor === i) c.classList.add('locked-pick');
       }
     });
+    // the grid scrolls once the roster outgrows it — keep cursors in view
+    for (const pk of this.pickers) {
+      if (!pk.locked) this.cells[pk.cursor]?.scrollIntoView?.({ block: 'nearest' });
+    }
     this.renderCard();
     this.renderPlayers();
     this.onPreview?.(this.pickers.map((pk) => ({
-      id: ROSTER[pk.cursor].id, slotIdx: pk.slotIdx, locked: pk.locked, variant: pk.variant,
+      id: pickAt(pk.cursor).id, slotIdx: pk.slotIdx, locked: pk.locked, variant: pk.variant,
     })));
   }
 
@@ -314,7 +371,7 @@ export class MechSelectScreen {
         return;
       }
       const pk = this.pickers.find((p) => p.slotIdx === i);
-      const m = ROSTER[pk.cursor];
+      const m = pickAt(pk.cursor);
       const mc = '#' + m.colors.glow.toString(16).padStart(6, '0');
       pc.classList.toggle('locked', pk.locked);
       pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
@@ -341,7 +398,16 @@ export class MechSelectScreen {
   renderCard() {
     if (this.pickers.length === 1) {
       const pk = this.pickers[0];
-      const m = ROSTER[pk.cursor];
+      const m = pickAt(pk.cursor);
+      if (m === RANDOM_PICK) { // mystery unit: no stats to show
+        this.card.innerHTML = `
+          <div class="mi-name" style="color:#9fd8ef">❓ ${m.name}</div>
+          <div class="mi-title">${m.title}</div>
+          <div class="mi-blurb">${m.blurb}</div>
+          <div class="mi-moves"><b>RANGED</b> ??? &nbsp;·&nbsp; <b>SPECIAL</b> ??? &nbsp;·&nbsp; <b>ULTIMATE</b> ???</div>
+          ${this.schemeRow(m, pk)}`;
+        return;
+      }
       this.card.innerHTML = `
         <div class="mi-name" style="color:#${m.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(m, 30)}${m.name}</div>
         <div class="mi-title">${m.title}</div>
@@ -360,18 +426,20 @@ export class MechSelectScreen {
     }
     // multi-player: one compact card per picker, tinted with player color
     this.card.innerHTML = this.pickers.map((pk) => {
-      const m = ROSTER[pk.cursor];
+      const m = pickAt(pk.cursor);
       const pc = COLOR_CSS[pk.slotIdx % 4];
+      const movesLine = m === RANDOM_PICK
+        ? 'a different robot every round'
+        : `<b>RNG</b> ${m.moves.ranged.name} · <b>SPC</b> ${m.moves.special.name} · <b>ULT</b> ${m.moves.ult.name}`;
+      const nameHtml = m === RANDOM_PICK ? `❓ ${m.name}` : `${mechIcon(m, 26)}${m.name}`;
       return `
         <div style="border-left:3px solid ${pc}; padding:8px 12px; margin-bottom:10px;
                     background:rgba(10,18,30,0.45); border-radius:0 6px 6px 0;">
           <div style="font-size:11px;letter-spacing:0.2em;color:${pc};font-weight:800;">
             PLAYER ${pk.slotIdx + 1} ${pk.locked ? '· LOCKED ✓' : ''}</div>
-          <div class="mi-name" style="font-size:clamp(17px,1.8vw,24px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(m, 26)}${m.name}</div>
+          <div class="mi-name" style="font-size:clamp(17px,1.8vw,24px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${nameHtml}</div>
           <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--hud-cyan);">${m.title}</div>
-          <div class="mi-moves" style="margin-top:6px;">
-            <b>RNG</b> ${m.moves.ranged.name} · <b>SPC</b> ${m.moves.special.name} · <b>ULT</b> ${m.moves.ult.name}
-          </div>
+          <div class="mi-moves" style="margin-top:6px;">${movesLine}</div>
           ${this.schemeRow(m, pk)}
         </div>`;
     }).join('');
@@ -392,13 +460,28 @@ export class MechSelectScreen {
       pk.variant = (pk.variant + 1) % SCHEME_COUNT;
     }
     pk.locked = true;
-    this.picks[pk.slotIdx] = ROSTER[pk.cursor].id;
+    this.picks[pk.slotIdx] = pickAt(pk.cursor).id;
     this.variants[pk.slotIdx] = pk.variant;
     this.audio?.play('uiSelect');
     if (pk.device.startsWith('pad')) this.input.rumble(+pk.device[3], 0.45, 130);
     this.refresh();
-    // everyone locked AND at least two fighters in the match → go
-    if (this.pickers.every((p) => p.locked) && this.activeCount() >= 2) this.finish();
+    // everyone locked AND at least two fighters in the match → ARM the
+    // gate; the screen only advances on an explicit extra confirm, so the
+    // last player to lock can still adjust their color scheme
+    if (this.pickers.every((p) => p.locked) && this.activeCount() >= 2) this.armReady();
+  }
+
+  armReady() {
+    if (this.ready) return;
+    this.ready = true;
+    this._readyAt = performance.now();
+    this.readyBar.style.display = '';
+  }
+
+  disarmReady() {
+    if (!this.ready) return;
+    this.ready = false;
+    this.readyBar.style.display = 'none';
   }
 
   finish() {
@@ -465,7 +548,7 @@ export class MechSelectScreen {
       pk.justJoined = false;
 
       if (!pk.locked) {
-        const N = ROSTER.length, cols = 4;
+        const N = ROSTER.length + 1, cols = 4; // +1: the RANDOM cell
         let moved = false;
         if (left) { pk.cursor = (pk.cursor + N - 1) % N; moved = true; }
         if (right) { pk.cursor = (pk.cursor + 1) % N; moved = true; }
@@ -484,9 +567,19 @@ export class MechSelectScreen {
           this.audio?.play('uiMove');
           this.refresh();
         }
+        // locked: DPad UP adds a CPU, DPad DOWN removes one
+        if (up) { this.addCpu(); return; }
+        if (down) { this.removeCpu(); return; }
+        // the everyone-locked gate: a fresh confirm (well after the lock-in
+        // press itself) is what actually advances to arena select
+        if (confirm && this.ready && performance.now() - this._readyAt > 350) {
+          this.finish();
+          return;
+        }
         if (back) { // unlock and keep picking
           pk.locked = false;
           this.picks[pk.slotIdx] = null;
+          this.disarmReady();
           this.audio?.play('uiBack');
           this.refresh();
         }
@@ -500,16 +593,35 @@ export class MechSelectScreen {
 }
 
 // ---------------- ARENA SELECT ----------------
+// Card 0 (top-left) is RANDOM: confirming it spins the selector visibly
+// through every arena before landing on the roulette's pick.
 export class ArenaSelectScreen {
   constructor(root, { audio, onDone, onBack }) {
     this.audio = audio;
     this.onDone = onDone;
     this.onBack = onBack;
+    this.rolling = false;
     this.el = el('div', 'screen dim fade-in');
     this.el.appendChild(el('div', 'screen-heading', 'SELECT ARENA'));
 
     const wrap = el('div', 'arena-grid');
-    this.cards = THEMES.map((t, i) => {
+    this.cards = [];
+    // top-left: the RANDOM tile
+    {
+      const c = el('div', 'arena-card');
+      const art = document.createElement('canvas');
+      art.className = 'arena-art';
+      art.width = 256; art.height = 144;
+      this.drawRandomArt(art);
+      c.appendChild(art);
+      c.appendChild(el('div', 'arena-name', 'RANDOM'));
+      c.appendChild(el('div', 'arena-desc', 'Spin the wheel — any arena could come up.'));
+      c.addEventListener('mouseenter', () => { if (!this.rolling) { this.cursor = 0; this.refresh(); } });
+      c.addEventListener('click', () => this.confirm());
+      wrap.appendChild(c);
+      this.cards.push(c);
+    }
+    THEMES.forEach((t, i) => {
       const c = el('div', 'arena-card');
       const art = document.createElement('canvas');
       art.className = 'arena-art';
@@ -518,18 +630,48 @@ export class ArenaSelectScreen {
       c.appendChild(art);
       c.appendChild(el('div', 'arena-name', t.name));
       c.appendChild(el('div', 'arena-desc', t.desc));
-      c.addEventListener('mouseenter', () => { this.cursor = i; this.refresh(); });
+      c.addEventListener('mouseenter', () => { if (!this.rolling) { this.cursor = i + 1; this.refresh(); } });
       c.addEventListener('click', () => this.confirm());
       wrap.appendChild(c);
-      return c;
+      this.cards.push(c);
     });
     this.el.appendChild(wrap);
     this.el.appendChild(el('div', 'hint-bar', '<b>ARROWS</b> move&nbsp;&nbsp;<b>ENTER / A</b> fight!&nbsp;&nbsp;<b>ESC / B</b> back'));
     root.appendChild(this.el);
     // On touch, tapping an arena starts the fight; this handles going back.
-    appendTouchBack(this.el, () => { this.audio?.play('uiBack'); this.onBack(); });
+    appendTouchBack(this.el, () => { if (!this.rolling) { this.audio?.play('uiBack'); this.onBack(); } });
     this.cursor = 0;
     this.refresh();
+  }
+
+  // RANDOM tile art: a dark slot-wheel of arena color chips around a big ?
+  drawRandomArt(canvas) {
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#101a2e');
+    g.addColorStop(1, '#070c16');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const hx = (h) => '#' + h.toString(16).padStart(6, '0');
+    THEMES.forEach((t, i) => { // one sky chip per arena fanned in an arc
+      const a = (i / THEMES.length) * Math.PI * 2 - Math.PI / 2;
+      ctx.save();
+      ctx.translate(W / 2 + Math.cos(a) * 52, H / 2 + Math.sin(a) * 42);
+      ctx.rotate(a + Math.PI / 2);
+      ctx.fillStyle = hx(t.sky.top);
+      ctx.fillRect(-7, -11, 14, 22);
+      ctx.strokeStyle = 'rgba(160,220,255,0.35)';
+      ctx.strokeRect(-7, -11, 14, 22);
+      ctx.restore();
+    });
+    ctx.font = '900 italic 64px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#38e8ff';
+    ctx.shadowColor = 'rgba(56,232,255,0.9)';
+    ctx.shadowBlur = 18;
+    ctx.fillText('?', W / 2, H / 2 + 3);
   }
 
   drawArt(canvas, t) {
@@ -569,20 +711,51 @@ export class ArenaSelectScreen {
     this.cards[this.cursor]?.scrollIntoView?.({ block: 'nearest' });
   }
   confirm() {
+    if (this.rolling) return;
+    if (this.cursor === 0) { this.startRoulette(); return; }
     this.audio?.play('uiSelect');
-    this.onDone(THEMES[this.cursor].id);
+    this.onDone(THEMES[this.cursor - 1].id);
   }
+
+  // RANDOM: the selector sweeps through every arena card — fast at first,
+  // easing to a crawl — and settles on the roulette's pick before starting
+  startRoulette() {
+    this.rolling = true;
+    this.audio?.play('uiSelect');
+    const target = 1 + ((Math.random() * THEMES.length) | 0);
+    const seq = [];
+    for (let r = 0; r < 2; r++) for (let i = 1; i <= THEMES.length; i++) seq.push(i);
+    for (let i = 1; i <= target; i++) seq.push(i); // final lap ends ON the pick
+    let s = 0;
+    const step = () => {
+      this.cursor = seq[s];
+      this.refresh();
+      this.audio?.play('uiMove');
+      s++;
+      if (s >= seq.length) {
+        this.audio?.play('uiSelect');
+        this._rollT = setTimeout(() => this.onDone(THEMES[target - 1].id), 450);
+        return;
+      }
+      const f = s / seq.length;
+      this._rollT = setTimeout(step, 34 + 280 * f * f * f); // fast → hard ease-out
+    };
+    step();
+  }
+
   update(ev) {
+    if (this.rolling) return; // the wheel owns the cursor until it lands
+    const N = this.cards.length;
     let moved = false;
-    if (ev.left) { this.cursor = (this.cursor + 11) % 12; moved = true; }
-    if (ev.right) { this.cursor = (this.cursor + 1) % 12; moved = true; }
-    if (ev.up) { this.cursor = (this.cursor + 8) % 12; moved = true; }
-    if (ev.down) { this.cursor = (this.cursor + 4) % 12; moved = true; }
+    if (ev.left) { this.cursor = (this.cursor + N - 1) % N; moved = true; }
+    if (ev.right) { this.cursor = (this.cursor + 1) % N; moved = true; }
+    if (ev.up) { this.cursor = (this.cursor + N - 4) % N; moved = true; }
+    if (ev.down) { this.cursor = (this.cursor + 4) % N; moved = true; }
     if (moved) { this.audio?.play('uiMove'); this.refresh(); }
     if (ev.confirm) this.confirm();
     if (ev.back) { this.audio?.play('uiBack'); this.onBack(); }
   }
-  destroy() { this.el.remove(); }
+  destroy() { clearTimeout(this._rollT); this.el.remove(); }
 }
 
 // ---------------- PAUSE ----------------
