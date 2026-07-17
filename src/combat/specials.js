@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { rand, clamp, clamp01, angleDiff, TAU } from '../core/utils.js';
 import { GeyserFX } from './geyserfx.js';
 import { FireTornadoFX } from './nadofx.js';
+import { TidalWaveFX } from './wavefx.js';
 // deliberate cycle with fighter.js (and a reach into game/ai.js): both are
 // only touched at runtime, for SAURION's summoned raptor pack
 import { Fighter } from './fighter.js';
@@ -642,6 +643,7 @@ export const SPECIALS = {
             const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);
             if (Math.hypot(dx, dz) < sp.radius + v.hitRadius * 0.5) {
               v.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, launch: sp.launch, srcPos: target, heavy: true });
+              v.applySoak?.(2.4); // drenched: dripping frame, half speed
             }
           }
         });
@@ -2023,58 +2025,41 @@ export const ULTS = {
       if (!f.alive) return;
       w.audio?.play('wave');
       w.audio?.play('explosionBig');
-      // the wall: a curled sheet of water spanning the full width
-      const geo = new THREE.CylinderGeometry(H * 0.6, H * 0.6, W, 30, 1, true, Math.PI * 1.05, Math.PI * 0.85);
-      const mat = new THREE.MeshStandardMaterial({
-        color: 0x3f8ec4, transparent: true, opacity: 0.78, roughness: 0.2, metalness: 0.1,
-        emissive: 0x1a4a70, emissiveIntensity: 0.45, side: THREE.DoubleSide, depthWrite: false,
+      // the wall is a real TidalWaveFX in tsunami mode: breaking-wave
+      // profile, foam-by-steepness, crest spray, and a flood rectangle
+      // dragged behind the front. world.waves owns its lifecycle; this
+      // updater runs the gameplay against the same travel integration.
+      const fx = new TidalWaveFX(w.scene, w.effects, new THREE.Vector3(ox, 0, oz), {
+        height: H, r0: -3, r1: R + 9, speed: SPD,
+        dir: new THREE.Vector3(dirX, 0, dirZ), width: W,
       });
-      const wall = new THREE.Mesh(geo, mat);
-      wall.rotation.z = Math.PI / 2; // axis across the width
-      const grp = new THREE.Group();
-      wall.position.y = H * 0.52;
-      grp.add(wall);
-      grp.rotation.y = f.yaw;
-      w.scene.add(grp);
-      let travel = -3, t = 0;
+      w.waves.push({ fx });
+      let travel = -3;
       const victims = new Set();
       const P = new THREE.Vector3();
       w.addUpdater((dt) => {
-        t += dt;
         travel += SPD * dt;
-        const rise = ss(clamp01(t / 0.4));
-        grp.position.set(ox + dirX * travel, (rise - 1) * H * 0.9, oz + dirZ * travel);
-        grp.scale.y = Math.max(0.05, rise);
-        mat.opacity = 0.78 * clamp01((R - travel) / 6 + 0.4);
-        // crest spray + churning foot
-        for (let i = 0; i < 4; i++) {
-          const lat = rand(-W / 2, W / 2);
-          const bx = ox + dirX * travel + perpX * lat;
-          const bz = oz + dirZ * travel + perpZ * lat;
-          w.effects.glows.emit(bx, H * rise * rand(0.85, 1.1), bz,
-            dirX * rand(4, 9), rand(1, 4), dirZ * rand(4, 9),
-            { life: rand(0.25, 0.5), size: rand(0.8, 1.6), color: 0xd8f2ff, alpha: 0.85, drag: 0.8 });
-          if (Math.random() < 0.5) {
-            w.effects.splash(P.set(bx, 0.4, bz), 3, 5, 1);
-          }
-        }
         if (Math.random() < 0.3) w.audio?.play('wave', { vol: 0.35 });
-        // everything on the line gets hit once, hard, and carried
         for (const e of w.fighters) {
-          if (e === f || !e.alive || f.isAllyOf(e) || victims.has(e)) continue;
+          if (e === f || !e.alive || f.isAllyOf(e)) continue;
           const rx = w.wrapDelta(e.pos.x - ox), rz = w.wrapDelta(e.pos.z - oz);
           const along = rx * dirX + rz * dirZ;
           const lat = rx * perpX + rz * perpZ;
-          if (Math.abs(along - travel) < 2.4 && Math.abs(lat) < W / 2 && e.pos.y < H) {
+          if (Math.abs(lat) > W / 2) continue;
+          if (!victims.has(e) && Math.abs(along - travel) < 2.4 && e.pos.y < H) {
+            // the front hits ONCE, hard, and CARRIES them downrange
             victims.add(e);
             e.takeHit(u.dmg * f.dmgMult(), f, {
               knock: u.knock, launch: 10, srcPos: P.set(e.pos.x - dirX * 3, 0, e.pos.z - dirZ * 3), heavy: true,
             });
-            // the wave CARRIES: a hard shove downrange
             e.vel.x += dirX * 20;
             e.vel.z += dirZ * 20;
+            e.applySoak?.(2.6);
             w.effects.splash(e.center(), 14, 9, 1.4);
             w.effects.addShake(0.7);
+          } else if (along > 0 && along < travel - 2 && e.grounded) {
+            // wading in the trailing floodwater: dripping wet, half speed
+            e.applySoak?.(2.2);
           }
         }
         // it wrecks the street furniture too
@@ -2092,7 +2077,7 @@ export const ULTS = {
           return false;
         }
         return true;
-      }, () => { w.scene.remove(grp); geo.dispose(); mat.dispose(); });
+      });
     });
   },
 

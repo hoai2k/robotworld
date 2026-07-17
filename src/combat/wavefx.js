@@ -153,9 +153,25 @@ export class TidalWaveFX {
     // disc of scrolling foam noise (without it you see bare dirt inside)
     const ftex = streamNoiseTexture().clone();
     ftex.needsUpdate = true;
+    // soft-edged alpha mask so the flood sheet feathers out instead of
+    // ending in a hard slab edge
+    if (!TidalWaveFX._edgeTex) {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 64;
+      const cx = cv.getContext('2d');
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 64; x++) {
+          const ex = Math.min(x, 63 - x) / 10, ey = Math.min(y, 63 - y) / 10;
+          const a = Math.min(1, ex) * Math.min(1, ey);
+          cx.fillStyle = `rgba(255,255,255,${a.toFixed(3)})`;
+          cx.fillRect(x, y, 1, 1);
+        }
+      }
+      TidalWaveFX._edgeTex = new THREE.CanvasTexture(cv);
+    }
     this.floodMat = new THREE.MeshBasicMaterial({
-      map: ftex, color: 0x9cc4dc, transparent: true, opacity: 0,
-      depthWrite: false, blending: THREE.NormalBlending,
+      map: ftex, alphaMap: TidalWaveFX._edgeTex, color: 0x9cc4dc,
+      transparent: true, opacity: 0, depthWrite: false, blending: THREE.NormalBlending,
     });
     this.flood = new THREE.Mesh(
       this.linear ? new THREE.PlaneGeometry(1, 1) : new THREE.CircleGeometry(1, 48),
