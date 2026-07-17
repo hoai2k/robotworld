@@ -1959,3 +1959,26 @@ controllers via Gamepad API), AI opponents.
   1250 -> 963 with poison + pin, clean expiry and updater teardown at 12s;
   screenshots VIEWED (leap swarm mid-air, drained target); ace soaks
   (viper/titanus, viper/rhino) crash-free.
+
+## Phase 14f — Snake bodies, invisible-wall fix, mobile Death Gaze (user request, 2026-07-17)
+
+- SERPENT STORM visuals: each snake is now a chain of 7 tapered ball
+  segments (dark head, alternating green banding, 420 instances in one
+  InstancedMesh) laid out behind the head with a travelling sine wave down
+  the spine — they SLITHER instead of sliding as rectangle planks. Latched
+  snakes COIL around the victim's body, winding down from the bite point.
+- INVISIBLE WALL bug: prop cylinder colliders were sized from the whole
+  prop's bounding box — a billboard (thin pole, huge sign panel up top) got
+  a street-level collider metres wider than its visible pole; same for
+  holo-pillars etc. Colliders now measure only the GROUND BAND (sub-meshes
+  reaching below chest height), so street-level footprints match what you
+  can see. Neon radii dropped from ~4-6 to 1.2-2.5 on pole props.
+  (Investigated via lane-sweep probes: pristine + post-destruction sweeps
+  show no phantom blockers; every remaining grind maps to a visible wall.)
+- DEATH GAZE mobility: only the 1.1s eye-charge roots Wraith — during the
+  search he walks/repositions freely, steering the light with his facing
+  (probe: 18u of movement mid-search, then caught the repositioned target
+  for 349).
+- Verified: build green; probes above; screenshots VIEWED (segmented
+  S-curved brood mid-hunt, drained target); ace soaks (viper/wraith,
+  titanus/jerry, wraith/glacier) crash-free.
