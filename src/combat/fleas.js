@@ -197,7 +197,7 @@ export class FleaSystem {
           // knockdown/dead POSE — for those, slide the cling point down
           // and along the now-horizontal body so the carpet lies with it.
           const clip = v.animator?.action?.clip?.name;
-          const lying = clip === 'knockdown' || clip === 'dead';
+          const lying = clip === 'knockdown' || clip === 'dead' || clip === 'ragdoll';
           f.layT = clamp01((f.layT || 0) + (lying ? dt * 2.5 : -dt * 2.5));
           const lay = f.layT;
           _v.set(
