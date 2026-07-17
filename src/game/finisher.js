@@ -1226,7 +1226,9 @@ const SCRIPTS = {
     F.approach(2.4, 3.35, 2.9);
     // the dainty tap
     F.at(3.55, () => win.animator.play('daintyTap'));
-    F.camShot(2.4, 3.95, { dist: 9.5, h: 3.2, az0: 2.15, az1: 2.55, lookH: 3 });
+    // raised side angle: the reach, the fingertip tap, and the statue all
+    // read in profile with the camera looking slightly down on the touch
+    F.camShot(2.4, 3.95, { dist: 12.5, h: 6.5, az0: 1.35, az1: 1.7, lookH: 3.2 });
     F.at(3.98, () => {
       // ...tink. The statue shatters into a pile of white frozen rubble.
       F.beat('shatter', 1.1, 0.16);
@@ -1286,9 +1288,9 @@ const SCRIPTS = {
           { life: rand(0.5, 1), size: rand(0.5, 1), color: 0xd8f4ff, alpha: 0.5 });
       }
     });
-    // side angle so the winner stands in profile beside the pile instead of
-    // filling the lens from behind
-    F.camShot(3.95, 5.4, { dist: 13, h: 4.4, az0: 4.05, az1: 4.4, lookH: 2 });
+    // keep panning the same raised side view through the shatter so the
+    // burst and the settling rubble pile stay in frame (no jump cut)
+    F.camShot(3.95, 5.4, { dist: 13, h: 5.6, az0: 1.65, az1: 2.0, lookH: 1.8 });
     F.triumph(5.2, 'victory', 'freezeBig');
   },
 
