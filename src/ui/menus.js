@@ -734,11 +734,11 @@ export class ArenaSelectScreen {
       s++;
       if (s >= seq.length) {
         this.audio?.play('uiSelect');
-        this._rollT = setTimeout(() => this.onDone(THEMES[target - 1].id), 450);
+        this._rollT = setTimeout(() => this.onDone(THEMES[target - 1].id), 225);
         return;
       }
       const f = s / seq.length;
-      this._rollT = setTimeout(step, 34 + 280 * f * f * f); // fast → hard ease-out
+      this._rollT = setTimeout(step, 17 + 140 * f * f * f); // fast → hard ease-out
     };
     step();
   }
