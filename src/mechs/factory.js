@@ -296,3 +296,48 @@ export function addAnchor(parent, x, y, z) {
   parent.add(o);
   return o;
 }
+
+// Cheap COMBAT-TIME copy of an already-built mech (SAURION's raptor pack).
+// buildMech mid-match is a frame-killer: geometry sculpting + PBR texture
+// synthesis, plus a new PointLight that forces a shader recompile across
+// the scene. This instead shares every geometry and texture with the
+// source, clones only the material objects (so the copy can be re-tinted
+// safely), and strips lights / charge shells / FX sprites — microseconds,
+// not hundreds of milliseconds.
+export function cloneMech(src) {
+  // stamp anchor names on the source once so the clone can re-find them
+  for (const [k, a] of Object.entries(src.anchors)) {
+    if (!a.name) a.name = '__anchor__' + k;
+  }
+  const group = src.group.clone(true);
+  group.position.set(0, 0, 0);
+  group.rotation.set(0, 0, 0);
+  group.scale.set(1, 1, 1);
+  // dynamic extras that don't belong on a fresh body
+  const drop = [];
+  group.traverse((o) => {
+    if (o.userData.chargeShell || o.isLight || o.isSprite) drop.push(o);
+  });
+  for (const o of drop) o.parent?.remove(o);
+  // re-resolve the joint & anchor maps by name
+  const joints = {};
+  for (const k of Object.keys(src.joints)) joints[k] = group.getObjectByName(k);
+  const anchors = {};
+  for (const k of Object.keys(src.anchors)) {
+    anchors[k] = group.getObjectByName('__anchor__' + k) || joints.torso;
+  }
+  // fresh material instances (texture references shared — no re-synthesis)
+  const matMap = new Map();
+  const materials = {};
+  for (const [k, m] of Object.entries(src.materials)) {
+    if (m && m.isMaterial) {
+      const c = m.clone();
+      matMap.set(m, c);
+      materials[k] = c;
+    }
+  }
+  group.traverse((o) => {
+    if (o.isMesh && matMap.has(o.material)) o.material = matMap.get(o.material);
+  });
+  return { group, joints, anchors, materials, dims: src.dims, def: src.def };
+}
