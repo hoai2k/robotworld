@@ -329,7 +329,7 @@ export const ROSTER = [
       heavy: { dmg: 92, knock: 22, range: 3.8, launch: 9 },
       ranged: { name: 'Shard Burst', type: 'shard', dmg: 34, speed: 46, cooldown: 0.8, ammo: 22 },
       special: { id: 'freezeBeam', name: 'Cryo Beam', cooldown: 8, dmg: 12, duration: 1.8, slow: 0.45 },
-      ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 9, radius: 14, duration: 8 },
+      ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 9, radius: 14 },
     },
   },
   {
@@ -427,7 +427,7 @@ export const ROSTER = [
       heavy: { dmg: 78, knock: 18, range: 3.3, launch: 9 },
       ranged: { name: 'Slime Slinger', type: 'slime', dmg: 38, speed: 36, cooldown: 0.85, splash: 2.4, ammo: 20 },
       special: { id: 'slimeBarrage', name: 'Quad Gunk Barrage', cooldown: 6.5, dmg: 24, count: 11, radius: 8 },
-      ult: { id: 'sonicCroak', name: 'SONIC CROAK', dmg: 140, radius: 15, paralyze: 2.2 },
+      ult: { id: 'sonicCroak', name: 'SONIC CROAK', dmg: 140, radius: 30, paralyze: 2.2 },
     },
   },
   {
