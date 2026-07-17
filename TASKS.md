@@ -2010,3 +2010,19 @@ controllers via Gamepad API), AI opponents.
 - Verified: build green; probes above; screenshots VIEWED (segmented
   S-curved brood mid-hunt, drained target); ace soaks (viper/wraith,
   titanus/jerry, wraith/glacier) crash-free.
+
+## Phase 14g — Raptor Pack spawn hitch fix (user request, 2026-07-17)
+
+- SAURION's ult froze the game on cast: each of the 3 clones ran a full
+  synchronous buildMech (geometry sculpting + PBR texture synthesis,
+  ~42ms each headless, worse on real machines) AND added a new PointLight
+  — and mid-match light-count changes force a scene-wide shader recompile.
+- New factory.cloneMech(src): combat-time mech copy that shares every
+  geometry and texture with the source, clones only the material objects
+  (so the runt tint stays local), re-resolves joints/anchors by name, and
+  strips lights / charge shells / FX sprites. ~1.2ms per raptor, no
+  recompile. raptorPack now clones Saurion's own mech.
+- Verified: build green; in-page timing buildMech 41.8ms vs cloneMech
+  1.2ms, worst world.update frame through the cast now 4.3ms; screenshots
+  VIEWED (clones look right, pack-maul intact); saurion/cranky ace soak
+  crash-free with full minion lifecycle (8 raptor KOs logged).

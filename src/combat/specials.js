@@ -8,6 +8,7 @@ import { TidalWaveFX } from './wavefx.js';
 // only touched at runtime, for SAURION's summoned raptor pack
 import { Fighter } from './fighter.js';
 import { AIController } from '../game/ai.js';
+import { cloneMech } from '../mechs/factory.js';
 
 const _v = new THREE.Vector3();
 
@@ -2219,8 +2220,11 @@ export const ULTS = {
         const a = f.yaw + Math.PI + (i - 1) * 0.85 + rand(-0.15, 0.15);
         const pos = new THREE.Vector3(
           f.pos.x + Math.sin(a) * 3.6, 0, f.pos.z + Math.cos(a) * 3.6);
+        // cloneMech shares the boss's geometry/textures — spawning is
+        // near-free instead of a triple buildMech frame-stall
         const clone = new Fighter(w, f.def, {
           pos, yaw: f.yaw, playerIndex: f.playerIndex, isAI: true,
+          mech: cloneMech(f.mech),
         });
         clone.isMinion = true;
         clone.allyOf = f;
