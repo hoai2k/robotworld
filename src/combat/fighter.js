@@ -244,6 +244,7 @@ export class Fighter {
   speedMult() {
     let m = 1;
     if (this.status.slow) m *= this.status.slow.f;
+    if (this.status.soaked) m *= 0.5; // waterlogged: servos sputter
     if (this.status.buff) m *= this.status.buff.spd;
     if (this.status.cloak) m *= this.status.cloak.spd || 1.25;
     return m;
@@ -1095,6 +1096,14 @@ export class Fighter {
     if (this.isAI === false && navigator.getGamepads) this.world.input?.rumble(this.playerIndex, heavy ? 0.7 : 0.35, heavy ? 220 : 120);
   }
 
+  // waterlogged: dripping frame + half speed while it lasts. The water/ice
+  // mechs (FROGGER, GLACIER, CRANKY) live in the stuff — they shrug it off.
+  applySoak(t = 2.2) {
+    const id = this.def.id;
+    if (id === 'frogger' || id === 'glacier' || id === 'cranky') return;
+    this.status.soaked = { t: Math.max(t, this.status.soaked?.t || 0) };
+  }
+
   applyStatus(st) {
     if (st.burn) this.status.burn = { dps: st.burn, t: st.burnT || 3 };
     if (st.poison) this.status.poison = { dps: st.poison, t: st.poisonT || 3 };
@@ -1389,6 +1398,20 @@ export class Fighter {
             0, rand(-2.5, -0.5), 0, { life: 0.55, size: 1.1, color: 0x6ade2a, alpha: 0.85, drag: 0.5 });
         }
         if (this.hp <= 0 && this.alive) this.die(this.lastAttacker);
+      } else if (key === 'soaked') {
+        // waterlogged: beads sheet off the whole frame and rain down,
+        // pooling underfoot — the visible tell for the half-speed debuff
+        if (Math.random() < dt * 26) {
+          this.world.effects.drops.emit(
+            this.pos.x + rand(-0.9, 0.9) * this.scale, this.pos.y + Math.random() * this.height,
+            this.pos.z + rand(-0.9, 0.9) * this.scale,
+            rand(-0.6, 0.6), rand(-2, -0.2), rand(-0.6, 0.6),
+            { life: rand(0.4, 0.7), size: rand(0.5, 1.0), color: 0xd8ecf8, color2: 0x5580a8,
+              alpha: 0.9, gravity: 24, fadeIn: 0.03 });
+        }
+        if (this.grounded && Math.random() < dt * 1.6) {
+          this.world.effects.puddle(this.pos, { size: rand(1.4, 2.2), life: 1.5 });
+        }
       }
     }
 

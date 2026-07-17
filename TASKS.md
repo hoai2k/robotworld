@@ -1901,3 +1901,21 @@ controllers via Gamepad API), AI opponents.
   Verified: build green; inferno-vs-cranky ace soak crash-free (2 KOs);
   battle probe: funnel at 20.2u over the mechs, roaming, patches trail;
   tsunami stills reviewed (bowed crest wall + flood swallowing rocks).
+
+81. TSUNAMI ULT GETS THE WAVE SIM + SOAKED DEBUFF (user request) ✅
+  · CRANKY's TSUNAMI ult (merged gameplay from the ults-refinement
+    branch: one hard front hit + downrange carry, arena wreckage, foam
+    collapse) now renders through TidalWaveFX tsunami mode — breaking
+    profile wall, foam-by-steepness, crest spray, feathered flood sheet
+    (new soft-edge alphaMap) dragged behind the front. world.waves owns
+    the FX lifecycle; the gameplay updater integrates the same travel.
+  · SOAKED debuff (fighter.applySoak): dripping-water status — beads
+    sheet off the whole frame, puddles pool underfoot — and HALF SPEED
+    (speedMult 0.5) while active. FROGGER / GLACIER / CRANKY are immune
+    (water/ice frames). Applied by: the tsunami front hit (2.6s), wading
+    in the trailing floodwater (refreshed 2.2s while in the lane behind
+    the front), the geyser blowout hit (2.4s), and every geyser scald
+    tick (2.4s).
+  Verified: build green; cranky-vs-titanus and cranky-vs-frogger (immune
+  path) ace soaks crash-free; battle probe: wave rolls, titanus soaked
+  with speedMult 0.5; demo still reviewed (feathered flood edges).

@@ -43,6 +43,7 @@ export class World {
     this.firePatches = [];  // {pos, radius, t, dps, owner, flame}
     this.geysers = [];      // live GeyserFX instances (CRANKY's special)
     this.tornados = [];     // {fx, owner, dmg, radius, burn, tick, patch}
+    this.waves = [];        // {fx} live TidalWaveFX walls (CRANKY's tsunami)
     this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
     this.iceBlocks = [];    // {mesh, t, fighter}
     this.debris = [];       // finisher wreckage (frozen rubble): cleared each round
@@ -304,8 +305,17 @@ export class World {
         if (Math.hypot(dx, dz) < g.radius * 0.55 + v.hitRadius * 0.5) {
           v.takeHit(g.dmg * 0.2 * g.owner.dmgMult(), g.owner,
             { knock: 3, launch: g.launch * 0.55, srcPos: g.fx.pos, soft: true });
+          v.applySoak?.(2.4); // drenched: dripping frame, half speed
           this.effects.splash(v.center(), 6, 5, 1);
         }
+      }
+    }
+
+    // tidal waves roll until they collapse into foam at the end of the run
+    for (let i = this.waves.length - 1; i >= 0; i--) {
+      if (!this.waves[i].fx.update(dt)) {
+        this.waves[i].fx.dispose();
+        this.waves.splice(i, 1);
       }
     }
 
@@ -820,6 +830,8 @@ export class World {
     this.geysers.length = 0;
     for (const n of this.tornados) n.fx.dispose();
     this.tornados.length = 0;
+    for (const wv of this.waves) wv.fx.dispose();
+    this.waves.length = 0;
     for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
     this.flameJets.clear();
     for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);
