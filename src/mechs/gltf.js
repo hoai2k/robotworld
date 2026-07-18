@@ -32,6 +32,20 @@ let manifestPromise = null;
 const gltfCache = new Map(); // url -> Promise<GLTF>
 const loader = new GLTFLoader();
 
+// ?debug=3d enables the service GLB models; any other value (incl. default)
+// runs procedural. When on, menus/previews show a spinner instead of the
+// procedural stand-in while a GLB downloads, then swap the GLB in.
+export function is3dMode() {
+  return new URLSearchParams(location.search).get('debug') === '3d';
+}
+
+// Sync check — only meaningful once loadManifest() has resolved (which the
+// boot flow awaits before building any screen). In non-3d mode the manifest
+// is forced empty, so this is always false and callers show procedural.
+export function manifestHasGlb(id) {
+  return !!(manifest && manifest[id]?.url);
+}
+
 export function loadManifest() {
   if (!manifestPromise) {
     // GLB overrides are opt-in for now: ?debug=3d enables the service
@@ -199,6 +213,13 @@ function buildGlbMech(def, entry, gltf) {
   if (entry.stretch) {
     for (const [jname, k] of Object.entries(entry.stretch)) {
       boneMap[jname]?.position.multiplyScalar(k);
+    }
+  }
+  // per-bone rest-position nudge from the ?debug=models tool (translate mode)
+  if (entry.bonePos) {
+    for (const [jname, d] of Object.entries(entry.bonePos)) {
+      const b = boneMap[jname];
+      if (b) b.position.set(b.position.x + d[0], b.position.y + d[1], b.position.z + d[2]);
     }
   }
   const adapter = new RigAdapter(joints, boneMap, {

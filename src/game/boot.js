@@ -17,9 +17,30 @@ import { Hud, toast } from '../ui/hud.js';
 import { TitleScreen, MechSelectScreen, ArenaSelectScreen, PauseScreen, ResultsScreen, SettingsScreen } from '../ui/menus.js';
 import { CONFIG, setInfiniteUltimates } from '../core/config.js';
 import { GameAudio } from '../core/audio.js';
-import { createMech, preloadMechModels } from '../mechs/gltf.js';
+import { createMech, preloadMechModels, loadManifest, is3dMode, manifestHasGlb } from '../mechs/gltf.js';
 import { TouchControls } from './touch.js';
 import { isTouchDevice } from '../core/utils.js';
+
+// Loading spinner shown in place of a mech while its GLB downloads (only in
+// ?debug=3d, where we suppress the procedural stand-in). Two counter-rotating
+// rings + a soft core, tinted by the mech's glow color. Tagged isSpinner so
+// the stage's update() spins it instead of running an animator.
+function makeSpinner(color = 0x8fd8ff) {
+  const g = new THREE.Group();
+  g.isSpinner = true;
+  const mat = (o) => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: o, side: THREE.DoubleSide });
+  const r1 = new THREE.Mesh(new THREE.TorusGeometry(1.5, 0.09, 8, 40), mat(0.85));
+  const r2 = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.06, 8, 36), mat(0.5));
+  r2.rotation.x = Math.PI / 2;
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.35, 16, 12), mat(0.9));
+  g.add(r1, r2, core);
+  g.userData.spin = { r1, r2, core, t: 0 };
+  g.position.y = 4.2; // float at torso height
+  return g;
+}
+function disposeSpinner(g) {
+  g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose(); });
+}
 
 // Menu backdrop: dark stage with a rotating mech line-up / preview.
 class MenuStage {
@@ -49,19 +70,49 @@ class MenuStage {
     this.rings = [];
     this.previewId = null;
     this._previewKey = null;
+    this._gen = 0; // bumped on clearMechs; stale GLB swaps check against it
     this.t = 0;
+  }
+
+  // spawn one display unit at pos with base yaw rotY. In ?debug=3d with a GLB
+  // available, shows a spinner and swaps the GLB in when it loads (never the
+  // procedural stand-in); otherwise builds the procedural mech immediately.
+  spawnUnit(def, pos, rotY = 0) {
+    const gen = this._gen;
+    if (is3dMode() && manifestHasGlb(def.id)) {
+      const spin = makeSpinner(def.colors?.glow ?? 0x8fd8ff);
+      spin.position.set(pos.x, pos.y + 4.2, pos.z);
+      const unit = { group: spin, isSpinner: true };
+      this.group.add(spin);
+      this.mechs.push(unit);
+      createMech(def).then((glb) => {
+        if (this._gen !== gen || !glb.isGLB) return;
+        const idx = this.mechs.indexOf(unit);
+        if (idx < 0) return;
+        glb.animator = glb.premadeAnimator;
+        glb.group.position.copy(pos);
+        glb.group.rotation.y = rotY;
+        this.group.remove(spin);
+        disposeSpinner(spin);
+        this.group.add(glb.group);
+        this.mechs[idx] = glb;
+      });
+      return unit;
+    }
+    const mech = buildMech(def);
+    mech.animator = new Animator(mech);
+    mech.group.position.copy(pos);
+    mech.group.rotation.y = rotY;
+    this.group.add(mech.group);
+    this.mechs.push(mech);
+    return mech;
   }
 
   // title line-up: three hero mechs
   showLineup(ids = ['titanus', 'viper', 'nova']) {
     this.clearMechs();
     ids.forEach((id, i) => {
-      const mech = buildMech(ROSTER_BY_ID[id]);
-      mech.group.position.set((i - 1) * 10, 0, i === 1 ? 0 : -4);
-      mech.group.rotation.y = (i - 1) * -0.4;
-      mech.animator = new Animator(mech);
-      this.group.add(mech.group);
-      this.mechs.push(mech);
+      this.spawnUnit(ROSTER_BY_ID[id], new THREE.Vector3((i - 1) * 10, 0, i === 1 ? 0 : -4), (i - 1) * -0.4);
     });
     this.previewId = null;
     this._previewKey = null;
@@ -117,26 +168,10 @@ class MenuStage {
         this.extras = this.extras || [];
         this.extras.push(spr);
       } else {
+        // spawnUnit shows the procedural body, or (in ?debug=3d) a spinner
+        // that swaps to the GLB when it loads — the exact body the battle uses
         const def = applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0);
-        const mech = buildMech(def);
-        mech.animator = new Animator(mech);
-        mech.group.position.set(x, 0, 0);
-        this.group.add(mech.group);
-        this.mechs.push(mech);
-        // manifest models load in the background and swap in over the
-        // procedural stand-in, so the picker shows the exact body the
-        // battle will use (no-op for mechs without a GLB entry)
-        createMech(def).then((glb) => {
-          if (!glb.isGLB || this._previewKey !== key) return;
-          const idx = this.mechs.indexOf(mech);
-          if (idx < 0) return;
-          glb.animator = glb.premadeAnimator;
-          glb.group.position.copy(mech.group.position);
-          glb.group.rotation.copy(mech.group.rotation);
-          this.group.remove(mech.group);
-          this.group.add(glb.group);
-          this.mechs[idx] = glb;
-        });
+        this.spawnUnit(def, new THREE.Vector3(x, 0, 0), 0);
       }
       if (n > 1) {
         const ring = new THREE.Mesh(
@@ -163,7 +198,11 @@ class MenuStage {
   }
 
   clearMechs() {
-    for (const m of this.mechs) this.group.remove(m.group);
+    this._gen++; // invalidate any in-flight GLB swaps from a prior screen
+    for (const m of this.mechs) {
+      this.group.remove(m.group);
+      if (m.isSpinner) disposeSpinner(m.group);
+    }
     this.mechs = [];
     for (const r of this.rings) {
       this.group.remove(r);
@@ -182,6 +221,14 @@ class MenuStage {
   update(dt) {
     this.t += dt;
     for (const m of this.mechs) {
+      if (m.isSpinner) {
+        const s = m.group.userData.spin;
+        s.t += dt;
+        s.r1.rotation.z += dt * 2.4; s.r1.rotation.x += dt * 1.2;
+        s.r2.rotation.y += dt * 3.2;
+        s.core.scale.setScalar(0.85 + Math.sin(s.t * 4) * 0.15);
+        continue;
+      }
       if (this.previewId) m.group.rotation.y = Math.sin(this.t * 0.4) * 0.55 + 0.15;
       // lineup & select previews always show the combat-ready carriage
       m.animator.update(dt, { speed: 0, grounded: true, alwaysReady: true });
@@ -315,6 +362,10 @@ export async function bootGame() {
   const engine = new Engine(document.getElementById('game-canvas'));
   const input = new Input();
   const uiRoot = document.getElementById('ui-root');
+
+  // In ?debug=3d, resolve the manifest before any screen builds so
+  // manifestHasGlb() can decide spinner-vs-procedural synchronously.
+  if (is3dMode()) { try { await loadManifest(); } catch (e) { /* falls back to procedural */ } }
 
   let audio;
   try {
