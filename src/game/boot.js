@@ -474,7 +474,27 @@ export async function bootGame() {
       <div class="wu-loading">LOADING ARENA…</div>`;
     uiRoot.appendChild(ov);
     B.hud.el.style.display = 'none';
-    B.loading = { t: 0, settle: 0, minT: 3.4, maxT: 9, ov };
+
+    // menu-style neutral backdrop: the whole arena hides while it streams
+    // in, and the fighters shadow-box on a dark stage floor instead — no
+    // half-textured scenery on show. Saved fog/background come back (and
+    // every shader/texture is prewarmed) at the reveal.
+    const scene = engine.scene;
+    const floor = new THREE.Mesh(
+      new THREE.PlaneGeometry(900, 900),
+      new THREE.MeshStandardMaterial({ color: 0x161b24, roughness: 0.6, metalness: 0.5 }));
+    floor.rotation.x = -Math.PI / 2;
+    floor.receiveShadow = true;
+    scene.add(floor);
+    const hidden = B.arenaObjs.map((o) => ({ o, vis: o.visible }));
+    for (const h of hidden) h.o.visible = false;
+
+    B.loading = {
+      t: 0, settle: 0, minT: 3.4, maxT: 9, ov,
+      floor, hidden, fog: scene.fog, bg: scene.background,
+    };
+    scene.fog = new THREE.Fog(0x0a0e18, 60, 220);
+    scene.background = new THREE.Color(0x0a0e18);
   }
 
   function updateWarmup(B, dt) {
@@ -492,6 +512,42 @@ export async function bootGame() {
     // go when the loader has been idle for a beat (and never before the
     // quotes have had their moment; hard cap so a stall can't trap us)
     if (L.t >= L.minT && (L.settle > 0.45 || L.t >= L.maxT)) {
+      const scene = engine.scene;
+      if (!L.prewarmed) {
+        // ONE hidden long frame before the reveal: compile every shader and
+        // upload every texture with the REAL arena fog/background active
+        // (fog toggles shader defines — compiling under the grey stage
+        // state would recompile at the flip). compile() traverses hidden
+        // objects, so the arena never appears on screen for this.
+        L.prewarmed = true;
+        const grayFog = scene.fog, grayBg = scene.background;
+        scene.fog = L.fog;
+        scene.background = L.bg;
+        engine.renderer.compile(scene, engine.camera);
+        const TEX_SLOTS = ['map', 'bumpMap', 'normalMap', 'roughnessMap',
+          'metalnessMap', 'emissiveMap', 'aoMap', 'alphaMap', 'envMap', 'lightMap'];
+        scene.traverse((o) => {
+          const mats = Array.isArray(o.material) ? o.material : o.material ? [o.material] : [];
+          for (const m of mats) {
+            for (const k of TEX_SLOTS) if (m[k]?.isTexture) engine.renderer.initTexture(m[k]);
+            if (m.uniforms) {
+              for (const u of Object.values(m.uniforms)) {
+                if (u?.value?.isTexture) engine.renderer.initTexture(u.value);
+              }
+            }
+          }
+        });
+        scene.fog = grayFog;
+        scene.background = grayBg;
+        return; // reveal next frame — the stall stays behind the overlay
+      }
+      // the flip: neutral stage out, fully-warmed arena in, all in one frame
+      scene.remove(L.floor);
+      L.floor.geometry.dispose();
+      L.floor.material.dispose();
+      scene.fog = L.fog;
+      scene.background = L.bg;
+      for (const h of L.hidden) h.o.visible = h.vis;
       L.ov.remove();
       engine.views = null;
       B.hud.el.style.display = '';
@@ -510,12 +566,16 @@ export async function bootGame() {
     S.mode = 'battle';
 
     const theme = THEMES_BY_ID[S.themeId];
+    // snapshot the scene so everything the arena adds can be hidden behind
+    // the warm-up's neutral backdrop (and revealed fully-warmed later)
+    const preArena = engine.scene.children.slice();
     const world = new World(engine, audio);
     const arena = new Arena(engine, theme, (Math.random() * 9999) | 0);
     world.arena = arena;
     arena.bind(world);
     world.input = input;
     world.spawnAmmoBoxes(6, arena.bounds * 0.6);
+    const arenaObjs = engine.scene.children.filter((o) => !preArena.includes(o));
     // per-view seam rendering: dynamic entities show their nearest image
     engine.onBeforeView = (cam) => world.applyViewWrap(cam);
     engine.onAfterView = () => world.clearViewWrap();
@@ -618,7 +678,7 @@ export async function bootGame() {
     };
 
     const usesTouch = humans.some((h) => h.device === 'touch');
-    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false, usesTouch, loading: null };
+    S.battle = { world, arena, fighters, humans, ais, cameraSys, hud, match, paused: false, usesTouch, loading: null, arenaObjs };
     if (touchControls) touchControls.setVisible(false); // hidden until the bell
     audio.music(theme.music);
     // pre-fight warm-up screen: the match is gated behind it while the
