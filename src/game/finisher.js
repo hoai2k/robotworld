@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { rand, clamp01, lerp } from '../core/utils.js';
 import { GeyserFX } from '../combat/geyserfx.js';
 import { FlameFX } from '../combat/flamefx.js';
+import { RagdollSim, FEET } from '../combat/ragdollphys.js';
 
 const smooth = (k) => k * k * (3 - 2 * k);
 const _ct = new THREE.Vector3();
@@ -160,7 +161,32 @@ export class Finisher {
     }
   }
 
-  vicDown() { this.ragdoll(this.vic, 'ragdoll'); }
+  // TRUE physics ragdoll (verlet particles on the rig): the body tumbles,
+  // rebounds off the ground, and rides any script-driven shoves/drags.
+  // The 'ragdoll' clip still plays underneath purely as a signal (fleas
+  // etc. read the clip name); the sim overwrites the joints every frame.
+  ragdollPhys(f, opts = {}) {
+    this._sims = this._sims || new Map();
+    let sim = this._sims.get(f);
+    if (sim) return sim;
+    f.animator.play(opts.clip || 'ragdoll');
+    sim = new RagdollSim(f, {
+      onImpact: (pos, speed) => {
+        if (speed < 5) return;
+        const k = Math.min(1, speed / 22);
+        this.w.effects.dustPuff(pos, 3 + 8 * k);
+        if (speed > 9) {
+          this.beat(k > 0.55 ? 'slam' : 'bodyfall', 0.5 * k, 0);
+          this.w.effects.impactSparks(pos, 0xffc23c, (6 + 10 * k) | 0, 8 * k);
+        }
+      },
+      ...opts,
+    });
+    this._sims.set(f, sim);
+    return sim;
+  }
+
+  vicDown() { this.ragdollPhys(this.vic); }
   finaleBurst(color = 0xffa040) {
     const c = this.vic.center();
     this.w.effects.explosion(c, 4.5, { color });
@@ -312,6 +338,9 @@ export class Finisher {
       }
     }
     this.vic.animator.update(dt, { speed: 0, grounded: true });
+    // physics ragdolls stamp over the animator pose (and pick up any pos
+    // writes the scripts made this frame as drag velocity)
+    if (this._sims) for (const sim of this._sims.values()) sim.update(dt);
     // carry spans stage a palm press: runs post-pose or it gets clobbered
     if (this._palmVic) {
       this.win.clampPalmsTo(this._palmVic);
@@ -327,6 +356,7 @@ export class Finisher {
     if (this.ended) return;
     this.ended = true;
     this._rag = null;
+    this._sims = null;
     this.hideSkipUI();
     this.dropSpectre();
     for (const fn of this.cleanups) { try { fn(); } catch { /* teardown must never block the round */ } }
@@ -488,59 +518,34 @@ const SCRIPTS = {
     F.camShot(1.3, 2.55, { dist: 10, h: 6.5, az0: 0.5, az1: 0.05, lookH: 6.2 });
     F.camAction(2.55, 6.2, { dist: 16, h: 5.2, lookH: 3.2 });
     F.trackCenter(2.6, 6.1, 5);
-    // the FEET-GRIP stretch-swing: his right fist holds the victim by the
-    // ankles (the fighter origin IS the feet, so the wreck hangs from the
-    // hand at full stretch). Each swing carries the body clear OVER him —
-    // head sweeping a huge arc — and cracks it head-first into the dirt
-    // beside his right leg, then across to his left, then right again.
-    // Slow enough to read: each slam is a full second.
-    const rollFor = (side) => -side * 2.35; // head down-and-out, cracking the dirt
+    // the FEET-GRIP thrash, now REAL physics: at grab's end the victim
+    // becomes a live ragdoll with both ankles pinned into his right fist —
+    // the colossusSlam arm arcs whip the loose body over him like a flail,
+    // and every crack into the dirt lands (and rebounds) through the sim's
+    // ground contact instead of scripted rolls.
+    F.at(2.55, () => {
+      const sim = F.ragdollPhys(vic);
+      const hand = win.mech.joints.handR;
+      sim.pin(FEET, (out, k) => {
+        hand.getWorldPosition(_ct);
+        out.set(_ct.x + (k ? 0.3 : -0.3) * S, Math.max(_ct.y, 0.4), _ct.z);
+      });
+    });
     for (let i = 0; i < 3; i++) {
       const tS = 2.55 + i * 1.05;
       const side = i % 2 ? -1 : 1; // right, over-the-top to left, right
       F.at(tS, () => win.animator.play(side > 0 ? 'colossusSlamR' : 'colossusSlamL', { speed: 0.75 }));
-      const roll0 = i === 0 ? 1.45 : rollFor(-side);
-      F.hold(tS, tS + 1.0, (k) => {
-        const hand = win.mech.joints.handR;
-        if (!hand) return;
-        hand.getWorldPosition(_ct);
-        vic.pos.set(_ct.x, Math.max(_ct.y, 0.35), _ct.z); // ankles IN the fist
-        vic.yaw = vic.targetYaw = win.yaw;
-        vic.group.rotation.y = win.yaw;
-        // the body pivots around the gripped feet: rolling from one side's
-        // dirt, up over his head (body momentarily stretched skyward), and
-        // down head-first onto the other side
-        vic.group.rotation.z = roll0 + (rollFor(side) - roll0) * smooth(k);
-        vic.group.rotation.x = 0;
-      });
-      F.at(tS + 0.78, () => { // the head cracks the dirt
-        F.beat('slam', 0.85, 0.08);
-        const hp = vic.mech.joints.head
-          ? vic.mech.joints.head.getWorldPosition(new THREE.Vector3()) : vic.center();
-        hp.y = Math.min(hp.y, 0.6);
-        w.effects.impactSparks(hp, 0xffc23c, 16, 10);
-        w.effects.dustPuff(hp, 9);
-        w.effects.rings.spawn(hp, { from: 0.6, to: 5, dur: 0.32, color: 0xffc23c, y: 0.3 });
-      });
     }
-    // the single-hand hurl, far and flat
+    // the single-hand hurl: open the fist mid-heave and let momentum
+    // (plus a shove) send the wreck tumbling — it bounces where it lands
     F.at(5.75, () => { win.animator.play('throwHeave'); w.audio?.play('whooshBig'); });
-    let hx, hy, hz;
-    F.hold(5.8, 6.14, (k) => {
-      if (hx === undefined) { hx = vic.pos.x; hy = vic.pos.y; hz = vic.pos.z; }
-      vic.pos.x = hx + Math.sin(win.yaw) * 9.5 * k * S;
-      vic.pos.z = hz + Math.cos(win.yaw) * 9.5 * k * S;
-      vic.pos.y = Math.max(0.35, hy + 3.2 * k - 7.5 * k * k);
-      vic.group.rotation.x += 0.14;
+    F.at(5.95, () => {
+      const sim = F.ragdollPhys(vic);
+      sim.clearPins();
+      sim.impulse(new THREE.Vector3(
+        Math.sin(win.yaw) * 13 * S, 5.5, Math.cos(win.yaw) * 13 * S), 3);
     });
-    F.at(6.16, () => {
-      F.beat('bodyfall', 1, 0.1);
-      vic.group.rotation.x = 0;
-      vic.group.rotation.z = 0;
-      F.vicDown();
-      w.effects.dustPuff(vic.pos, 12);
-      F.finaleBurst();
-    });
+    F.at(6.16, () => F.finaleBurst());
     F.triumph(6.3, 'castRaise');
   },
 
