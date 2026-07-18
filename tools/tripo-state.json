@@ -27,74 +27,123 @@
     "bytes": 7235144,
     "done": true
   },
-  "titanus": {
-    "modelTask": "fb1c9151-5bd9-4e5b-88f7-0e95e5726512",
-    "modelFailed": false
+  "tempest": {
+    "modelTask": "50f912a5-d900-410a-9203-7b36175df13d",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "4867e086-6c80-4b63-8102-2bd5a65dc5ba",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "68c10be2-b98a-4f4a-81bc-8a1c75c068d9",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_tempest.glb",
+    "bytes": 6961032,
+    "done": true
+  },
+  "fenrir": {
+    "modelTask": "026d8598-57a0-49fc-af92-b2b414a0cf32",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "a4016648-9f69-4228-b91a-83a0946b4bb7",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "03cc3f8b-13c1-4474-baa4-bd8a904d6138",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_fenrir.glb",
+    "bytes": 7658388,
+    "done": true
+  },
+  "colossus": {
+    "modelTask": "fc27d31e-1228-4b75-b96a-0c7790e733bb",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "462c195a-563e-4b17-9a1b-a59bcf014a86",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "c590412b-8b8d-403c-9835-6e94d2047932",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_colossus.glb",
+    "bytes": 7117352,
+    "done": true
+  },
+  "wraith": {
+    "modelTask": "f6b236ed-3978-4183-80e0-6a7b01025c5e",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "8bfe1b17-aaf4-476b-9132-17abfdac0c4a",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "a761f700-8b3c-4d24-9e60-d5b5735a892f",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_wraith.glb",
+    "bytes": 6942556,
+    "done": true
+  },
+  "inferno": {
+    "modelTask": "8923bc6a-aedb-4dbf-b3d9-581656278c3b",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "5ced45c7-1540-4747-a872-87e8e088cd7b",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "c032b2b3-8e98-4cd3-b51e-570d626d1e05",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_inferno.glb",
+    "bytes": 7240560,
+    "done": true
+  },
+  "viper": {
+    "done": true,
+    "glb": "public/models/mech_viper.glb",
+    "bytes": 7062572
+  },
+  "nova": {
+    "done": true,
+    "glb": "public/models/mech_nova.glb",
+    "bytes": 7454980
   },
   "glacier": {
-    "modelTask": "025d2327-c8a0-48ea-974b-f1a9170dfcfd",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "b1b5b6bb-1402-42d2-8c2a-f0146cd59cf8",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "a923f2ad-e7a5-4c7a-8466-a42d92a2bbeb",
-    "rigFailed": false,
-    "rigCredits": 25,
+    "done": true,
     "glb": "public/models/mech_glacier.glb",
-    "bytes": 7469772,
-    "done": true
+    "bytes": 7469772
   },
   "cranky": {
-    "modelTask": "47ff78ba-64e3-432b-964d-cac221b789c3",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "39532353-2c3a-4e4a-a895-b6cea948e89b",
-    "riggable": true,
-    "rigType": "others",
-    "rigTask": "7cf1d141-3dad-42aa-87ba-b8e9a127eee5",
-    "rigFailed": false,
-    "rigCredits": 25,
+    "done": true,
     "glb": "public/models/mech_cranky.glb",
-    "bytes": 7445720,
-    "done": true
+    "bytes": 7445720
+  },
+  "titanus": {
+    "done": true,
+    "glb": "public/models/mech_titanus.glb",
+    "bytes": 7369800
+  },
+  "rhino": {
+    "done": true,
+    "glb": "public/models/mech_rhino.glb",
+    "bytes": 7041956
   },
   "frogger": {
-    "modelTask": "a63cce88-3811-4b00-adda-28917b22dc77",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "d44cb21c-4df9-4e52-b5af-39873c13a38d",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "fc655081-231c-47f1-8936-ff47d62b13a5",
-    "rigFailed": false,
-    "rigCredits": 25,
+    "done": true,
     "glb": "public/models/mech_frogger.glb",
-    "bytes": 7071152,
-    "done": true
+    "bytes": 7071152
+  },
+  "nullbot": {
+    "done": true,
+    "glb": "public/models/mech_nullbot.glb",
+    "bytes": 6768532
   },
   "jerry": {
     "modelTask": "f7b8ee91-e4b1-4299-92ed-22409180ea39",
-    "modelFailed": false,
     "modelCredits": 30,
-    "checkTask": "4c619dc0-c296-4204-b8dc-8d350b040ba5",
+    "checkTask": "31e42210-a463-4699-a855-1ba00c6358df",
     "riggable": true,
     "rigType": "biped",
-    "rigTask": "2b919e51-7c3e-4337-89de-a1c371f3ca12",
-    "rigFailed": true
-  },
-  "nullbot": {
-    "modelTask": "e76a84e8-93cc-44f0-ba0c-4296edeb4542",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "794df210-cbf9-48f0-af19-ef0aa68cf7e8",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "bfab0630-fb7b-43c0-bcc5-4757f9b74cf2",
-    "rigFailed": false,
-    "rigCredits": 25,
-    "glb": "public/models/mech_nullbot.glb",
-    "bytes": 6768532,
-    "done": true
+    "rigTask": "d8c281ed-31b3-4f89-a010-70f4ca7f4763",
+    "rigFailed": false
   }
 }

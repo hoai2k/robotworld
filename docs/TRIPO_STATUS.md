@@ -1,36 +1,65 @@
 # Tripo GLB generation status
 
-Working session 2026-07-18 (API key holder: hoai2k). Task: generate rigged
-GLBs for all 17 roster mechs from `docs/canonical/` images via the Tripo
-API, integrate through `public/models/manifest.json`, commit to main.
-Resume with `TRIPO_API_KEY=... node tools/tripogen.mjs --all` (state in
-`tools/tripo-state.json` skips finished mechs; `--status` prints a table).
+Session 2026-07-18. Goal: rigged GLBs for all 17 mechs from `docs/canonical/`
+images via Tripo API → `public/models/` + `manifest.json` → main.
 
-Budget: started with 2000 credits ($20). ~55 credits/mech
-(image_to_model v3.1 textured 30 + animate_rig 25; prerigcheck free).
+## How to resume (any fresh session)
 
-## Engine changes made for Tripo rigs (all mechs benefit)
+1. `TRIPO_API_KEY=<key> NODE_USE_ENV_PROXY=1 NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt \
+    node tools/tripogen.mjs --all` — regenerates ONLY mechs not marked done
+   in `tools/tripo-state.json` (never delete that file: it is the
+   spent-credits ledger; `--status` prints it, `--redo <id>` forces one).
+   Node needs the two env vars in sandboxed sessions (proxy + CA).
+2. Per new model: `node tools/rigmap.mjs public/models/mech_<id>.glb --table`
+   prints per-bone skin-centroid rows (lat/height/fwd/weight%/parent) —
+   classify by position (legs reach h≈0, head topmost, arms lateral),
+   write `boneOverrides` into `public/models/manifest.json`. Names: three
+   strips `::` → `tripo0_Left_Limb_0` etc. Rig v2.5 IGNORES spec:mixamo.
+3. `bindPose:"native"` works for all Tripo rigs (they bind in the authored
+   stance); `yawOffset` is 90 or 270 for every model so far — check with
+   one `?showcase=<id>&anim=walk` shot (see MECH_ART_GUIDE §4 waits).
+4. Verify walk + battle, run soak + `npx vite build`, commit.
 
-- `?debug=backup` URL param — ignore all GLB overrides, run procedural models.
-- `rigadapter.js`: unmapped intermediate bones between mapped joints are now
-  folded into retargeting (`interQ`) — Tripo v2.5 skeletons need this.
-- `gltf.js`: ground/center on the *rendered skinned* bounding box, not
-  `Box3.setFromObject` (Tripo's Armature node offset put models ~3.4 units
-  underground); clone via three's SkeletonUtils.
-- `tools/tripogen.mjs`: upload → image_to_model (H3 v3.1, PBR,
-  face_limit 150k) → prerigcheck → animate_rig (spec mixamo, biped) →
-  download. NOTE: rig v2.5 ignores the mixamo spec naming — bones come back
-  as `tripo::`/`bone_N`, so every mech needs manifest `boneOverrides`
-  (GLTFLoader strips `::` → override names look like `tripo0_Left_Limb_0`).
+## Engine changes this session (already committed)
+
+- `?debug=backup` — ignore GLB overrides, procedural models only.
+- rigadapter interQ: unmapped intermediate bones folded into retarget.
+- gltf.js: ground on *rendered skinned* bbox (measure AFTER container
+  assembly + updateMatrixWorld); SkeletonUtils.clone.
+- tools/tripogen.mjs (API driver), tools/rigmap.mjs (mapping aid).
+- WARNING: do not run several tripogen processes in parallel — they
+  clobber each other's tripo-state.json saves (models still download).
 
 ## Per-mech status
 
-| Mech | Model | Rigged | GLB | Integrated (manifest + verified) |
-|---|---|---|---|---|
-| saurion | ✅ | ✅ biped | ✅ 59 MB (pre-face_limit; consider `--redo` at 150k for size) | ✅ boneOverrides + native bindPose + yaw 90; idle/walk/heavy/battle/soak/build all pass |
-| vulcan | ✅ | ✅ biped | ✅ 7.2 MB | ⬜ needs boneOverrides + verify |
-| titanus, aegis, viper, nova, rhino | batch A running | | | |
-| tempest, fenrir, colossus, wraith, inferno | batch B running | | | |
-| glacier, cranky, frogger, jerry, nullbot(redo) | batch C running | | | |
+| Mech | GLB | Integration |
+|---|---|---|
+| titanus | ✅ 7.4MB | ✅ mapped |
+| vulcan | ✅ 7.2MB | ⬜ |
+| aegis | ❌ | ⬜ |
+| viper | ✅ 7.1MB | ⬜ |
+| nova | ✅ 7.5MB | ⬜ |
+| rhino | ✅ 7.0MB | ⬜ |
+| tempest | ✅ 7.0MB | ⬜ |
+| fenrir | ✅ 7.7MB | ✅ mapped |
+| colossus | ✅ 7.1MB | ⬜ |
+| wraith | ✅ 6.9MB | ⬜ |
+| inferno | ✅ 7.2MB | ⬜ |
+| glacier | ✅ 7.5MB | ✅ mapped |
+| cranky | ✅ 7.4MB | ⬜ |
+| saurion | ✅ 59.2MB | ✅ mapped |
+| frogger | ✅ 7.1MB | ⬜ |
+| jerry | ❌ | ⬜ |
+| nullbot | ✅ 6.8MB | stub |
 
-Credits after saurion+vulcan: 1890.
+- aegis: model not riggable per prerigcheck → fresh-seed regen queued.
+- jerry: model OK, rig task failed server-side → rig retry queued.
+- vulcan + tempest: GLB present but rig lacks arm/leg bones (auto-rigger
+  merged limbs) → keep procedural; a re-rig would likely repeat (rig
+  follows geometry); regenerating the model with a new seed MAY help.
+- saurion: 59 MB (generated before face_limit was added) — shrink with
+  `gltf-transform simplify` locally (same skeleton, no credits) or --redo.
+- nullbot: new Tripo model REPLACED the old GLB; old manifest entry
+  (custom bindPose+stretch) belongs to the old file — remap needed.
+
+Credits: 2000 start → 1115 now (15 models × 55 + aegis model 30).
