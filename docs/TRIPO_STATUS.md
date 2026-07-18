@@ -34,23 +34,24 @@ images via Tripo API → `public/models/` + `manifest.json` → main.
 
 | Mech | GLB | Integration |
 |---|---|---|
-| titanus | ✅ 7.4MB | ✅ mapped |
-| vulcan | ✅ 7.2MB | ⬜ |
-| aegis | ❌ | ⬜ |
-| viper | ✅ 7.1MB | ⬜ |
-| nova | ✅ 7.5MB | ⬜ |
-| rhino | ✅ 7.0MB | ⬜ |
-| tempest | ✅ 7.0MB | ⬜ |
-| fenrir | ✅ 7.7MB | ✅ mapped |
-| colossus | ✅ 7.1MB | ⬜ |
-| wraith | ✅ 6.9MB | ⬜ |
-| inferno | ✅ 7.2MB | ⬜ |
-| glacier | ✅ 7.5MB | ✅ mapped |
-| cranky | ✅ 7.4MB | ⬜ |
-| saurion | ✅ 59.2MB | ✅ mapped |
-| frogger | ✅ 7.1MB | ⬜ |
-| jerry | ❌ | ⬜ |
-| nullbot | ✅ 6.8MB | stub |
+| titanus | ✅ 7.4MB | ✅ verified |
+| vulcan | ✅ 7.2MB | ❌ rig has no arm bones — procedural (regen w/ new seed may fix) |
+| aegis | ✅ 7.2MB | ✅ verified (fresh-seed regen) |
+| viper | ✅ 7.1MB | ✅ verified |
+| nova | ✅ 7.5MB | ✅ verified |
+| rhino | ✅ 7.0MB | ✅ verified |
+| tempest | ✅ 7.0MB | ❌ rig has no leg bones — procedural (regen w/ new seed may fix) |
+| fenrir | ✅ 7.7MB | ✅ verified |
+| colossus | ✅ 7.1MB | ✅ verified |
+| wraith | ✅ 6.9MB | ✅ verified |
+| inferno | ✅ 7.2MB | ✅ verified (2-segment legs; ankles unmapped) |
+| glacier | ✅ 7.5MB | ✅ verified |
+| cranky | ✅ 7.4MB | ✅ verified |
+| saurion | ✅ 11MB (simplified from 59MB) | ✅ verified |
+| frogger | ✅ 7.1MB | ✅ verified (2 of 4 arms driven) |
+| jerry | ✅ 7.6MB | ✅ verified (claws driven; skirt legs static) |
+| nullbot | ✅ 6.8MB | ✅ verified (new Tripo model replaced old GLB) |
+
 
 - aegis: model not riggable per prerigcheck → fresh-seed regen queued.
 - jerry: model OK, rig task failed server-side → rig retry queued.
@@ -62,4 +63,19 @@ images via Tripo API → `public/models/` + `manifest.json` → main.
 - nullbot: new Tripo model REPLACED the old GLB; old manifest entry
   (custom bindPose+stretch) belongs to the old file — remap needed.
 
-Credits: 2000 start → 1115 now (15 models × 55 + aegis model 30).
+Credits: 2000 start → ~1005 left (15×55 + aegis 30+55retry + jerry 25 rig retry).
+
+## Verification record (2026-07-18)
+
+15/17 mechs run their Tripo GLB in-game; vulcan + tempest keep procedural
+(auto-rig merged their limbs — silhouettes hug the body). Verified: walk
+showcase shots per mech, 12-mech lineup, ace soaks (saurion/viper,
+titanus/nullbot, fenrir/glacier, cranky/frogger, jerry/aegis — zero
+crashes), `vite build` green. `?debug=backup` bypasses all GLBs.
+
+Contract notes (silent degradations vs §5, procedural-only features):
+vulcan gatling spin & podL, colossus mortars, nova halo spin, fenrir tail
+wag, viper blade flare, wraith rifle/scope anchors, tempest coils,
+nullbot glow2 shard dress (GLB_DRESS was written for the OLD nullbot
+model; visual check of the new model looked fine without it). Muzzle/core
+anchors fall back to virtual-joint defaults everywhere — combat works.
