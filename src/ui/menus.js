@@ -37,12 +37,24 @@ function appendTouchBack(screenEl, onBack) {
   screenEl.appendChild(touchBtn('◀ BACK', 'nav-back', onBack));
 }
 
+// Frame a corner "hot button" (settings/sound, owned by boot.js) in a
+// focus color while a controller's LB/RB selector is parked on it.
+function frameHotButton(b, color) {
+  b.el.style.outline = color ? `2px solid ${color}` : '';
+  b.el.style.outlineOffset = '3px';
+  b.el.style.borderRadius = '8px';
+  b.el.style.boxShadow = color ? `0 0 14px ${color}` : '';
+  b.el.style.opacity = color ? '1' : '';
+}
+
 // ---------------- TITLE ----------------
 export class TitleScreen {
-  constructor(root, { onPlay, onFullscreen, audio }) {
+  constructor(root, { onPlay, onFullscreen, audio, hotButtons }) {
     this.audio = audio;
     this.onPlay = onPlay;
     this.onFullscreen = onFullscreen;
+    this.hot = hotButtons || [];   // corner buttons (settings/sound)
+    this.corner = null;            // index into this.hot while LB/RB-focused
     this.el = el('div', 'screen fade-in');
     this.el.innerHTML = `
       <div style="text-align:center">
@@ -61,11 +73,12 @@ export class TitleScreen {
     });
     this.el.appendChild(this.menu);
     this.el.appendChild(el('div', 'hint-bar',
-      '<b>↑↓</b> select&nbsp;&nbsp;<b>ENTER / A</b> confirm&nbsp;&nbsp;·&nbsp;&nbsp;P1 <b>WASD</b> + <b>F G H R T Y</b> · <b>SPACE</b> jump · <b>SHIFT</b> dash&nbsp;&nbsp;·&nbsp;&nbsp;Xbox controllers supported'));
+      '<b>↑↓</b> select&nbsp;&nbsp;<b>ENTER / A</b> confirm&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) settings · sound&nbsp;&nbsp;·&nbsp;&nbsp;pad <b>SELECT</b> mouse pointer&nbsp;&nbsp;·&nbsp;&nbsp;P1 <b>WASD</b> + <b>F G H R T Y</b> · <b>SPACE</b> jump · <b>SHIFT</b> dash'));
     root.appendChild(this.el);
   }
   refresh() {
-    this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel));
+    this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel && this.corner == null));
+    this.hot.forEach((b, j) => frameHotButton(b, this.corner === j ? 'var(--hud-cyan)' : null));
   }
   confirm() {
     this.audio?.play('uiSelect');
@@ -73,11 +86,30 @@ export class TitleScreen {
     else this.onFullscreen();
   }
   update(ev) {
+    // LB/RB (Q/E) hop the focus onto the corner buttons (settings/sound);
+    // A/ENTER activates, ↑↓ or B/ESC return to the menu list
+    if (this.hot.length && (ev.lb || ev.rb)) {
+      const ring = [null, ...this.hot.map((_, j) => j)];
+      const cur = ring.indexOf(this.corner);
+      this.corner = ring[(Math.max(0, cur) + (ev.rb ? 1 : -1) + ring.length) % ring.length];
+      this.audio?.play('uiMove');
+      this.refresh();
+      return;
+    }
+    if (this.corner != null) {
+      if (ev.confirm) { this.audio?.play('uiSelect'); this.hot[this.corner].activate(); return; }
+      if (ev.back) { this.corner = null; this.audio?.play('uiBack'); this.refresh(); return; }
+      if (ev.up || ev.down) { this.corner = null; this.audio?.play('uiMove'); this.refresh(); } // rejoin the list
+      return;
+    }
     if (ev.up) { this.sel = (this.sel + this.items.length - 1) % this.items.length; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.down) { this.sel = (this.sel + 1) % this.items.length; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.confirm) this.confirm();
   }
-  destroy() { this.el.remove(); }
+  destroy() {
+    this.hot.forEach((b) => frameHotButton(b, null));
+    this.el.remove();
+  }
 }
 
 // ---------------- FIGHTER SELECT (join + pick, one screen) ----------------
@@ -86,9 +118,10 @@ export class TitleScreen {
 // touch). Every joined human picks a mech + color simultaneously; CPU slots
 // randomize a mech once all humans lock in.
 export class MechSelectScreen {
-  constructor(root, { input, audio, onDone, onBack, onPreview, prev }) {
+  constructor(root, { input, audio, onDone, onBack, onPreview, prev, hotButtons }) {
     this.input = input;
     this.audio = audio;
+    this.hotButtons = hotButtons || []; // corner settings/sound, LB/RB-reachable
     this.onDone = onDone;
     this.onBack = onBack;
     this.onPreview = onPreview;
@@ -154,7 +187,7 @@ export class MechSelectScreen {
     this.el.appendChild(el('div', 'hint-bar',
       'press <b>A</b> / <b>ENTER</b> on a controller or keyboard to JOIN&nbsp;&nbsp;·&nbsp;&nbsp;' +
       '<b>MOVE</b> pick&nbsp;&nbsp;<b>X / R</b> color&nbsp;&nbsp;<b>A / ENTER</b> lock in&nbsp;&nbsp;<b>B / ESC</b> leave · back' +
-      '&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) select a CPU / empty / KB slot: <b>↑↓</b> change&nbsp;&nbsp;<b>B</b> done'));
+      '&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) select a CPU / empty / KB slot / ⚙ / 🔊: <b>↑↓</b> change · <b>A</b> use · <b>B</b> done&nbsp;&nbsp;·&nbsp;&nbsp;pad <b>SELECT</b> mouse pointer'));
     root.appendChild(this.el);
 
     if (this.touch) {
@@ -302,10 +335,12 @@ export class MechSelectScreen {
     return s.kind !== 'human' || s.device === 'kb1' || s.device === 'kb2';
   }
 
-  // ring of selectable stops for a picker: home (null) + every editable slot
+  // ring of selectable stops for a picker: home (null) + every editable
+  // slot + the corner hot buttons (settings/sound) as 'hot<idx>' stops
   moveSel(pk, dir) {
     const ring = [null];
     this.slots.forEach((s, i) => { if (this.editable(i, pk)) ring.push(i); });
+    this.hotButtons.forEach((_, j) => ring.push('hot' + j));
     if (ring.length === 1) { pk.sel = null; return; } // nothing to edit
     const cur = Math.max(0, ring.indexOf(pk.sel));
     pk.sel = ring[(cur + dir + ring.length) % ring.length];
@@ -367,6 +402,11 @@ export class MechSelectScreen {
         if (pk.cursor === i && !pk.locked) c.classList.add(`cursor-p${pk.slotIdx + 1}`);
         if (pk.locked && pk.cursor === i) c.classList.add('locked-pick');
       }
+    });
+    // corner hot buttons: frame in the visiting player's color
+    this.hotButtons.forEach((b, j) => {
+      const ed = this.pickers.find((p) => p.sel === 'hot' + j);
+      frameHotButton(b, ed ? COLOR_CSS[ed.slotIdx % 4] : null);
     });
     // the grid scrolls once the roster outgrows it — keep cursors in view
     for (const pk of this.pickers) {
@@ -591,9 +631,15 @@ export class MechSelectScreen {
       // (a slot that turned into a CONTROLLER human under our focus — e.g.
       // a pad joined into it — is no longer ours to edit, so the selector
       // springs home; keyboard seats stay editable)
-      if (pk.sel != null && !this.editable(pk.sel, pk)) pk.sel = null;
+      if (typeof pk.sel === 'number' && !this.editable(pk.sel, pk)) pk.sel = null;
       if (ev.lb || ev.rb) { this.moveSel(pk, ev.rb ? 1 : -1); continue; }
       if (pk.sel != null) {
+        // corner hot buttons (settings/sound): A activates, B comes home
+        if (typeof pk.sel === 'string') {
+          if (confirm) { this.audio?.play('uiSelect'); this.hotButtons[+pk.sel.slice(3)]?.activate(); }
+          if (back) { pk.sel = null; this.audio?.play('uiBack'); this.refresh(); }
+          continue;
+        }
         // while visiting another slot, your own pick stays parked: nav and
         // confirm belong to the visited slot until B brings you home
         if (up) { this.cycleRemote(pk.sel, 1); return; }
@@ -641,7 +687,10 @@ export class MechSelectScreen {
     // with zero humans left, the shared ESC/B backs out to the title
     if (!this.pickers.length && evAll?.back) { this.audio?.play('uiBack'); this.onBack(); }
   }
-  destroy() { this.el.remove(); }
+  destroy() {
+    this.hotButtons.forEach((b) => frameHotButton(b, null));
+    this.el.remove();
+  }
 }
 
 // ---------------- ARENA SELECT ----------------
