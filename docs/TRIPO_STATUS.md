@@ -95,3 +95,33 @@ true front (chest labels, eyes, toes) and against a battle engage shot
 saurion 300 (diagonal body — nose-vector solved via tools/rigmap-style
 head-vs-hips XZ probe), fenrir 270. Verified: per-mech front shots, 12-mech
 lineup, saurion-v-fenrir engage (correct mutual facing), vite build green.
+## Session 3 (2026-07-18): sizing, spinner, pose tool
+
+- `?debug=3d` is the switch (default = procedural). In 3d mode, menus show a
+  glow-tinted loading spinner instead of the procedural stand-in while a GLB
+  downloads, then swap the GLB in. Title lineup + chooser + battle all use
+  GLBs. Mechs with no GLB (vulcan/tempest) still show procedural.
+- Head-height sizing (gltf.js buildGlbMech): each GLB is scaled so its head
+  bone sits at the procedural head-joint height, so GLB + procedural bodies
+  read at the same size (raised tails/weapons/crystals no longer shrink the
+  body). entry.heightScale still tunes per-mech.
+- `?debug=models` pose-matching tool (src/dev/posetool.js): procedural (left)
+  vs GLB (right), orbit camera + per-bone rotate/translate gizmo. "Output
+  config" emits a manifest patch — `boneCorrections` (local rotation applied
+  after retargeting) and `bonePos` (rest-position nudge) — copied to clipboard
+  + downloaded. Runtime consumes both (rigadapter.js / buildGlbMech). Use it
+  to hand-correct any GLB whose retargeted rest pose drifts from the intended
+  silhouette, then paste the patch into public/models/manifest.json.
+
+## Regenerating vulcan / tempest (the two unusable rigs)
+
+Their `image_to_model` succeeded but auto-rig merged the limbs (vulcan: arms
+against body → no arm bones; tempest: coat over legs → no leg bones).
+`image_to_model` takes NO text prompt, so a plain retry only varies
+`model_seed` — semi-blind. Real levers to bias success:
+  1. Regenerate the SOURCE image into a clear A/T-pose with limbs separated
+     (Tripo's text-to-image / image-edit endpoints DO take a prompt), then
+     image_to_model that. This directly addresses the merge cause.
+  2. `enable_image_autofix: true` on image_to_model.
+  3. Different `model_seed` (cheapest, least reliable).
+Not yet attempted — ~55 credits each; ~1005 credits remain.
