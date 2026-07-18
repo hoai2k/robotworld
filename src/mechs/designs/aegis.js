@@ -272,7 +272,8 @@ export function aegis(A, D, J, anchors, def) {
 
   // ================= GRAND TOWER SHIELD (left forearm) =================
   const sh = addJoint(J, 'shield', 'elbowL', -0.46 * s, -fA * 0.5, 0.02 * s);
-  sh.rotation.y = -0.1;
+  sh.rotation.y = 0.18; // face angled a touch inward: squares up when the
+  // combat stance swings the arm across the front
   const shW = 1.75 * s, shH = 3.5 * s; // elongated hexagon, near torso+hips tall
   // layered gold-bordered white panels (dark backing -> gold -> white -> gold -> white)
   A.plate('shield', 'dark', rhombOutline(shW * 0.94, shH * 0.94, { cut: 0.32 }), 0.07 * s, {

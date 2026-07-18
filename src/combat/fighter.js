@@ -1004,7 +1004,7 @@ export class Fighter {
   }
 
   // ================= damage =================
-  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false } = {}) {
+  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false, unblockable = false } = {}) {
     if (!this.alive || this.iframes > 0) return;
     if (attacker && this.isAllyOf(attacker)) return; // no friendly fire on a summon team
     this.uncloak();
@@ -1019,7 +1019,7 @@ export class Fighter {
     //     low yourself) — this is the core crouch dynamic
     //   • a guard-BREAKER (Saurion) shatters the block outright, more often
     //     than anyone else
-    if (this.blocking && this.state !== 'hitstun') {
+    if (this.blocking && !unblockable && this.state !== 'hitstun') {
       const toSrc = Math.atan2(-dirX, -dirZ);
       if (Math.abs(angleDiff(this.yaw, toSrc)) < 1.5) {
         const low = !!(attacker && attacker.ducking);       // crouched attack
@@ -1042,6 +1042,35 @@ export class Fighter {
         this.world.effects.blockSpark(this.center(), 0xff5a3c);
         this.world.audio?.play(shattered ? 'hitHeavy' : 'hit');
         if (shattered) { knock *= 1.15; heavy = true; }
+      }
+    }
+
+    // AEGIS passive cover: an attack that arrives THROUGH the tower shield
+    // is taken ON the shield — same numbers as a raised guard — even with
+    // no block input. Geometric against the shield's LIVE position, so a
+    // shield whirled overhead (bulwark bash) stops covering the front, and
+    // an attack from the open flank still lands clean.
+    if (!unblockable && !this.blocking && this.def.passiveShield &&
+        this.state !== 'hitstun' && this.state !== 'launched' &&
+        this.state !== 'knockdown' && this.state !== 'frozen' &&
+        this.mech.anchors.shield) {
+      const S = this.mech.anchors.shield.getWorldPosition(_palmTmp);
+      const sx = S.x - this.pos.x, sz = S.z - this.pos.z;
+      const sl = Math.hypot(sx, sz);
+      // shield held out at body height (not swung skyward), threat within
+      // ~60° of the direction the shield is offset toward
+      if (sl > 0.35 && S.y > this.pos.y + 0.5 && S.y < this.pos.y + this.height) {
+        const dot = (sx / sl) * (-dirX / dLen) + (sz / sl) * (-dirZ / dLen);
+        if (dot > 0.5) {
+          const pass = this.def.stats.blockMult ?? 0.12;
+          this.hp = Math.max(1, this.hp - Math.max(1, Math.round(dmg * pass)));
+          this.vel.x += (dirX / dLen) * knock * 0.3;
+          this.vel.z += (dirZ / dLen) * knock * 0.3;
+          this.ult = clamp01(this.ult + (dmg / 3000) * ULT_RATE);
+          this.world.effects.blockSpark(S, 0x9fd8ff);
+          this.world.audio?.play('block');
+          return;
+        }
       }
     }
 

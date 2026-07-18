@@ -1039,7 +1039,7 @@ export const ULTS = {
               if (rock.position.y > 0.5 * s) return true;
               // IMPACT: fire blast + burning crater
               const hit = new THREE.Vector3(gx, 0, gz);
-              w.explode(hit, 4.6, u.dmg * f.dmgMult(), {
+              w.explode(hit, 4.6, u.dmg * f.dmgMult(), { unblockable: true,
                 owner: f, knock: u.knock, launch: 8, color: 0xff7a30,
                 status: { burn: 6, burnT: 2 },
               });
@@ -1131,7 +1131,7 @@ export const ULTS = {
           if (k >= 1) {
             b.hit = true;
             landed++;
-            target.takeHit(u.dmg * f.dmgMult(), f, {
+            target.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
               knock: 1.2, srcPos: f.pos, soft: landed % 8 !== 0,
             });
             if (landed % 6 === 0) {
@@ -1148,7 +1148,7 @@ export const ULTS = {
       if (mode === 'strike' && flying === 0) {
         // the last round lands the exclamation point
         if (target.alive) {
-          target.takeHit(u.dmg * 6 * f.dmgMult(), f, {
+          target.takeHit(u.dmg * 6 * f.dmgMult(), f, { unblockable: true,
             knock: 14, launch: 8, srcPos: f.pos, heavy: true,
           });
         }
@@ -1370,7 +1370,7 @@ export const ULTS = {
                 s.state = 'latched';
                 s.attachA = Math.atan2(-dx || 0.01, -dz || 0.01); // side it struck from
                 s.attachY = clamp((s.y - prey.pos.y) / prey.height, 0.55, 0.9);
-                prey.takeHit(u.dmg * f.dmgMult(), f, {
+                prey.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                   knock: 0.6, srcPos: P.set(s.x, s.y, s.z), soft: true,
                   status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
                 });
@@ -1508,7 +1508,7 @@ export const ULTS = {
         mat.opacity = 0.98; // densening core
       } else {
         // DETONATION — the collapse doubles the reach of the blast
-        w.explode(f.pos, u.radius * 2, u.dmg * f.dmgMult(), {
+        w.explode(f.pos, u.radius * 2, u.dmg * f.dmgMult(), { unblockable: true,
           owner: f, knock: 22, launch: 12, color: 0xfff0d8,
         });
         w.effects.explosion(sun.position, u.radius * 1.2, { color: 0xffffff, smoke: false });
@@ -1552,7 +1552,7 @@ export const ULTS = {
         const dx = w.wrapDelta(e.pos.x - px), dz = w.wrapDelta(e.pos.z - pz);
         if (Math.hypot(dx, dz) < 3.4 * f.scale) {
           hitAt.set(e, t);
-          e.takeHit(u.dmg * f.dmgMult(), f, {
+          e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
             knock: u.knock, launch: 9, srcPos: P2.set(px, 0, pz), heavy: true,
           });
           w.engine.addHitStop(0.06);
@@ -1660,7 +1660,7 @@ export const ULTS = {
           w.effects.glows.emit(gx, 1.2, gz, 0, 0, 0, { life: 0.2, size: 5.5, color: 0xbfefff, alpha: 1 });
           w.effects.rings.spawn(ground, { from: 0.4, to: 4.5, dur: 0.3, color: 0x9fdcff, y: 0.25 });
           if (victim && victim.alive) {
-            victim.takeHit(u.dmg * f.dmgMult(), f, {
+            victim.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
               knock: 2, srcPos: center, soft: true, status: { slow: 0.7, slowT: 0.8 },
             });
             w.effects.staticCling(victim, 0.8);
@@ -1776,7 +1776,7 @@ export const ULTS = {
             const dx = w.wrapDelta(e.pos.x - wl.g.position.x), dz = w.wrapDelta(e.pos.z - wl.g.position.z);
             if (Math.hypot(dx, dz) < e.hitRadius + 1.2) {
               hitAt.set(e, t);
-              e.takeHit(u.dmg * f.dmgMult(), f, { knock: 3, srcPos: wl.g.position, soft: Math.random() < 0.7 });
+              e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true, knock: 3, srcPos: wl.g.position, soft: Math.random() < 0.7 });
               w.effects.impactSparks(e.center(), 0x6cd8ff, 6, 6);
               if (Math.random() < 0.25) w.audio?.play('slash');
             }
@@ -1830,7 +1830,7 @@ export const ULTS = {
             if (e === f || !e.alive || f.isAllyOf(e)) continue;
             const d = Math.hypot(w.wrapDelta(e.pos.x - f.pos.x), w.wrapDelta(e.pos.z - f.pos.z));
             if (d < f.radius + e.radius + 1 && e.pos.y < f.height * 0.55) {
-              e.takeHit(u.dmg * f.dmgMult(), f, { knock: 20, launch: 8, srcPos: f.pos, heavy: true });
+              e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true, knock: 20, launch: 8, srcPos: f.pos, heavy: true });
               w.effects.dustPuff(e.pos, 6);
             }
           }
@@ -1944,7 +1944,7 @@ export const ULTS = {
               // the STRIKE — raking claws on the way through
               if (t - (hitAt.get(prey) ?? -9) > 0.1) {
                 hitAt.set(prey, t);
-                prey.takeHit(u.dmg * f.dmgMult(), f, {
+                prey.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                   knock: 1, srcPos: P.set(b.x, b.y, b.z), soft: true,
                 });
                 if (Math.random() < 0.3) w.effects.impactSparks(c, 0x8a2030, 4, 5);
@@ -2047,7 +2047,7 @@ export const ULTS = {
               if (Math.hypot(dx, dz) < r + e.hitRadius * 0.5 && e.pos.y < H) {
                 swept = e;
                 sweptT = 0;
-                e.takeHit(u.dmg * f.dmgMult(), f, {
+                e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                   knock: 3, launch: 14, srcPos: pos, heavy: true, status: { burn: 10, burnT: 3 },
                 });
                 w.audio?.play('explosionBig');
@@ -2174,7 +2174,7 @@ export const ULTS = {
               if (!e.grounded && e.pos.y > 1.5) continue;
               const d = Math.hypot(w.wrapDelta(e.pos.x - center.x), w.wrapDelta(e.pos.z - center.z));
               if (d < u.radius) {
-                e.takeHit(u.dmg * f.dmgMult(), f, {
+                e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                   knock: 0.5, srcPos: center, soft: true, status: { slow: 0.85, slowT: 0.5 },
                 });
               }
@@ -2227,7 +2227,7 @@ export const ULTS = {
           if (!victims.has(e) && Math.abs(along - travel) < 2.4 && e.pos.y < H) {
             // the front hits ONCE, hard, and CARRIES them downrange
             victims.add(e);
-            e.takeHit(u.dmg * f.dmgMult(), f, {
+            e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
               knock: u.knock, launch: 10, srcPos: P.set(e.pos.x - dirX * 3, 0, e.pos.z - dirZ * 3), heavy: true,
             });
             e.vel.x += dirX * 20;
@@ -2356,7 +2356,7 @@ export const ULTS = {
         // release: the banked resonance detonates in every seized frame
         for (const e of caught) {
           if (!e.alive) continue;
-          e.takeHit(u.dmg * f.dmgMult(), f, {
+          e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
             knock: 16, launch: 9, srcPos: f.pos, heavy: true,
           });
           w.effects.explosion(e.center(), 2.6, { color: 0x9ade2a, smoke: false });
@@ -2428,7 +2428,7 @@ export const ULTS = {
             if (dx * dx + dz * dz < (e.hitRadius + 1.1) ** 2 &&
                 c.g.position.y < e.pos.y + e.height && c.g.position.y + 2 > e.pos.y) {
               hitAt.set(e, t);
-              e.takeHit(u.dmg * f.dmgMult(), f, {
+              e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                 knock: 6, srcPos: c.g.position, soft: Math.random() < 0.6,
               });
               w.effects.impactSparks(e.center(), 0xc86a4a, 7, 7);
@@ -2544,7 +2544,7 @@ export const ULTS = {
                 w.effects.glitchBurst(v.center(), 14, 8, v.scale);
               }
             } else if (v.grounded) {
-              v.takeHit(u.dmg * f.dmgMult(), f, {
+              v.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
                 knock: 4, srcPos: _v.set(v.pos.x, -2, v.pos.z), status: { glitch: 1 },
               });
               w.effects.glitchBurst(v.center(), 12, 7, v.scale);
