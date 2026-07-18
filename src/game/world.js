@@ -405,7 +405,7 @@ export class World {
   }
 
   // area explosion: damages fighters w/ falloff + wrecks buildings + FX
-  explode(pos, radius, dmg, { owner = null, knock = 12, color = 0xffa040, launch = 0, status = null, silentFx = false } = {}) {
+  explode(pos, radius, dmg, { owner = null, knock = 12, color = 0xffa040, launch = 0, status = null, silentFx = false, unblockable = false } = {}) {
     if (!silentFx) {
       this.effects.explosion(pos, radius, { color });
       this.audio?.play(radius > 7 ? 'explosionBig' : 'explosion');
@@ -419,7 +419,7 @@ export class World {
       if (d < radius + f.hitRadius) {
         const falloff = 1 - Math.max(0, (d - radius * 0.3)) / (radius + f.hitRadius);
         f.takeHit(dmg * Math.max(0.25, falloff), owner, {
-          knock: knock * Math.max(0.4, falloff), launch, srcPos: pos, heavy: dmg > 60, status,
+          knock: knock * Math.max(0.4, falloff), launch, srcPos: pos, heavy: dmg > 60, status, unblockable,
         });
       }
     }
@@ -428,7 +428,7 @@ export class World {
   }
 
   // expanding ground ring that hits grounded fighters (slams)
-  groundShockwave(owner, pos, radius, dmg, knock, color, launchAll = false) {
+  groundShockwave(owner, pos, radius, dmg, knock, color, launchAll = false, unblockable = false) {
     this.effects.rings.spawn(pos, { from: 1, to: radius * 2.2, dur: 0.55, color, y: 0.4 });
     this.effects.dustPuff(pos, 16);
     this.effects.explosion(pos, radius * 0.4, { color, smoke: false, ring: false });
@@ -441,7 +441,7 @@ export class World {
       if (d < radius && Math.abs(f.pos.y - pos.y) < 3) {
         const falloff = 1 - d / radius;
         f.takeHit(dmg * Math.max(0.35, falloff), owner, {
-          knock: knock * falloff, launch: launchAll ? 11 : 8 * falloff, srcPos: pos, heavy: true,
+          knock: knock * falloff, launch: launchAll ? 11 : 8 * falloff, srcPos: pos, heavy: true, unblockable,
         });
       }
     }

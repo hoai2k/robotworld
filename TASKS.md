@@ -2075,3 +2075,34 @@ controllers via Gamepad API), AI opponents.
   VIEWED (block-wide black deck + darkened arena + bolts, readable bat
   flock mobbing viper); ace soaks (tempest/wraith, aegis/glacier,
   wraith/tempest) crash-free.
+
+## Phase 14j — Aegis overhand throw, front shield + passive cover, unblockable ults (user request, 2026-07-18)
+
+- AEGIS aegisThrow rebuilt as an unmistakable OVERHAND javelin: high
+  overhead cock (elbow past the ear, hand above the helm, shaft level over
+  the head) that HOLDS an aim beat, then the arm snaps over the top and
+  releases forward-high; the recover keeps the hand at chest height — the
+  old clip's low follow-through sweep is what read as an underhand sling.
+  Fire event at the top of the stretch (t 0.45).
+- AEGIS combat carriage (new combatPose): the shield arm swings ACROSS the
+  body so the tower shield squares up ahead of the chest, face forward,
+  slightly off-center toward its arm — instead of hanging at his flank.
+  (First attempt crossed the forearm horizontally, which turned the plate
+  edge-on; the adduction pose keeps the face forward.) Shield mount yaw
+  +0.18 to square with the stance.
+- PASSIVE SHIELD (def.passiveShield): any hit arriving within ~60° of the
+  direction the shield is offset toward is taken ON the shield with block
+  numbers (blockMult leak-through, spark at the shield, block sound) even
+  without a guard input. Geometric vs the shield's LIVE anchor, so an
+  overhead bulwark whirl stops covering the front, and flank/rear hits
+  land clean. Probe: frontal 100-dmg hit -> 6 taken; flank/rear -> 84.
+- UNBLOCKABLE ULTIMATES: takeHit gains an `unblockable` flag that skips
+  both the active block and the passive shield; world.explode /
+  groundShockwave pass it through; all 16 primary ult damage sites in
+  ULTS marked (meteors, storm bullets, snakes, supernova, stampede, bolts,
+  wolf bites, colossal crush, bat rakes, tornado, ice ticks, tsunami,
+  croak, flea bumps, floor-fall). Raptor-clone minions fight with normal
+  moves, so their attacks stay blockable — the intended carve-out.
+- Verified: build green; showcase screenshots VIEWED across 3 tuning
+  rounds (overhead cock, over-the-top release, front-center shield);
+  probes above; aegis/vulcan + aegis/titanus ace ult soaks crash-free.
