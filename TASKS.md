@@ -2128,3 +2128,25 @@ controllers via Gamepad API), AI opponents.
   unblockable.
 - Verified: build green; probes above; ace soaks (nullbot/viper,
   viper/wraith, fenrir/jerry) crash-free.
+
+## Phase 14m — clone summons arrive from another dimension
+
+- `summonFlash(w, group, color, dur)` in specials.js: every mesh of a
+  freshly spawned clone gets an additive white-hot overlay copy that burns
+  off over ~0.5s — the newcomer visibly "materializes".
+- `summonPortal(w, x, z, {radius,color,life})`: glowing rift disc on the
+  ground (additive disc + spinning broken rim arcs + rising motes) that
+  packs leap out of.
+- Rhino stampede: each herd shell flashes gold-white on bake-in + sparks.
+- Saurion raptors: orange-hot materialization flash on each clone (on top
+  of the existing converging ring).
+- Fenrir Wild Hunt: big blue portal tears open under the alpha; wolves
+  spawn hidden, then emerge staggered (~0.045s apart) — each pops visible
+  with a flash + sparks and rises out of the rift over 0.24s before
+  joining the hunt.
+- Jerry flea circus: orange portal under the launch point; clones pop out
+  one after another (~0.03s apart) with flash + sparks, springing straight
+  up out of the disc.
+- Verified: ultshot frames for all four (portal disc + motes, staggered
+  wolf emergence, glowing herd, flea rift); ace soaks fenrir/jerry and
+  saurion/rhino crash-free; build green.

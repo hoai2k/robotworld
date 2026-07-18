@@ -959,6 +959,87 @@ function bakeShell(f) {
   return root;
 }
 
+// SUMMON FLASH: a clone arriving from another dimension burns white-hot for
+// a beat — every mesh in the group gets an additive overlay copy that fades
+// out as the newcomer "materializes" into this reality
+function summonFlash(w, group, color = 0x9be8ff, dur = 0.45) {
+  const mat = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0.95,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const targets = [];
+  group.traverse((o) => { if (o.isMesh && !o.userData.summonFx) targets.push(o); });
+  const overlays = [];
+  for (const o of targets) {
+    const m = new THREE.Mesh(o.geometry, mat);
+    m.userData.summonFx = true;
+    m.matrixAutoUpdate = false;
+    m.matrix.makeScale(1.06, 1.06, 1.06);
+    o.add(m);
+    overlays.push(m);
+  }
+  let t = 0;
+  w.addUpdater((dt) => {
+    t += dt;
+    mat.opacity = 0.95 * Math.pow(Math.max(0, 1 - t / dur), 1.5);
+    return t < dur;
+  }, () => {
+    for (const m of overlays) m.parent?.remove(m);
+    mat.dispose();
+  });
+}
+
+// SUMMON PORTAL: a glowing rift disc laid open on the ground — the pack
+// leaps up out of it into the arena. Spinning rim arcs + rising motes.
+function summonPortal(w, x, z, { radius = 3.5, color = 0x6cd8ff, life = 1.6 } = {}) {
+  const grp = new THREE.Group();
+  const discMat = new THREE.MeshBasicMaterial({
+    color, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+  });
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(radius, 40), discMat);
+  disc.rotation.x = -Math.PI / 2;
+  disc.position.y = 0.06;
+  grp.add(disc);
+  const rimMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false,
+  });
+  const spin = new THREE.Group(); // broken rim arcs so the spin actually reads
+  const arcGeo = new THREE.TorusGeometry(radius * 0.96, 0.14, 6, 18, 1.6);
+  for (let i = 0; i < 3; i++) {
+    const arc = new THREE.Mesh(arcGeo, rimMat);
+    arc.rotation.z = (i / 3) * TAU;
+    spin.add(arc);
+  }
+  spin.rotation.x = -Math.PI / 2;
+  spin.position.y = 0.12;
+  grp.add(spin);
+  grp.position.set(x, 0, z);
+  w.scene.add(grp);
+  let t = 0;
+  w.addUpdater((dt) => {
+    t += dt;
+    const k = Math.min(t / 0.22, 1) * ss(clamp01((life - t) / 0.35));
+    discMat.opacity = 0.35 * k;
+    rimMat.opacity = 0.9 * k;
+    grp.scale.setScalar(0.2 + 0.8 * Math.min(t / 0.22, 1));
+    spin.rotation.z = t * 3.1;
+    if (Math.random() < 0.6) {
+      const a = rand(TAU), r = Math.sqrt(Math.random()) * radius * 0.9;
+      w.effects.glows.emit(x + Math.cos(a) * r, 0.3, z + Math.sin(a) * r,
+        0, rand(2.5, 6), 0, { life: 0.4, size: 0.55, color, alpha: 0.8 });
+    }
+    return t < life;
+  }, () => {
+    w.scene.remove(grp);
+    disc.geometry.dispose();
+    arcGeo.dispose();
+    discMat.dispose();
+    rimMat.dispose();
+  });
+}
+
 // nearest living opponent of `f` to an arbitrary world point
 function nearestEnemyTo(f, x, z, maxD = Infinity) {
   const w = f.world;
@@ -1576,8 +1657,13 @@ export const ULTS = {
         );
         g.rotation.y = f.yaw;
         w.scene.add(g);
+        // each one arrives from elsewhere — a hot flash as it materializes
+        summonFlash(w, g, 0xffd9a0, 0.5);
+        w.effects.impactSparks(
+          _v.set(g.position.x, 2.2, g.position.z), 0xffd23c, 10, 7);
         shells.push({ g, ph: rand(TAU) });
       }
+      w.audio?.play('cast');
       w.addUpdater((dt) => {
         t += dt;
         // the real Rhino gallops point
@@ -1735,14 +1821,21 @@ export const ULTS = {
       if (!f.alive) return;
       const N = u.count || 20;
       const wolves = [];
+      // the rift tears open under the alpha — the pack pours up out of it
+      summonPortal(w, f.pos.x, f.pos.z, { radius: 4.2, color: 0x6cd8ff, life: 1.9 });
+      w.audio?.play('cast');
       for (let i = 0; i < N; i++) {
         const g = bakeShell(f);
         g.rotation.x = 0.5; // pitched down onto all fours
         g.scale.setScalar(0.92);
         const a = (i / N) * TAU + rand(-0.2, 0.2);
         g.position.set(f.pos.x + Math.cos(a) * rand(1, 3), 0.2, f.pos.z + Math.sin(a) * rand(1, 3));
+        g.visible = false; // still on the far side of the rift
         w.scene.add(g);
-        wolves.push({ g, yaw: rand(TAU), turnT: rand(0, 0.2), spd: rand(16, 22), ph: rand(TAU) });
+        wolves.push({
+          g, yaw: rand(TAU), turnT: rand(0, 0.2), spd: rand(16, 22), ph: rand(TAU),
+          delay: 0.04 + i * 0.045, rise: 0,
+        });
       }
       f.animator.stop(0.2);
       const hitAt = new Map(); // pack-wide bite cadence per victim
@@ -1750,6 +1843,25 @@ export const ULTS = {
       w.addUpdater((dt) => {
         t += dt;
         for (const wl of wolves) {
+          // staggered emergence: each wolf leaps out of the portal in turn
+          if (wl.delay > 0) {
+            wl.delay -= dt;
+            if (wl.delay > 0) continue;
+            wl.g.visible = true;
+            summonFlash(w, wl.g, 0x9be8ff, 0.4);
+            w.effects.impactSparks(wl.g.position, 0x6cd8ff, 8, 7);
+            if (Math.random() < 0.3) w.audio?.play('howl', { vol: 0.2, pitch: rand(1.1, 1.5) });
+          }
+          if (wl.rise < 1) {
+            wl.rise = Math.min(1, wl.rise + dt / 0.24);
+            const k = ss(wl.rise);
+            wl.g.position.y = -1.8 + 2.3 * k;
+            wl.g.position.x += Math.sin(wl.yaw) * wl.spd * dt * k;
+            wl.g.position.z += Math.cos(wl.yaw) * wl.spd * dt * k;
+            wl.g.rotation.y = wl.yaw;
+            wl.g.rotation.x = 0.5 - (1 - k) * 0.4; // nose-up as it clears the rift
+            continue;
+          }
           wl.turnT -= dt;
           const px = wl.g.position.x, pz = wl.g.position.z;
           if (wl.turnT <= 0) {
@@ -2295,6 +2407,8 @@ export const ULTS = {
           if (m && m.color) m.color.multiplyScalar(0.7);
         }
         w.addMinion(clone, new AIController(clone, 'ace'), u.duration || 18);
+        // dragged across from another dimension: white-hot flash burning off
+        summonFlash(w, clone.mech.group, 0xff8a5a, 0.55);
         w.effects.rings.spawn(pos, { from: 3.5, to: 0.5, dur: 0.4, color: 0xff3826, y: 1 });
         w.effects.impactSparks(clone.center(), 0xff3826, 12, 8);
         w.audio?.play('cast');
@@ -2384,15 +2498,20 @@ export const ULTS = {
       w.audio?.play('jump');
       const N = u.count || 20;
       const clones = [];
+      // the colony arrives through a rift in the floor, springing straight up
+      summonPortal(w, f.pos.x, f.pos.z, { radius: 2.6, color: 0xff9a3c, life: 1.4 });
+      w.audio?.play('cast');
       for (let i = 0; i < N; i++) {
         const g = bakeShell(f);
         g.scale.setScalar(rand(0.55, 0.8));
         g.position.set(f.pos.x + rand(-1.5, 1.5), 0, f.pos.z + rand(-1.5, 1.5));
+        g.visible = false; // waiting on the far side of the rift
         const yaw = rand(TAU);
         const sp = rand(6, 14);
         w.scene.add(g);
         clones.push({
-          g, yaw, vx: Math.sin(yaw) * sp, vz: Math.cos(yaw) * sp, vy: rand(9, 17),
+          g, yaw, vx: Math.sin(yaw) * sp, vz: Math.cos(yaw) * sp, vy: rand(11, 17),
+          delay: 0.03 + i * 0.032,
         });
       }
       const hitAt = new Map(); // circus-wide bite cadence per victim
@@ -2400,6 +2519,15 @@ export const ULTS = {
       w.addUpdater((dt) => {
         t += dt;
         for (const c of clones) {
+          // pop out of the portal one after another
+          if (c.delay > 0) {
+            c.delay -= dt;
+            if (c.delay > 0) continue;
+            c.g.visible = true;
+            c.g.position.y = 0.1;
+            summonFlash(w, c.g, 0xffb36b, 0.35);
+            w.effects.impactSparks(c.g.position, 0xff9a3c, 6, 6);
+          }
           c.vy -= 34 * dt;
           c.g.position.x += c.vx * dt;
           c.g.position.y += c.vy * dt;
