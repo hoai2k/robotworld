@@ -144,6 +144,24 @@
     "riggable": true,
     "rigType": "biped",
     "rigTask": "d8c281ed-31b3-4f89-a010-70f4ca7f4763",
-    "rigFailed": false
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_jerry.glb",
+    "bytes": 7571564,
+    "done": true
+  },
+  "aegis": {
+    "modelTask": "b8328a09-55e5-4ec1-bff7-2dffe6e5f840",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "33c607d6-e729-4668-bf3e-a392e460ca46",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "edbcd195-cb4e-4b27-977a-7380affa9d7a",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_aegis.glb",
+    "bytes": 7194232,
+    "done": true
   }
 }
