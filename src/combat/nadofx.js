@@ -49,6 +49,7 @@ const NADO_FRAG = /* glsl */`
   uniform float uTime;
   uniform float uAlpha;
   uniform float uSpin;     // helical pan rate (inner shell runs faster)
+  uniform float uCool;     // 0 fire-orange -> 1 gas-flame blue
   varying vec2 vUv;
   varying float vDisp;
   void main() {
@@ -63,16 +64,21 @@ const NADO_FRAG = /* glsl */`
     float fire = (0.92 - h * 0.36) - (1.0 - n) * (0.74 + h * 0.72) + vDisp * 0.25;
     fire = clamp(fire * 1.45, 0.0, 1.0);
     // FlameFX gradient map: red skirt -> orange -> yellow -> rare white
-    vec3 col = mix(vec3(0.42, 0.03, 0.0), vec3(0.95, 0.34, 0.03), smoothstep(0.04, 0.38, fire));
-    col = mix(col, vec3(1.0, 0.72, 0.2), smoothstep(0.38, 0.72, fire));
-    col = mix(col, vec3(1.0, 0.95, 0.72), smoothstep(0.88, 0.99, fire));
+    // (uCool flips the whole ramp to gas-flame blue, matching FlameFX)
+    vec3 gA = mix(vec3(0.42, 0.03, 0.0),  vec3(0.01, 0.09, 0.46), uCool);
+    vec3 gB = mix(vec3(0.95, 0.34, 0.03), vec3(0.08, 0.46, 0.98), uCool);
+    vec3 gC = mix(vec3(1.0, 0.72, 0.2),   vec3(0.42, 0.83, 1.0),  uCool);
+    vec3 gD = mix(vec3(1.0, 0.95, 0.72),  vec3(0.85, 0.96, 1.0),  uCool);
+    vec3 col = mix(gA, gB, smoothstep(0.04, 0.38, fire));
+    col = mix(col, gC, smoothstep(0.38, 0.72, fire));
+    col = mix(col, gD, smoothstep(0.88, 0.99, fire));
     float a = smoothstep(0.03, 0.24, fire) * uAlpha * smoothstep(0.0, 0.05, h) * (1.0 - h * 0.42);
     gl_FragColor = vec4(col, a);
     if (a < 0.015) discard;
   }
 `;
 
-function shell(radius, height, { alpha, spin, sway, sides = 26, segs = 30 }) {
+function shell(radius, height, { alpha, spin, sway, sides = 26, segs = 30, cool = 0 }) {
   const geo = new THREE.CylinderGeometry(1, 1, 1, sides, segs, true);
   geo.translate(0, 0.5, 0);
   geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
@@ -85,6 +91,7 @@ function shell(radius, height, { alpha, spin, sway, sides = 26, segs = 30 }) {
       uSway: { value: sway },
       uAlpha: { value: alpha },
       uSpin: { value: spin },
+      uCool: { value: cool },
     },
     vertexShader: NADO_VERT,
     fragmentShader: NADO_FRAG,
@@ -103,8 +110,9 @@ export class FireTornadoFX {
   // opts: height, radius (waist), sway (axis wander), wander (whole-funnel
   // drift speed — the tornado ROAMS), life (secs; Infinity = until extinguish)
   constructor(scene, effects, pos, {
-    height = 18, radius = 1.6, sway = 1.6, wander = 0, life = Infinity,
+    height = 18, radius = 1.6, sway = 1.6, wander = 0, life = Infinity, cool = 0,
   } = {}) {
+    this.cool = cool;
     this.scene = scene;
     this.fx = effects;
     this.pos = pos.clone().setY(0);
@@ -118,8 +126,8 @@ export class FireTornadoFX {
     this._acc = { ember: 0, crown: 0 };
     this._wa = rand(Math.PI * 2);
     this.shells = [
-      shell(radius, height, { alpha: 0.7, spin: 2.2, sway }),
-      shell(radius * 0.62, height * 0.96, { alpha: 0.85, spin: 3.6, sway: sway * 0.8, sides: 20, segs: 24 }),
+      shell(radius, height, { alpha: 0.7, spin: 2.2, sway, cool }),
+      shell(radius * 0.62, height * 0.96, { alpha: 0.85, spin: 3.6, sway: sway * 0.8, sides: 20, segs: 24, cool }),
     ];
     this.shells[0].rf = 1;
     this.shells[1].rf = 0.62;
@@ -129,7 +137,7 @@ export class FireTornadoFX {
     }
     // the funnel stands in a burning patch — its fuel bed
     this.base = new FlameFX(scene, effects, this.pos, {
-      radius: radius * 2.2, scale: 1.1, cards: 6, light: false,
+      radius: radius * 2.2, scale: 1.1, cards: 6, light: false, cool,
     });
   }
 
@@ -184,7 +192,8 @@ export class FireTornadoFX {
       const tang = rand(9, 15);
       fx.sparks.emit(p.x + Math.cos(a) * r, h, p.z + Math.sin(a) * r,
         -Math.sin(a) * tang, rand(3, 7), Math.cos(a) * tang,
-        { life: rand(0.4, 0.8), size: rand(0.3, 0.6), color: 0xffc060, color2: 0xff3808,
+        { life: rand(0.4, 0.8), size: rand(0.3, 0.6),
+          color: this.cool ? 0x9fdcff : 0xffc060, color2: this.cool ? 0x1f78ff : 0xff3808,
           gravity: -2, drag: 1.1, fadeIn: 0.02 });
     });
     // smoke crown shearing off the flared top, flung outward by the spin

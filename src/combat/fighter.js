@@ -662,13 +662,19 @@ export class Fighter {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
         dmg: mv.dmg * (0.8 + 0.8 * k) * this.dmgMult(),
         knock: mv.knock * (1 + 0.9 * k),
-        range: mv.range * this.scale * (1 + 0.15 * k),
+        range: mv.range * this.scale * (1 + 0.3 * k), // charged slams reach deeper
         launch: mv.launch * (1 + 0.5 * k),
         heavy: true,
       }),
     });
     this.setState('attack', dur * 0.9);
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // banked charge also LUNGES the slam forward — a full wind steps deep
+    // into (or through) where the target was standing. Mechs with their own
+    // heavyDrive (aegis' lance lunge) already scale it via kBoost.
+    if (!this.def.heavyDrive) {
+      this._chargeLunge = { delay: dur * 0.1, t: dur * 0.5, speed: (3 + 12 * k) * this.scale };
+    }
     // two-fist pounds (the punchHold mechs): converge the fists ONTO the
     // victim's body through the slam — wide shoulders otherwise drop the
     // hands to either side of a slim target
@@ -733,7 +739,7 @@ export class Fighter {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
         dmg: mv.dmg[idx] * (1 + 1.1 * k) * this.dmgMult(),
         knock: mv.knock[idx] * (1 + 1.2 * k),
-        range: mv.range * this.scale * (1 + 0.1 * k),
+        range: mv.range * this.scale * (1 + 0.3 * k), // charged punches reach deeper
         launch: 10 * k,
         heavy: k > 0.55,
       }),
@@ -741,6 +747,9 @@ export class Fighter {
     this.setState('attack', dur * 0.85);
     this.comboIdx++;
     if (k > 0.4) this.world.audio?.play('whooshBig');
+    // banked charge lunges the haymaker forward — distance scales with the
+    // wind-up just like the damage does
+    this._chargeLunge = { delay: dur * 0.08, t: dur * 0.5, speed: (2.5 + 11 * k) * this.scale };
     // the released haymaker steers onto the victim too
     this.trackStrikeVictim(mv.range, dur);
   }
@@ -820,6 +829,19 @@ export class Fighter {
   // (porcupine mane / cloak wing-wall scaling), heavyAura (tornado debris) ----
   updateHeavySignature(dt) {
     const def = this.def;
+    // charge-release lunge (held haymaker / pound): after a short beat the
+    // release strides forward, farther the longer the power was banked.
+    // Lives above the early-out — the hold mechs have no heavy* configs.
+    if (this._chargeLunge) {
+      const L = this._chargeLunge;
+      L.delay -= dt;
+      if (L.delay <= 0) {
+        L.t -= dt;
+        this.vel.x = Math.sin(this.yaw) * L.speed;
+        this.vel.z = Math.cos(this.yaw) * L.speed;
+      }
+      if (L.t <= 0 || this.state !== 'attack') this._chargeLunge = null;
+    }
     if (!def.heavySpin && !def.heavyDrive && !def.heavyFlare && !def.heavyAura &&
         !def.heavyRaise) return;
     const act = this.animator.action;
@@ -1004,7 +1026,7 @@ export class Fighter {
   }
 
   // ================= damage =================
-  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false, unblockable = false } = {}) {
+  takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false, unblockable = false, guardBreak = 0 } = {}) {
     if (!this.alive || this.iframes > 0) return;
     if (attacker && this.isAllyOf(attacker)) return; // no friendly fire on a summon team
     this.uncloak();
@@ -1017,13 +1039,15 @@ export class Fighter {
     // gets through a raised guard:
     //   • a CROUCHING attack slips under a STANDING block (crouch to block
     //     low yourself) — this is the core crouch dynamic
-    //   • a guard-BREAKER (Saurion) shatters the block outright, more often
-    //     than anyone else
+    //   • a guard-BREAKING hit (Saurion's pounce — the move passes its
+    //     guardBreak chance) shatters the block outright; his normal
+    //     attacks block like anyone else's
+    //   • an unblockable hit (certain ults) ignores the guard entirely
     if (this.blocking && !unblockable && this.state !== 'hitstun') {
       const toSrc = Math.atan2(-dirX, -dirZ);
       if (Math.abs(angleDiff(this.yaw, toSrc)) < 1.5) {
         const low = !!(attacker && attacker.ducking);       // crouched attack
-        const gb = attacker ? (attacker.def.stats.guardBreak || 0) : 0;
+        const gb = guardBreak;
         const underGuard = low && !this.ducking;            // high block vs low hit
         const shattered = gb > 0 && Math.random() < gb;
         if (!underGuard && !shattered) {

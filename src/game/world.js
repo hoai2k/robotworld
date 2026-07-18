@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { Finisher } from './finisher.js';
 import { Effects } from '../combat/effects.js';
-import { FlameFX } from '../combat/flamefx.js';
+import { FlameFX, fireCool } from '../combat/flamefx.js';
 import { ProjectileSystem } from '../combat/projectiles.js';
 import { FleaSystem } from '../combat/fleas.js';
 import { rand, clamp } from '../core/utils.js';
@@ -428,7 +428,7 @@ export class World {
   }
 
   // expanding ground ring that hits grounded fighters (slams)
-  groundShockwave(owner, pos, radius, dmg, knock, color, launchAll = false, unblockable = false) {
+  groundShockwave(owner, pos, radius, dmg, knock, color, launchAll = false, unblockable = false, hitOpts = null) {
     this.effects.rings.spawn(pos, { from: 1, to: radius * 2.2, dur: 0.55, color, y: 0.4 });
     this.effects.dustPuff(pos, 16);
     this.effects.explosion(pos, radius * 0.4, { color, smoke: false, ring: false });
@@ -442,6 +442,7 @@ export class World {
         const falloff = 1 - d / radius;
         f.takeHit(dmg * Math.max(0.35, falloff), owner, {
           knock: knock * falloff, launch: launchAll ? 11 : 8 * falloff, srcPos: pos, heavy: true, unblockable,
+          ...hitOpts,
         });
       }
     }
@@ -461,6 +462,7 @@ export class World {
     // combat — light-count changes force material recompiles mid-match.
     const flame = new FlameFX(this.scene, this.effects, pos, {
       radius: radius * 0.8, scale: 1.0 + radius * 0.35, cards: 6, light: false,
+      cool: fireCool(owner?.def),
     });
     this.firePatches.push({ pos: pos.clone(), radius, t: duration, dps, owner, tick: 0, flame });
   }
@@ -522,8 +524,9 @@ export class World {
         // FLAMETHROWER: one roaring cone of burning fuel — a FAT stream
         // tube, plus shader-card flames (FlameFX) licking off the nozzle
         // along the aim and blooming up where the stream lands
+        const cool = fireCool(f.def);
         const end = this.effects.jet('flame' + f.playerIndex, from, dir, {
-          type: 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.32, r1: 2.2,
+          type: cool ? 'firecool' : 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.32, r1: 2.2,
         });
         let fj = this.flameJets.get(f.playerIndex);
         if (fj && (!fj.nozzle.alive || !fj.impact.alive)) {
@@ -534,8 +537,8 @@ export class World {
         }
         if (!fj) {
           fj = {
-            nozzle: new FlameFX(this.scene, this.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false }),
-            impact: new FlameFX(this.scene, this.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false }),
+            nozzle: new FlameFX(this.scene, this.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false, cool }),
+            impact: new FlameFX(this.scene, this.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false, cool }),
             ttl: 0,
           };
           this.flameJets.set(f.playerIndex, fj);
@@ -545,7 +548,7 @@ export class World {
         fj.impact.rekindle();
         fj.nozzle.setPose(from, dir);
         if (end) fj.impact.setPose(end.setY(Math.max(0, end.y - 0.5)));
-        if (Math.random() < 0.4) this.effects.fire(from, dir, 34, 0.24); // embers riding the blast
+        if (Math.random() < 0.4) this.effects.fire(from, dir, 34, 0.24, !!cool); // embers riding the blast
         this.audio?.play('flame');
         // cone tick damage
         for (const t of this.fighters) {

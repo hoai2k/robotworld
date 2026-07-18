@@ -154,10 +154,10 @@ export class AIController {
     this._holdCharge = 0;
 
     // if the target is turtling behind a facing block, crouch to slip the
-    // next attack UNDER their high guard (unless we out-tier them at breaking)
+    // next attack UNDER their high guard (guard break now lives only on
+    // Saurion's pounce, so even he ducks for his normal swings)
     const targetBlocking = t.blocking && dist < 7;
-    const canBreak = (f.def.stats.guardBreak || 0) > 0.3;
-    if (targetBlocking && !canBreak && Math.random() < 0.6) I.duck = true;
+    if (targetBlocking && Math.random() < 0.6) I.duck = true;
 
     // ---- offense: PACED beats instead of every-frame spam ----
     // aim error rides on the fighter's AI aim snap (fighter.js applies it)
