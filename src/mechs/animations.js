@@ -151,105 +151,128 @@ const CLIPS_RAW = {
   },
 
   // ---------- AEGIS: spear-and-shield forms ----------
-  // the shield arm NEVER punches: it holds a raised guard squared to the
-  // front while the spear arm does the killing from behind it.
-  // AEGIS melee: the shield arm NEVER lifts — it holds one steady low-front
-  // guard ([-38,18,-10]/[-75]) through every swing while the spear arm does
-  // sweeping ARCS, not spear-in-fist punches.
+  // Researched off classical hoplite doru technique + athletic javelin form:
+  //   * the body fights BLADED — lead-left behind the tower shield, deep
+  //     knees, and every strike is driven by hip rotation, not the arm
+  //   * two true spear grips: UNDERARM (couched by the hip, thrust on the
+  //     low line) and OVERARM (hand above the helm, striking down over the
+  //     shield's top rim — the classic promachos vase pose)
+  //   * the shield is strapped to the FOREARM, so the left fist is free to
+  //     JOIN THE SHAFT for two-handed power moves while the shield keeps
+  //     covering — the animator squares its face front through every form
+  //   * the shield guard through every swing is one strong high-front
+  //     brace: shoulderL [-46,22,-8] / elbowL [-72]
   // NOTE on spear aim: the lance lies along the HAND's local +Z, so with the
   // arm raised forward and the hand at rest the tip points straight UP (the
   // old "punching with a spear" read). Keeping handR.x ~= -(shoulderX +
   // elbowX) pitches the tip back onto the target line — every key below
-  // holds that identity so the point LEADS through chamber and strike.
-  aegisStab1: { // straight mid thrust: the lance chambers back LEVEL beside
-    // the ribs — tip never leaves the target line — then rams forward
+  // holds that identity (+a few degrees pitches the tip DOWN) so the point
+  // LEADS through chamber and strike.
+  aegisStab1: { // UNDERARM thrust: the whole frame coils side-on and the
+    // lance draws far back couched beside the hip — tip never leaving the
+    // target line — then the hips fire and ram it through on the low line,
+    // rear leg driving into a full lunge
     dur: 0.56,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.12, ease: 'outCubic', pose: { torso: [2, 22, 3], hipsRot: [0, 11, 0], head: [0, -11, 0], shoulderR: [-48, 12, 10], elbowR: [-38, 0, 0], handR: [86, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.25, ease: 'outBack', pose: { torso: [10, -18, -4], hipsRot: [2, -10, 0], hipsPos: [0, -0.12, 0.12], head: [0, 9, 0], shoulderR: [-92, -4, 0], elbowR: [-4, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.4, ease: 'inOutQuad', pose: { torso: [8, -14, -3], hipsPos: [0, -0.1, 0.08], shoulderR: [-88, -4, 0], handR: [92, 0, 0] } },
-      { t: 0.56, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
+      { t: 0.12, ease: 'outCubic', pose: { torso: [6, 34, 6], hipsRot: [0, 20, 0], hipsPos: [0, -0.16, -0.06], head: [0, -16, 0], shoulderR: [-18, 10, 12], elbowR: [-58, 0, 0], handR: [76, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0] } },
+      { t: 0.25, ease: 'outBack', pose: { torso: [12, -26, -6], hipsRot: [3, -14, 0], hipsPos: [0, -0.2, 0.22], head: [0, 12, 0], shoulderR: [-95, -6, 0], elbowR: [-2, 0, 0], handR: [90, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], thighL: [-34, 0, 0], kneeL: [42, 0, 0], thighR: [18, 0, 0], kneeR: [40, 0, 0], ankleR: [16, 0, 0] } },
+      { t: 0.4, ease: 'inOutQuad', pose: { torso: [9, -20, -4], hipsPos: [0, -0.16, 0.16], shoulderR: [-90, -6, 0], handR: [86, 0, 0] } },
+      { t: 0.56, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.22, type: 'sfx', arg: 'whoosh' }, { t: 0.25, type: 'hit', arg: 0 }],
   },
-  aegisStab2: { // high line: the spear cocks up vertical beside the helm,
-    // then drives down-forward OVER the shield rim, tip leading all the way
+  aegisStab2: { // OVERARM strike — the promachos pose: the hand hoists high
+    // above the helm, tip cocked just past vertical, chest arched back;
+    // then the body slams forward and the point drives DOWN over the
+    // shield's top rim into the target's chest line
     dur: 0.6,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.14, ease: 'outCubic', pose: { torso: [-6, 16, 2], hipsRot: [0, 8, 0], head: [4, -8, 0], shoulderR: [-118, 8, 14], elbowR: [-30, 0, 0], handR: [58, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.28, ease: 'outBack', pose: { torso: [14, -12, -3], hipsRot: [2, -7, 0], hipsPos: [0, -0.14, 0.1], head: [2, 7, 0], shoulderR: [-78, -6, -2], elbowR: [-6, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0] } },
-      { t: 0.42, ease: 'inOutQuad', pose: { torso: [11, -9, -2], shoulderR: [-74, -6, -2], handR: [92, 0, 0] } },
-      { t: 0.6, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0] } },
+      { t: 0.14, ease: 'outCubic', pose: { torso: [-14, 26, 4], hipsRot: [0, 14, 0], hipsPos: [0, -0.1, -0.06], head: [6, -12, 0], shoulderR: [-128, 8, 14], elbowR: [-24, 0, 0], handR: [127, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], thighL: [-10, 0, 0], kneeL: [20, 0, 0], thighR: [-10, 0, 0], kneeR: [20, 0, 0] } },
+      { t: 0.28, ease: 'outBack', pose: { torso: [18, -18, -5], hipsRot: [3, -10, 0], hipsPos: [0, -0.22, 0.16], head: [2, 10, 0], shoulderR: [-80, -4, -2], elbowR: [-4, 0, 0], handR: [78, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], thighL: [-40, 0, 0], kneeL: [46, 0, 0], thighR: [20, 0, 0], kneeR: [44, 0, 0], ankleR: [16, 0, 0] } },
+      { t: 0.42, ease: 'inOutQuad', pose: { torso: [14, -13, -3], hipsPos: [0, -0.18, 0.12], shoulderR: [-76, -4, -2], handR: [76, 0, 0] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.25, type: 'sfx', arg: 'whoosh' }, { t: 0.28, type: 'hit', arg: 1 }],
   },
-  aegisPierce: { // combo ender: whole frame lunges through one skewer —
-    // shield stays planted in the low-front guard the whole way
+  aegisPierce: { // combo ender: TWO-HANDED skewer. The left fist leaves the
+    // shield grip (the shield stays strapped to the forearm, still squared
+    // front) and clamps the shaft ahead of the right hand; the whole frame
+    // then drops into a full fencing lunge — front knee deep, rear leg
+    // driven straight — and both arms ram the lance through
     dur: 0.62,
     keys: [
       { t: 0, pose: {} },
-      { t: 0.16, ease: 'inOutCubic', pose: { torso: [4, 22, 0], hipsRot: [0, 12, 0], hipsPos: [0, -0.28, -0.08], head: [0, -10, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], shoulderR: [-24, 24, 14], elbowR: [-104, 0, 0], handR: [120, 0, 0], thighL: [-28, 0, 0], kneeL: [48, 0, 0], thighR: [10, 0, 0], kneeR: [28, 0, 0] } },
-      { t: 0.3, ease: 'outBack', pose: { torso: [20, -18, -4], hipsRot: [4, -10, 0], hipsPos: [0, -0.32, 0.28], head: [-8, 8, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], shoulderR: [-96, -8, 0], elbowR: [0, 0, 0], handR: [96, 0, 0], thighL: [-46, 0, 0], kneeL: [56, 0, 0], thighR: [24, 0, 0], kneeR: [58, 0, 0], ankleR: [22, 0, 0] } },
-      { t: 0.44, ease: 'inOutQuad', pose: { torso: [16, -14, -3], hipsPos: [0, -0.28, 0.22], handR: [96, 0, 0] } },
-      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
+      { t: 0.16, ease: 'inOutCubic', pose: { torso: [6, 30, 2], hipsRot: [0, 18, 0], hipsPos: [0, -0.34, -0.1], head: [0, -12, 0], shoulderL: [-52, 44, 6], elbowL: [-46, 0, 0], handL: [40, 0, 0], shoulderR: [-30, 22, 12], elbowR: [-96, 0, 0], handR: [126, 0, 0], thighL: [-30, 0, 0], kneeL: [50, 0, 0], thighR: [12, 0, 0], kneeR: [30, 0, 0] } },
+      { t: 0.3, ease: 'outBack', pose: { torso: [26, -22, -5], hipsRot: [5, -12, 0], hipsPos: [0, -0.4, 0.34], head: [-8, 10, 0], shoulderL: [-64, 36, 4], elbowL: [-24, 0, 0], handL: [30, 0, 0], shoulderR: [-98, -8, 0], elbowR: [0, 0, 0], handR: [90, 0, 0], thighL: [-52, 0, 0], kneeL: [60, 0, 0], thighR: [28, 0, 0], kneeR: [62, 0, 0], ankleR: [24, 0, 0] } },
+      { t: 0.44, ease: 'inOutQuad', pose: { torso: [21, -17, -4], hipsPos: [0, -0.34, 0.26], handR: [88, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], handL: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.26, type: 'sfx', arg: 'whooshBig' }, { t: 0.3, type: 'hit', arg: 2 }],
   },
   aegisWhirlHold: { // heavy HOLD phase: spear raised overhead spinning like a
     // rotor (fighter.js heavySpin whirls the hand joint) for as long as Y is
-    // held — power banks up; the shield never leaves the low-front guard
+    // held — power banks up; the shield holds the high-front guard and the
+    // frame sinks deeper into the coil the longer it churns
     dur: 0.6, loop: true,
     keys: [
-      { t: 0, pose: { torso: [-6, 0, 3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.2, 0], head: [-16, 0, 0], shoulderR: [-176, 0, 10], elbowR: [-5, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
-      { t: 0.3, ease: 'inOutQuad', pose: { hipsPos: [0, -0.24, 0], torso: [-8, 0, 3], shoulderR: [-174, 0, 8] } },
-      { t: 0.6, ease: 'inOutQuad', pose: { hipsPos: [0, -0.2, 0], torso: [-6, 0, 3], shoulderR: [-176, 0, 10] } },
+      { t: 0, pose: { torso: [-6, 0, 3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.24, 0], head: [-16, 0, 0], shoulderR: [-176, 0, 10], elbowR: [-5, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], kneeL: [30, 0, 0], kneeR: [30, 0, 0], thighL: [-16, 0, 0], thighR: [-16, 0, 0] } },
+      { t: 0.3, ease: 'inOutQuad', pose: { hipsPos: [0, -0.28, 0], torso: [-8, 0, 3], shoulderR: [-174, 0, 8] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { hipsPos: [0, -0.24, 0], torso: [-6, 0, 3], shoulderR: [-176, 0, 10] } },
     ],
     events: [{ t: 0.08, type: 'sfx', arg: 'whoosh' }, { t: 0.38, type: 'sfx', arg: 'whoosh' }],
   },
-  aegisLunge: { // heavy RELEASE: the banked whirl discharges into the lunge —
-    // whole frame drives forward and rams the spear home, shield still front
+  aegisLunge: { // heavy RELEASE: the banked whirl discharges into a flying
+    // fencing lunge — the whole frame drops near-horizontal behind the point
+    // and rams the spear home, shield still squared front
     dur: 0.55,
     keys: [
-      { t: 0, pose: { torso: [-6, 0, 3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.22, 0], head: [-16, 0, 0], shoulderR: [-174, 0, 8], elbowR: [-5, 0, 0], handR: [0, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
-      { t: 0.14, ease: 'outBack', pose: { torso: [24, -18, -4], hipsRot: [4, -10, 0], hipsPos: [0, -0.34, 0.3], head: [-8, 8, 0], shoulderR: [-96, -8, 0], elbowR: [0, 0, 0], handR: [96, 0, 0], shoulderL: [-38, 18, -10], elbowL: [-75, 0, 0], thighL: [-46, 0, 0], kneeL: [56, 0, 0], thighR: [24, 0, 0], kneeR: [58, 0, 0], ankleR: [22, 0, 0] } },
-      { t: 0.3, ease: 'inOutQuad', pose: { torso: [18, -14, -3], hipsPos: [0, -0.28, 0.24], handR: [96, 0, 0] } },
+      { t: 0, pose: { torso: [-6, 0, 3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.26, 0], head: [-16, 0, 0], shoulderR: [-174, 0, 8], elbowR: [-5, 0, 0], handR: [0, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], kneeL: [30, 0, 0], kneeR: [30, 0, 0], thighL: [-16, 0, 0], thighR: [-16, 0, 0] } },
+      { t: 0.14, ease: 'outBack', pose: { torso: [26, -20, -5], hipsRot: [5, -12, 0], hipsPos: [0, -0.38, 0.34], head: [-10, 9, 0], shoulderR: [-98, -8, 0], elbowR: [0, 0, 0], handR: [80, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], thighL: [-52, 0, 0], kneeL: [60, 0, 0], thighR: [28, 0, 0], kneeR: [62, 0, 0], ankleR: [24, 0, 0] } },
+      { t: 0.3, ease: 'inOutQuad', pose: { torso: [20, -15, -4], hipsPos: [0, -0.3, 0.26], handR: [78, 0, 0] } },
       { t: 0.55, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.04, type: 'sfx', arg: 'whooshBig' }, { t: 0.16, type: 'hit', arg: 0 }, { t: 0.18, type: 'shake', arg: 0.4 }],
   },
-  aegisThrow: { // ranged: OVERHAND javelin. COCK: the lance is hoisted to
-    // the classic high carry — elbow past the ear, hand ABOVE the helm,
-    // shaft level over the head pointing back — chest coiled side-on. It
-    // HOLDS there a readable beat (this is what sells "overhand"), then
-    // hips drive and the arm snaps over the TOP, releasing forward-high.
-    // The recover keeps the hand at chest height — no low follow-through
-    // sweep (the old one read as an underhand sling). Shield guard holds.
+  aegisThrow: { // ranged: a TRUE JAVELIN throw, built off athletic form.
+    // WITHDRAWAL: the body turns fully side-on and the throwing arm
+    // EXTENDS straight back, level at shoulder height — the shaft lies
+    // along the whole arm with the tip riding by the helm, still aimed at
+    // the target (this extended-back carry is what separates a javelin
+    // throw from a knife flick). The shield arm stays a raised wall toward
+    // the enemy, part guard, part aim. It HOLDS a readable beat, chest
+    // arched back into the bow — then the hips fire, the front leg BLOCKS,
+    // and the arm whips over the TOP, releasing high with the chest snap.
+    // Follow-through carries the arm down across the body like a thrown
+    // strikeout pitch before recovering to guard.
     dur: 0.78,
     keys: [
       { t: 0, pose: {} },
-      // cock — high overhead carry, shaft level over the helm
-      { t: 0.2, ease: 'outCubic', pose: { torso: [-10, 36, 4], hipsRot: [-2, 16, 0], hipsPos: [0, -0.1, -0.06], head: [6, -28, 0], shoulderR: [-148, -12, 4], elbowR: [-74, 0, 0], handR: [44, 0, 0], shoulderL: [-40, 32, 16], elbowL: [-64, 22, 0], thighL: [-24, 0, 0], kneeL: [20, 0, 0], thighR: [12, 0, 0], kneeR: [24, 0, 0] } },
-      // aim beat — the carry HOLDS so the overhand cock is unmistakable
-      { t: 0.34, ease: 'inOutQuad', pose: { torso: [-12, 38, 4], hipsRot: [-3, 18, 0], hipsPos: [0, -0.12, -0.08], head: [7, -30, 0], shoulderR: [-152, -12, 4], elbowR: [-70, 0, 0], handR: [46, 0, 0], shoulderL: [-40, 32, 16], elbowL: [-64, 22, 0], thighL: [-26, 0, 0], kneeL: [22, 0, 0], thighR: [13, 0, 0], kneeR: [25, 0, 0] } },
-      // strike — hips drive, the arm whips over the TOP, full forward stretch
-      { t: 0.47, ease: 'outCubic', pose: { torso: [24, -22, -5], hipsRot: [6, -12, 0], hipsPos: [0, -0.15, 0.18], head: [0, 8, 0], shoulderR: [-88, 4, -2], elbowR: [-6, 0, 0], handR: [50, 0, 0], shoulderL: [-42, 30, 16], elbowL: [-66, 22, 0], thighL: [-38, 0, 0], kneeL: [46, 0, 0], thighR: [22, 0, 0], kneeR: [44, 0, 0], ankleR: [18, 0, 0] } },
-      // recover TALL — hand eases back at chest height, never sweeping low
-      { t: 0.78, ease: 'inOutQuad', pose: { torso: [4, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [-34, 0, 8], elbowR: [-30, 0, 0], handR: [6, 0, 0], shoulderL: [-40, 32, 16], elbowL: [-64, 22, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
+      // withdrawal — side-on, arm extended level behind, chest opening
+      { t: 0.2, ease: 'outCubic', pose: { torso: [-16, 44, 6], hipsRot: [-2, 26, 0], hipsPos: [0, -0.12, -0.1], head: [4, -34, 0], shoulderR: [80, 0, 24], elbowR: [-8, 0, 0], handR: [-72, 0, 0], shoulderL: [-64, 30, 0], elbowL: [-30, 0, 0], thighL: [-20, 0, 0], kneeL: [16, 0, 0], thighR: [14, 0, 0], kneeR: [28, 0, 0] } },
+      // the bow — the draw deepens and HOLDS so the wind-up is unmistakable
+      { t: 0.34, ease: 'inOutQuad', pose: { torso: [-18, 46, 6], hipsRot: [-3, 28, 0], hipsPos: [0, -0.14, -0.12], head: [5, -36, 0], shoulderR: [86, 0, 26], elbowR: [-6, 0, 0], handR: [-80, 0, 0], shoulderL: [-66, 30, 0], elbowL: [-28, 0, 0], thighL: [-22, 0, 0], kneeL: [18, 0, 0], thighR: [15, 0, 0], kneeR: [30, 0, 0] } },
+      // strike — hips fire, front leg blocks, the arm whips over the TOP
+      { t: 0.47, ease: 'outCubic', pose: { torso: [26, -20, -6], hipsRot: [6, -14, 0], hipsPos: [0, -0.16, 0.2], head: [0, 6, 0], shoulderR: [-96, 4, -2], elbowR: [-8, 0, 0], handR: [96, 0, 0], shoulderL: [-20, 10, -14], elbowL: [-40, 0, 0], thighL: [-44, 0, 0], kneeL: [30, 0, 0], thighR: [26, 0, 0], kneeR: [52, 0, 0], ankleR: [22, 0, 0] } },
+      // follow-through — the arm carries down ACROSS the body, torso folding
+      { t: 0.62, ease: 'outQuad', pose: { torso: [30, -26, -8], hipsRot: [6, -14, 0], hipsPos: [0, -0.2, 0.24], head: [2, 8, 0], shoulderR: [-40, -16, -10], elbowR: [-46, 0, 0], handR: [30, 0, 0], shoulderL: [-24, 12, -14], elbowL: [-44, 0, 0] } },
+      // recover to the high shield guard
+      { t: 0.78, ease: 'inOutQuad', pose: { torso: [4, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderR: [-30, 0, 8], elbowR: [-28, 0, 0], handR: [6, 0, 0], shoulderL: [-46, 22, -8], elbowL: [-72, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.36, type: 'sfx', arg: 'whooshBig' }, { t: 0.45, type: 'fire' }],
   },
   shieldWhirlHold: { // AEGIS Bulwark Bash wind-up: the tower shield is
     // hoisted straight overhead FACE-UP and whirled like a rotor (the
-    // special spins elbowL post-pose) while the spear arm guards low.
+    // special spins elbowL post-pose) while the LANCE LEVELS at the enemy —
+    // a menacing come-on instead of a dangling arm.
     // Deliberately NOT 'aegis'-prefixed: the signature's square-to-front
     // shield brace must not fight the face-up carry.
     dur: 0.6, loop: true,
     keys: [
-      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.2, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-26, 0, 18], elbowR: [-52, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
-      { t: 0.3, ease: 'inOutQuad', pose: { hipsPos: [0, -0.24, 0], torso: [-8, 0, -3], shoulderL: [-174, 0, -8] } },
-      { t: 0.6, ease: 'inOutQuad', pose: { hipsPos: [0, -0.2, 0], torso: [-6, 0, -3], shoulderL: [-176, 0, -10] } },
+      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.22, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-60, 0, 10], elbowR: [-20, 0, 0], handR: [80, 0, 0], kneeL: [28, 0, 0], kneeR: [28, 0, 0], thighL: [-15, 0, 0], thighR: [-15, 0, 0] } },
+      { t: 0.3, ease: 'inOutQuad', pose: { hipsPos: [0, -0.26, 0], torso: [-8, 0, -3], shoulderL: [-174, 0, -8], shoulderR: [-62, 0, 10] } },
+      { t: 0.6, ease: 'inOutQuad', pose: { hipsPos: [0, -0.22, 0], torso: [-6, 0, -3], shoulderL: [-176, 0, -10], shoulderR: [-60, 0, 10] } },
     ],
     events: [{ t: 0.08, type: 'sfx', arg: 'whoosh' }, { t: 0.38, type: 'sfx', arg: 'whoosh' }],
   },
@@ -259,10 +282,10 @@ const CLIPS_RAW = {
     // signature squares the face to the front for the impact)
     dur: 0.62,
     keys: [
-      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.2, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-26, 0, 18], elbowR: [-52, 0, 0], kneeL: [26, 0, 0], kneeR: [26, 0, 0], thighL: [-14, 0, 0], thighR: [-14, 0, 0] } },
-      { t: 0.16, ease: 'outBack', pose: { torso: [16, 12, -3], hipsRot: [4, 6, 0], hipsPos: [0, -0.22, 0.26], head: [0, -6, 0], shoulderL: [-88, 14, -6], elbowL: [-18, 0, 0], shoulderR: [8, 0, 18], elbowR: [-30, 0, 0], thighL: [-40, 0, 0], kneeL: [50, 0, 0], thighR: [20, 0, 0], kneeR: [46, 0, 0], ankleR: [18, 0, 0] } },
+      { t: 0, pose: { torso: [-6, 0, -3], hipsRot: [-3, 0, 0], hipsPos: [0, -0.22, 0], head: [-16, 0, 0], shoulderL: [-176, 0, -10], elbowL: [-5, 0, 0], shoulderR: [-60, 0, 10], elbowR: [-20, 0, 0], handR: [80, 0, 0], kneeL: [28, 0, 0], kneeR: [28, 0, 0], thighL: [-15, 0, 0], thighR: [-15, 0, 0] } },
+      { t: 0.16, ease: 'outBack', pose: { torso: [16, 12, -3], hipsRot: [4, 6, 0], hipsPos: [0, -0.22, 0.26], head: [0, -6, 0], shoulderL: [-88, 14, -6], elbowL: [-18, 0, 0], shoulderR: [22, 0, 18], elbowR: [-30, 0, 0], handR: [10, 0, 0], thighL: [-40, 0, 0], kneeL: [50, 0, 0], thighR: [20, 0, 0], kneeR: [46, 0, 0], ankleR: [18, 0, 0] } },
       { t: 0.36, ease: 'inOutQuad', pose: { torso: [13, 10, -2], hipsPos: [0, -0.2, 0.2] } },
-      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
+      { t: 0.62, ease: 'inOutQuad', pose: { torso: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], elbowL: [-12, 0, 0], shoulderR: [0, 0, 10], elbowR: [-12, 0, 0], handR: [0, 0, 0], thighL: [0, 0, 0], kneeL: [0, 0, 0], thighR: [0, 0, 0], kneeR: [0, 0, 0], ankleR: [0, 0, 0] } },
     ],
     events: [{ t: 0.06, type: 'sfx', arg: 'whooshBig' }, { t: 0.18, type: 'hit', arg: 0 }, { t: 0.2, type: 'shake', arg: 0.5 }],
   },
