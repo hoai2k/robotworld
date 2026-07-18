@@ -44,6 +44,14 @@
         0
       ]
     },
-    "yawOffset": 180
+    "yawOffset": 180,
+    "stretch": {
+      "shoulderL": 1.12,
+      "shoulderR": 1.12,
+      "elbowL": 1.18,
+      "elbowR": 1.18,
+      "handL": 1.25,
+      "handR": 1.25
+    }
   }
 }
