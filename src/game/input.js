@@ -134,11 +134,13 @@ export class Input {
       intent.special = kp('special');
       intent.specialHeld = k('special');
       intent.ult = kp('ult');
-      intent.dash = kp('dash');
+      // dash key is HELD like pad B: standing hold winds the coil, moving
+      // hold sprints (fighter.js owns the mechanics); tap = classic dash
+      intent.dash = false;
+      intent.chargeDash = k('dash');
       intent.taunt = kp('taunt');
       intent.strafe = k('strafe');
       intent.duck = k('duck');
-      intent.chargeDash = false;
       intent.lockOn = false;
     } else if (device.startsWith('pad')) {
       const i = +device[3];
@@ -161,10 +163,11 @@ export class Input {
       intent.special = this.padPressed(i, 'RT');
       intent.specialHeld = this.padHeld(i, 'RT');
       intent.ult = this.padPressed(i, 'DU');
-      // B: hold to CROUCH and wind up a dash charge; release with a
-      // direction held to dash that way (fighter.js owns the mechanics)
+      // B: standing hold CROUCHES and winds a dash coil (fires the moment a
+      // direction is pushed); held on the move it's a dash-into-SPRINT
+      // (fighter.js owns the mechanics)
       intent.chargeDash = this.padHeld(i, 'B');
-      intent.dash = false;    // pads dash via the B charge-release
+      intent.dash = false;    // pads dash via the B coil/sprint
       // LB: TARGET LOCK while held — face the locked enemy, camera tracks
       // them; sideways movement becomes a natural strafe (replaces strafe)
       intent.lockOn = this.padHeld(i, 'LB');
@@ -189,11 +192,12 @@ export class Input {
       intent.special = t.pressed.has('special');
       intent.specialHeld = t.held.has('special');
       intent.ult = t.pressed.has('ult');
-      intent.dash = t.pressed.has('dash');
+      // on-screen dash button behaves like pad B (hold = coil/sprint)
+      intent.dash = false;
+      intent.chargeDash = t.held.has('dash');
       intent.taunt = t.pressed.has('taunt');
       intent.strafe = t.held.has('strafe');
       intent.duck = t.held.has('duck');
-      intent.chargeDash = false;
       intent.lockOn = false;
     }
 
