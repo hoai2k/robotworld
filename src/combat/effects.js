@@ -66,6 +66,8 @@ const JET_STYLES = {
   // dense white heart running inside the water jet (geyser two-shell trick)
   watercore: { core: 0xeaf4fa, edge: 0x9cc8e4, foam: 0xf2f8fc, foamAmt: 0.6, alpha: 0.85, brk: 0.4, blending: THREE.NormalBlending },
   fire: { core: 0xffc878, edge: 0xb62a06, foam: 0xffc878, foamAmt: 0, alpha: 0.6, brk: 0.8, blending: THREE.AdditiveBlending },
+  // TIDE-scheme flamethrower: the same roaring stream in gas-flame blue
+  firecool: { core: 0x8fd4ff, edge: 0x0b3cb6, foam: 0x8fd4ff, foamAmt: 0, alpha: 0.6, brk: 0.8, blending: THREE.AdditiveBlending },
 };
 const _ja = new THREE.Vector3(), _jb = new THREE.Vector3(), _jt = new THREE.Vector3();
 
@@ -602,7 +604,7 @@ export class Effects {
 
   // one tick of REAL flame: flipbook tongues that LICK through their loop
   // as they cool white->orange->deep red, embers, and smoke off the tip
-  fire(origin, dir, speed = 26, spread = 0.3) {
+  fire(origin, dir, speed = 26, spread = 0.3, cool = false) {
     // core: hot, brief, fast frames
     const c = dir.clone();
     c.x += rand(-spread * 0.5, spread * 0.5);
@@ -610,7 +612,8 @@ export class Effects {
     c.z += rand(-spread * 0.5, spread * 0.5);
     c.normalize().multiplyScalar(speed * rand(0.85, 1.05));
     this.flames.emit(origin.x, origin.y, origin.z, c.x, c.y, c.z,
-      { life: rand(0.22, 0.34), size: rand(1.4, 2.1), color: 0xffefc0, color2: 0xff7a14,
+      { life: rand(0.22, 0.34), size: rand(1.4, 2.1),
+        color: cool ? 0xd8f2ff : 0xffefc0, color2: cool ? 0x2f8cff : 0xff7a14,
         alpha: 0.95, cell: -1, spin: 1.2, drag: 2, grow: 2, gravity: -5, fadeIn: 0.08 });
     // body: bigger licking tongues, buoyant, swelling as they cool
     for (let i = 0; i < 2; i++) {
@@ -618,14 +621,16 @@ export class Effects {
       d.x += rand(-spread, spread); d.y += rand(-spread * 0.6, spread * 0.6); d.z += rand(-spread, spread);
       d.normalize().multiplyScalar(speed * rand(0.55, 0.95));
       this.flames.emit(origin.x, origin.y, origin.z, d.x, d.y, d.z,
-        { life: rand(0.38, 0.68), size: rand(1.9, 3.1), color: 0xffab3c, color2: 0x6e1804,
+        { life: rand(0.38, 0.68), size: rand(1.9, 3.1),
+          color: cool ? 0x64b4ff : 0xffab3c, color2: cool ? 0x0a2470 : 0x6e1804,
           alpha: 0.88, cell: -1, spin: 1.6, drag: 2.4, grow: 3.2, gravity: -7, fadeIn: 0.1 });
     }
     // embers: tiny hot flecks tumbling out of the stream
     if (Math.random() < 0.35) {
       this.sparks.emit(origin.x, origin.y, origin.z,
         dir.x * speed * 0.7 + rand(-3, 3), dir.y * speed * 0.7 + rand(0, 4), dir.z * speed * 0.7 + rand(-3, 3),
-        { life: rand(0.4, 0.8), size: rand(0.3, 0.6), color: 0xffb060, color2: 0xff4010, gravity: 9, drag: 1, fadeIn: 0.02 });
+        { life: rand(0.4, 0.8), size: rand(0.3, 0.6),
+          color: cool ? 0x9fdcff : 0xffb060, color2: cool ? 0x1f78ff : 0xff4010, gravity: 9, drag: 1, fadeIn: 0.02 });
     }
     // smoke shears off past the flame tip and climbs, tumbling
     if (Math.random() < 0.7) {
