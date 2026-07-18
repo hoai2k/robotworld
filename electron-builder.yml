@@ -1,0 +1,43 @@
+# electron-builder configuration for the ROBOTWORLD desktop wrapper.
+# Produces portable ZIPs (no installer) for Windows and macOS.
+# Run via `npm run dist` after `npm run build`. Real builds happen in CI
+# (.github/workflows/release.yml) on native Windows / macOS runners.
+
+appId: com.robotworld.game
+productName: ROBOTWORLD
+copyright: ROBOTWORLD
+
+directories:
+  output: release
+  buildResources: build
+
+# Only these paths go into the app bundle. `dist/` is the built game,
+# `electron/` is the wrapper. Everything else (src, node_modules dev deps,
+# the 130MB+ of source assets) is excluded.
+files:
+  - dist/**/*
+  - electron/**/*
+  - package.json
+
+# Keep the app compressed inside an asar archive; fs (and our static server)
+# read through it transparently.
+asar: true
+
+# --- Windows: portable zip (unzip -> run ROBOTWORLD.exe) ---
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+
+# --- macOS: universal zip covers both Apple Silicon and Intel Macs ---
+mac:
+  category: public.app-category.games
+  target:
+    - target: zip
+      arch:
+        - universal
+  # No signing identity in CI by default -> unsigned build. Users bypass
+  # Gatekeeper on first launch (right-click -> Open). Set to real values via
+  # env if/when you add an Apple Developer cert.
+  identity: null
