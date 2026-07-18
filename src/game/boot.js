@@ -435,9 +435,12 @@ export async function bootGame() {
   // own camera view shadow-boxing with its intro quote — meanwhile the
   // real scene renders behind it all, compiling shaders and uploading
   // textures so the fight starts with zero pop-in.
-  let texBusy = false;
+  let texBusy = false, texDone = 0, texTotal = 0;
   THREE.DefaultLoadingManager.onStart = () => { texBusy = true; };
-  THREE.DefaultLoadingManager.onLoad = () => { texBusy = false; };
+  THREE.DefaultLoadingManager.onLoad = () => { texBusy = false; texDone = texTotal; };
+  THREE.DefaultLoadingManager.onProgress = (url, loaded, total) => {
+    texDone = loaded; texTotal = total;
+  };
 
   function startWarmup(B, theme) {
     const { fighters } = B;
@@ -463,7 +466,14 @@ export async function bootGame() {
       f.animator.play('intro');
       f._wuNext = 2.6 + Math.random() * 1.2;
       f._wuSeq = 0;
+      f._wuSpawn = f.pos.clone();
     }
+    // the loading screen is a playground: HUMANS get their controls early —
+    // run, punch, block, crouch, jump around the stage while it loads.
+    // Everyone is leashed near their spawn and invulnerable (see
+    // updateWarmup); ranged/special/ult stay disabled (intent scrub in the
+    // read loop). match.begin() re-locks everybody for the countdown.
+    for (const h of B.humans) h.fighter.controlsLocked = false;
     const ov = document.createElement('div');
     ov.className = 'warmup-overlay';
     const caps = fighters.map((f, i) => {
@@ -475,9 +485,10 @@ export async function bootGame() {
       </div>`;
     }).join('');
     ov.innerHTML = `
-      <div class="wu-head"><div class="wu-sub">NOW ENTERING</div><div class="wu-arena">${theme.name}</div></div>
+      <div class="wu-head"><div class="wu-sub">NOW ENTERING</div><div class="wu-arena">${theme.name}</div>
+        <div class="wu-bar"><div class="wu-bar-fill"></div></div></div>
       ${caps}
-      <div class="wu-loading">LOADING ARENA…</div>`;
+      <div class="wu-loading">LOADING ARENA… &nbsp;·&nbsp; warm up! <b>MOVE</b> · <b>ATTACK</b> · <b>BLOCK</b> · <b>CROUCH</b></div>`;
     uiRoot.appendChild(ov);
     B.hud.el.style.display = 'none';
 
@@ -498,6 +509,7 @@ export async function bootGame() {
     B.loading = {
       t: 0, settle: 0, minT: 3.4, maxT: 9, ov,
       floor, hidden, fog: scene.fog, bg: scene.background,
+      barFill: ov.querySelector('.wu-bar-fill'), barK: 0,
     };
     scene.fog = new THREE.Fog(0x0a0e18, 60, 220);
     scene.background = new THREE.Color(0x0a0e18);
@@ -507,14 +519,73 @@ export async function bootGame() {
     const L = B.loading;
     L.t += dt;
     L.settle = texBusy ? 0 : L.settle + dt;
-    // shadow-boxing beats while the arena streams in
+
+    // loading bar under the arena name: blend of time-gate progress and the
+    // texture loader's real item count, eased; pinned to 100% for the fade
+    const texK = texTotal > 0 ? texDone / texTotal : texBusy ? 0 : 1;
+    const wantK = L.fade !== undefined || L.prewarmed
+      ? 1
+      : Math.min(0.97, 0.45 * Math.min(1, L.t / L.minT) + 0.45 * texK + (L.settle > 0 ? 0.07 : 0));
+    L.barK = Math.max(L.barK, L.barK + (wantK - L.barK) * Math.min(1, dt * 5));
+    if (L.barFill) L.barFill.style.width = `${(L.barK * 100).toFixed(1)}%`;
+
+    // the playground rules: humans are unlocked (run/punch/block/crouch for
+    // fun) but invulnerable, healed, and leashed near their spawn so nobody
+    // leaves their camera or lands a real hit before the bell
     for (const f of B.fighters) {
-      if (f.alive && L.t >= f._wuNext) {
+      f.iframes = Math.max(f.iframes, 0.2);
+      f.hp = f.maxHp;
+      if (f._wuSpawn && !f.controlsLocked) {
+        const dx = f.pos.x - f._wuSpawn.x, dz = f.pos.z - f._wuSpawn.z;
+        const d = Math.hypot(dx, dz), R = 7 * f.scale;
+        if (d > R) {
+          f.pos.x = f._wuSpawn.x + (dx / d) * R;
+          f.pos.z = f._wuSpawn.z + (dz / d) * R;
+        }
+      }
+    }
+    // each warm-up camera keeps its fighter framed while they romp around
+    if (engine.views) {
+      B.fighters.forEach((f, i) => {
+        const v = engine.views[i];
+        if (v) v.camera.lookAt(f.pos.x, f.pos.y + f.height * 0.75, f.pos.z);
+      });
+    }
+    // shadow-boxing beats for the CPU fighters (humans entertain themselves)
+    for (const f of B.fighters) {
+      if (f.alive && f.controlsLocked && L.t >= f._wuNext) {
         f._wuNext = L.t + 2.2 + Math.random() * 1.3;
         const seq = ['light1', 'taunt', 'light2'];
         f.animator.play(seq[f._wuSeq++ % seq.length]);
       }
     }
+
+    // FADE phase: the arena is compiled and uploaded — let it emerge behind
+    // the fighters out of the receding grey fog before the camera flips
+    if (L.fade !== undefined) {
+      L.fade += dt;
+      const k = Math.min(1, L.fade / 0.9);
+      const e = k * k * (3 - 2 * k);
+      const themeFog = L.fog;
+      L.fadeFog.color.copy(L.greyCol).lerp(L.themeFogCol, e);
+      L.fadeFog.near = 4 + (themeFog.near - 4) * e;
+      L.fadeFog.far = 26 + (themeFog.far - 26) * e;
+      L.fadeBg.copy(L.greyCol).lerp(L.skyCol, e);
+      if (L.fade < 1.05) return;
+      // the flip: exact theme atmosphere back, sky dome on, cameras over
+      const scene = engine.scene;
+      scene.fog = L.fog;
+      scene.background = L.bg;
+      B.arena.sky.visible = true;
+      L.ov.remove();
+      engine.views = null;
+      B.hud.el.style.display = '';
+      B.loading = null;
+      if (B.usesTouch) touchControls?.setVisible(true);
+      B.match.begin();
+      return;
+    }
+
     // go when the loader has been idle for a beat (and never before the
     // quotes have had their moment; hard cap so a stall can't trap us)
     if (L.t >= L.minT && (L.settle > 0.45 || L.t >= L.maxT)) {
@@ -547,19 +618,23 @@ export async function bootGame() {
         scene.background = grayBg;
         return; // reveal next frame — the stall stays behind the overlay
       }
-      // the flip: neutral stage out, fully-warmed arena in, all in one frame
+      // begin the FADE-IN: stage floor out, arena visible, but wrapped in
+      // dense grey fog that recedes over ~1s (buildings emerge behind the
+      // fighters). The sky dome stays hidden until the flip — the lerping
+      // background color stands in for it.
       scene.remove(L.floor);
       L.floor.geometry.dispose();
       L.floor.material.dispose();
-      scene.fog = L.fog;
-      scene.background = L.bg;
       for (const h of L.hidden) h.o.visible = h.vis;
-      L.ov.remove();
-      engine.views = null;
-      B.hud.el.style.display = '';
-      B.loading = null;
-      if (B.usesTouch) touchControls?.setVisible(true);
-      B.match.begin();
+      B.arena.sky.visible = false;
+      L.greyCol = new THREE.Color(0x0a0e18);
+      L.themeFogCol = new THREE.Color(B.arena.theme.fog.color);
+      L.skyCol = new THREE.Color(B.arena.theme.sky.top);
+      L.fadeFog = new THREE.Fog(0x0a0e18, 4, 26);
+      L.fadeBg = new THREE.Color(0x0a0e18);
+      scene.fog = L.fadeFog;
+      scene.background = L.fadeBg;
+      L.fade = 0;
     }
   }
 
@@ -743,6 +818,12 @@ export async function bootGame() {
         for (const h of B.humans) {
           if (h.fighter.alive && !h.fighter.controlsLocked) {
             input.readIntent(h.device, h.fighter.intent, B.cameraSys.inputYawFor(h.fighter, h.idx));
+            if (B.loading) {
+              // warm-up playground: melee/movement only — no shots, no
+              // specials, no ults before the bell
+              const I = h.fighter.intent;
+              I.ranged = I.rangedHeld = I.special = I.specialHeld = I.ult = false;
+            }
           } else {
             h.fighter.intent.moveX = h.fighter.intent.moveZ = 0;
           }

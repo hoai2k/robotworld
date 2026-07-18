@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { rand, clamp, clamp01, angleDiff, TAU } from '../core/utils.js';
 import { GeyserFX } from './geyserfx.js';
 import { FireTornadoFX } from './nadofx.js';
+import { fireCool } from './flamefx.js';
 import { TidalWaveFX } from './wavefx.js';
 // deliberate cycle with fighter.js (and a reach into game/ai.js): both are
 // only touched at runtime, for SAURION's summoned raptor pack
@@ -375,7 +376,10 @@ export const SPECIALS = {
       if (landed || !f.alive) return;
       if (f.grounded) {
         landed = true;
-        f.world.groundShockwave(f, f.pos, 5.5 * f.scale, sp.dmg * f.dmgMult(), 16, 0x6cd8ff);
+        // the pounce is Saurion's block-breaker: only THIS hit carries his
+        // guardBreak chance (normal swings block like anyone else's)
+        f.world.groundShockwave(f, f.pos, 5.5 * f.scale, sp.dmg * f.dmgMult(), 16, 0x6cd8ff, false,
+          false, { guardBreak: f.def.stats.guardBreak || 0 });
         f.world.audio?.play('slam');
         f.setState('normal');
       } else {
@@ -2108,7 +2112,7 @@ export const ULTS = {
         // ember spiral + burning base); world.tornados owns its lifecycle,
         // this updater steers it and runs the hunt/sweep gameplay
         const fx = new FireTornadoFX(w.scene, w.effects, pos, {
-          height: f.height * 3, radius: 1.0, wander: 0,
+          height: f.height * 3, radius: 1.0, wander: 0, cool: fireCool(f.def),
         });
         w.tornados.push({ fx });
         w.addUpdater((dt) => {
@@ -2136,13 +2140,16 @@ export const ULTS = {
             const tang = a + Math.PI / 2;
             w.effects.glows.emit(pos.x + Math.cos(a) * rr, h, pos.z + Math.sin(a) * rr,
               Math.cos(tang) * rand(10, 16), rand(2, 6), Math.sin(tang) * rand(10, 16),
-              { life: rand(0.22, 0.45), size: rand(0.9, 1.9), color: h < H * 0.45 ? 0xff7a20 : 0xff4210, alpha: 0.92, drag: 0.4 });
+              { life: rand(0.22, 0.45), size: rand(0.9, 1.9),
+                color: fireCool(f.def)
+                  ? (h < H * 0.45 ? 0x3f9cff : 0x1f5cff)
+                  : (h < H * 0.45 ? 0xff7a20 : 0xff4210), alpha: 0.92, drag: 0.4 });
           }
           // it BELCHES: gouts of flame spat out of the wall, burning ground
           if (Math.random() < 0.12) {
             const a = rand(TAU);
             w.effects.fire(new THREE.Vector3(pos.x, rand(1, 4), pos.z),
-              new THREE.Vector3(Math.cos(a), 0.35, Math.sin(a)), 24, 0.4);
+              new THREE.Vector3(Math.cos(a), 0.35, Math.sin(a)), 24, 0.4, !!fireCool(f.def));
           }
           fpT -= dt;
           if (fpT <= 0) {

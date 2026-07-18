@@ -125,7 +125,7 @@ export function runActionTest() {
   document.getElementById('ui-root').appendChild(hud);
   const hint = document.createElement('div');
   hint.style.cssText = 'position:absolute;bottom:10px;left:50%;transform:translateX(-50%);color:#8fe8ff;font:12px monospace;z-index:20;text-shadow:0 1px 2px #000;opacity:0.8';
-  hint.textContent = 'WASD move · SPACE jump · SHIFT dash · F punch · G ranged · H block · R special · T ult · Y grab — everything refills, go wild';
+  hint.textContent = 'WASD move · SPACE jump · SHIFT dash · F light · G heavy · H block · R ranged · T special · Y ult · C duck — everything refills, go wild';
   document.getElementById('ui-root').appendChild(hint);
 
   engine.onUpdate = (dt) => {
