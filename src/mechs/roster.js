@@ -72,9 +72,12 @@ export const ROSTER = [
     // on the target line (see the handR aim note in animations.js). The
     // heavy is hold-to-charge: the overhead rotor-whirl LOOPS while Y is
     // held, banking power (2.4s cap), and the lunge lands it on release
-    // signature combat stance: shield arm CROSSED to the front so the tower
-    // shield squares up ahead of the chest (slightly off-center), lance low
-    combatPose: { hipsPos: [0, -0.14, 0], hipsRot: [0, 10, 0], torso: [5, -8, 0], head: [0, 6, 0], shoulderL: [-12, 20, 30], elbowL: [-26, 0, 0], shoulderR: [-14, 0, 14], elbowR: [-44, 0, 0], thighL: [-14, 0, -6], thighR: [4, 0, 6], kneeL: [18, 0, 0], kneeR: [12, 0, 0] },
+    // signature combat stance — hoplite promachos: body BLADED behind the
+    // tower shield (lead-left, deep knees), shield arm crossed high so the
+    // shield covers chest-to-knee, and the lance LEVELED over its top rim,
+    // tip pointed straight at the enemy (handR holds the aim identity —
+    // see the note in animations.js)
+    combatPose: { hipsPos: [0, -0.18, 0], hipsRot: [0, 16, 0], torso: [6, -10, 0], head: [0, 8, 0], shoulderL: [-34, 24, 18], elbowL: [-52, 0, 0], shoulderR: [-56, 4, 10], elbowR: [-24, 0, 0], handR: [78, 0, 0], thighL: [-18, 0, -6], thighR: [6, 0, 6], kneeL: [24, 0, 0], kneeR: [16, 0, 0] },
     // the tower shield is PASSIVE cover: hits arriving through its arc are
     // taken on the shield even without a guard input (fighter.takeHit)
     passiveShield: true,
