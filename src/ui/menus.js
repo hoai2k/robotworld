@@ -861,8 +861,10 @@ export class ArenaSelectScreen {
 
 // ---------------- PAUSE ----------------
 export class PauseScreen {
-  constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null, onSettings = null }) {
+  constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null, onSettings = null, hotButtons }) {
     this.audio = audio;
+    this.hot = hotButtons || [];   // corner buttons (settings/sound)
+    this.corner = null;            // index into this.hot while LB/RB-focused
     this.el = el('div', 'screen dim fade-in');
     this.el.innerHTML = `<div class="mega-title pause-title">PAUSED</div>`;
     this.menu = el('div', 'menu-list');
@@ -918,16 +920,38 @@ export class PauseScreen {
   toggleControls() {
     this.controls.style.display = this.controls.style.display === 'none' ? 'block' : 'none';
   }
-  refresh() { this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel)); }
+  refresh() {
+    this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel && this.corner == null));
+    this.hot.forEach((b, j) => frameHotButton(b, this.corner === j ? 'var(--hud-cyan)' : null));
+  }
   confirm() { this.audio?.play('uiSelect'); this.items[this.sel].fn(); }
   update(ev) {
+    // LB/RB (Q/E) hop the focus onto the corner buttons, same as the title
+    if (this.hot.length && (ev.lb || ev.rb)) {
+      const ring = [null, ...this.hot.map((_, j) => j)];
+      const cur = ring.indexOf(this.corner);
+      this.corner = ring[(Math.max(0, cur) + (ev.rb ? 1 : -1) + ring.length) % ring.length];
+      this.audio?.play('uiMove');
+      this.refresh();
+      return;
+    }
+    if (this.corner != null) {
+      if (ev.pause) { this.corner = null; this.refresh(); this.items[0].fn(); return; } // START still resumes
+      if (ev.confirm) { this.audio?.play('uiSelect'); this.hot[this.corner].activate(); return; }
+      if (ev.back) { this.corner = null; this.audio?.play('uiBack'); this.refresh(); return; }
+      if (ev.up || ev.down) { this.corner = null; this.audio?.play('uiMove'); this.refresh(); } // rejoin the list
+      return;
+    }
     const n = this.items.length;
     if (ev.up) { this.sel = (this.sel + n - 1) % n; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.confirm) this.confirm();
     if (ev.back || ev.pause) this.items[0].fn();
   }
-  destroy() { this.el.remove(); }
+  destroy() {
+    this.hot.forEach((b) => frameHotButton(b, null));
+    this.el.remove();
+  }
 }
 
 // ---------------- SETTINGS ----------------
