@@ -2026,3 +2026,18 @@ controllers via Gamepad API), AI opponents.
   1.2ms, worst world.update frame through the cast now 4.3ms; screenshots
   VIEWED (clones look right, pack-maul intact); saurion/cranky ace soak
   crash-free with full minion lifecycle (8 raptor KOs logged).
+
+## Phase 14h — Colossal Form: giant ordnance + one-hand hurl (user request, 2026-07-18)
+
+- Giant mortars: while in COLOSSAL FORM his twin-cannon shells scale with
+  the giant factor — 2.65x mesh size, dmg 68 -> 181 (incl. form buff),
+  splash 5.5 -> 13.8, knock/launch x2, default lob ranges out with him,
+  deeper firing report.
+- Giant grab-throw: at giant size the grab is ONE-handed — the victim rides
+  the right palm alone (carryPoint uses handR; two-hand palm clamp skipped;
+  post-pose override keeps the off arm down through liftHold) — and the
+  hurl scales with the giant factor: throw speed x gf, arc x sqrt(gf),
+  momentum hold x sqrt(gf). Measured 36u -> 158u.
+- Verified: build green; probes (shell spy: size/dmg/splash scaling; throw
+  distance normal vs giant; _oneArmLift active); screenshots VIEWED
+  (one-arm hoist, post-hurl); colossus/viper ace soak crash-free.

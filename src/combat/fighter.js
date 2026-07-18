@@ -170,11 +170,14 @@ export class Fighter {
   // where a body-slammed victim's ORIGIN goes so the torso lies IN the
   // palms: subtract the victim's feet->torso offset through their CURRENT
   // rotation, so the center rides the hands exactly at any roll angle.
+  // A COLOSSAL-FORM giant palms the whole victim in ONE hand instead.
   carryPoint(prey, out) {
-    this.palmsMid(out);
+    const J = this.mech.joints;
+    if (this._oneArmLift && J.handR) J.handR.getWorldPosition(out);
+    else this.palmsMid(out);
     _carryOff.set(0, prey.height * 0.5, 0).applyEuler(prey.group.rotation);
     out.sub(_carryOff);
-    out.y += 0.24 * this.scale; // palms cradle UNDER the torso
+    out.y += 0.24 * this.scale; // palm(s) cradle UNDER the torso
     return out;
   }
 
@@ -1816,7 +1819,8 @@ export class Fighter {
     // palm press / strike tracking must land after the pose is applied
     // (direct joint writes before applyPose get clobbered)
     if (this._palmPrey) {
-      this.clampPalmsTo(this._palmPrey);
+      // one-hand giant lift: no two-hand squeeze — the palm IS the platform
+      if (!this._oneArmLift) this.clampPalmsTo(this._palmPrey);
       this._palmPrey = null;
     } else if (this._strikeAim) {
       const sa = this._strikeAim;
@@ -1883,6 +1887,18 @@ export class Fighter {
   // joint GROW (_scaleFx — the smash's bot-tall shield wall). Applied
   // after the animator pose so clips can't clobber them. ----
   updateSpecialFx(dt) {
+    // COLOSSAL-FORM single-hand hoist: the off arm stays DOWN while the
+    // right palm does all the lifting (post-pose so liftHold can't re-raise
+    // it); clears itself the moment the grab special ends
+    if (this._oneArmLift) {
+      if (!this.alive || this.state !== 'special') {
+        this._oneArmLift = false;
+      } else {
+        const J = this.mech.joints;
+        J.shoulderL?.rotation.set(0.12, 0, -0.18);
+        J.elbowL?.rotation.set(-0.25, 0, 0);
+      }
+    }
     const sp = this._spinFx;
     if (sp) {
       sp.t = (sp.t || 0) + dt;
@@ -2119,6 +2135,7 @@ export class Fighter {
     this._punchHold = null;
     this._aimPoint = null;
     this._lockAim = null;
+    this._oneArmLift = false;
     this.clearChargeGlow();
     if (this._fistOut) { // fist projectile died with the round — re-attach
       this._fistOut = false;

@@ -389,6 +389,10 @@ export const SPECIALS = {
   // his head, and HURL them across the arena
   grabThrow(f, sp) {
     const w = f.world;
+    // COLOSSAL FORM: at giant size the grab is ONE-handed (the palm alone
+    // dwarfs the victim) and the hurl carries proportionally farther
+    const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+    if (gf > 1.4) f._oneArmLift = true;
     f.animator.play('grabReach');
     f.setState('special', 1.6);
     w.audio?.play('servo');
@@ -446,18 +450,18 @@ export const SPECIALS = {
           prey.takeHit(sp.dmg * 0.7 * f.dmgMult(), f, { knock: 0, srcPos: f.pos, heavy: true });
           prey.setState('launched', 3);
           prey.animator.play('launched');
-          const tvx = Math.sin(f.yaw) * (sp.throw || 36);
-          const tvz = Math.cos(f.yaw) * (sp.throw || 36);
+          const tvx = Math.sin(f.yaw) * (sp.throw || 36) * gf;
+          const tvz = Math.cos(f.yaw) * (sp.throw || 36) * gf;
           prey.vel.x = tvx;
           prey.vel.z = tvz;
-          prey.vel.y = 13;
+          prey.vel.y = 13 * Math.sqrt(gf);
           prey.grounded = false;
           // hold the throw momentum through the flight — air-control drag
           // would otherwise dump them a few steps away instead of FAR.
           // The flat body-slam roll unwinds when the flight ends.
           let flyT = 0;
           const fly = () => {
-            if (!prey.alive || prey.grounded || flyT > 1.3) {
+            if (!prey.alive || prey.grounded || flyT > 1.3 * Math.sqrt(gf)) {
               prey.group.rotation.x = 0;
               prey.group.rotation.z = 0;
               return;
