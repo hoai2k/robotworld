@@ -10,7 +10,11 @@
 //     "boneOverrides": { "torso": "Spine2" },   // optional explicit bone names
 //     "heightScale": 1.0,             // fine-tune vs the mech's gameplay height
 //     "yawOffset": 0,                 // degrees, if the model faces the wrong way
-//     "emissiveBoost": 1.5            // multiply emissive intensity on materials
+//     "emissiveBoost": 1.5,           // multiply emissive intensity on materials
+//     "stretch": { "elbowL": 1.2 }    // lengthen a limb segment: multiplies the
+//                                     // mapped bone's local offset from its
+//                                     // parent (the skin follows) — fix models
+//                                     // whose proportions undershoot the mech
 //   }, ...
 // }
 // Any mech missing from the manifest (or failing to load) falls back to the
@@ -130,6 +134,14 @@ function buildGlbMech(def, entry, gltf) {
   if (mapped < 10) {
     console.warn(`GLB for ${def.id}: only ${mapped} bones mapped — falling back to procedural`);
     return buildMech(def);
+  }
+  // limb stretch: scale bone offsets away from bind before offset capture,
+  // so a model whose proportions undershoot the mech (e.g. short arms) is
+  // lengthened once and animates normally from there
+  if (entry.stretch) {
+    for (const [jname, k] of Object.entries(entry.stretch)) {
+      boneMap[jname]?.position.multiplyScalar(k);
+    }
   }
   const adapter = new RigAdapter(joints, boneMap, {
     bindPose: entry.bindPose ?? 'tpose',

@@ -56,6 +56,7 @@ from the canonical images (generation, rigging, download, manifest update).
 | `heightScale` | `1.0` | multiply the mech's gameplay height for the visual |
 | `yawOffset` | `0` | degrees, if the model doesn't face +Z |
 | `emissiveBoost` | — | multiply emissive intensity (make cores/visors pop with bloom) |
+| `stretch` | `{}` | lengthen limb segments, e.g. `{"elbowL": 1.2, "handL": 1.2}`: multiplies that joint's bone offset from its parent (skin follows) — for models whose proportions undershoot the mech (measure bone-chain vs `computeDims` before guessing) |
 
 ## Verifying a model
 

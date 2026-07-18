@@ -2218,3 +2218,20 @@ controllers via Gamepad API), AI opponents.
   sprint 25.9 vs walk 16.2, tank drain/winded/refill, re-press dash→
   sprint, torso measurably leads legs on a 180° flip); titanus/viper ace
   soak crash-free; build green.
+
+## NULLBOT GLB: arm length fix (limb stretch)
+
+- Investigated "arms feel too short": skinning is HEALTHY (hands influence
+  ~7.4k verts each, weights symmetric, wrists articulate) — the asset is
+  just short-armed for this character: shoulder→hand = 35% of body height
+  vs the 42% the nullbot rig expects (armLen 1.14 design), shoulders a
+  touch narrow.
+- New manifest option `stretch: {joint: factor}` (gltf.js): multiplies the
+  mapped bone's local offset from its parent before offset capture — the
+  skin follows, lengthening that segment permanently; rotation retarget is
+  untouched.
+- nullbot: shoulders ×1.12 (width), elbows ×1.18 (upper arm), hands ×1.25
+  (forearm) → arm chain now 3.30 game units vs the virtual rig's 3.23, so
+  fists land where combat ranges/muzzle anchors expect.
+- Verified: idle (hands at mid-thigh, no seam tearing), light1 full
+  extension, walk, uptown battle; ace soak crash-free; build green.
