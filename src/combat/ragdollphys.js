@@ -21,6 +21,7 @@ const FRICTION = 0.75;     // tangential velocity kept on ground contact
 const PL = 0, PR = 1, NK = 2, HD = 3, EL = 4, ER = 5, HL = 6, HR = 7,
   KL = 8, KR = 9, FL = 10, FR = 11;
 export const FEET = [FL, FR];
+export const HEAD = [HD];
 
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3();
 const _up = new THREE.Vector3(), _right = new THREE.Vector3(), _fwd = new THREE.Vector3();
@@ -110,8 +111,13 @@ export class RagdollSim {
   }
 
   // nail particles to a live world target (e.g. feet into a fist);
-  // target(outVec3, k) fills the position for the k-th pinned particle
-  pin(indices, target) { this.pins = { idx: indices, target }; }
+  // target(outVec3, k) fills the position for the k-th pinned particle.
+  // Keyed, so several pins coexist (feet gripped + head steered).
+  pin(key, indices, target) {
+    this.pins = this.pins || new Map();
+    this.pins.set(key, { idx: indices, target });
+  }
+  unpin(key) { this.pins?.delete(key); }
   clearPins() { this.pins = null; }
 
   // hurl: kick every particle (velocity change), light per-particle scatter
@@ -165,7 +171,9 @@ export class RagdollSim {
       }
       // pins win over everything
       if (this.pins) {
-        this.pins.idx.forEach((idx, k) => this.pins.target(p[idx], k));
+        for (const P of this.pins.values()) {
+          P.idx.forEach((idx, k) => P.target(p[idx], k));
+        }
       }
       // ground: clamp + bounce (reflect via prev) + friction
       for (let i = 0; i < p.length; i++) {
