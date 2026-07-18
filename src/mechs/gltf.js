@@ -34,9 +34,10 @@ const loader = new GLTFLoader();
 
 export function loadManifest() {
   if (!manifestPromise) {
-    // ?debug=backup — ignore all GLB overrides and run the procedural
-    // (backup) models, e.g. to compare or when a service model misbehaves.
-    if (new URLSearchParams(location.search).get('debug') === 'backup') {
+    // GLB overrides are opt-in for now: ?debug=3d enables the service
+    // models; anything else (including the default) runs the procedural
+    // models. (?debug=backup therefore also means procedural.)
+    if (new URLSearchParams(location.search).get('debug') !== '3d') {
       manifestPromise = Promise.resolve({}).then((m) => { manifest = m; return m; });
       return manifestPromise;
     }

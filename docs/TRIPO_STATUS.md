@@ -22,7 +22,8 @@ images via Tripo API → `public/models/` + `manifest.json` → main.
 
 ## Engine changes this session (already committed)
 
-- `?debug=backup` — ignore GLB overrides, procedural models only.
+- FLAG: GLBs are opt-in — `?debug=3d` enables service models; default (and
+  any other value) runs procedural. Flip lives in gltf.js loadManifest.
 - rigadapter interQ: unmapped intermediate bones folded into retarget.
 - gltf.js: ground on *rendered skinned* bbox (measure AFTER container
   assembly + updateMatrixWorld); SkeletonUtils.clone.
@@ -79,3 +80,18 @@ wag, viper blade flare, wraith rifle/scope anchors, tempest coils,
 nullbot glow2 shard dress (GLB_DRESS was written for the OLD nullbot
 model; visual check of the new model looked fine without it). Muzzle/core
 anchors fall back to virtual-joint defaults everywhere — combat works.
+
+
+## Facing pass (2026-07-18, second session)
+
+User saw titanus+saurion backwards in battle. Root cause: showcase judging
+camera sits at +Z looking -Z (showcase.js:53), and battle points a mech's
++Z at its opponent — so "faces the showcase camera" == battle-forward. My
+first-pass yaws were eyeballed and several picked the BACK (glow lights read
+as a face — MECH_ART_GUIDE §6 warns of this). Re-verified all 15 against the
+true front (chest labels, eyes, toes) and against a battle engage shot
+(opponent-facing == back to showcase camera). Final yawOffsets: most bipeds
+270; cranky/glacier... see manifest. Creatures need non-biped angles:
+saurion 300 (diagonal body — nose-vector solved via tools/rigmap-style
+head-vs-hips XZ probe), fenrir 270. Verified: per-mech front shots, 12-mech
+lineup, saurion-v-fenrir engage (correct mutual facing), vite build green.

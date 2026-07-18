@@ -3,7 +3,7 @@
   "nullbot": {
     "url": "models/mech_nullbot.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripo1_Right_Limb_1",
@@ -25,7 +25,7 @@
   "saurion": {
     "url": "models/mech_saurion.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 300,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Left_Limb_2",
@@ -47,7 +47,7 @@
   "titanus": {
     "url": "models/mech_titanus.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Right_Limb_0",
@@ -113,7 +113,7 @@
   "viper": {
     "url": "models/mech_viper.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Right_Limb_0",
@@ -135,7 +135,7 @@
   "nova": {
     "url": "models/mech_nova.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "bone_1",
       "torso": "tripoSpine_1",
@@ -157,7 +157,7 @@
   "rhino": {
     "url": "models/mech_rhino.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_2",
@@ -179,7 +179,7 @@
   "colossus": {
     "url": "models/mech_colossus.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_1",
@@ -201,7 +201,7 @@
   "wraith": {
     "url": "models/mech_wraith.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Right_Limb_0",
@@ -223,7 +223,7 @@
   "cranky": {
     "url": "models/mech_cranky.glb",
     "bindPose": "native",
-    "yawOffset": 270,
+    "yawOffset": 90,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_1",
@@ -245,7 +245,7 @@
   "frogger": {
     "url": "models/mech_frogger.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_1",
@@ -267,7 +267,7 @@
   "inferno": {
     "url": "models/mech_inferno.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Left_Limb_1",
@@ -286,7 +286,7 @@
   "aegis": {
     "url": "models/mech_aegis.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_0",
@@ -308,7 +308,7 @@
   "jerry": {
     "url": "models/mech_jerry.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripo0_Left_Limb_1",
       "torso": "tripoSpine_2",
