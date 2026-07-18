@@ -35,6 +35,11 @@ export class Input {
     this.onPadConnect = null;
     this._navHold = new Map();      // "src:dir" -> {t0, last} for menu auto-repeat
 
+    // pads whose virtual mouse pointer is up (managed by PadPointers in
+    // boot.js): their menu events are muted so the sticks steer the pointer
+    // and A clicks instead of confirming
+    this.pointerPads = new Set();
+
     // ---- virtual touch device (on-screen controls write here) ----
     this.touchAvailable = false;             // set true when touch UI is mounted
     this.touch = {
@@ -224,7 +229,7 @@ export class Input {
 
   // aggregated menu nav from every device (single-consumer screens)
   menuEvents() {
-    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, pause: false, any: false };
+    const ev = { up: false, down: false, left: false, right: false, confirm: false, back: false, pause: false, lb: false, rb: false, any: false };
     const anyKey = this.keysPressed.size > 0;
     // include the per-frame edge set so a tap shorter than one frame
     // (slow machines) still registers as held for that frame
@@ -237,9 +242,11 @@ export class Input {
     if (kp('Enter') || kp('Space') || kp('KeyF') || kp('Numpad1')) ev.confirm = true;
     if (kp('Escape') || kp('Backspace') || kp('KeyG') || kp('Numpad2')) ev.back = true;
     if (kp('Escape') || kp('KeyP')) ev.pause = true;
+    if (kp('KeyQ')) ev.lb = true;
+    if (kp('KeyE')) ev.rb = true;
     let anyPad = false;
     for (let i = 0; i < 4; i++) {
-      if (!this.padConnected(i)) continue;
+      if (!this.padConnected(i) || this.pointerPads.has(i)) continue;
       const src = 'agg:pad' + i;
       if (this._navRepeat(src, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6)) ev.up = true;
       if (this._navRepeat(src, 'down', this.padHeld(i, 'DD') || this.padsCur[i].ly > 0.6)) ev.down = true;
@@ -248,6 +255,8 @@ export class Input {
       if (this.padPressed(i, 'A')) ev.confirm = true;
       if (this.padPressed(i, 'B')) ev.back = true;
       if (this.padPressed(i, 'START')) ev.pause = true;
+      if (this.padPressed(i, 'LB')) ev.lb = true;
+      if (this.padPressed(i, 'RB')) ev.rb = true;
       for (const b of ['A', 'B', 'X', 'Y', 'START']) if (this.padPressed(i, b)) anyPad = true;
     }
     // on-screen menu buttons (touch)
@@ -288,6 +297,7 @@ export class Input {
       ev.rb = this.keysPressed.has('Numpad9');
     } else if (device.startsWith('pad')) {
       const i = +device[3];
+      if (this.pointerPads.has(i)) return ev; // sticks are steering the pointer
       ev.up = this._navRepeat(device, 'up', this.padHeld(i, 'DU') || this.padsCur[i].ly < -0.6);
       ev.down = this._navRepeat(device, 'down', this.padHeld(i, 'DD') || this.padsCur[i].ly > 0.6);
       ev.left = this._navRepeat(device, 'left', this.padHeld(i, 'DL') || this.padsCur[i].lx < -0.6);
