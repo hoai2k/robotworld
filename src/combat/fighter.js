@@ -1378,6 +1378,23 @@ export class Fighter {
     }
   }
 
+  // Background model loading: replace this fighter's visual (e.g. a
+  // procedural stand-in) with a freshly loaded manifest GLB, in place.
+  // Gameplay state (hp, position, state machine) is untouched — only the
+  // body, joints and animator swap; dims are identical for the same def.
+  swapMech(newMech) {
+    const old = this.mech;
+    this.world.effects.clearGlitchOn?.(this); // patches hold old joint refs
+    this.world.scene.remove(old.group);
+    old.group.traverse((o) => { if (o.isMesh) o.geometry?.dispose?.(); });
+    this.mech = newMech;
+    this.group = newMech.group;
+    this.group.position.copy(old.group.position);
+    this.group.rotation.copy(old.group.rotation);
+    this.animator = newMech.premadeAnimator || new Animator(newMech);
+    this.world.scene.add(this.group);
+  }
+
   uncloak() {
     if (this.status.cloak) {
       delete this.status.cloak;

@@ -59,6 +59,10 @@ from the canonical images (generation, rigging, download, manifest update).
 
 ## Verifying a model
 
+- `?glbview=<mechId>[&yaw=<deg>]` — the raw file with NO rig and neutral
+  lighting: judge which way it's authored facing (the red pillar marks +Z)
+  and its true bind stance before trusting in-game shots, where core/glow
+  lights can make the back read as a face. Screenshot yaw 0/90/180/270.
 - `?rigtest` — sanity-check the retarget math on a synthetic Mixamo-style
   skeleton (15/15 bones should map; puppet should stand arms-down and animate).
 - `?battle=uptown&p1=<mechId>&p2=viper&auto=1` — watch the actual model fight.

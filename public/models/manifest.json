@@ -3,8 +3,46 @@
   "nullbot": {
     "url": "models/mech_nullbot.glb",
     "bindPose": {
-      "shoulderL": [0, 0, 27], "shoulderR": [0, 0, -27],
-      "elbowL": [0, 0, -23], "elbowR": [0, 0, 23]
+      "shoulderL": [
+        13,
+        0,
+        27
+      ],
+      "shoulderR": [
+        13,
+        0,
+        -27
+      ],
+      "elbowL": [
+        -31,
+        0,
+        -23
+      ],
+      "elbowR": [
+        -31,
+        0,
+        23
+      ],
+      "thighL": [
+        10,
+        0,
+        5
+      ],
+      "thighR": [
+        10,
+        0,
+        -5
+      ],
+      "kneeL": [
+        -3,
+        0,
+        0
+      ],
+      "kneeR": [
+        -3,
+        0,
+        0
+      ]
     },
     "yawOffset": 180
   }

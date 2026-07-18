@@ -145,15 +145,8 @@ export class RigAdapter {
       const entry = {
         jname, joint, bone, offset, parentEntry,
         bindLocalPos: bone.position.clone(),
-        parentStaticWorld: null,
         world: new THREE.Quaternion(),
       };
-      if (!parentEntry) {
-        // static world quat of the bone's parent chain (never animated by us)
-        entry.parentStaticWorld = bone.parent
-          ? bone.parent.getWorldQuaternion(new THREE.Quaternion())
-          : new THREE.Quaternion();
-      }
       this.entries.push(entry);
       entryByBone.set(bone, entry);
     }
@@ -181,9 +174,15 @@ export class RigAdapter {
       e.joint.getWorldQuaternion(_q1);
       _q1.multiply(e.offset);
       e.world.copy(_q1);
-      // convert to bone local
+      // convert to bone local. For the topmost mapped bone the parent
+      // chain isn't animated by us, but it IS carried by the mech root —
+      // which the game yaws to face opponents — so its world quat must be
+      // read LIVE each frame (root.updateWorldMatrix above refreshed it).
+      // A build-time snapshot here double-applies the root yaw: the model
+      // faces 2×yaw and appears to fight/walk backwards.
       if (e.parentEntry) _q2.copy(e.parentEntry.world);
-      else _q2.copy(e.parentStaticWorld);
+      else if (e.bone.parent) e.bone.parent.getWorldQuaternion(_q2);
+      else _q2.identity();
       e.bone.quaternion.copy(_q2.invert().multiply(_q1));
     }
     // hips bob / crouch translation (vertical only, scaled into model units)

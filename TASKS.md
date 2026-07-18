@@ -2168,3 +2168,34 @@ controllers via Gamepad API), AI opponents.
   facing +Z, shards strobing), lineup, uptown battle; ace soak nullbot vs
   viper crash-free; probe confirms isGLB + 15/15-bone mapping (no console
   warnings); build green.
+
+## NULLBOT GLB: facing/pose fixes + background model loading
+
+- **Root-cause of "walks backwards / weird arms": RigAdapter double-yaw.**
+  The topmost mapped bone's parent world quat was snapshotted at build time
+  (root yaw 0); in battle the game yaws the root to face opponents, so bones
+  got the yaw twice — model faced 2×yaw, i.e. away from its opponent.
+  Fixed: sync() reads the live parent world quat each frame. `?rigtest`
+  still 15/15.
+- Bind pose re-measured from the file's bone vectors (`?glbview` is the new
+  raw-model inspector dev page — neutral light, +Z marker, &yaw= spins):
+  legs trailed 10° back, upper arms 14° back, forearms 17° forward vs the
+  old assumed-vertical capture. Manifest now carries the measured pose;
+  yawOffset 180 confirmed correct (authored facing −Z; eyes/sigil baked
+  into the texture, no emissive channel).
+- **Selection screen now shows the battle body**: MechSelect previews build
+  procedurally for instant response, then the manifest GLB swaps in over
+  the stand-in when loaded (guarded against stale picks).
+- **Battle start no longer blocks on model downloads**: fighters whose
+  models are ready within a 400 ms grace spawn instantly; the rest spawn as
+  hidden procedural placeholders — their warm-up panel shows a LOADING
+  MODEL spinner, and the fighter pops in (with intro clip) when the GLB
+  lands (Fighter.swapMech swaps body/joints/animator in place; hp/state
+  untouched). The warm-up gate also waits for pending models (createMech
+  always settles — failed GLBs fall back — so no deadlock).
+- Mid-match RANDOM re-deals get their GLB the same way: fight procedurally,
+  swap in the background when it arrives.
+- Verified: throttled-network run (30 s held GLB) shows spinner + all other
+  warm-up UI immediately, correct swap-in facing camera, clean Round 1;
+  unthrottled run shows GLB in the picker and warm-up with no pause; ace
+  soak crash-free; build green.

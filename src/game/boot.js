@@ -117,11 +117,26 @@ class MenuStage {
         this.extras = this.extras || [];
         this.extras.push(spr);
       } else {
-        const mech = buildMech(applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0));
+        const def = applyColorScheme(ROSTER_BY_ID[e.id], e.variant || 0);
+        const mech = buildMech(def);
         mech.animator = new Animator(mech);
         mech.group.position.set(x, 0, 0);
         this.group.add(mech.group);
         this.mechs.push(mech);
+        // manifest models load in the background and swap in over the
+        // procedural stand-in, so the picker shows the exact body the
+        // battle will use (no-op for mechs without a GLB entry)
+        createMech(def).then((glb) => {
+          if (!glb.isGLB || this._previewKey !== key) return;
+          const idx = this.mechs.indexOf(mech);
+          if (idx < 0) return;
+          glb.animator = glb.premadeAnimator;
+          glb.group.position.copy(mech.group.position);
+          glb.group.rotation.copy(mech.group.rotation);
+          this.group.remove(mech.group);
+          this.group.add(glb.group);
+          this.mechs[idx] = glb;
+        });
       }
       if (n > 1) {
         const ring = new THREE.Mesh(
@@ -490,6 +505,19 @@ export async function bootGame() {
       ${caps}
       <div class="wu-loading">LOADING ARENA… &nbsp;·&nbsp; warm up! <b>MOVE</b> · <b>ATTACK</b> · <b>BLOCK</b> · <b>CROUCH</b></div>`;
     uiRoot.appendChild(ov);
+    // a fighter whose model is still downloading is hidden — its panel
+    // shows a spinner until the swap-in reveals it (see startBattle)
+    fighters.forEach((f, i) => {
+      if (!f._modelPending) return;
+      const r = rects[i];
+      const sp = document.createElement('div');
+      sp.className = 'wu-spinwrap';
+      sp.style.left = `${(r.x + r.w / 2) * 100}%`;
+      sp.style.top = `${(1 - r.y - r.h / 2) * 100}%`;
+      sp.innerHTML = '<div class="wu-spin"></div><div class="wu-spinlabel">LOADING MODEL</div>';
+      ov.appendChild(sp);
+      f._wuSpin = sp;
+    });
     B.hud.el.style.display = 'none';
 
     // menu-style neutral backdrop: the whole arena hides while it streams
@@ -587,8 +615,11 @@ export async function bootGame() {
     }
 
     // go when the loader has been idle for a beat (and never before the
-    // quotes have had their moment; hard cap so a stall can't trap us)
-    if (L.t >= L.minT && (L.settle > 0.45 || L.t >= L.maxT)) {
+    // quotes have had their moment; hard cap so a stall can't trap us).
+    // Fighters still waiting on a model download hold the gate — createMech
+    // always settles (failed GLBs fall back procedurally), so no deadlock.
+    const modelsPending = B.fighters.some((f) => f._modelPending);
+    if (L.t >= L.minT && !modelsPending && (L.settle > 0.45 || L.t >= L.maxT)) {
       const scene = engine.scene;
       if (!L.prewarmed) {
         // ONE hidden long frame before the reveal: compile every shader and
@@ -678,14 +709,34 @@ export async function bootGame() {
       for (let t = 0; clash() && t < SCHEME_COUNT; t++) d.variant = (d.variant + 1) % SCHEME_COUNT;
     });
     const finalDefs = defs.map((d) => applyColorScheme(d.base, d.variant));
-    const mechs = await Promise.all(finalDefs.map((d) => createMech(d)));
+    // never gate the warm-up screen on slow model downloads: whoever's
+    // model is ready within the grace window (procedural, or a GLB already
+    // cached by the arena-select preload) spawns now; the rest spawn as
+    // hidden procedural placeholders that swap to the real model mid-warm-up
+    // (a spinner marks their panel until then — see startWarmup)
+    const mechPromises = finalDefs.map((d) => createMech(d));
+    const grace = new Promise((res) => setTimeout(() => res(null), 400));
+    const mechs = await Promise.all(mechPromises.map((p) => Promise.race([p, grace])));
     active.forEach((a, i) => {
       const def = finalDefs[i];
       const f = new Fighter(world, def, {
         pos: spawns[i].pos, yaw: spawns[i].yaw,
         playerIndex: a.slotIdx, isAI: a.slot.kind === 'ai',
-        mech: mechs[i],
+        mech: mechs[i] || undefined,
       });
+      if (!mechs[i]) {
+        f._modelPending = true;
+        f.group.visible = false;
+        mechPromises[i].then((m) => {
+          f._modelPending = false;
+          f._wuSpin?.remove();
+          f._wuSpin = null;
+          if (!world.fighters.includes(f)) return; // battle torn down
+          if (m.isGLB) f.swapMech(m);
+          f.group.visible = true;
+          if (S.battle?.loading) f.animator.play('intro');
+        });
+      }
       fighters.push(f);
       world.fighters.push(f);
       if (a.slot.kind === 'ai') {
@@ -740,6 +791,11 @@ export async function bootGame() {
         const nf = new Fighter(world, def, {
           pos: old.pos.clone(), yaw: old.yaw,
           playerIndex: old.playerIndex, isAI: old.isAI,
+        });
+        // freshly-dealt robots fight in their procedural body until their
+        // manifest GLB (if any) arrives in the background, then swap in
+        createMech(def).then((m) => {
+          if (m.isGLB && world.fighters.includes(nf)) nf.swapMech(m);
         });
         nf.wins = old.wins;
         fighters[i] = nf;
