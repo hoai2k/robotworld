@@ -53,5 +53,27 @@
       "handL": 1.25,
       "handR": 1.25
     }
+  },
+  "saurion": {
+    "url": "models/mech_saurion.glb",
+    "bindPose": "native",
+    "yawOffset": 90,
+    "boneOverrides": {
+      "hips": "tripo0_Left_Limb_0",
+      "torso": "tripo0_Left_Limb_2",
+      "head": "tripoHead_1",
+      "thighL": "bone_6",
+      "kneeL": "bone_7",
+      "ankleL": "bone_8",
+      "thighR": "bone_16",
+      "kneeR": "bone_17",
+      "ankleR": "bone_18",
+      "shoulderL": "bone_28",
+      "elbowL": "bone_30",
+      "handL": "bone_31",
+      "shoulderR": "bone_41",
+      "elbowR": "bone_43",
+      "handR": "bone_44"
+    }
   }
 }

@@ -93,6 +93,9 @@ async function runMech(id) {
       type: 'image_to_model',
       file: { type: 'png', file_token: token },
       model_version: MODEL_VERSION,
+      // keep GLBs web-sized (~a few MB of geometry, not the 1.5M-tri
+      // adaptive default that made the first saurion 59 MB)
+      face_limit: 150000,
     });
     rec.modelTask = t.task_id; rec.modelFailed = false; save();
   }

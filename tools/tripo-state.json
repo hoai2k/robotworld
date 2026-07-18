@@ -1,6 +1,52 @@
 {
   "saurion": {
     "modelTask": "691a7385-3f81-4c56-8923-a0a04748366e",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "802ce85d-2ce6-456f-bf2d-651939b879fb",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "bc07716e-e2d7-445e-95c8-f3e714bded3e",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_saurion.glb",
+    "bytes": 59247900,
+    "done": true
+  },
+  "vulcan": {
+    "modelTask": "21d9cc8d-4cb7-4138-a12d-e5cff0233b59",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "fa2963c0-a921-4a26-b50d-4e1d51d6b305",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "07dc98e7-92ea-486c-b04b-3879957c9364",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_vulcan.glb",
+    "bytes": 7235144,
+    "done": true
+  },
+  "titanus": {
+    "modelTask": "fb1c9151-5bd9-4e5b-88f7-0e95e5726512",
+    "modelFailed": false
+  },
+  "glacier": {
+    "modelTask": "025d2327-c8a0-48ea-974b-f1a9170dfcfd",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "b1b5b6bb-1402-42d2-8c2a-f0146cd59cf8",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "a923f2ad-e7a5-4c7a-8466-a42d92a2bbeb",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_glacier.glb",
+    "bytes": 7469772,
+    "done": true
+  },
+  "cranky": {
+    "modelTask": "47ff78ba-64e3-432b-964d-cac221b789c3",
     "modelFailed": false
   }
 }

@@ -142,8 +142,20 @@ export class RigAdapter {
         if (entryByBone.has(p)) { parentEntry = entryByBone.get(p); break; }
         p = p.parent;
       }
+      // bind rotation of unmapped bones sitting BETWEEN this bone and its
+      // nearest mapped ancestor (e.g. Tripo rigs: torso bone under an
+      // unmapped mid-spine bone). Their locals never change at runtime, so
+      // the true live parent world = ancestorWorld * interQ. Dropping this
+      // (the old behavior) breaks any rig whose intermediates aren't
+      // identity — Tripo v2.5 skeletons have ~90–160° ones.
+      const interQ = new THREE.Quaternion();
+      if (parentEntry) {
+        const chain = [];
+        for (let a = bone.parent; a && a !== parentEntry.bone; a = a.parent) chain.push(a);
+        for (let i = chain.length - 1; i >= 0; i--) interQ.multiply(chain[i].quaternion);
+      }
       const entry = {
-        jname, joint, bone, offset, parentEntry,
+        jname, joint, bone, offset, parentEntry, interQ,
         bindLocalPos: bone.position.clone(),
         world: new THREE.Quaternion(),
       };
@@ -180,7 +192,7 @@ export class RigAdapter {
       // read LIVE each frame (root.updateWorldMatrix above refreshed it).
       // A build-time snapshot here double-applies the root yaw: the model
       // faces 2×yaw and appears to fight/walk backwards.
-      if (e.parentEntry) _q2.copy(e.parentEntry.world);
+      if (e.parentEntry) _q2.copy(e.parentEntry.world).multiply(e.interQ);
       else if (e.bone.parent) e.bone.parent.getWorldQuaternion(_q2);
       else _q2.identity();
       e.bone.quaternion.copy(_q2.invert().multiply(_q1));

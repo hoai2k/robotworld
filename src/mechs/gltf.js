@@ -21,6 +21,7 @@
 // procedural model — the game always works.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { buildMech, buildRig, computeDims, addAnchor } from './factory.js';
 import { Animator } from './animator.js';
 import { RigAdapter, mapBones } from './rigadapter.js';
@@ -103,18 +104,27 @@ function buildGlbMech(def, entry, gltf) {
     }
   });
 
-  // scale + ground the model to the mech's gameplay height
+  // scale + ground the model to the mech's gameplay height.
+  // NOTE: measure the SKINNED vertices, not Box3.setFromObject — skinned
+  // verts follow bones and ignore the mesh node's own transform chain
+  // (Tripo GLBs carry an Armature offset there), so a geometry-box ground
+  // puts the rendered skin meters underground.
   const targetH = (D.hipHeight + D.torsoH + D.headSize * 2) * (entry.heightScale ?? 1);
-  const box = new THREE.Box3().setFromObject(model);
+  const box = skinnedBox(model);
   const size = box.getSize(new THREE.Vector3());
   const scale = size.y > 0.01 ? targetH / size.y : 1;
   const container = new THREE.Group();
   container.add(model);
   model.scale.setScalar(scale);
-  box.setFromObject(model);
-  model.position.y -= box.min.y;
-  const center = box.getCenter(new THREE.Vector3());
+  // ground/center on the box the shader will actually render: assemble
+  // first, refresh matrices + attached-mode bindMatrixInverse, re-measure,
+  // then correct the residual. (Predicting this analytically breaks on
+  // rigs whose mesh-node chain carries offsets — Tripo's Armature does.)
+  container.updateMatrixWorld(true);
+  const rbox = skinnedBox(container);
+  const center = rbox.getCenter(new THREE.Vector3());
   model.position.x -= center.x;
+  model.position.y -= rbox.min.y;
   model.position.z -= center.z;
   if (entry.yawOffset) container.rotation.y = entry.yawOffset * Math.PI / 180;
   root.add(container);
@@ -157,24 +167,31 @@ function buildGlbMech(def, entry, gltf) {
   return mech;
 }
 
-// SkinnedMesh-aware clone (SkeletonUtils-style, minimal)
-function cloneSkinned(source) {
-  const sourceLookup = new Map();
-  const cloneLookup = new Map();
-  const clone = source.clone(true);
-  parallelTraverse(source, clone, (a, b) => { sourceLookup.set(a, b); cloneLookup.set(b, a); });
-  clone.traverse((node) => {
-    if (!node.isSkinnedMesh) return;
-    const srcMesh = cloneLookup.get(node);
-    const srcBones = srcMesh.skeleton.bones;
-    node.skeleton = srcMesh.skeleton.clone();
-    node.bindMatrix.copy(srcMesh.bindMatrix);
-    node.skeleton.bones = srcBones.map((b) => sourceLookup.get(b));
-    node.bind(node.skeleton, node.bindMatrix);
+// Bounding box of a model's RENDERED surface at bind: skinned meshes are
+// sampled through getVertexPosition (applies bone transforms); plain meshes
+// through their world matrix. Model must not yet be scaled/parented.
+const _v = new THREE.Vector3();
+function skinnedBox(model) {
+  model.updateMatrixWorld(true); // virtual dispatch → SkinnedMesh refreshes bindMatrixInverse
+  const box = new THREE.Box3();
+  model.traverse((o) => {
+    if (o.isSkinnedMesh) o.skeleton.update();
+    if (!o.isMesh && !o.isSkinnedMesh) return;
+    const pos = o.geometry?.attributes?.position;
+    if (!pos) return;
+    const stride = Math.max(1, Math.floor(pos.count / 20000));
+    for (let i = 0; i < pos.count; i += stride) {
+      o.getVertexPosition(i, _v);       // skin-aware on SkinnedMesh
+      o.localToWorld(_v);               // mesh-node frame -> model frame
+      box.expandByPoint(_v);
+    }
   });
-  return clone;
+  return box;
 }
-function parallelTraverse(a, b, cb) {
-  cb(a, b);
-  for (let i = 0; i < a.children.length; i++) parallelTraverse(a.children[i], b.children[i], cb);
+
+// SkinnedMesh-aware clone — three's reference implementation. (A previous
+// hand-rolled version cloned Skeleton then remapped bones without rebuilding
+// boneInverses pairing, which visibly tore Tripo rigs.)
+function cloneSkinned(source) {
+  return skeletonClone(source);
 }
