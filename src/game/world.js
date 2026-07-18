@@ -667,7 +667,11 @@ export class World {
         // lob along the facing; if an enemy is down the barrel, range the
         // arc to their distance (with velocity lead) — direction stays
         // manual. An AIMED lob drops the shell exactly on the crosshair.
-        const lobDist = barrelDot > 0.8 ? flatDist : 25;
+        // COLOSSAL FORM: a giant's cannons throw giant ordnance — shells
+        // scale up visually and hit harder/wider, and the default lob
+        // ranges out with him
+        const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+        const lobDist = barrelDot > 0.8 ? flatDist : 25 * gf;
         const target = aimP
           ? new THREE.Vector3(aimP.x, 0, aimP.z)
           : new THREE.Vector3(
@@ -678,9 +682,13 @@ export class World {
         const mFrom = f._altSide && anchors.muzzleL
           ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
         this.projectiles.spawn('mortar', f, mFrom, new THREE.Vector3(0, 1, 0), {
-          dmg: mv.dmg * f.dmgMult(), splash: mv.splash, color: 0xffd23c, arcTo: target, arcTime: 1.35, knock: 14, launch: 7,
+          dmg: mv.dmg * f.dmgMult() * (1 + (gf - 1) * 0.3),
+          splash: mv.splash * (1 + (gf - 1) * 0.5),
+          size: 1 + (gf - 1) * 0.55,
+          color: 0xffd23c, arcTo: target, arcTime: 1.35,
+          knock: 14 * Math.sqrt(gf), launch: 7 * Math.sqrt(gf),
         });
-        this.audio?.play('mortar');
+        this.audio?.play('mortar', gf > 1.4 ? { pitch: 0.7, vol: 1 } : undefined);
         break;
       }
       case 'lightning':
