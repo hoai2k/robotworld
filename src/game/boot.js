@@ -137,8 +137,14 @@ class MenuStage {
       }
     });
     const dist = n === 1 ? 20 : 18 + n * 5;
-    this.engine.camera.position.set(n === 1 ? 5.5 : cx, n > 2 ? 8 : 6.5, dist);
-    this.engine.camera.lookAt(cx, 5, 0);
+    // UI chrome flanks the stage (roster grid left, info card right); the
+    // clear band between them is centered a little right of mid-screen, so
+    // aim the camera to drop the mechs there (~56% across → +0.12 NDC)
+    const cam = this.engine.camera;
+    const halfW = Math.tan((cam.fov * Math.PI) / 360) * dist * cam.aspect;
+    const tx = cx - halfW * 0.12;
+    cam.position.set(n === 1 ? tx - 1 : tx, n > 2 ? 8 : 6.5, dist);
+    cam.lookAt(tx, 5, 0);
   }
 
   clearMechs() {
@@ -222,7 +228,7 @@ export async function bootGame() {
   muteBtn.id = 'mute-btn';
   muteBtn.title = 'sound on/off';
   muteBtn.style.cssText =
-    'position:absolute;right:16px;bottom:14px;z-index:40;cursor:pointer;font-size:26px;' +
+    'position:absolute;right:16px;bottom:58px;z-index:40;cursor:pointer;font-size:26px;' +
     'opacity:0.8;user-select:none;text-shadow:0 2px 6px #000;pointer-events:auto;';
   uiRoot.appendChild(muteBtn);
   function setMuted(m) {
@@ -242,7 +248,7 @@ export async function bootGame() {
   gearBtn.title = 'settings';
   gearBtn.textContent = '⚙️';
   gearBtn.style.cssText =
-    'position:absolute;right:56px;bottom:14px;z-index:40;cursor:pointer;font-size:26px;' +
+    'position:absolute;right:56px;bottom:58px;z-index:40;cursor:pointer;font-size:26px;' +
     'opacity:0.8;user-select:none;text-shadow:0 2px 6px #000;pointer-events:auto;';
   uiRoot.appendChild(gearBtn);
   const settingsItems = () => [
