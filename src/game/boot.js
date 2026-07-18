@@ -639,7 +639,12 @@ export async function bootGame() {
     for (const h of hidden) h.o.visible = false;
 
     B.loading = {
-      t: 0, settle: 0, minT: 3.4, maxT: 9, ov,
+      // the gate holds for as long as the texture pack streams — the match
+      // must start 100% loaded, never with scenery popping in later.
+      // maxStall is a hung-request escape hatch ONLY: it fires when the
+      // loader makes NO progress at all for that long (loader errors count
+      // as completed items, so failed downloads can't trap us here).
+      t: 0, settle: 0, minT: 3.4, maxStall: 25, progDone: -1, progT: 0, ov,
       floor, hidden, fog: scene.fog, bg: scene.background,
       barFill: ov.querySelector('.wu-bar-fill'), barK: 0,
     };
@@ -719,11 +724,15 @@ export async function bootGame() {
     }
 
     // go when the loader has been idle for a beat (and never before the
-    // quotes have had their moment; hard cap so a stall can't trap us).
+    // quotes have had their moment). No time cap while downloads flow:
+    // the reveal waits for 100% — the only escape is the stall watchdog,
+    // which fires after maxStall seconds with zero loader progress.
     // Fighters still waiting on a model download hold the gate — createMech
     // always settles (failed GLBs fall back procedurally), so no deadlock.
+    if (texDone !== L.progDone) { L.progDone = texDone; L.progT = L.t; }
+    const stalled = texBusy && L.t - L.progT > L.maxStall;
     const modelsPending = B.fighters.some((f) => f._modelPending);
-    if (L.t >= L.minT && !modelsPending && (L.settle > 0.45 || L.t >= L.maxT)) {
+    if (L.t >= L.minT && !modelsPending && (L.settle > 0.45 || stalled)) {
       const scene = engine.scene;
       if (!L.prewarmed) {
         // ONE hidden long frame before the reveal: compile every shader and
@@ -956,7 +965,7 @@ export async function bootGame() {
     touchControls?.setVisible(false);
     audio.play('pause');
     setScreen(new PauseScreen(uiRoot, {
-      audio,
+      audio, hotButtons,
       onResume: () => { S.battle.paused = false; setScreen(null); if (S.battle.usesTouch) touchControls?.setVisible(true); },
       onQuit: () => goTitle(),
       onFullscreen: toggleFullscreen,
