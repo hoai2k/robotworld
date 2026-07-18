@@ -223,7 +223,7 @@
   "cranky": {
     "url": "models/mech_cranky.glb",
     "bindPose": "native",
-    "yawOffset": 90,
+    "yawOffset": 270,
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_1",

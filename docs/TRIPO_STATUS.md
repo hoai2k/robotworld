@@ -125,3 +125,30 @@ against body → no arm bones; tempest: coat over legs → no leg bones).
   2. `enable_image_autofix: true` on image_to_model.
   3. Different `model_seed` (cheapest, least reliable).
 Not yet attempted — ~55 credits each; ~1005 credits remain.
+
+## Session 4 (2026-07-18): GLB animation profiles
+
+- Cranky GLB facing fixed (yawOffset 90 -> 270).
+- New GLB animation-profile system (`src/mechs/glbanim.js`) — per-model
+  reinterpretation of the shared animation engine. The Animator still drives
+  the same virtual joints + timing (combat hit-windows / muzzle anchors /
+  state durations unchanged); a profile only changes HOW a pose reads for one
+  GLB via four seams: `restPose`, `combatPose`, `mirrorArms` (swap L<->R arm
+  clip tracks for opposite-hand weapons), `clipOverrides` (bespoke clip when
+  an action must be redone not remapped), and `post(anim,dt,ctx,tgt)` (per
+  frame hook run after signature()). Procedural mechs carry no profile
+  (identity) — provably unchanged, verified by soak.
+- Factoring contract (in the file header): shared motion -> animations.js /
+  roster def; procedural personality -> animator.signature(); one GLB's
+  interpretation -> its profile; a GLB's static bind alignment -> manifest
+  boneCorrections via ?debug=models (kept separate from restPose).
+- Authored reinterpretations: AEGIS (shield rides the left forearm with no
+  J.shield joint on the GLB — post presents it square to the front while
+  guarding, reproducing the procedural intent); VIPER (blades ride ALONG the
+  forearms, so an in-hand-style hand roll twists them flat — post damps hand
+  roll/yaw during attacks and lets the shoulder+elbow arc carry the slash).
+  Other 13 GLBs: documented identity entries (retargeted procedural motion
+  already reads correctly) — a home for future per-model work.
+- Verified: aegis guard + battle, viper heavy swing, ace soaks
+  (aegis/viper + titanus/saurion in 3d, aegis/viper procedural) zero crashes,
+  vite build green.

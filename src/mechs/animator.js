@@ -2,6 +2,7 @@
 // + additive impulses (recoil/flinch) + per-mech signature joint motion.
 import * as THREE from 'three';
 import { CLIPS, UPPER_JOINTS } from './animations.js';
+import { ARM_JOINTS, mirrorJointName, mirrorValue } from './glbanim.js';
 import { ease, lerp, clamp, clamp01, damp, TAU } from '../core/utils.js';
 
 const _wp = new THREE.Vector3();
@@ -65,6 +66,14 @@ export class Animator {
         this.rest[j] = [v[0] * D2R, v[1] * D2R, v[2] * D2R];
       }
     }
+    // GLB models carry an animation profile (glbanim.js) that reinterprets the
+    // shared engine for their geometry; procedural mechs have none (identity).
+    this.profile = mech.animProfile || null;
+    if (this.profile?.restPose) {
+      for (const [j, v] of Object.entries(this.profile.restPose)) {
+        this.rest[j] = [v[0] * D2R, v[1] * D2R, v[2] * D2R];
+      }
+    }
 
     // measure ground offset under rest pose so bent-leg mechs stand on ground
     this.applyPose(this.makeRestTarget());
@@ -94,7 +103,9 @@ export class Animator {
 
   // ---------- action clips ----------
   play(name, opts = {}) {
-    const clip = CLIPS[name];
+    // a profile may swap in a bespoke clip for an action it must redo rather
+    // than remap (kept under the SAME name so fighter state/isPlaying match)
+    const clip = this.profile?.clipOverrides?.[name] || CLIPS[name];
     if (!clip) { console.warn('no clip', name); return 0; }
     this.action = {
       clip, t: 0, speed: opts.speed || 1, weight: 0,
@@ -135,7 +146,7 @@ export class Animator {
     // relax to the plain rest stance; any motion, shot or action snaps the
     // guard back up. At speed the stance yields to the run cycle (arms are
     // the gait's), and it softens in the air.
-    const cp = this.mech.def.combatPose;
+    const cp = this.profile?.combatPose ?? this.mech.def.combatPose;
     if (cp) {
       const still = speed < 0.4 && !this.action && grounded &&
         !ctx.firing && !ctx.hovering && !ctx.charging;
@@ -338,9 +349,15 @@ export class Animator {
         const sampleT = clip.loop ? act.t % clip.dur : Math.min(act.t, clip.dur);
         const w = ease.inOutQuad(clamp01(act.weight));
         const joints = clip.upper ? UPPER_JOINTS : null;
-        for (const [jname, track] of Object.entries(clip.tracks)) {
-          if (joints && !joints.includes(jname) && jname !== 'hipsPos' && jname !== 'hipsRot') continue;
-          const v = sampleTrack(track, sampleT);
+        const mirror = this.profile?.mirrorArms;
+        for (const [jname0, track] of Object.entries(clip.tracks)) {
+          if (joints && !joints.includes(jname0) && jname0 !== 'hipsPos' && jname0 !== 'hipsRot') continue;
+          let v = sampleTrack(track, sampleT);
+          let jname = jname0;
+          // mirror-handed GLB: a right-arm clip drives the left arm (and vice
+          // versa), pitch preserved / yaw+roll flipped — so a weapon in the
+          // opposite hand swings from the arm that actually holds it
+          if (mirror && ARM_JOINTS.includes(jname0)) { jname = mirrorJointName(jname0); v = mirrorValue(v); }
           const base = tgt[jname];
           if (!base) continue;
           if (jname === 'hipsPos') {
@@ -725,5 +742,8 @@ export class Animator {
         }
         break;
     }
+    // GLB per-model reinterpretation, run after the (procedural-shaped)
+    // signature so it can adjust the final tgt for this exact model.
+    this.profile?.post?.(this, dt, ctx, tgt);
   }
 }
