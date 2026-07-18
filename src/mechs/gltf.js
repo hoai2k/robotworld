@@ -26,6 +26,7 @@ import { buildMech, buildRig, computeDims, addAnchor } from './factory.js';
 import { Animator } from './animator.js';
 import { RigAdapter, mapBones } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
+import { profileFor as glbProfileFor } from './glbanim.js';
 
 let manifest = null;
 let manifestPromise = null;
@@ -164,6 +165,7 @@ function buildGlbMech(def, entry, gltf) {
   root.add(container);
 
   const mech = { group: root, joints, anchors: {}, materials: {}, dims: D, def, isGLB: true };
+  mech.animProfile = glbProfileFor(def.id); // reinterpret shared anims for this model
 
   // default anchors (same semantics as procedural mechs)
   mech.anchors.muzzleR = addAnchor(joints.handR, 0, -0.2 * D.scale, 0.4 * D.scale);
