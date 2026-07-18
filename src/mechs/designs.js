@@ -15,10 +15,14 @@ import { cranky } from './designs/cranky.js';
 import { saurion } from './designs/saurion.js';
 import { frogger } from './designs/frogger.js';
 import { jerry } from './designs/jerry.js';
-import { nullbot } from './designs/nullbot.js';
+import { nullbot, nullbotGlbDress } from './designs/nullbot.js';
 
 export const DESIGNS = {
   titanus, vulcan, aegis, viper, nova, rhino,
   tempest, fenrir, colossus, wraith, inferno, glacier,
   cranky, saurion, frogger, jerry, nullbot,
 };
+
+// Per-mech dressing applied on top of manifest GLB models (glow shards,
+// signature lights — anything the baked model texture can't carry).
+export const GLB_DRESS = { nullbot: nullbotGlbDress };

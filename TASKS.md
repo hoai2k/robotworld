@@ -2150,3 +2150,21 @@ controllers via Gamepad API), AI opponents.
 - Verified: ultshot frames for all four (portal disc + motes, staggered
   wolf emergence, glowing herd, flea rift); ace soaks fenrir/jerry and
   saurion/rhino crash-free; build green.
+
+## NULLBOT rigged-GLB model (route A goes live)
+
+- `public/models/mech_nullbot.glb` (user-provided, rigged, animation-free)
+  integrated via the manifest: custom bind pose (arms ~27° out, forearms
+  vertical), `yawOffset: 180` (model authored facing −Z). Built-in rig is
+  driven entirely by the game's animation set through RigAdapter.
+- rigadapter: added `l_arm/r_arm`, `l_elbow/r_elbow`, `l_shin/r_shin/l_knee/
+  r_knee` bone aliases (this model's convention; no boneOverrides needed).
+- New GLB dress pass (`GLB_DRESS` registry in designs.js): nullbotGlbDress
+  pins the glow2 corruption shards onto the virtual joints over the model
+  and adds a glitch lamp that tracks the animator strobe — flicker + wrong-
+  color glitches + fighter.updateNullbotAura all work on the GLB.
+- Showcase now builds via `createMech`, so `?showcase` judges GLB overrides.
+- Verified: idle/walk/heavy showcase shots (arms hang clean, feet planted,
+  facing +Z, shards strobing), lineup, uptown battle; ace soak nullbot vs
+  viper crash-free; probe confirms isGLB + 15/15-bone mapping (no console
+  warnings); build green.

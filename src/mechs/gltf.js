@@ -20,6 +20,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { buildMech, buildRig, computeDims, addAnchor } from './factory.js';
 import { Animator } from './animator.js';
 import { RigAdapter, mapBones } from './rigadapter.js';
+import { GLB_DRESS } from './designs.js';
 
 let manifest = null;
 let manifestPromise = null;
@@ -118,6 +119,9 @@ function buildGlbMech(def, entry, gltf) {
   const coreLight = new THREE.PointLight(def.colors.glow, 14, 11 * D.scale, 2);
   mech.anchors.core.add(coreLight);
 
+  // per-mech dressing over the model (glow shards, signature lights)
+  GLB_DRESS[def.id]?.(mech);
+
   // rest pose must be applied before offset capture -> create the Animator now
   mech.premadeAnimator = new Animator(mech);
 
@@ -131,7 +135,7 @@ function buildGlbMech(def, entry, gltf) {
     bindPose: entry.bindPose ?? 'tpose',
     hipsScale: 1 / (scale || 1),
   });
-  mech.postAnimate = () => adapter.sync();
+  mech.postAnimate = () => { adapter.sync(); mech.postDress?.(); };
   return mech;
 }
 

@@ -6,11 +6,11 @@
 import * as THREE from 'three';
 import { Engine } from '../core/engine.js';
 import { ROSTER } from '../mechs/roster.js';
-import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { CLIPS } from '../mechs/animations.js';
+import { createMech } from '../mechs/gltf.js';
 
-export function runShowcase(which) {
+export async function runShowcase(which) {
   const engine = new Engine(document.getElementById('game-canvas'));
   const { scene, camera } = engine;
   const params = new URLSearchParams(location.search);
@@ -33,8 +33,10 @@ export function runShowcase(which) {
   const mechs = [];
   window.__showcaseMechs = mechs; // probe hook
   const spacing = 8.5;
-  defs.forEach((def, i) => {
-    const mech = buildMech(def);
+  // GLB-backed where the manifest says so, procedural otherwise — the
+  // showcase judges exactly what the game will ship
+  const built = await Promise.all(defs.map((def) => createMech(def)));
+  built.forEach((mech, i) => {
     if (defs.length === 1) {
       mech.group.position.set(0, 0, 0);
     } else {
@@ -42,7 +44,7 @@ export function runShowcase(which) {
       const col = i % 6;
       mech.group.position.set((col - 2.5) * spacing, 0, row * -11);
     }
-    mech.animator = new Animator(mech);
+    mech.animator = mech.premadeAnimator || new Animator(mech);
     scene.add(mech.group);
     mechs.push(mech);
   });

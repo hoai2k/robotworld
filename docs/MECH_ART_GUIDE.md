@@ -215,5 +215,11 @@ All 12 mechs: hand-sculpted route B, with PBR skin recipes, verified.
 VULCAN and TITANUS are matched to user-provided canonical images; the other
 10 await canonical images (prompts in canonical-prompts.md — regenerate →
 commit to `docs/canonical/` → re-run §1–§4 per mech to tighten likeness).
-No GLBs installed yet; route A is fully built and tested (`?rigtest`) but
-waiting on models/credits.
+Route A is fully built and tested (`?rigtest`), and NULLBOT now ships on it:
+`public/models/mech_nullbot.glb` (rigged, no animations — the game's clips
+are retargeted onto it) with a custom bind pose + `yawOffset: 180` in the
+manifest. Its glow2 corruption shards + strobing glitch lamp are re-applied
+over the model by `nullbotGlbDress` (`designs/nullbot.js`, wired through
+`GLB_DRESS` in `designs.js`), so the animator strobe contract (§5) holds.
+`?showcase` now builds through `createMech`, so GLB overrides appear in the
+judging views too. The other mechs remain hand-sculpted route B.

@@ -230,3 +230,46 @@ export function nullbot(A, D, J, anchors, def) {
   // core light burns behind the null sigil
   anchors.core = addAnchor(J.torso, 0, chH * 0.62, W * 0.12);
 }
+
+// GLB dress pass: when NULLBOT is replaced by a rigged model from
+// public/models/manifest.json, the sculpted glow2 corruption shards above
+// don't exist — so this pins the same failing-display chips onto the
+// virtual joints over the model's shell and registers their material as
+// materials.glow2, which keeps the animator strobe contract (§5) alive.
+// A glitch lamp tracks the strobe so the flicker throws light on the body.
+export function nullbotGlbDress(mech) {
+  const { joints: J, dims: D, def } = mech;
+  const s = D.scale;
+  const W = D.torsoW, chH = D.torsoH;
+  const fa = D.foreArmLen, tl = D.thighLen, sl = D.shinLen;
+  const mat = new THREE.MeshStandardMaterial({
+    color: def.colors.glow2, emissive: def.colors.glow2, emissiveIntensity: 2.4,
+    roughness: 0.4, metalness: 0.1,
+  });
+  mech.materials.glow2 = mat;
+  const shard = (joint, w, h, p, r) => {
+    if (!J[joint]) return;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.022 * s), mat);
+    m.position.set(...p);
+    m.rotation.set(...r);
+    J[joint].add(m);
+  };
+  // same broken-angle chip layout as the sculpted shell
+  shard('torso', 0.2 * s, 0.06 * s, [W * 0.4, chH * 0.5, W * 0.12], [0.1, 0.9, 0.5]);
+  shard('torso', 0.1 * s, 0.1 * s, [-W * 0.38, chH * 0.76, W * 0.16], [-0.3, -0.6, 0.2]);
+  shard('torso', 0.14 * s, 0.05 * s, [-W * 0.3, chH * 0.28, W * 0.16], [0.2, 0.4, -0.5]);
+  for (const side of ['L', 'R']) {
+    const sx = side === 'L' ? -1 : 1;
+    shard('shoulder' + side, 0.16 * s, 0.06 * s, [sx * 0.34 * s, 0.16 * s, 0.12 * s], [0.2, sx * 0.8, sx * 0.5]);
+    shard('elbow' + side, 0.16 * s, 0.055 * s, [sx * 0.16 * s, -fa * 0.55, 0.1 * s], [0.15, sx * 0.8, 0.5]);
+    shard('thigh' + side, 0.16 * s, 0.055 * s, [sx * 0.2 * s, -tl * 0.7, 0.08 * s], [0.3, sx * 1.1, 0.4]);
+    shard('knee' + side, 0.17 * s, 0.05 * s, [sx * 0.13 * s, -sl * 0.6, 0.1 * s], [0.2, sx * 0.9, -0.5]);
+  }
+  const lamp = new THREE.PointLight(def.colors.glow2, 5, 8 * s, 2);
+  lamp.position.set(0, chH * 0.6, W * 0.35);
+  J.torso.add(lamp);
+  mech.postDress = () => {
+    lamp.intensity = 2.2 * mat.emissiveIntensity;
+    lamp.color.copy(mat.emissive);
+  };
+}
