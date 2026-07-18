@@ -247,6 +247,18 @@ export class MechSelectScreen {
 
   onCardClick(i, e) {
     const s = this.slots[i];
+    // a tap on a color swatch retunes that slot's scheme, nothing else
+    const sw = e.target.closest?.('.pc-swatch');
+    if (sw && s.kind === 'human') {
+      const pk = this.pickers.find((p) => p.slotIdx === i);
+      if (pk) {
+        pk.variant = +sw.dataset.variant;
+        this.variants[i] = pk.variant;
+        this.audio?.play('uiMove');
+        this.refresh();
+      }
+      return;
+    }
     if (s.kind === 'off') { this.cycleSlot(i, 1); return; }      // ADD PLAYER
     if (s.kind === 'ai') {
       // left third = prev difficulty, right third = next, else remove
@@ -410,23 +422,20 @@ export class MechSelectScreen {
       pc.classList.toggle('locked', pk.locked);
       pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
         <div class="pc-dev" style="color:${mc}">${mechIcon(m, 18)}${m.name}${pk.locked ? ' ✓' : ''}</div>
-        <div class="pc-sub">${pk.locked ? `LOCKED · ${SCHEME_NAMES[pk.variant]}` : 'picking…'}</div>${edTag}`;
+        ${pk.locked ? this.pcSchemeRow(m, pk) : '<div class="pc-sub">picking…</div>'}${edTag}`;
     });
   }
 
-  // scheme selector row: 4 swatches for the hovered mech, current one framed
-  schemeRow(m, pk) {
-    const sw = (v) => {
-      const col = '#' + schemeSwatch(m, v).toString(16).padStart(6, '0');
-      const on = pk.variant === v;
-      return `<span title="${SCHEME_NAMES[v]}" style="display:inline-block;width:15px;height:15px;border-radius:3px;
-        margin-right:5px;vertical-align:middle;background:${col};
-        border:2px solid ${on ? '#fff' : 'rgba(255,255,255,0.18)'};"></span>`;
-    };
+  // scheme selector row inside a locked player card: 4 clickable swatches
+  // for the picked mech (X/R and ←/→ still cycle for pads/keyboards)
+  pcSchemeRow(m, pk) {
     let row = '';
-    for (let v = 0; v < SCHEME_COUNT; v++) row += sw(v);
-    return `<div style="margin-top:6px;font-size:11px;letter-spacing:0.14em;color:#b8d4e6;">
-      COLOR ${row}<span style="opacity:0.8;">${SCHEME_NAMES[pk.variant]}</span></div>`;
+    for (let v = 0; v < SCHEME_COUNT; v++) {
+      const col = '#' + schemeSwatch(m, v).toString(16).padStart(6, '0');
+      row += `<span class="pc-swatch${pk.variant === v ? ' on' : ''}" data-variant="${v}"
+        title="${SCHEME_NAMES[v]}" style="background:${col};"></span>`;
+    }
+    return `<div class="pc-sub pc-colors">COLOR${row}<span style="opacity:0.8;">${SCHEME_NAMES[pk.variant]}</span></div>`;
   }
 
   renderCard() {
@@ -438,8 +447,7 @@ export class MechSelectScreen {
           <div class="mi-name" style="color:#9fd8ef">❓ ${m.name}</div>
           <div class="mi-title">${m.title}</div>
           <div class="mi-blurb">${m.blurb}</div>
-          <div class="mi-moves"><b>RANGED</b> ??? &nbsp;·&nbsp; <b>SPECIAL</b> ??? &nbsp;·&nbsp; <b>ULTIMATE</b> ???</div>
-          ${this.schemeRow(m, pk)}`;
+          <div class="mi-moves"><b>RANGED</b> ??? &nbsp;·&nbsp; <b>SPECIAL</b> ??? &nbsp;·&nbsp; <b>ULTIMATE</b> ???</div>`;
         return;
       }
       this.card.innerHTML = `
@@ -454,8 +462,7 @@ export class MechSelectScreen {
         <div class="mi-moves">
           <b>RANGED</b> ${m.moves.ranged.name} &nbsp;·&nbsp; <b>SPECIAL</b> ${m.moves.special.name}<br>
           <b>ULTIMATE</b> ${m.moves.ult.name}
-        </div>
-        ${this.schemeRow(m, pk)}`;
+        </div>`;
       return;
     }
     // multi-player: one compact card per picker, tinted with player color
@@ -467,14 +474,13 @@ export class MechSelectScreen {
         : `<b>RNG</b> ${m.moves.ranged.name} · <b>SPC</b> ${m.moves.special.name} · <b>ULT</b> ${m.moves.ult.name}`;
       const nameHtml = m === RANDOM_PICK ? `❓ ${m.name}` : `${mechIcon(m, 26)}${m.name}`;
       return `
-        <div style="border-left:3px solid ${pc}; padding:8px 12px; margin-bottom:10px;
+        <div style="border-left:3px solid ${pc}; padding:6px 10px; margin-bottom:8px;
                     background:rgba(10,18,30,0.45); border-radius:0 6px 6px 0;">
           <div style="font-size:11px;letter-spacing:0.2em;color:${pc};font-weight:800;">
             PLAYER ${pk.slotIdx + 1} ${pk.locked ? '· LOCKED ✓' : ''}</div>
-          <div class="mi-name" style="font-size:clamp(17px,1.8vw,24px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${nameHtml}</div>
+          <div class="mi-name" style="font-size:clamp(15px,1.6vw,21px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${nameHtml}</div>
           <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--hud-cyan);">${m.title}</div>
           <div class="mi-moves" style="margin-top:6px;">${movesLine}</div>
-          ${this.schemeRow(m, pk)}
         </div>`;
     }).join('');
   }

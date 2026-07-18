@@ -108,14 +108,18 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 }
 
 /* ---------- mech select ---------- */
-/* Responsive contract (built for a growing roster): the grid stays
-   vertically centered until it outgrows the space between the heading and
-   the players bar, then it CAPS and scrolls internally — cells never bleed
-   off the top, and the hint bar keeps its own reserved strip. */
+/* Layout contract: the heading sits directly above the roster grid (both
+   own the LEFT edge), the info card owns the top-right, the players bar +
+   hint bar own the bottom. The grid fills the strip between heading and
+   players bar and scrolls internally once the roster outgrows it. */
+.screen:has(.roster-grid) .screen-heading {
+  left: 3vw; right: auto; width: min(36vw, 470px); top: 2vh;
+  text-align: center; font-size: clamp(19px, 2.4vw, 32px);
+}
 .roster-grid {
-  position: absolute; left: 3vw; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 3vw; top: calc(2vh + 48px);
+  bottom: calc(2vh + 38px + 112px); /* players bar strip + hint strip */
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; width: min(36vw, 470px);
-  max-height: calc(100vh - 12vh - 6vh - 128px); /* heading strip · bottom bars */
   overflow-y: auto; overflow-x: hidden; align-content: start;
   padding: 2px 6px 2px 2px;
   scrollbar-width: thin; scrollbar-color: rgba(96, 200, 255, 0.45) transparent;
@@ -145,21 +149,21 @@ body.touch-mode, body.touch-mode #app, body.touch-mode #game-canvas, body.touch-
 }
 
 .mech-info-card {
-  position: absolute; right: 3vw; top: 50%; transform: translateY(-50%);
-  width: min(30vw, 400px); padding: 22px 26px;
-  max-height: calc(100vh - 12vh - 6vh - 128px);
+  position: absolute; right: 3vw; top: 2vh;
+  width: min(24vw, 330px); padding: 14px 18px;
+  max-height: calc(100vh - 4vh - 38px - 112px);
   overflow-y: auto; scrollbar-width: thin;
 }
 .mech-info-card .mi-name {
-  font-size: clamp(26px, 3vw, 42px); font-weight: 900; font-style: italic;
+  font-size: clamp(20px, 2.2vw, 30px); font-weight: 900; font-style: italic;
   letter-spacing: 0.06em; text-transform: uppercase; line-height: 1;
 }
 .mech-info-card .mi-title {
-  font-size: clamp(12px, 1.2vw, 16px); letter-spacing: 0.28em; text-transform: uppercase;
-  color: var(--hud-cyan); margin: 6px 0 14px;
+  font-size: clamp(11px, 1.05vw, 14px); letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--hud-cyan); margin: 5px 0 10px;
 }
-.mech-info-card .mi-blurb { font-size: clamp(12px, 1.15vw, 15px); line-height: 1.55; color: #b8d4e6; min-height: 4.6em; }
-.mech-info-card .mi-stats { margin-top: 16px; display: flex; flex-direction: column; gap: 7px; }
+.mech-info-card .mi-blurb { font-size: clamp(11px, 1.05vw, 13px); line-height: 1.5; color: #b8d4e6; }
+.mech-info-card .mi-stats { margin-top: 12px; display: flex; flex-direction: column; gap: 6px; }
 .stat-row { display: flex; align-items: center; gap: 10px; }
 .stat-row .stat-label { width: 74px; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: #7fa8c4; }
 .stat-row .stat-bar { flex: 1; height: 8px; background: rgba(255,255,255,0.08); border-radius: 4px; overflow: hidden; }
@@ -210,6 +214,15 @@ body.touch-mode .ready-banner { position: fixed; bottom: 15vh; z-index: 26; }
 .player-card .pc-dev { font-size: clamp(14px, 1.4vw, 18px); font-weight: 900; font-style: italic; }
 .player-card .pc-add { font-size: clamp(14px, 1.4vw, 18px); font-weight: 900; font-style: italic; color: #cfe4f4; }
 .player-card .pc-sub { font-size: 10.5px; color: #8fb4cc; line-height: 1.25; }
+/* color scheme control, shown in the card once the pick is locked */
+.player-card .pc-colors { letter-spacing: 0.1em; }
+.player-card .pc-swatch {
+  display: inline-block; width: 14px; height: 14px; border-radius: 3px;
+  margin: 0 4px 0 0; vertical-align: middle; cursor: pointer;
+  border: 2px solid rgba(255,255,255,0.18);
+}
+.player-card .pc-swatch.on { border-color: #fff; }
+.player-card .pc-swatch:first-of-type { margin-left: 5px; }
 
 /* ---------- battle setup ---------- */
 .setup-grid { display: flex; gap: 18px; margin-top: 2vh; }
@@ -473,14 +486,10 @@ body.touch-mode .hint-bar { display: none; }
   .mech-info-card { font-size: 12px; }
 }
 
-/* short viewports: the centered heading would crowd the roster grid, so it
-   tucks into the top-RIGHT corner (the grid owns the left edge) */
+/* short viewports: shave the heading so the grid keeps its rows */
 @media (max-height: 730px) {
-  .screen:has(.roster-grid) .screen-heading {
-    left: auto; right: 3vw; top: 1.6vh; text-align: right;
-    font-size: clamp(18px, 3vw, 34px);
-  }
-  .screen:has(.roster-grid) .mech-info-card { top: calc(1.6vh + 52px); transform: none; }
+  .screen:has(.roster-grid) .screen-heading { font-size: clamp(16px, 2.6vh, 24px); }
+  .roster-grid { top: calc(2vh + 38px); }
 }
 @media (max-width: 560px) {
   .touch-btn { width: 58px; height: 58px; }
@@ -527,6 +536,10 @@ body.touch-mode .screen:has(.arena-grid) {
   padding: 68px 10px 104px;
 }
 body.touch-mode .screen-heading { font-size: clamp(19px, 5vw, 30px); top: 2.4vh; }
+body.touch-mode .screen:has(.roster-grid) .screen-heading {
+  left: 0; right: 0; width: auto; text-align: center;
+  font-size: clamp(19px, 5vw, 30px);
+}
 
 /* mech select → grid on top, compact info below, tap to preview */
 body.touch-mode .roster-grid {
