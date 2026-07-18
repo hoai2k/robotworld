@@ -379,6 +379,18 @@ body.touch-mode .ready-banner { position: fixed; bottom: 15vh; z-index: 26; }
   letter-spacing: 0.08em; text-transform: uppercase; color: #fff;
   text-shadow: 0 0 26px rgba(56, 232, 255, 0.6), 0 3px 5px rgba(0, 0, 0, 0.8);
 }
+.warmup-overlay .wu-bar {
+  margin: 1.4vh auto 0; width: min(46vw, 520px); height: 7px;
+  border: 1px solid rgba(56, 232, 255, 0.45); border-radius: 5px;
+  background: rgba(10, 18, 28, 0.75); overflow: hidden;
+  box-shadow: 0 0 14px rgba(56, 232, 255, 0.25), inset 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+.warmup-overlay .wu-bar-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, #1a7fae, #38e8ff);
+  box-shadow: 0 0 10px rgba(56, 232, 255, 0.9);
+  transition: width 0.15s linear;
+}
 .warmup-overlay .wu-cap { position: absolute; text-align: center; padding: 0 2vw; }
 .warmup-overlay .wu-name {
   font-size: clamp(18px, 2.4vw, 34px); font-weight: 900; font-style: italic;
