@@ -2150,3 +2150,23 @@ controllers via Gamepad API), AI opponents.
 - Verified: ultshot frames for all four (portal disc + motes, staggered
   wolf emergence, glowing herd, flea rift); ace soaks fenrir/jerry and
   saurion/rhino crash-free; build green.
+
+## Phase 14n — servo-damped turning + B dash/sprint rework (user request, 2026-07-18)
+
+- Two-tier turn damping: legs (the whole group) chase the stick at a rate
+  that eases from 13 (standing) to 7 (full run) while the torso leads at
+  18→12, twisting the waist (clamped ±0.6 rad, head follows at 35%) into
+  the new heading a beat before the legs carry it — battle-robot mass
+  without losing responsiveness. AI aim snaps sync both yaws.
+- B button rework (pads, SHIFT on keyboards, on-screen dash on touch):
+  standing hold winds the dash coil as before, but the coil now FIRES the
+  instant a direction is pushed (no release needed) and the hold flows
+  into a sprint; pressing B while already moving gives a small dash then
+  a sprint (1.6× ground speed) that drains a 3.2s sprint tank (refills
+  when not sprint-holding; empty tank = winded until re-press). Sparse
+  dash trail marks a sprinting mech; thin yellow-green stamina bar under
+  each human's ult meter (flashes while draining).
+- Verified: scripted headless intent test (coil fires on stick push,
+  sprint 25.9 vs walk 16.2, tank drain/winded/refill, re-press dash→
+  sprint, torso measurably leads legs on a 180° flip); titanus/viper ace
+  soak crash-free; build green.

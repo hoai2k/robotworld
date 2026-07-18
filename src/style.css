@@ -277,6 +277,9 @@ body.touch-mode .ready-banner { position: fixed; bottom: 15vh; z-index: 26; }
 .hud-bar.ult .bar-fill { background: linear-gradient(90deg, #b46bff, #38e8ff); }
 .hud-bar.ult.full .bar-fill { animation: ultflash 0.7s linear infinite; }
 @keyframes ultflash { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.9); } }
+.hud-bar.sprint { height: 5px; margin-top: 3px; }
+.hud-bar.sprint .bar-fill { background: linear-gradient(90deg, #ffd23c, #8dff5e); }
+.hud-bar.sprint.draining .bar-fill { animation: ultflash 0.35s linear infinite; }
 .round-pips { display: flex; gap: 5px; margin-top: 5px; }
 .round-pip { width: 12px; height: 12px; border-radius: 50%; background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); }
 .round-pip.won { background: var(--hud-amber); box-shadow: 0 0 8px rgba(255,180,60,0.8); }

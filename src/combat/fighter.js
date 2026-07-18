@@ -20,6 +20,9 @@ const ULT_RATE = 2;      // ult meter fills 2x faster (ultimates balance pass)
 const WALK_MULT = 1.2;   // global ground-speed boost over roster stats
 const JUMP_MULT = 1.18;  // global jump boost
 const CHARGE_DASH_MAX = 3; // seconds of crouch that fully winds a charged dash
+const SPRINT_MULT = 1.6;   // ground-speed multiplier while sprinting (hold B on the move)
+const SPRINT_MAX = 3.2;    // seconds of sprint in a full tank
+const SPRINT_REGEN = 0.6;  // tank refill rate (per second) while not sprinting
 const PUNCH_HOLD_CAP = 1.8; // seconds to fully bank a held haymaker
 const HEAVY_HOLD_CAP = 2.4; // seconds to fully bank a held heavy
 
@@ -84,7 +87,8 @@ export class Fighter {
     // kinematics
     this.pos = this.group.position;
     this.vel = new THREE.Vector3();
-    this.yaw = yaw;
+    this.yaw = yaw;         // where the LEGS point (the whole group's rotation)
+    this.torsoYaw = yaw;    // upper body leads the legs into a turn
     this.targetYaw = yaw;
     this.grounded = true;
 
@@ -96,6 +100,13 @@ export class Fighter {
     this.rangedCd = 0;
     this.dashCd = 0;
     this.iframes = 0;
+
+    // sprint tank (hold B on the move): drains while sprinting, refills
+    // the moment the sprint hold ends
+    this.sprintEnergyMax = SPRINT_MAX;
+    this.sprintEnergy = this.sprintEnergyMax;
+    this.sprinting = false;
+    this._sprintHold = false; // the current B hold is a sprint (not a coil wind-up)
 
     // every ranged weapon runs on ammo, refilled at crates
     if (def.moves.ranged.ammo) {
@@ -518,7 +529,7 @@ export class Fighter {
       // with the camera and miss; a pixel-perfect snap felt unbeatable
       const err = this._aimErr ? (Math.random() * 2 - 1) * this._aimErr : 0;
       this.targetYaw = Math.atan2(dx, dz) + err;
-      this.yaw = this.targetYaw;
+      this.yaw = this.torsoYaw = this.targetYaw;
     }
   }
 
@@ -1658,17 +1669,23 @@ export class Fighter {
     const acting = this.canAct();
     this.blocking = acting && I.block; // blocking works airborne/hovering too
 
-    // ---- crouch-charged dash (pad B): HOLD to wind up a dash coil (up to
-    // CHARGE_DASH_MAX seconds' worth). Standing STILL crouches and winds at
-    // full rate; you can keep MOVING while holding B, but the coil winds
-    // much slower on the move. RELEASE with a direction held to dash that
-    // way; release with no direction and the charge just cancels ----
-    this._dashCharging = !!I.chargeDash && this.alive && !this.blocking && this.grounded &&
+    // ---- B button, two personalities by whether you're moving ----
+    // STANDING STILL + hold: crouch and wind up a dash coil (up to
+    // CHARGE_DASH_MAX seconds' worth); the INSTANT a direction comes in the
+    // coil fires a charged dash that way, and if B stays down the hold
+    // flows straight into a sprint.
+    // ALREADY MOVING + press: a short dash, then holding B is SPRINT —
+    // faster run that drains the sprint tank. Tank empty ends the sprint;
+    // release B to refill.
+    const bHeld = !!I.chargeDash && this.alive && !this.blocking && this.grounded &&
       (this.state === 'normal' || this.state === 'attack');
-    this._chargeStill = this._dashCharging && Math.hypot(I.moveX, I.moveZ) <= 0.25;
+    const bEdge = !!I.chargeDash && !this._chargePrev;
+    const stickHeld = Math.hypot(I.moveX, I.moveZ) > 0.25;
+    this._dashCharging = bHeld && !stickHeld && !this._sprintHold;
+    this._chargeStill = this._dashCharging;
     if (this._dashCharging) {
       const was = this._dashCharge || 0;
-      this._dashCharge = Math.min(CHARGE_DASH_MAX, was + dt * (this._chargeStill ? 1 : 0.35));
+      this._dashCharge = Math.min(CHARGE_DASH_MAX, was + dt);
       // wind-up tells: rings pulse quicker and wider as the coil tightens,
       // and a flash marks the moment the charge tops out
       this._chargeFxT = (this._chargeFxT ?? 0) - dt;
@@ -1685,16 +1702,39 @@ export class Fighter {
         this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4.5, dur: 0.35, color: 0xffffff, y: 0.4 });
       }
     }
+    if (bHeld && stickHeld && (this._dashCharge || 0) > 0) {
+      // the standing coil fires the moment a direction is pushed
+      const charge = this._dashCharge;
+      this._dashCharge = 0;
+      this.doDash(charge);
+      this._sprintHold = true;
+    } else if (bEdge && bHeld && stickHeld) {
+      // pressed B while on the move: small dash, hold carries into sprint
+      this.doDash(0);
+      this._sprintHold = true;
+    }
     if (!I.chargeDash && this._chargePrev) {
-      // release: dash along the held direction, or cancel back to standing
+      // release: a still-banked coil dashes along the held direction
+      // (classic release-dash), otherwise it just cancels; any sprint ends
       const charge = this._dashCharge || 0;
       this._dashCharge = 0;
-      if (Math.hypot(I.moveX, I.moveZ) > 0.25 && this.alive &&
+      this._sprintHold = false;
+      if (charge > 0 && stickHeld && this.alive &&
           (this.state === 'normal' || this.state === 'attack' || this.state === 'channel')) {
         this.doDash(charge);
       }
     }
     this._chargePrev = !!I.chargeDash;
+
+    // ---- sprint tank ----
+    this.sprinting = this._sprintHold && bHeld && stickHeld && this.sprintEnergy > 0 &&
+      (this.state === 'normal' || this.state === 'dash');
+    if (this.sprinting) {
+      this.sprintEnergy = Math.max(0, this.sprintEnergy - dt);
+      if (this.sprintEnergy <= 0) this._sprintHold = false; // winded — re-press once it refills
+    } else if (!this._sprintHold) {
+      this.sprintEnergy = Math.min(this.sprintEnergyMax, this.sprintEnergy + dt * SPRINT_REGEN);
+    }
 
     // ---- duck: hold to crouch. Ducking PERSISTS through an attack (so a
     // held-duck strike lands LOW and slips under a standing block); only
@@ -1851,16 +1891,22 @@ export class Fighter {
     }
     this.applyPhysics(dt, ax, az);
 
-    // dash trail
+    // dash trail (sprint leaves a sparser one — moving fast, not blinking)
     if (this.dashT > 0) {
       this.world.effects.dashTrail(this.pos, PLAYER_COLORS[this.playerIndex % 4], this.scale);
+    } else if (this.sprinting) {
+      this._sprintFxT = (this._sprintFxT ?? 0) - dt;
+      if (this._sprintFxT <= 0) {
+        this._sprintFxT = 0.11;
+        this.world.effects.dashTrail(this.pos, PLAYER_COLORS[this.playerIndex % 4], this.scale);
+      }
     }
 
     // ---- animation ----
     const spd = Math.hypot(this.vel.x, this.vel.z);
     this.animator.update(dt, {
       speed: canMove ? spd : 0,
-      maxSpeed: st.speed * WALK_MULT,
+      maxSpeed: st.speed * WALK_MULT * (this.sprinting ? SPRINT_MULT : 1),
       grounded: this.grounded,
       vy: this.vel.y,
       dashT: this.dashT,
@@ -1888,9 +1934,22 @@ export class Fighter {
     }
     if (this.state !== 'channel') this.firing = false;
 
-    // face target yaw
-    this.yaw = angleDamp(this.yaw, this.targetYaw, 14, dt);
+    // ---- face target yaw: servo-damped, two-tier ----
+    // Legs (the whole group) chase the stick with a lag that grows with
+    // ground speed — a sprinting mech carves an arc instead of pivoting on
+    // a dime — while the torso leads the turn at a quicker rate, so the
+    // upper body looks INTO the new heading a beat before the legs carry
+    // it there. Rates are kept high: this is flavor lag, not sluggishness.
+    const runK = clamp01(spd / (st.speed * WALK_MULT));
+    this.yaw = angleDamp(this.yaw, this.targetYaw, lerp(13, 7, runK), dt);
+    this.torsoYaw = angleDamp(this.torsoYaw, this.targetYaw, lerp(18, 12, runK), dt);
     this.group.rotation.y = this.yaw;
+    // twist = how far the torso leads the legs, folded into the pose the
+    // animator just applied (clamped so the waist never looks snapped)
+    const twist = clamp(angleDiff(this.yaw, this.torsoYaw), -0.6, 0.6);
+    const J = this.mech.joints;
+    if (J.torso) J.torso.rotation.y += twist;
+    if (J.head) J.head.rotation.y += twist * 0.35;
 
     // ---- hold-to-charge heavy (whirl banking power until release) ----
     if (this._whirlHold != null) this.updateHeavyHold(dt);
@@ -2046,6 +2105,7 @@ export class Fighter {
   applyPhysics(dt, ax, az) {
     const st = this.def.stats;
     const speedCap = st.speed * WALK_MULT * this.speedMult() *
+      (this.sprinting ? SPRINT_MULT : 1) *
       (this.state === 'channel' ? 0.45 : 1) * (1 - 0.55 * this.duckT);
 
     if (this.state !== 'dash') {
@@ -2164,7 +2224,7 @@ export class Fighter {
     if (this._charK) { this._charK = 0; this.applyCharring(0); }
     this.pos.copy(pos);
     this.vel.set(0, 0, 0);
-    this.yaw = this.targetYaw = yaw;
+    this.yaw = this.torsoYaw = this.targetYaw = yaw;
     this.group.rotation.y = yaw;
     this.setState('normal');
     this.status = {};
@@ -2176,6 +2236,10 @@ export class Fighter {
     this.comboIdx = 0;
     this.hovering = false;
     this.hoverFuel = this.hoverFuelMax;
+    this.sprintEnergy = this.sprintEnergyMax;
+    this.sprinting = false;
+    this._sprintHold = false;
+    this._dashCharge = 0;
     this.plunging = false;
     this._wrap = null; // stale seam-fold offsets must not jolt the camera
     this._jumpCharge = 0;
