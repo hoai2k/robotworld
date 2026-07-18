@@ -64,5 +64,6 @@ confirm the Windows/Mac builds work before cutting a real `v1.0.0` tag.
 
 - The app does **not** auto-update. A user on an old zip keeps that version
   until they download a newer one.
-- To add an app icon, drop `build/icon.ico` (Win) and `build/icon.icns` (Mac);
-  electron-builder picks them up automatically.
+- The app icon is `build/icon.png` (Vulcan's rotary-cannon badge, 1024×1024).
+  electron-builder auto-generates the Windows `.ico` and macOS `.icns` from it
+  at package time. Replace that PNG (≥512×512) to change the icon.
