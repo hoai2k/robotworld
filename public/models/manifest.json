@@ -75,5 +75,71 @@
       "elbowR": "bone_43",
       "handR": "bone_44"
     }
+  },
+  "titanus": {
+    "url": "models/mech_titanus.glb",
+    "bindPose": "native",
+    "yawOffset": 90,
+    "boneOverrides": {
+      "hips": "tripo0_Left_Limb_0",
+      "torso": "tripo0_Right_Limb_0",
+      "head": "tripoHead_0",
+      "shoulderL": "tripoSpine_0",
+      "elbowL": "bone_7",
+      "handL": "bone_8",
+      "shoulderR": "tripo0_Right_Limb_1",
+      "elbowR": "tripo0_Right_Limb_3",
+      "handR": "tripo0_Right_Limb_4",
+      "thighL": "bone_21",
+      "kneeL": "bone_22",
+      "ankleL": "bone_23",
+      "thighR": "tripo0_Left_Limb_1",
+      "kneeR": "tripo0_Left_Limb_2",
+      "ankleR": "tripo0_Left_Limb_3"
+    }
+  },
+  "fenrir": {
+    "url": "models/mech_fenrir.glb",
+    "bindPose": "native",
+    "yawOffset": 270,
+    "boneOverrides": {
+      "hips": "tripoRoot",
+      "torso": "tripoSpine_0",
+      "head": "tripoHead_0",
+      "shoulderL": "bone_23",
+      "elbowL": "bone_24",
+      "handL": "bone_25",
+      "shoulderR": "bone_13",
+      "elbowR": "bone_14",
+      "handR": "bone_21",
+      "thighL": "tripo1_Left_Limb_0",
+      "kneeL": "tripo1_Left_Limb_1",
+      "ankleL": "tripo1_Left_Limb_2",
+      "thighR": "bone_43",
+      "kneeR": "bone_46",
+      "ankleR": "bone_44"
+    }
+  },
+  "glacier": {
+    "url": "models/mech_glacier.glb",
+    "bindPose": "native",
+    "yawOffset": 270,
+    "boneOverrides": {
+      "hips": "bone_28",
+      "torso": "tripoHead_0",
+      "head": "tripoHead_1",
+      "shoulderL": "tripo0_Left_Limb_0",
+      "elbowL": "tripo0_Left_Limb_1",
+      "handL": "tripo0_Left_Limb_2",
+      "shoulderR": "tripo0_Right_Limb_0",
+      "elbowR": "tripo0_Right_Limb_1",
+      "handR": "tripo0_Right_Limb_2",
+      "thighL": "tripo1_Left_Limb_0",
+      "kneeL": "tripo1_Left_Limb_1",
+      "ankleL": "tripo1_Left_Limb_2",
+      "thighR": "tripo1_Right_Limb_0",
+      "kneeR": "tripo1_Right_Limb_1",
+      "ankleR": "tripo1_Right_Limb_2"
+    }
   }
 }

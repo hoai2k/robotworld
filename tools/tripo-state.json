@@ -47,6 +47,54 @@
   },
   "cranky": {
     "modelTask": "47ff78ba-64e3-432b-964d-cac221b789c3",
-    "modelFailed": false
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "39532353-2c3a-4e4a-a895-b6cea948e89b",
+    "riggable": true,
+    "rigType": "others",
+    "rigTask": "7cf1d141-3dad-42aa-87ba-b8e9a127eee5",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_cranky.glb",
+    "bytes": 7445720,
+    "done": true
+  },
+  "frogger": {
+    "modelTask": "a63cce88-3811-4b00-adda-28917b22dc77",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "d44cb21c-4df9-4e52-b5af-39873c13a38d",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "fc655081-231c-47f1-8936-ff47d62b13a5",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_frogger.glb",
+    "bytes": 7071152,
+    "done": true
+  },
+  "jerry": {
+    "modelTask": "f7b8ee91-e4b1-4299-92ed-22409180ea39",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "4c619dc0-c296-4204-b8dc-8d350b040ba5",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "2b919e51-7c3e-4337-89de-a1c371f3ca12",
+    "rigFailed": true
+  },
+  "nullbot": {
+    "modelTask": "e76a84e8-93cc-44f0-ba0c-4296edeb4542",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "794df210-cbf9-48f0-af19-ef0aa68cf7e8",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "bfab0630-fb7b-43c0-bcc5-4757f9b74cf2",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_nullbot.glb",
+    "bytes": 6768532,
+    "done": true
   }
 }
