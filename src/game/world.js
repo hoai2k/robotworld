@@ -639,14 +639,22 @@ export class World {
         f.regrowWeapon?.('bladeR');
         this.audio?.play('slash');
         break;
-      case 'spear': // AEGIS: javelin throw — the lance reforges in his grip
-        this.projectiles.spawn('spear', f, from, dir, {
+      case 'spear': { // AEGIS: javelin throw — the lance reforges in his grip.
+        // Launch from the throwing HAND: the far lance-tip anchor sits a
+        // whole shaft-length away mid-whip (often across the body), which
+        // read as the spear firing from the wrong arm.
+        const grip = f.mech.joints.handR
+          ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
+          : from;
+        grip.addScaledVector(dir, 1.1); // just clear of the fingers
+        this.projectiles.spawn('spear', f, grip, dir, {
           dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9fd8ff, knock: 12,
         });
         f.regrowWeapon?.('lance');
-        this.effects.muzzleFlash(from);
+        this.effects.muzzleFlash(grip);
         this.audio?.play('whooshBig');
         break;
+      }
       case 'wave':
         // waves fly level, so cap the launch height at chest level — a
         // high lance/claw muzzle would skim over every target's head
@@ -704,13 +712,27 @@ export class World {
         this.audio?.play('railgun');
         f.animator.addImpulse('shoulderR', [0.4, 0, 0], 30, 10);
         break;
-      case 'shard':
-        this.projectiles.spawn('shard', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9be8ff, knock: 6,
-          status: { slow: 0.85, slowT: 0.8 },
-        });
-        this.audio?.play('shard');
+      case 'shard': { // GLACIER: a BARRAGE of icicles — a rapid scattered fan
+        // of frozen spikes off the launcher instead of one lone shard
+        const nIce = mv.count || 6;
+        for (let i = 0; i < nIce; i++) {
+          this.schedule(i * 0.055, () => {
+            if (!f.alive) return;
+            const from2 = f.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
+            const d2 = dir.clone();
+            d2.x += rand(-0.055, 0.055);
+            d2.y += rand(-0.015, 0.045);
+            d2.z += rand(-0.055, 0.055);
+            this.projectiles.spawn('shard', f, from2, d2.normalize(), {
+              dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.92, 1.1),
+              color: 0x9be8ff, knock: 3,
+              status: { slow: 0.85, slowT: 0.8 },
+            });
+            if (i % 2 === 0) this.audio?.play('shard');
+          });
+        }
         break;
+      }
       case 'hose': { // CRANKY: continuous high-pressure FIREHOSE stream —
         // ticks alternate cannons so BOTH water arms are visibly blasting
         f._hoseSide = !f._hoseSide;

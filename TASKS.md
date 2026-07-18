@@ -2049,3 +2049,29 @@ controllers via Gamepad API), AI opponents.
 - Verified: build green; probes (shell spy: size/dmg/splash scaling; throw
   distance normal vs giant; _oneArmLift active); screenshots VIEWED
   (one-arm hoist, post-hurl); colossus/viper ace soak crash-free.
+
+## Phase 14i — Storm deck, spear throw, icicle barrage, Death Swarm (user request, 2026-07-18)
+
+- TEMPEST Thunderfall rebuilt: radius 15 -> 26; the cloud is now a SOLID
+  deck of 34 churning black mesh lumps (not particles) that rolls in over
+  the whole zone; the scene genuinely DARKENS beneath it (sun/hemi/rim
+  dimmed to ~34%, refcounted vs overlapping storms, restored exactly on
+  end); bolts now visibly come FROM the deck — cloud-base flash first,
+  then a thick jagged main bolt + halo from y=19 to the ground.
+- AEGIS Dawn Javelin: the spear now launches from the throwing HAND
+  (1.1u off the fingers). It used to spawn at the far lance-TIP anchor, a
+  shaft-length away mid-whip — often across the body, reading as a shot
+  from the wrong arm. The aegisThrow overhand clip was always correct.
+- GLACIER ranged is now ICICLE BARRAGE: 6 scattered frozen spikes per
+  volley (13 dmg each, 55ms apart) instead of one 34-dmg shard.
+- WRAITH ult DEATH GAZE -> DEATH SWARM: the cloak erupts into 150
+  instanced bats (flat winged silhouettes, wingspan-flap, per-bat scale)
+  that wheel in a gyre around him, stoop into dive-bombs on anyone within
+  46u (4 dmg per rake, swarm-wide 0.1s per-victim window), climb back and
+  re-circle for 7s, then spiral up and thin out. Follows Wraith as he
+  moves; screech barks; eye-flare cast intro.
+- Verified: build green; probes (spear spawn 1.1u from handR, 6 icicles
+  @13, sun 1.0 -> 0.34 -> 1.0 restore with updater teardown); screenshots
+  VIEWED (block-wide black deck + darkened arena + bolts, readable bat
+  flock mobbing viper); ace soaks (tempest/wraith, aegis/glacier,
+  wraith/tempest) crash-free.

@@ -195,7 +195,7 @@ export const ROSTER = [
       heavy: { dmg: 42, knock: 16, range: 3.6, launch: 9 },
       ranged: { name: 'Arc Bolt', type: 'lightning', dmg: 40, cooldown: 0.9, chainRange: 8, ammo: 20 },
       special: { id: 'staticField', name: 'Static Overload', cooldown: 7, dmg: 70, radius: 8 },
-      ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 13, radius: 15, duration: 2.6 },
+      ult: { id: 'thunderfall', name: 'THUNDERFALL', dmg: 13, radius: 26, duration: 3.4 },
     },
   },
   {
@@ -287,7 +287,7 @@ export const ROSTER = [
       heavy: { dmg: 68, knock: 15, range: 3.4, launch: 7 },
       ranged: { name: 'Night Swarm', type: 'bats', dmg: 26, count: 3, speed: 24, cooldown: 1.5, ammo: 12 },
       special: { id: 'ghostWalk', name: 'Ghost Protocol', cooldown: 9, dmg: 60, speed: 17, duration: 5 },
-      ult: { id: 'deathGaze', name: 'DEATH GAZE', dmg: 330, range: 60 },
+      ult: { id: 'deathSwarm', name: 'DEATH SWARM', dmg: 4, count: 150, duration: 7 },
     },
   },
   {
@@ -327,7 +327,7 @@ export const ROSTER = [
     moves: {
       light: { dmg: [38, 42, 58], knock: [5, 6, 13], range: 3.4 },
       heavy: { dmg: 92, knock: 22, range: 3.8, launch: 9 },
-      ranged: { name: 'Shard Burst', type: 'shard', dmg: 34, speed: 46, cooldown: 0.8, ammo: 22 },
+      ranged: { name: 'Icicle Barrage', type: 'shard', dmg: 13, count: 6, speed: 48, cooldown: 1.15, ammo: 22 },
       special: { id: 'freezeBeam', name: 'Cryo Beam', cooldown: 8, dmg: 12, duration: 1.8, slow: 0.45 },
       ult: { id: 'absoluteZero', name: 'ABSOLUTE ZERO', dmg: 9, radius: 14 },
     },
