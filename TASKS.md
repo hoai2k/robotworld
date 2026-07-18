@@ -2106,3 +2106,25 @@ controllers via Gamepad API), AI opponents.
 - Verified: build green; showcase screenshots VIEWED across 3 tuning
   rounds (overhead cock, over-the-top release, front-center shield);
   probes above; aegis/vulcan + aegis/titanus ace ult soaks crash-free.
+
+## Phase 14k — Nullbot trap-fall + front-blockable swarm ults (user request, 2026-07-18)
+
+- NULLBOT floor de-rez reworked: the roll now ARMS a corrupted tile under
+  the victim (glitch flecks flicker at their feet) that only TRIPS when
+  they MOVE (>0.7u drift or real velocity, grounded) — standing still is
+  safe; the trap expires after 5s or if they jump clear. Tripping starts a
+  VISIBLE sink: the body descends through the floor plane over 0.55s
+  (post-physics pos.y override, control seized via re-armed hitstun — no
+  more instant vanish), a short fully-under beat, then the sky re-entry
+  and landing damage as before. Probe: still for 3s = no fall; on walking,
+  visible sink to y=-7.5, under-beat, sky, 50 dmg on landing.
+- Swarm-attack ults are BLOCKABLE from the front again: snakes, wolves,
+  bats and flea-clone bumps lost the unblockable flag, so a raised guard
+  facing the attacker blocks each bite (each bite's own position is the
+  block-direction source, so rear/flank strikes still go through). Probe:
+  bat swarm 138 dmg unblocked -> 17 while blocking and facing. Big
+  single-source ult damage (Vulcan storm, meteors, supernova, bolts,
+  tsunami, croak, crush, tornado, ice, floor-fall landing) stays
+  unblockable.
+- Verified: build green; probes above; ace soaks (nullbot/viper,
+  viper/wraith, fenrir/jerry) crash-free.

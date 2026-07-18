@@ -1370,7 +1370,7 @@ export const ULTS = {
                 s.state = 'latched';
                 s.attachA = Math.atan2(-dx || 0.01, -dz || 0.01); // side it struck from
                 s.attachY = clamp((s.y - prey.pos.y) / prey.height, 0.55, 0.9);
-                prey.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
+                prey.takeHit(u.dmg * f.dmgMult(), f, { 
                   knock: 0.6, srcPos: P.set(s.x, s.y, s.z), soft: true,
                   status: { poison: (u.poison || 8) * f.dmgMult(), poisonT: u.poisonT || 3 },
                 });
@@ -1776,7 +1776,7 @@ export const ULTS = {
             const dx = w.wrapDelta(e.pos.x - wl.g.position.x), dz = w.wrapDelta(e.pos.z - wl.g.position.z);
             if (Math.hypot(dx, dz) < e.hitRadius + 1.2) {
               hitAt.set(e, t);
-              e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true, knock: 3, srcPos: wl.g.position, soft: Math.random() < 0.7 });
+              e.takeHit(u.dmg * f.dmgMult(), f, { knock: 3, srcPos: wl.g.position, soft: Math.random() < 0.7 });
               w.effects.impactSparks(e.center(), 0x6cd8ff, 6, 6);
               if (Math.random() < 0.25) w.audio?.play('slash');
             }
@@ -1944,7 +1944,7 @@ export const ULTS = {
               // the STRIKE — raking claws on the way through
               if (t - (hitAt.get(prey) ?? -9) > 0.1) {
                 hitAt.set(prey, t);
-                prey.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
+                prey.takeHit(u.dmg * f.dmgMult(), f, { 
                   knock: 1, srcPos: P.set(b.x, b.y, b.z), soft: true,
                 });
                 if (Math.random() < 0.3) w.effects.impactSparks(c, 0x8a2030, 4, 5);
@@ -2428,7 +2428,7 @@ export const ULTS = {
             if (dx * dx + dz * dz < (e.hitRadius + 1.1) ** 2 &&
                 c.g.position.y < e.pos.y + e.height && c.g.position.y + 2 > e.pos.y) {
               hitAt.set(e, t);
-              e.takeHit(u.dmg * f.dmgMult(), f, { unblockable: true,
+              e.takeHit(u.dmg * f.dmgMult(), f, { 
                 knock: 6, srcPos: c.g.position, soft: Math.random() < 0.6,
               });
               w.effects.impactSparks(e.center(), 0xc86a4a, 7, 7);
@@ -2506,7 +2506,9 @@ export const ULTS = {
             }
             if (Math.random() < 0.2) w.audio?.play('zap', { vol: 0.3 });
           }
-          // floor de-rez: an opponent falls through the world...
+          // floor de-rez: a corrupted TILE arms under an opponent and waits.
+          // The moment they MOVE they trip the bug — and visibly SINK down
+          // through the floor plane before the sky spits them back out.
           fallT -= dt;
           if (fallT <= 0 && t < DUR - 2) {
             fallT = rand(1.0, 1.8);
@@ -2514,12 +2516,8 @@ export const ULTS = {
               e !== f && e.alive && !f.isAllyOf(e) && e.grounded && !falls.some((fl) => fl.v === e));
             if (pool.length) {
               const v = pool[(Math.random() * pool.length) | 0];
-              falls.push({ v, t: 0, phase: 'void' });
-              w.effects.glitchBurst(v.center(), 18, 9, v.scale);
-              w.audio?.play('zap');
-              v.group.visible = false; // gone through the floor
-              v.setState('launched', 4);
-              v.iframes = 0.6;
+              falls.push({ v, t: 0, phase: 'armed', x0: v.pos.x, z0: v.pos.z });
+              w.effects.glitchBurst(_v.set(v.pos.x, 0.3, v.pos.z), 8, 4, v.scale);
             }
           }
           for (let i = falls.length - 1; i >= 0; i--) {
@@ -2531,9 +2529,43 @@ export const ULTS = {
               falls.splice(i, 1);
               continue;
             }
-            if (fl.phase === 'void') {
+            if (fl.phase === 'armed') {
+              // the corrupted tile flickers under their feet, waiting
+              if (Math.random() < 0.4) {
+                w.effects.glitchFleck(v.pos.x + rand(-1.1, 1.1), 0.15, v.pos.z + rand(-1.1, 1.1), 1.1);
+              }
+              const moved = Math.hypot(w.wrapDelta(v.pos.x - fl.x0), w.wrapDelta(v.pos.z - fl.z0)) > 0.7 ||
+                Math.hypot(v.vel.x, v.vel.z) > 3;
+              if (moved && v.grounded) {
+                fl.phase = 'sink'; // TRIPPED
+                fl.t = 0;
+                v.iframes = 1.0;
+                w.effects.glitchBurst(_v.set(v.pos.x, 0.5, v.pos.z), 16, 8, v.scale);
+                w.audio?.play('zap');
+              } else if (fl.t > 5 || !v.grounded) {
+                falls.splice(i, 1); // trap expired (or they jumped clear of it)
+              }
+            } else if (fl.phase === 'sink') {
+              // VISIBLY sinking: post-physics pos.y override drops the body
+              // through the floor plane while control stays seized (hitstun
+              // re-armed per frame — never the knockdown/land transitions)
+              if (v.state !== 'frozen') v.setState('hitstun', 0.4);
               v.vel.set(0, 0, 0);
+              v.pos.y = -(fl.t / 0.55) * v.height * 1.25;
+              if (Math.random() < 0.7) {
+                const a = rand(TAU);
+                w.effects.glitchFleck(v.pos.x + Math.cos(a) * v.hitRadius, 0.2,
+                  v.pos.z + Math.sin(a) * v.hitRadius, 0.9 * v.scale);
+              }
               if (fl.t > 0.55) {
+                fl.phase = 'under';
+                fl.t = 0;
+                v.group.visible = false; // fully below the world for a beat
+              }
+            } else if (fl.phase === 'under') {
+              v.vel.set(0, 0, 0);
+              v.pos.y = -v.height * 1.3;
+              if (fl.t > 0.28) {
                 // ...and the sky spits them back out
                 fl.phase = 'sky';
                 v.group.visible = true;
