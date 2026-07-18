@@ -58,6 +58,25 @@ function loadGLTF(url) {
   return gltfCache.get(url);
 }
 
+// Force-build a GLB mech straight from the on-disk manifest, bypassing the
+// ?debug=3d gate. Used by the ?debug=models pose tool. `entryOverride` lets
+// the caller preview edited manifest fields (bindPose/boneCorrections/...)
+// without touching the committed file. Returns the built mech and its entry.
+export async function buildGlbForTool(def, entryOverride) {
+  const m = await fetch(new URL('models/manifest.json', document.baseURI))
+    .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const entry = { ...(m[def.id] || {}), ...(entryOverride || {}) };
+  if (!entry.url) return { mech: buildMech(def), entry: null };
+  const gltf = await loadGLTF(entry.url);
+  return { mech: buildGlbMech(def, entry, gltf), entry };
+}
+
+// Read the raw manifest file (tool/debug use; not the ?debug=3d gate).
+export async function fetchRawManifest() {
+  return fetch(new URL('models/manifest.json', document.baseURI))
+    .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+}
+
 // Preload the models for a set of mech ids (call during select/loading).
 export async function preloadMechModels(ids) {
   const m = await loadManifest();
@@ -113,7 +132,7 @@ function buildGlbMech(def, entry, gltf) {
   const targetH = (D.hipHeight + D.torsoH + D.headSize * 2) * (entry.heightScale ?? 1);
   const box = skinnedBox(model);
   const size = box.getSize(new THREE.Vector3());
-  const scale = size.y > 0.01 ? targetH / size.y : 1;
+  let scale = size.y > 0.01 ? targetH / size.y : 1;
   const container = new THREE.Group();
   container.add(model);
   model.scale.setScalar(scale);
@@ -152,6 +171,28 @@ function buildGlbMech(def, entry, gltf) {
     console.warn(`GLB for ${def.id}: only ${mapped} bones mapped — falling back to procedural`);
     return buildMech(def);
   }
+  // head-height match: rescale the visual model so its head bone sits at the
+  // same height as the procedural head joint. Keying the size on the HEAD
+  // (rather than the raw bbox top) keeps GLB and procedural bodies the same
+  // general size — a raised tail, weapon, or crystal spire no longer shrinks
+  // the whole body to fit under the height cap. entry.heightScale still
+  // scales this target for manual per-mech tuning.
+  if (boneMap.head && !entry.noHeadMatch) {
+    root.updateWorldMatrix(true, true);
+    const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y * (entry.heightScale ?? 1);
+    const glbHeadY = boneMap.head.getWorldPosition(new THREE.Vector3()).y; // feet grounded at 0
+    if (glbHeadY > 0.05 && targetHeadY > 0.05) {
+      const k = targetHeadY / glbHeadY;
+      scale *= k;
+      model.scale.setScalar(scale);
+      container.updateMatrixWorld(true);
+      const rb = skinnedBox(container);
+      const c = rb.getCenter(new THREE.Vector3());
+      model.position.x -= c.x;
+      model.position.y -= rb.min.y;
+      model.position.z -= c.z;
+    }
+  }
   // limb stretch: scale bone offsets away from bind before offset capture,
   // so a model whose proportions undershoot the mech (e.g. short arms) is
   // lengthened once and animates normally from there
@@ -163,8 +204,11 @@ function buildGlbMech(def, entry, gltf) {
   const adapter = new RigAdapter(joints, boneMap, {
     bindPose: entry.bindPose ?? 'tpose',
     hipsScale: 1 / (scale || 1),
+    corrections: entry.boneCorrections, // from the ?debug=models pose tool
   });
   mech.postAnimate = () => { adapter.sync(); mech.postDress?.(); };
+  mech.boneMap = boneMap;   // pose tool reaches bones by virtual-joint name
+  mech.adapter = adapter;
   return mech;
 }
 

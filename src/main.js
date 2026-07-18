@@ -17,6 +17,8 @@ if (params.has('showcase')) {
   import('./dev/firetest.js').then(({ runFireTest }) => runFireTest());
 } else if (params.has('geyser')) {
   import('./dev/geysertest.js').then(({ runGeyserTest }) => runGeyserTest());
+} else if (params.get('debug') === 'models') {
+  import('./dev/posetool.js').then(({ runPoseTool }) => runPoseTool(params.get('id')));
 } else if (params.has('glbview')) {
   import('./dev/glbview.js').then(({ runGlbView }) => runGlbView(params.get('glbview')));
 } else if (params.has('rigtest')) {

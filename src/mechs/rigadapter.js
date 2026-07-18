@@ -154,8 +154,15 @@ export class RigAdapter {
         for (let a = bone.parent; a && a !== parentEntry.bone; a = a.parent) chain.push(a);
         for (let i = chain.length - 1; i >= 0; i--) interQ.multiply(chain[i].quaternion);
       }
+      // optional hand-authored correction (from the ?debug=models pose tool):
+      // a fixed extra rotation applied in bone-LOCAL space after retargeting,
+      // to fix systematic bind mismatches (e.g. a shoulder always splayed too
+      // far). Degrees [x,y,z] per joint in opts.corrections.
+      const cd = (opts.corrections || {})[jname];
+      const corr = cd ? new THREE.Quaternion().setFromEuler(
+        new THREE.Euler(cd[0] * D2R, cd[1] * D2R, cd[2] * D2R)) : null;
       const entry = {
-        jname, joint, bone, offset, parentEntry, interQ,
+        jname, joint, bone, offset, parentEntry, interQ, corr,
         bindLocalPos: bone.position.clone(),
         world: new THREE.Quaternion(),
       };
@@ -196,6 +203,7 @@ export class RigAdapter {
       else if (e.bone.parent) e.bone.parent.getWorldQuaternion(_q2);
       else _q2.identity();
       e.bone.quaternion.copy(_q2.invert().multiply(_q1));
+      if (e.corr) e.bone.quaternion.multiply(e.corr); // local post-retarget nudge
     }
     // hips bob / crouch translation (vertical only, scaled into model units)
     if (this.hipsEntry) {
