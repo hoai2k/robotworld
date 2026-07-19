@@ -81,6 +81,10 @@ export function describeAction(def, action) {
   } else if (action === 'block') {
     title = 'Block';
     push('Hold to guard — deflects/reduces frontal damage');
+  } else if (action === 'walk') {
+    title = 'Walk / Run';
+    push('Locomotion gait — stride cadence foot-plants to ground speed');
+    push('Hold the button / stick; positions snap home 2s after release');
   } else if (action === 'dash') {
     title = 'Dash';
     push('Quick evasive burst');

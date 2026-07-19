@@ -205,6 +205,7 @@ export async function runPoseTool(startId) {
     dstIntent.aimYaw = undefined;
   }
   const ACTION_FROM_INTENT = [
+    ['walk', (s) => Math.abs(s.moveX) + Math.abs(s.moveZ) > 0.1],
     ['special', (s) => s.special], ['heavy', (s) => s.heavy], ['light', (s) => s.light],
     ['dash', (s) => s.dash], ['ranged', (s) => s.ranged || s.rangedHeld], ['block', (s) => s.block],
   ];
@@ -299,7 +300,7 @@ export async function runPoseTool(startId) {
   panel.appendChild(actionModeUI);
   actionModeUI.appendChild(label('Trigger action'));
   const btnGrid = el('div', 'display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:8px');
-  const BTNS = [['light', 'Light (F/✕)'], ['heavy', 'Heavy (G/△)'], ['ranged', 'Ranged (R/RB)'],
+  const BTNS = [['walk', 'Walk (W/stick) — hold'], ['light', 'Light (F/✕)'], ['heavy', 'Heavy (G/△)'], ['ranged', 'Ranged (R/RB)'],
     ['special', 'Special (T/RT)'], ['block', 'Block (H/LB)'], ['dash', 'Dash (⇧/B)']];
   for (const [act, txt] of BTNS) {
     const b = el('button', `padding:5px 3px;font-size:11px;border-radius:4px;cursor:pointer;background:#1a2433;color:#cfe0f5;border:1px solid #2c3648`);
@@ -413,7 +414,8 @@ export async function runPoseTool(startId) {
       // fold in on-screen button presses (held-style)
       for (const [k, v] of Object.entries(uiPress)) {
         if (!v) continue;
-        if (k === 'ranged') { scratch.ranged = scratch.rangedHeld = true; }
+        if (k === 'walk') { scratch.moveZ = 1; }  // hold-to-walk forward
+        else if (k === 'ranged') { scratch.ranged = scratch.rangedHeld = true; }
         else if (k === 'block') scratch.block = true;
         else { scratch[k] = true; scratch[k + 'Held'] = true; }
       }
