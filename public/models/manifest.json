@@ -536,6 +536,66 @@
       },
       {
         "purgeFar": true
+      },
+      {
+        "sel": {
+          "comp": 44
+        },
+        "to": "tripo0_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 47
+        },
+        "to": "tripo0_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 51
+        },
+        "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 84
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 39
+        },
+        "to": "tripo1_Right_Limb_3"
+      },
+      {
+        "sel": {
+          "comp": 49
+        },
+        "to": "tripo1_Right_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 83
+        },
+        "to": "tripo1_Right_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 86
+        },
+        "to": "tripo1_Right_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 66
+        },
+        "to": "tripo1_Left_Limb_3"
+      },
+      {
+        "sel": {
+          "comp": 41
+        },
+        "to": "tripo1_Left_Limb_3"
       }
     ]
   },
