@@ -32,6 +32,7 @@ export async function runShowcase(which) {
 
   const mechs = [];
   window.__showcaseMechs = mechs; // probe hook
+  window.__showcaseEngine = engine; // freeze hook for joint-isolation diagnostics
   const spacing = 8.5;
   // GLB-backed where the manifest says so, procedural otherwise — the
   // showcase judges exactly what the game will ship

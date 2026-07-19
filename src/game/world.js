@@ -573,9 +573,14 @@ export class World {
         // clobbering on both legs of the trip (boomerang + pierce).
         // The projectile wears a CLONE of his real fist geometry (PBR
         // materials and all) so it reads as HIS fist, not a glow blob.
+        // GLB mechs carry no geometry on the virtual handR joint (the fist is
+        // in the one skinned mesh, driven by a bone), so cloning it yields an
+        // EMPTY group — which still hides the projectile's own knuckle carrier
+        // and leaves nothing visible. Skip the clone for GLBs and let the
+        // built-in chunky-knuckle 'fist' mesh carry the throw instead.
         let skin = null;
         const hand = f.mech.joints.handR;
-        if (hand) {
+        if (hand && !f.mech.isGLB) {
           const c = hand.clone(true);
           const strip = [];
           c.traverse((o) => { if (o.userData.chargeShell) strip.push(o); });
