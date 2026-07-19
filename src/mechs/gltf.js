@@ -27,6 +27,7 @@ import { Animator } from './animator.js';
 import { RigAdapter, mapBones } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
+import { applySkinOpsToGltf } from './skinops.js';
 import { clamp } from '../core/utils.js';
 
 let manifest = null;
@@ -95,6 +96,25 @@ export async function fetchRawManifest() {
     .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
 }
 
+// Load a mech's RAW gltf scene at bind pose — no rig, no retarget, no
+// skinOps — with PRIVATE geometry so callers may mutate skin weights freely
+// (SkeletonUtils.clone shares geometry; the game cache must stay pristine).
+// For the ?debug=skin workbench and the skin audit.
+export async function loadRawGlbScene(id) {
+  const m = await fetchRawManifest();
+  const entry = m[id];
+  if (!entry?.url) return null;
+  const gltf = await loadGLTF(entry.url);
+  const scene = cloneSkinned(gltf.scene);
+  scene.traverse((o) => {
+    if (o.isSkinnedMesh) {
+      o.geometry = o.geometry.clone();
+      delete o.geometry.userData.__skinOpsApplied;
+    }
+  });
+  return { scene, entry };
+}
+
 // Preload the models for a set of mech ids (call during select/loading).
 export async function preloadMechModels(ids) {
   const m = await loadManifest();
@@ -124,6 +144,11 @@ function buildGlbMech(def, entry, gltf) {
   const { root, joints } = buildRig(D); // invisible virtual skeleton (no geometry)
 
   // clone the scene so several fighters can use the same mech
+  // manifest `skinOps`: rebind auto-rig weight mistakes (a hip plate on a
+  // forearm, a banner on an arm) to the right bone — see skinops.js. Applied
+  // to the CACHED scene once (idempotent); clones share the fixed geometry.
+  applySkinOpsToGltf(gltf.scene, entry.skinOps);
+
   const model = cloneSkinned(gltf.scene);
 
   // collect skeleton bones + meshes
