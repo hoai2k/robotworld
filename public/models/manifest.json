@@ -38,7 +38,69 @@
           0.85
         ]
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 39
+        },
+        "to": "tripoSpine_1"
+      },
+      {
+        "sel": {
+          "comp": 25
+        },
+        "to": "tripoHead_1"
+      },
+      {
+        "sel": {
+          "comp": 61
+        },
+        "to": "tripo0_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 57
+        },
+        "to": "tripoRoot"
+      },
+      {
+        "sel": {
+          "comp": 35
+        },
+        "to": "tripoRoot"
+      },
+      {
+        "sel": {
+          "comp": 66
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 50
+        },
+        "to": "tripoRoot"
+      },
+      {
+        "sel": {
+          "comp": 28
+        },
+        "to": "tripoHead_1"
+      },
+      {
+        "sel": {
+          "comp": 72
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 82
+        },
+        "to": "tripoSpine_1"
+      }
+    ]
   },
   "wraith": {
     "url": "models/mech_wraith.glb",
@@ -60,7 +122,69 @@
       "thighR": "tripo0_Left_Limb_2",
       "kneeR": "tripo0_Left_Limb_3",
       "ankleR": "tripo0_Left_Limb_4"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 42
+        },
+        "to": "tripoHead_1"
+      },
+      {
+        "sel": {
+          "comp": 47
+        },
+        "to": "tripoHead_1"
+      },
+      {
+        "sel": {
+          "comp": 40
+        },
+        "to": "bone_20"
+      },
+      {
+        "sel": {
+          "comp": 41
+        },
+        "to": "tripoHead_1"
+      },
+      {
+        "sel": {
+          "comp": 50
+        },
+        "to": "bone_18"
+      },
+      {
+        "sel": {
+          "comp": 39
+        },
+        "to": "bone_26"
+      },
+      {
+        "sel": {
+          "comp": 57
+        },
+        "to": "bone_18"
+      },
+      {
+        "sel": {
+          "comp": 75
+        },
+        "to": "bone_36"
+      },
+      {
+        "sel": {
+          "comp": 55
+        },
+        "to": "bone_19"
+      },
+      {
+        "sel": {
+          "comp": 70
+        },
+        "to": "bone_36"
+      }
+    ]
   },
   "colossus": {
     "url": "models/mech_colossus.glb",
@@ -82,7 +206,39 @@
       "thighR": "tripo1_Right_Limb_0",
       "kneeR": "tripo1_Right_Limb_1",
       "ankleR": "tripo1_Right_Limb_2"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 23
+        },
+        "to": "tripo1_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 25
+        },
+        "to": "tripoSpine_2"
+      },
+      {
+        "sel": {
+          "comp": 37
+        },
+        "to": "tripoSpine_2"
+      },
+      {
+        "sel": {
+          "comp": 34
+        },
+        "to": "tripo1_Right_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 45
+        },
+        "to": "tripoSpine_2"
+      }
+    ]
   },
   "cranky": {
     "url": "models/mech_cranky.glb",
@@ -122,7 +278,69 @@
           2.1
         ]
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 37
+        },
+        "to": "bone_11"
+      },
+      {
+        "sel": {
+          "comp": 38
+        },
+        "to": "tripo1_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 36
+        },
+        "to": "tripo1_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 42
+        },
+        "to": "tripo1_Left_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 27
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 33
+        },
+        "to": "bone_18"
+      },
+      {
+        "sel": {
+          "comp": 24
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 45
+        },
+        "to": "bone_11"
+      },
+      {
+        "sel": {
+          "comp": 64
+        },
+        "to": "tripoRoot"
+      },
+      {
+        "sel": {
+          "comp": 44
+        },
+        "to": "tripoRoot"
+      }
+    ]
   },
   "inferno": {
     "url": "models/mech_inferno.glb",
@@ -160,7 +378,15 @@
           1.05
         ]
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 10
+        },
+        "to": "bone_19"
+      }
+    ]
   },
   "saurion": {
     "url": "models/mech_saurion.glb",
@@ -200,7 +426,21 @@
           0
         ]
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 61
+        },
+        "to": "bone_43"
+      },
+      {
+        "sel": {
+          "comp": 72
+        },
+        "to": "bone_16"
+      }
+    ]
   },
   "glacier": {
     "url": "models/mech_glacier.glb",
@@ -222,7 +462,21 @@
       "thighR": "tripo1_Right_Limb_0",
       "kneeR": "tripo1_Right_Limb_1",
       "ankleR": "tripo1_Right_Limb_2"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 29
+        },
+        "to": "bone_22"
+      },
+      {
+        "sel": {
+          "comp": 34
+        },
+        "to": "bone_25"
+      }
+    ]
   },
   "viper": {
     "url": "models/mech_viper.glb",
@@ -245,7 +499,81 @@
       "kneeR": "bone_49",
       "ankleR": "bone_50"
     },
-    "heightScale": 1.1
+    "heightScale": 1.1,
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 36
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 24
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 28
+        },
+        "to": "bone_31"
+      },
+      {
+        "sel": {
+          "comp": 52
+        },
+        "to": "bone_48"
+      },
+      {
+        "sel": {
+          "comp": 23
+        },
+        "to": "bone_13"
+      },
+      {
+        "sel": {
+          "comp": 61
+        },
+        "to": "tripo0_Right_Limb_2"
+      },
+      {
+        "sel": {
+          "comp": 64
+        },
+        "to": "bone_34"
+      },
+      {
+        "sel": {
+          "comp": 48
+        },
+        "to": "bone_45"
+      },
+      {
+        "sel": {
+          "comp": 66
+        },
+        "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 63
+        },
+        "to": "bone_28"
+      },
+      {
+        "sel": {
+          "comp": 27
+        },
+        "to": "bone_28"
+      },
+      {
+        "sel": {
+          "comp": 75
+        },
+        "to": "bone_48"
+      }
+    ]
   },
   "nova": {
     "url": "models/mech_nova.glb",
@@ -289,7 +617,57 @@
         "kneeL": "tripo0_Left_Limb_2",
         "ankleL": "tripo0_Left_Limb_3"
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 48
+        },
+        "to": "tripo0_Left_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 76
+        },
+        "to": "bone_30"
+      },
+      {
+        "sel": {
+          "comp": 52
+        },
+        "to": "tripo1_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 65
+        },
+        "to": "tripo0_Left_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 44
+        },
+        "to": "tripo0_Left_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 71
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 101
+        },
+        "to": "bone_30"
+      },
+      {
+        "sel": {
+          "comp": 106
+        },
+        "to": "bone_14"
+      }
+    ]
   },
   "tempest": {
     "url": "models/mech_tempest.glb",
@@ -334,7 +712,45 @@
         "kneeL": "tripo1_Left_Limb_1",
         "ankleL": "tripo1_Left_Limb_2"
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 20
+        },
+        "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 26
+        },
+        "to": "bone_27"
+      },
+      {
+        "sel": {
+          "comp": 32
+        },
+        "to": "bone_33"
+      },
+      {
+        "sel": {
+          "comp": 61
+        },
+        "to": "bone_33"
+      },
+      {
+        "sel": {
+          "comp": 77
+        },
+        "to": "bone_33"
+      },
+      {
+        "sel": {
+          "comp": 53
+        },
+        "to": "tripo0_Right_Limb_3"
+      }
+    ]
   },
   "_readme": "Drop rigged humanoid GLBs (Meshy/Tripo/Mixamo auto-rig, T-pose or A-pose) into public/models/ and add an entry per mech id. Fields: url (required), bindPose ('tpose'|'apose'|'native' or {joint:[x,y,z] degrees}), boneOverrides ({jointName: 'ExactBoneName'}), heightScale, yawOffset (deg), emissiveBoost. Mechs without an entry use the built-in procedural model. See docs/CHARACTER_PIPELINE.md.",
   "rhino": {
@@ -357,7 +773,51 @@
       "thighR": "tripo0_Left_Limb_0",
       "kneeR": "tripo0_Left_Limb_1",
       "ankleR": "tripo0_Left_Limb_2"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 26
+        },
+        "to": "bone_18"
+      },
+      {
+        "sel": {
+          "comp": 24
+        },
+        "to": "tripo0_Right_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 30
+        },
+        "to": "tripo0_Right_Limb_2"
+      },
+      {
+        "sel": {
+          "comp": 1
+        },
+        "to": "tripo0_Right_Limb_2"
+      },
+      {
+        "sel": {
+          "comp": 13
+        },
+        "to": "tripo0_Right_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 19
+        },
+        "to": "tripo0_Right_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 27
+        },
+        "to": "tripo0_Right_Limb_3"
+      }
+    ]
   },
   "vulcan": {
     "url": "models/mech_vulcan.glb",
@@ -414,7 +874,15 @@
           -0.2
         ]
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 14
+        },
+        "to": "tripo1_Left_Limb_2"
+      }
+    ]
   },
   "nullbot": {
     "url": "models/mech_nullbot.glb",
@@ -445,19 +913,19 @@
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_0",
-      "head": "tripoHead_0",
+      "head": "bone_5",
       "shoulderL": "tripo0_Left_Limb_0",
       "elbowL": "tripo0_Left_Limb_1",
       "handL": "tripo0_Left_Limb_2",
-      "shoulderR": "bone_43",
-      "elbowR": "bone_44",
-      "handR": "bone_45",
-      "thighL": "tripo1_Left_Limb_0",
-      "kneeL": "tripo1_Left_Limb_1",
-      "ankleL": "tripo1_Left_Limb_2",
-      "thighR": "tripo0_Right_Limb_0",
-      "kneeR": "tripo0_Right_Limb_1",
-      "ankleR": "tripo0_Right_Limb_2"
+      "shoulderR": "bone_36",
+      "elbowR": "bone_37",
+      "handR": "bone_38",
+      "thighL": "tripo0_Right_Limb_0",
+      "kneeL": "tripo0_Right_Limb_1",
+      "ankleL": "tripo0_Right_Limb_2",
+      "thighR": "tripo1_Left_Limb_0",
+      "kneeR": "tripo1_Left_Limb_1",
+      "ankleR": "tripo1_Left_Limb_2"
     },
     "heightScale": 1.1,
     "alt": {
@@ -482,7 +950,75 @@
         "ankleR": "bone_7"
       },
       "profileKey": "aegis_alt"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 8
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 14
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 38
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 12
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 77
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 89
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 124
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 162
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 178
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 208
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 11
+        },
+        "to": "tripoSpine_0"
+      }
+    ]
   },
   "jerry": {
     "url": "models/mech_jerry.glb",
@@ -547,7 +1083,141 @@
       "thighR": "tripo0_Left_Limb_1",
       "kneeR": "tripo0_Left_Limb_2",
       "ankleR": "tripo0_Left_Limb_3"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 8
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 23
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 88
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 112
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 132
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 137
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 45
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 58
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 52
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 96
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 117
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 118
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 72
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 119
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 93
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 115
+        },
+        "to": "tripo0_Right_Limb_0"
+      },
+      {
+        "sel": {
+          "comp": 50
+        },
+        "to": "bone_37"
+      },
+      {
+        "sel": {
+          "comp": 69
+        },
+        "to": "bone_39"
+      },
+      {
+        "sel": {
+          "comp": 25
+        },
+        "to": "bone_6"
+      },
+      {
+        "sel": {
+          "comp": 81
+        },
+        "to": "bone_6"
+      },
+      {
+        "sel": {
+          "comp": 32
+        },
+        "to": "bone_7"
+      },
+      {
+        "sel": {
+          "comp": 38
+        },
+        "to": "tripoSpine_0"
+      }
+    ]
   },
   "fenrir": {
     "url": "models/mech_fenrir.glb",
@@ -569,6 +1239,68 @@
       "thighR": "bone_40",
       "kneeR": "bone_34",
       "ankleR": "bone_32"
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 26
+        },
+        "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 34
+        },
+        "to": "bone_22"
+      },
+      {
+        "sel": {
+          "comp": 28
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 57
+        },
+        "to": "bone_13"
+      },
+      {
+        "sel": {
+          "comp": 44
+        },
+        "to": "bone_20"
+      },
+      {
+        "sel": {
+          "comp": 40
+        },
+        "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 43
+        },
+        "to": "bone_2"
+      },
+      {
+        "sel": {
+          "comp": 45
+        },
+        "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 68
+        },
+        "to": "bone_2"
+      },
+      {
+        "sel": {
+          "comp": 64
+        },
+        "to": "bone_1"
+      }
+    ]
   }
 }
