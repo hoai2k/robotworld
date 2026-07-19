@@ -679,7 +679,51 @@
         "kneeL": "tripo1_Left_Limb_2",
         "ankleL": "tripo1_Left_Limb_3"
       }
-    }
+    },
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 186
+        },
+        "to": "bone_38"
+      },
+      {
+        "sel": {
+          "comp": 61
+        },
+        "to": "bone_38"
+      },
+      {
+        "sel": {
+          "comp": 33
+        },
+        "to": "bone_38"
+      },
+      {
+        "sel": {
+          "comp": 108
+        },
+        "to": "tripo0_Left_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 31
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 56
+        },
+        "to": "bone_16"
+      },
+      {
+        "sel": {
+          "comp": 55
+        },
+        "to": "bone_16"
+      }
+    ]
   },
   "aegis": {
     "url": "models/mech_aegis.glb",
