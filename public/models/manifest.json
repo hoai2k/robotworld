@@ -646,7 +646,7 @@
     "alt": {
       "url": "models/mech_aegis_alt.glb",
       "bindPose": "native",
-      "yawOffset": 315,
+      "yawOffset": 270,
       "boneOverrides": {
         "hips": "tripo0_Left_Limb_0",
         "torso": "tripo0_Left_Limb_2",
