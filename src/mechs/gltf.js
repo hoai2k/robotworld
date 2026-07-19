@@ -27,6 +27,7 @@ import { Animator } from './animator.js';
 import { RigAdapter, mapBones } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
+import { clamp } from '../core/utils.js';
 
 let manifest = null;
 let manifestPromise = null;
@@ -233,18 +234,25 @@ function buildGlbMech(def, entry, gltf) {
   mech.boneMap = boneMap;   // pose tool reaches bones by virtual-joint name
   mech.adapter = adapter;
 
-  // Second-pass head-height match. The bind-time match above aligns the head
-  // at BIND, but retargeting into the rest/combat pose shifts the head bone
-  // (spine bend, guard). Pose one real frame and correct the residual so the
-  // RENDERED head sits exactly at the procedural head-joint height — the SAME
-  // canonical size in every view (pose tool, showcase, battle, menus).
+  // Second-pass head-height match, on the VISIBLE head. The bind-time match
+  // above is a rough pre-scale on the head bone; this pass poses one real
+  // frame and scales so the GLB's rendered head-region top sits at the
+  // procedural mech's rendered head-region top — the SAME canonical size in
+  // every view (pose tool, showcase, battle, menus). Matching visible tops
+  // (not the neck joint) is what makes the heads actually line up.
   if (boneMap.head && !entry.noHeadMatch) {
-    mech.premadeAnimator.update(1 / 60, { grounded: true, alwaysReady: true }); // applies pose + postAnimate
+    mech.premadeAnimator.poseStatic(); // deterministic neutral pose + postAnimate
     root.updateWorldMatrix(true, true);
-    const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y;
-    const haveHeadY = boneMap.head.getWorldPosition(new THREE.Vector3()).y;
+    const targetHeadY = proceduralHeadTop(def) ?? joints.head.getWorldPosition(new THREE.Vector3()).y;
+    const haveHeadY = measureHeadTop(mech);
+    mech._headDebug = { target: +targetHeadY?.toFixed(3), have0: +haveHeadY?.toFixed(3) };
     if (haveHeadY > 0.05 && targetHeadY > 0.05) {
-      const k = targetHeadY / haveHeadY;
+      // clamp the correction: the first (bind-bone) pass already gets close, so
+      // a large factor here means the head region was mis-measured (creatures
+      // whose "head" is a pitched skull with a long vertical spread — saurion).
+      // Cap it so a bad read can only nudge, never drastically resize.
+      const k = clamp(targetHeadY / haveHeadY, 0.9, 1.12);
+      mech._headDebug.k = +k.toFixed(3);
       if (Math.abs(k - 1) > 0.005) {
         scale *= k;
         model.scale.setScalar(scale);
@@ -259,6 +267,89 @@ function buildGlbMech(def, entry, gltf) {
     }
   }
   return mech;
+}
+
+// ---- visible head-height reference -------------------------------------
+// The head JOINT sits at the neck; the visible head extends above it by a
+// model-specific amount (crests, horns, crowns). Sizing on the joint/bone
+// therefore leaves the rendered heads misaligned. Instead measure the top of
+// the visible HEAD REGION and match those: procedural = geometry parented
+// under J.head; GLB = skinned verts whose dominant bone is boneMap.head or a
+// descendant. Robust to imperfect head-bone picks (a spine-ish head bone
+// whose subtree still contains the head → its top is still the head top).
+const _procHeadCache = new Map();
+function pctileTop(ys, p = 0.97) {
+  if (!ys.length) return null;
+  ys.sort((a, b) => a - b);
+  return ys[Math.min(ys.length - 1, Math.floor(ys.length * p))];
+}
+
+// World-space top of a mech's visible head region. Mech must be posed already.
+export function measureHeadTop(mech) {
+  const v = new THREE.Vector3();
+  const ys = [];
+  if (mech.isGLB && mech.boneMap?.head) {
+    const headBones = new Set();
+    mech.boneMap.head.traverse((o) => { if (o.isBone) headBones.add(o); });
+    let sk = null;
+    mech.group.traverse((o) => { if (o.isSkinnedMesh && !sk) sk = o; });
+    if (sk) {
+      sk.skeleton.update();
+      const bi = new Map(sk.skeleton.bones.map((b, i) => [b, i]));
+      const headIdx = new Set([...headBones].map((b) => bi.get(b)).filter((i) => i != null));
+      const pos = sk.geometry.attributes.position;
+      const ji = sk.geometry.attributes.skinIndex, wt = sk.geometry.attributes.skinWeight;
+      const st = Math.max(1, Math.floor(pos.count / 14000));
+      for (let i = 0; i < pos.count; i += st) {
+        let b = ji.getX(i), w = wt.getX(i);
+        if (wt.getY(i) > w) { w = wt.getY(i); b = ji.getY(i); }
+        if (wt.getZ(i) > w) { w = wt.getZ(i); b = ji.getZ(i); }
+        if (wt.getW(i) > w) { w = wt.getW(i); b = ji.getW(i); }
+        if (headIdx.has(b)) { sk.getVertexPosition(i, v); sk.localToWorld(v); ys.push(v.y); }
+      }
+    }
+    return pctileTop(ys) ?? mech.boneMap.head.getWorldPosition(v).y;
+  }
+  // procedural: geometry parented under the head joint
+  const jh = mech.joints.head;
+  jh.updateWorldMatrix(true, false);
+  jh.traverse((o) => {
+    if ((o.isMesh || o.isSkinnedMesh) && o.geometry?.attributes?.position) {
+      const p = o.geometry.attributes.position;
+      const st = Math.max(1, Math.floor(p.count / 4000));
+      for (let i = 0; i < p.count; i += st) { v.fromBufferAttribute(p, i); o.localToWorld(v); ys.push(v.y); }
+    }
+  });
+  // fallback (some designs don't parent head geo under J.head, e.g. frogger):
+  // the head joint + ~2·headSize is the same estimate the old height cap used
+  return pctileTop(ys) ?? (jh.getWorldPosition(v).y + (mech.dims?.headSize || 0.4) * 2);
+}
+
+function disposeMech(mech) {
+  mech.group.traverse((o) => {
+    o.geometry?.dispose?.();
+    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+    for (const m of mats) {
+      for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap']) m[k]?.dispose?.();
+      m.dispose?.();
+    }
+  });
+}
+
+// Visible procedural head-top for a mech id — built once, measured, cached,
+// disposed. The head geometry is color-scheme-independent, so id is the key.
+function proceduralHeadTop(def) {
+  if (_procHeadCache.has(def.id)) return _procHeadCache.get(def.id);
+  let top = null;
+  try {
+    const pm = buildMech(def);
+    new Animator(pm).poseStatic(); // deterministic neutral pose
+    pm.group.updateWorldMatrix(true, true);
+    top = measureHeadTop(pm);
+    disposeMech(pm);
+  } catch (e) { /* fall back to joint-based below */ }
+  _procHeadCache.set(def.id, top);
+  return top;
 }
 
 // Bounding box of a model's RENDERED surface at bind: skinned meshes are

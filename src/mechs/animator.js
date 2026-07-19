@@ -101,6 +101,18 @@ export class Animator {
     return tgt;
   }
 
+  // Deterministic neutral rest pose — no idle breathing, no random phase/t, no
+  // signature motion. Used to MEASURE a mech (head height) and for the pose
+  // tool's static reference, so the same pose is reproduced every time (the
+  // live update() seeds phase/t with Math.random(), which made head-height
+  // measurements jitter between build and runtime).
+  poseStatic() {
+    const tgt = this.makeRestTarget();
+    for (const key of Object.keys(tgt)) this.cur[key] = [...tgt[key]];
+    this.applyPose(this.cur);
+    this.mech.postAnimate?.();
+  }
+
   // ---------- action clips ----------
   play(name, opts = {}) {
     // a profile may swap in a bespoke clip for an action it must redo rather
