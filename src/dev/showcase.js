@@ -63,6 +63,11 @@ export async function runShowcase(which) {
         new THREE.MeshBasicMaterial({ color, depthTest: false }));
       m.renderOrder = 999;
       anchor.add(m);
+      // bone-anchored muzzles live under the model's scale chain — counter
+      // it so the marker renders the same size wherever it's parented
+      anchor.updateWorldMatrix(true, false);
+      const s = anchor.getWorldScale(new THREE.Vector3()).x || 1;
+      m.scale.setScalar(1 / s);
     };
     if (single && params.has('mzo')) {
       const mech = mechs[0];

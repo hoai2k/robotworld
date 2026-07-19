@@ -126,6 +126,25 @@ export const GLB_ANIM = {
   jerry: {},     // crustacean — antennae/struts are procedural-only joints
   nullbot: {},   // humanoid — direct map (glitch strobe is material-only)
 
+  // VULCAN — twin gatling pods FUSED along the forearms. The shared
+  // shootLoop raises the virtual shoulder to horizontal (procedural arms
+  // hang straight at bind), but this GLB's bind already carries the arms
+  // forward-raised — the retarget stacks the two and the pods aim SKYWARD
+  // while the bullet stream flies flat from the muzzle line. While firing,
+  // cap the raise so the visible barrels sit ON the fire line (and keep the
+  // brace arm level with it — both pods read as blazing forward).
+  vulcan: {
+    post(anim, dt, ctx, tgt) {
+      const n = anim.action && !anim.action.fadingOut ? anim.action.clip.name : '';
+      if (ctx.firing || n === 'shootLoop' || n === 'shoot') {
+        tgt.shoulderR[0] = Math.max(tgt.shoulderR[0], -1.0);
+        tgt.elbowR[0] = Math.max(tgt.elbowR[0], -0.15);
+        tgt.shoulderL[0] = Math.max(tgt.shoulderL[0], -0.55);
+        tgt.elbowL[0] = Math.max(tgt.elbowL[0], -0.4);
+      }
+    },
+  },
+
   // ---- model VARIANTS (manifest entry.profileKey) ----
   // AEGIS ALT (P1) — carries a great SPEAR in the right hand and banner
   // panels instead of a forearm shield, so it must NOT inherit base aegis's
