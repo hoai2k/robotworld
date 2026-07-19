@@ -44,8 +44,22 @@
       "handR": "bone_44"
     },
     "muzzles": {
-      "R": { "bone": "head", "offset": [-1.9, 0.0, 0] },
-      "L": { "bone": "head", "offset": [-1.9, 0.0, 0] }
+      "R": {
+        "bone": "head",
+        "offset": [
+          -1.9,
+          0,
+          0
+        ]
+      },
+      "L": {
+        "bone": "head",
+        "offset": [
+          -1.9,
+          0,
+          0
+        ]
+      }
     }
   },
   "titanus": {
@@ -83,13 +97,13 @@
       "handL": "bone_25",
       "shoulderR": "bone_13",
       "elbowR": "bone_14",
-      "handR": "bone_21",
-      "thighL": "tripo1_Left_Limb_0",
-      "kneeL": "tripo1_Left_Limb_1",
-      "ankleL": "tripo1_Left_Limb_2",
-      "thighR": "bone_43",
-      "kneeR": "bone_46",
-      "ankleR": "bone_44"
+      "handR": "bone_15",
+      "thighL": "tripo0_Right_Limb_0",
+      "kneeL": "bone_32",
+      "ankleL": "bone_33",
+      "thighR": "bone_40",
+      "kneeR": "bone_34",
+      "ankleR": "bone_32"
     }
   },
   "glacier": {
@@ -145,15 +159,15 @@
       "hips": "bone_1",
       "torso": "tripoSpine_1",
       "head": "bone_28",
-      "shoulderR": "bone_7",
-      "elbowR": "bone_8",
-      "handR": "bone_9",
+      "shoulderR": "tripo1_Right_Limb_0",
+      "elbowR": "tripo1_Right_Limb_1",
+      "handR": "tripo1_Right_Limb_2",
       "shoulderL": "bone_17",
       "elbowL": "bone_18",
       "handL": "bone_19",
-      "thighR": "tripo0_Right_Limb_0",
-      "kneeR": "tripo0_Right_Limb_1",
-      "ankleR": "tripo0_Right_Limb_2",
+      "thighR": "tripo1_Left_Limb_0",
+      "kneeR": "tripo1_Left_Limb_1",
+      "ankleR": "tripo1_Left_Limb_2",
       "thighL": "tripo1_Left_Limb_0",
       "kneeL": "tripo1_Left_Limb_1",
       "ankleL": "tripo1_Left_Limb_2"
@@ -211,12 +225,12 @@
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Right_Limb_0",
       "head": "tripoHead_1",
-      "shoulderL": "bone_30",
-      "elbowL": "bone_31",
-      "handL": "bone_33",
-      "shoulderR": "bone_18",
-      "elbowR": "bone_19",
-      "handR": "bone_20",
+      "shoulderL": "bone_18",
+      "elbowL": "bone_19",
+      "handL": "bone_20",
+      "shoulderR": "bone_30",
+      "elbowR": "bone_31",
+      "handR": "bone_34",
       "thighL": "bone_12",
       "kneeL": "bone_13",
       "ankleL": "bone_14",
@@ -247,8 +261,22 @@
       "ankleR": "bone_18"
     },
     "muzzles": {
-      "R": { "joint": "torso", "offset": [1.5, 2.05, 2.1] },
-      "L": { "joint": "torso", "offset": [-1.5, 2.05, 2.1] }
+      "R": {
+        "joint": "torso",
+        "offset": [
+          1.5,
+          2.05,
+          2.1
+        ]
+      },
+      "L": {
+        "joint": "torso",
+        "offset": [
+          -1.5,
+          2.05,
+          2.1
+        ]
+      }
     }
   },
   "frogger": {
@@ -274,8 +302,22 @@
     },
     "heightScale": 1.05,
     "muzzles": {
-      "R": { "joint": "handR", "offset": [0, -0.4, 0.85] },
-      "L": { "joint": "handL", "offset": [0, -0.4, 0.85] }
+      "R": {
+        "joint": "handR",
+        "offset": [
+          0,
+          -0.4,
+          0.85
+        ]
+      },
+      "L": {
+        "joint": "handL",
+        "offset": [
+          0,
+          -0.4,
+          0.85
+        ]
+      }
     }
   },
   "inferno": {
@@ -298,8 +340,22 @@
     },
     "heightScale": 1.05,
     "muzzles": {
-      "R": { "joint": "handR", "offset": [0, -0.5, 1.05] },
-      "L": { "joint": "handL", "offset": [0, -0.5, 1.05] }
+      "R": {
+        "joint": "handR",
+        "offset": [
+          0,
+          -0.5,
+          1.05
+        ]
+      },
+      "L": {
+        "joint": "handL",
+        "offset": [
+          0,
+          -0.5,
+          1.05
+        ]
+      }
     }
   },
   "aegis": {
@@ -352,18 +408,18 @@
       "hips": "tripoRoot",
       "torso": "tripoSpine_0",
       "head": "tripoHead_0",
-      "shoulderL": "bone_27",
-      "elbowL": "bone_28",
-      "handL": "bone_28",
-      "shoulderR": "bone_13",
-      "elbowR": "bone_14",
-      "handR": "bone_15",
-      "thighL": "tripo1_Left_Limb_0",
-      "kneeL": "tripo1_Left_Limb_1",
-      "ankleL": "tripo1_Left_Limb_2",
-      "thighR": "tripo0_Right_Limb_0",
-      "kneeR": "tripo0_Right_Limb_1",
-      "ankleR": "tripo0_Right_Limb_2"
+      "shoulderL": "bone_13",
+      "elbowL": "bone_14",
+      "handL": "bone_15",
+      "shoulderR": "bone_27",
+      "elbowR": "bone_28",
+      "handR": "bone_28",
+      "thighL": "tripo0_Right_Limb_0",
+      "kneeL": "tripo0_Right_Limb_1",
+      "ankleL": "tripo0_Right_Limb_2",
+      "thighR": "tripo1_Left_Limb_0",
+      "kneeR": "tripo1_Left_Limb_1",
+      "ankleR": "tripo1_Left_Limb_2"
     },
     "heightScale": 1.05
   },
@@ -375,19 +431,53 @@
       "hips": "tripoRoot",
       "torso": "tripo1_Left_Limb_1",
       "head": "tripoHead_0",
-      "shoulderL": "bone_5",
-      "elbowL": "bone_6",
-      "handL": "bone_7",
-      "shoulderR": "tripo1_Left_Limb_3",
-      "elbowR": "tripo1_Left_Limb_4",
-      "handR": "tripo1_Left_Limb_5",
-      "thighL": "tripo0_Left_Limb_0",
-      "kneeL": "tripo0_Left_Limb_1",
-      "ankleL": "tripo0_Left_Limb_2",
-      "thighR": "tripo0_Right_Limb_0",
-      "kneeR": "tripo0_Right_Limb_1",
-      "ankleR": "tripo0_Right_Limb_2"
+      "shoulderL": "tripo1_Left_Limb_3",
+      "elbowL": "tripo1_Left_Limb_4",
+      "handL": "tripo1_Left_Limb_5",
+      "shoulderR": "bone_5",
+      "elbowR": "bone_6",
+      "handR": "bone_7",
+      "thighL": "tripo0_Right_Limb_0",
+      "kneeL": "tripo0_Right_Limb_1",
+      "ankleL": "tripo0_Right_Limb_2",
+      "thighR": "tripo0_Left_Limb_0",
+      "kneeR": "tripo0_Left_Limb_1",
+      "ankleR": "tripo0_Left_Limb_2"
     },
-    "heightScale": 1.1
+    "heightScale": 1.1,
+    "muzzles": {
+      "R": {
+        "joint": "handR",
+        "offset": [
+          0.6,
+          -0.45,
+          0.35
+        ]
+      },
+      "L": {
+        "joint": "handL",
+        "offset": [
+          -0.6,
+          -0.45,
+          0.35
+        ]
+      },
+      "podL": {
+        "joint": "torso",
+        "offset": [
+          -1.35,
+          2.2,
+          -0.2
+        ]
+      },
+      "podR": {
+        "joint": "torso",
+        "offset": [
+          1.35,
+          2.2,
+          -0.2
+        ]
+      }
+    }
   }
 }

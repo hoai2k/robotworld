@@ -262,11 +262,20 @@ function buildGlbMech(def, entry, gltf) {
       const k = D.scale / (scale || 1);
       return addAnchor(boneMap[spec.bone], o[0] * k, o[1] * k, o[2] * k);
     }
-    const joint = joints[spec?.joint] || joints['hand' + side];
+    // R/L default to the hands; named extras (podL...) fall back to torso
+    const joint = joints[spec?.joint] || joints['hand' + side] || joints.torso;
     return addAnchor(joint, o[0] * D.scale, o[1] * D.scale, o[2] * D.scale);
   };
   mech.anchors.muzzleR = installMuzzle('R');
   mech.anchors.muzzleL = installMuzzle('L');
+  // Any OTHER key in entry.muzzles creates an anchor under its own name —
+  // secondary weapon mounts combat already reads by name with a muzzle
+  // fallback (e.g. Vulcan's shoulder missile pods: specials' muzzle(f,'podL')
+  // prefers anchors.podL). Same joint/bone + offset semantics as R/L.
+  for (const key of Object.keys(entry.muzzles || {})) {
+    if (key === 'R' || key === 'L') continue;
+    mech.anchors[key] = installMuzzle(key);
+  }
 
   // Second-pass head-height match, on the VISIBLE head. The bind-time match
   // above is a rough pre-scale on the head bone; this pass poses one real

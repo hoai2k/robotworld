@@ -24,6 +24,11 @@ const ALL_JOINTS = [
 // hardware would pitch skyward, so the wrist rolls back by the raise amount
 // — capped near 90° so fully-raised arms read as hardware STRETCHED along
 // the arm line rather than a broken wrist. At rest (arms down) it's a no-op.
+// PROCEDURAL-ONLY: a GLB's hand hardware is authored aligned to the forearm
+// in its own bind pose, so this counter-pitch (built for the procedural
+// models' +Z hand hardware) just TWISTS the GLB's wrists off the weapon line
+// — Vulcan's gatlings bent downward, Inferno's torches upward. Call sites
+// skip it for isGLB.
 function levelHands(tgt) {
   for (const side of ['L', 'R']) {
     const raise = -(tgt['shoulder' + side][0] + tgt['elbow' + side][0] * 0.5);
@@ -316,18 +321,30 @@ export class Animator {
     }
 
     // ===== duck layer =====
-    // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat
+    // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat.
+    // The hip drop is DERIVED from the leg fold: with the thigh pitched A
+    // from vertical and the shin countertilted (B-A), the leg's vertical
+    // reach shrinks by thigh*(1-cosA) + shin*(1-cos(B-A)) — drop the hips by
+    // exactly that and the feet stay planted instead of punching through the
+    // floor (the old fixed 0.62*hipHeight drop overshot the fold by ~2x).
+    // The head still gets low: deeper knee fold + butt back + a stronger
+    // forward torso lean make up the depth the reduced drop gave back.
     if (ctx.duck > 0.01) {
       const d = ctx.duck;
-      tgt.hipsPos[1] -= d * this.D.hipHeight * 0.62;
-      tgt.thighL[0] += -0.85 * d;
-      tgt.thighR[0] += -0.85 * d;
-      tgt.kneeL[0] += 1.5 * d;
-      tgt.kneeR[0] += 1.5 * d;
-      tgt.ankleL[0] += -0.62 * d;
-      tgt.ankleR[0] += -0.62 * d;
-      tgt.torso[0] += 0.34 * d;
-      tgt.head[0] += -0.3 * d;
+      const A = 1.05 * d;                    // thigh forward of vertical
+      const B = 2.0 * d;                     // knee fold
+      const drop = this.D.thighLen * (1 - Math.cos(A))
+                 + this.D.shinLen * (1 - Math.cos(B - A));
+      tgt.hipsPos[1] -= drop;
+      tgt.hipsPos[2] -= 0.5 * d * this.s;    // butt out a little...
+      tgt.thighL[0] += -A;
+      tgt.thighR[0] += -A;
+      tgt.kneeL[0] += B;
+      tgt.kneeR[0] += B;
+      tgt.ankleL[0] += -(B - A);             // foot flat on the ground
+      tgt.ankleR[0] += -(B - A);
+      tgt.torso[0] += 0.68 * d;              // ...upper body angled forward
+      tgt.head[0] += -0.5 * d;               // eyes stay up
       // arms tuck in, guard up
       tgt.shoulderL[0] += -0.35 * d;
       tgt.shoulderR[0] += -0.35 * d;
@@ -464,14 +481,14 @@ export class Animator {
         this.spinVel = ctx.firing ? Math.min(this.spinVel + dt * 40, 28) : Math.max(this.spinVel - dt * 18, 0);
         if (J.gatlingR) J.gatlingR.rotation.z += this.spinVel * dt;
         if (J.gatlingL) J.gatlingL.rotation.z -= this.spinVel * dt;
-        levelHands(tgt); // gatling pods track the aim line as the arms rise
+        if (!this.mech.isGLB) levelHands(tgt); // gatling pods track the aim line as the arms rise
         break;
       }
       case 'inferno': {
         // the flamethrower bells point along the hand's +Z, so raising the
         // arm tips the torch SKYWARD — the wrist counter-pitch keeps it
         // aimed down the fire line whatever the arms are doing
-        levelHands(tgt);
+        if (!this.mech.isGLB) levelHands(tgt);
         break;
       }
       case 'nova':
@@ -680,7 +697,7 @@ export class Animator {
         tgt.torso[0] -= this._crankyRecoil;
         // raised arms STRETCH the pincers out along the arm line instead
         // of leaving them at the resting 90° wrist crook
-        levelHands(tgt);
+        if (!this.mech.isGLB) levelHands(tgt);
         break;
       }
       case 'jerry': {
