@@ -99,6 +99,9 @@
           "comp": 82
         },
         "to": "tripoSpine_1"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -237,6 +240,9 @@
           "comp": 45
         },
         "to": "tripoSpine_2"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -339,6 +345,9 @@
           "comp": 44
         },
         "to": "tripoRoot"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -385,6 +394,9 @@
           "comp": 10
         },
         "to": "bone_19"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -439,6 +451,9 @@
           "comp": 72
         },
         "to": "bone_16"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -475,6 +490,9 @@
           "comp": 34
         },
         "to": "bone_25"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -572,6 +590,9 @@
           "comp": 75
         },
         "to": "bone_48"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -749,6 +770,9 @@
           "comp": 53
         },
         "to": "tripo0_Right_Limb_3"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -816,6 +840,9 @@
           "comp": 27
         },
         "to": "tripo0_Right_Limb_3"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -881,6 +908,9 @@
           "comp": 14
         },
         "to": "tripo1_Left_Limb_2"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -904,7 +934,12 @@
       "thighR": "tripo0_Right_Limb_0",
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
-    }
+    },
+    "skinOps": [
+      {
+        "purgeFar": true
+      }
+    ]
   },
   "aegis": {
     "url": "models/mech_aegis.glb",
@@ -1017,6 +1052,9 @@
           "comp": 11
         },
         "to": "tripoSpine_0"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -1216,6 +1254,9 @@
           "comp": 38
         },
         "to": "tripoSpine_0"
+      },
+      {
+        "purgeFar": true
       }
     ]
   },
@@ -1300,6 +1341,9 @@
           "comp": 64
         },
         "to": "bone_1"
+      },
+      {
+        "purgeFar": true
       }
     ]
   }
