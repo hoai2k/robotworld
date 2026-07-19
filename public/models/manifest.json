@@ -322,5 +322,27 @@
       "thighL": "bone_34",
       "thighR": "bone_33"
     }
+  },
+  "tempest": {
+    "url": "models/mech_tempest.glb",
+    "bindPose": "native",
+    "yawOffset": -90,
+    "boneOverrides": {
+      "hips": "tripoRoot",
+      "torso": "tripoSpine_0",
+      "head": "tripoHead_0",
+      "shoulderL": "bone_27",
+      "elbowL": "bone_28",
+      "handL": "bone_28",
+      "shoulderR": "bone_13",
+      "elbowR": "bone_14",
+      "handR": "bone_15",
+      "thighL": "tripo1_Left_Limb_0",
+      "kneeL": "tripo1_Left_Limb_1",
+      "ankleL": "tripo1_Left_Limb_2",
+      "thighR": "tripo0_Right_Limb_0",
+      "kneeR": "tripo0_Right_Limb_1",
+      "ankleR": "tripo0_Right_Limb_2"
+    }
   }
 }

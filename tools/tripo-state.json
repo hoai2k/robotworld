@@ -136,16 +136,6 @@
     "bytes": 7194232,
     "done": true
   },
-  "vulcan": {
-    "modelTask": "878f7503-773d-4dd7-8fd4-7ec9e909dab8",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "9615bdcb-86a8-45d2-9a8e-a40bed49ca77",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "924d4966-8a3a-4ea4-9631-7e489fe993ef",
-    "rigFailed": true
-  },
   "tempest": {
     "modelTask": "3852123e-68dd-4ae3-a1ae-da81240db759",
     "modelFailed": false,
@@ -158,6 +148,20 @@
     "rigCredits": 25,
     "glb": "public/models/mech_tempest.glb",
     "bytes": 7092508,
+    "done": true
+  },
+  "vulcan": {
+    "modelTask": "a12d5723-f21a-4f8d-a55b-b76d26ae6c57",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "e69ce4b3-9806-40b0-9dc4-7b25c0da42e2",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "c41bae76-3b53-4447-a774-eda716701735",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_vulcan.glb",
+    "bytes": 7314192,
     "done": true
   }
 }
