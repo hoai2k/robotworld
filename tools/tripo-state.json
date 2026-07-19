@@ -163,5 +163,23 @@
     "glb": "public/models/mech_vulcan.glb",
     "bytes": 7314192,
     "done": true
+  },
+  "jerry_alt": {
+    "modelTask": "01f0d286-1877-4ba9-aa1c-afdb6e8bf1a9",
+    "modelFailed": false,
+    "modelCredits": 50,
+    "checkTask": "d0f75ad9-ddaf-4ac7-a06f-a7fdd722e3a5",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "2084dc70-afd9-4798-a670-be65bb9118fb",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_jerry_alt.glb",
+    "bytes": 3381924,
+    "done": true
+  },
+  "tempest_alt": {
+    "modelTask": "d739be52-99c6-4af6-ba6d-28c872793e0e",
+    "modelFailed": false
   }
 }
