@@ -13,34 +13,6 @@
     "bytes": 59247900,
     "done": true
   },
-  "vulcan": {
-    "modelTask": "21d9cc8d-4cb7-4138-a12d-e5cff0233b59",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "fa2963c0-a921-4a26-b50d-4e1d51d6b305",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "07dc98e7-92ea-486c-b04b-3879957c9364",
-    "rigFailed": false,
-    "rigCredits": 25,
-    "glb": "public/models/mech_vulcan.glb",
-    "bytes": 7235144,
-    "done": true
-  },
-  "tempest": {
-    "modelTask": "50f912a5-d900-410a-9203-7b36175df13d",
-    "modelFailed": false,
-    "modelCredits": 30,
-    "checkTask": "4867e086-6c80-4b63-8102-2bd5a65dc5ba",
-    "riggable": true,
-    "rigType": "biped",
-    "rigTask": "68c10be2-b98a-4f4a-81bc-8a1c75c068d9",
-    "rigFailed": false,
-    "rigCredits": 25,
-    "glb": "public/models/mech_tempest.glb",
-    "bytes": 6961032,
-    "done": true
-  },
   "fenrir": {
     "modelTask": "026d8598-57a0-49fc-af92-b2b414a0cf32",
     "modelFailed": false,
@@ -162,6 +134,30 @@
     "rigCredits": 25,
     "glb": "public/models/mech_aegis.glb",
     "bytes": 7194232,
+    "done": true
+  },
+  "vulcan": {
+    "modelTask": "878f7503-773d-4dd7-8fd4-7ec9e909dab8",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "9615bdcb-86a8-45d2-9a8e-a40bed49ca77",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "924d4966-8a3a-4ea4-9631-7e489fe993ef",
+    "rigFailed": true
+  },
+  "tempest": {
+    "modelTask": "3852123e-68dd-4ae3-a1ae-da81240db759",
+    "modelFailed": false,
+    "modelCredits": 30,
+    "checkTask": "7518045e-1dad-4e37-8c3e-99cd40416870",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "ba207b29-cd75-43a6-b280-1df141f284d3",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_tempest.glb",
+    "bytes": 7092508,
     "done": true
   }
 }
