@@ -106,6 +106,98 @@ export function analyzeSkin(mesh) {
   return { compId, comps, domBone };
 }
 
+// Bone hierarchy distance matrix (BFS over parent/child links). Shared by
+// the far-blend detector, the purgeFar op, and the audit tools.
+export function boneHierDist(bones) {
+  const nB = bones.length;
+  const idxOf = new Map(bones.map((b, i) => [b, i]));
+  const adj = bones.map(() => []);
+  bones.forEach((b, i) => {
+    const p = idxOf.get(b.parent);
+    if (p !== undefined) { adj[i].push(p); adj[p].push(i); }
+  });
+  const dist = new Uint8Array(nB * nB).fill(255);
+  for (let s = 0; s < nB; s++) {
+    const q = [s]; dist[s * nB + s] = 0;
+    while (q.length) {
+      const u = q.shift();
+      for (const v of adj[u]) {
+        if (dist[s * nB + v] === 255) { dist[s * nB + v] = dist[s * nB + u] + 1; q.push(v); }
+      }
+    }
+  }
+  return dist;
+}
+
+// FAR-BLEND ("rubber") scan: find vertices strongly weighted to two bones
+// that are DISTANT in the hierarchy (A-B-C-D: strong on A and D, skipping
+// B/C). Such a vertex is AVERAGED between unrelated limbs whenever they move
+// apart — it doesn't tear (the seam-stretch audit misses it), it smears:
+// rubbery boots, waist tugs. For rigid mechs any strong cross-limb blend is
+// wrong. Returns clusters keyed by dominant->far bone pair.
+export function farBlendScan(mesh, { minDist = 3, minW = 0.2 } = {}) {
+  const geo = mesh.geometry;
+  const jnt = geo.attributes.skinIndex;
+  const wgt = geo.attributes.skinWeight;
+  const bones = mesh.skeleton.bones;
+  const nB = bones.length;
+  const dist = boneHierDist(bones);
+  const pairs = new Map(); // "dom>far" -> {dom, far, verts:[], wSum}
+  for (let i = 0; i < jnt.count; i++) {
+    let bw = -1, bi = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = wgt.getComponent(i, k);
+      if (w > bw) { bw = w; bi = jnt.getComponent(i, k); }
+    }
+    for (let k = 0; k < 4; k++) {
+      const w = wgt.getComponent(i, k);
+      if (w < minW || w >= bw) continue;             // minority far weights only
+      const fj = jnt.getComponent(i, k);
+      if (dist[bi * nB + fj] < minDist) continue;    // near blends are legit joints
+      const key = bi + '>' + fj;
+      let rec = pairs.get(key);
+      if (!rec) { rec = { dom: bones[bi]?.name, far: bones[fj]?.name, verts: [], wSum: 0 }; pairs.set(key, rec); }
+      rec.verts.push(i);
+      rec.wSum += w;
+    }
+  }
+  return [...pairs.values()].sort((a, b) => b.verts.length - a.verts.length);
+}
+
+// purgeFar: strip minority far-bone weights from every vertex and
+// renormalize what remains — the gentle fix for far-blend rubber (keeps the
+// legitimate local blend instead of hard-snapping the vertex to one bone).
+export function purgeFarWeights(mesh, { minDist = 3, minW = 0.05 } = {}) {
+  const geo = mesh.geometry;
+  const jnt = geo.attributes.skinIndex;
+  const wgt = geo.attributes.skinWeight;
+  const bones = mesh.skeleton.bones;
+  const nB = bones.length;
+  const dist = boneHierDist(bones);
+  let touched = 0;
+  for (let i = 0; i < jnt.count; i++) {
+    let bw = -1, bi = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = wgt.getComponent(i, k);
+      if (w > bw) { bw = w; bi = jnt.getComponent(i, k); }
+    }
+    let sum = 0, changed = false;
+    const keep = [0, 0, 0, 0];
+    for (let k = 0; k < 4; k++) {
+      let w = wgt.getComponent(i, k);
+      const fj = jnt.getComponent(i, k);
+      if (w >= minW && w < bw && dist[bi * nB + fj] >= minDist) { w = 0; changed = true; }
+      keep[k] = w;
+      sum += w;
+    }
+    if (!changed || sum <= 0) continue;
+    touched++;
+    wgt.setXYZW(i, keep[0] / sum, keep[1] / sum, keep[2] / sum, keep[3] / sum);
+  }
+  if (touched) { wgt.needsUpdate = true; }
+  return touched;
+}
+
 // Resolve an op's selection to a list of components.
 export function selectComps(analysis, sel) {
   if (sel.comp !== undefined && sel.bone === undefined) {
@@ -130,6 +222,13 @@ export function applySkinOps(mesh, ops, analysis = null) {
   const bones = mesh.skeleton.bones;
   let applied = 0, total = 0;
   for (const op of ops) {
+    // global weight-hygiene op: strip far-hierarchy minority weights
+    // ({"purgeFar": true, "minDist"?, "minW"?}) — see purgeFarWeights
+    if (op.purgeFar) {
+      const n = purgeFarWeights(mesh, { minDist: op.minDist, minW: op.minW });
+      if (n) { applied++; total += n; }
+      continue;
+    }
     const ti = bones.findIndex((b) => b.name === op.to);
     if (ti < 0) { console.warn('skinOps: unknown target bone', op.to); continue; }
     const targets = selectComps(a, op.sel || {});
