@@ -169,3 +169,11 @@ retrying the same model's rig. Credits: ~895 left.
 
 ALL 17 mechs now have integrated, verified GLBs (no procedural fallbacks
 except by ?debug default / missing-file safety).
+
+## Promotions (2026-07-19)
+
+- nova + tempest: P1 alternates PROMOTED to primary (user judgment) — old H3
+  GLBs deleted, alt intake became the primary manifest entry, files renamed
+  to mech_nova.glb / mech_tempest.glb (3.3/3.0 MB). No .alt remains for them.
+- aegis_alt facing fixed: authored diagonally → yawOffset 315 (glbview sweep).
+- Alternates still pending judgment: aegis (spear/banner), jerry (spider-crab).
