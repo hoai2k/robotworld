@@ -125,6 +125,14 @@ export const GLB_ANIM = {
   frogger: {},   // four-arm — lower arms are procedural-only joints
   jerry: {},     // crustacean — antennae/struts are procedural-only joints
   nullbot: {},   // humanoid — direct map (glitch strobe is material-only)
+
+  // ---- model VARIANTS (manifest entry.profileKey) ----
+  // AEGIS ALT (P1) — carries a great SPEAR in the right hand and banner
+  // panels instead of a forearm shield, so it must NOT inherit base aegis's
+  // shield-forward guard hook (raising that arm would hoist a banner).
+  // Identity for now; a javelin-style ranged reinterpretation belongs here
+  // if this model is promoted.
+  aegis_alt: {},
 };
 
 export function profileFor(id) { return GLB_ANIM[id] || null; }

@@ -44,8 +44,22 @@
       "handR": "bone_44"
     },
     "muzzles": {
-      "R": { "bone": "head", "offset": [-1.9, 0.0, 0] },
-      "L": { "bone": "head", "offset": [-1.9, 0.0, 0] }
+      "R": {
+        "bone": "head",
+        "offset": [
+          -1.9,
+          0.0,
+          0
+        ]
+      },
+      "L": {
+        "bone": "head",
+        "offset": [
+          -1.9,
+          0.0,
+          0
+        ]
+      }
     }
   },
   "titanus": {
@@ -157,6 +171,28 @@
       "thighL": "tripo1_Left_Limb_0",
       "kneeL": "tripo1_Left_Limb_1",
       "ankleL": "tripo1_Left_Limb_2"
+    },
+    "alt": {
+      "url": "models/mech_nova_alt.glb",
+      "bindPose": "native",
+      "yawOffset": 270,
+      "boneOverrides": {
+        "hips": "tripoRoot",
+        "torso": "tripo1_Left_Limb_1",
+        "head": "tripoHead_1",
+        "shoulderR": "bone_17",
+        "elbowR": "bone_18",
+        "handR": "bone_19",
+        "shoulderL": "tripo1_Left_Limb_4",
+        "elbowL": "tripo1_Left_Limb_5",
+        "handL": "bone_26",
+        "thighR": "tripo1_Right_Limb_0",
+        "kneeR": "tripo1_Right_Limb_1",
+        "ankleR": "tripo1_Right_Limb_2",
+        "thighL": "tripo0_Left_Limb_1",
+        "kneeL": "tripo0_Left_Limb_2",
+        "ankleL": "tripo0_Left_Limb_3"
+      }
     }
   },
   "rhino": {
@@ -247,8 +283,22 @@
       "ankleR": "bone_18"
     },
     "muzzles": {
-      "R": { "joint": "torso", "offset": [1.5, 2.05, 2.1] },
-      "L": { "joint": "torso", "offset": [-1.5, 2.05, 2.1] }
+      "R": {
+        "joint": "torso",
+        "offset": [
+          1.5,
+          2.05,
+          2.1
+        ]
+      },
+      "L": {
+        "joint": "torso",
+        "offset": [
+          -1.5,
+          2.05,
+          2.1
+        ]
+      }
     }
   },
   "frogger": {
@@ -274,8 +324,22 @@
     },
     "heightScale": 1.05,
     "muzzles": {
-      "R": { "joint": "handR", "offset": [0, -0.4, 0.85] },
-      "L": { "joint": "handL", "offset": [0, -0.4, 0.85] }
+      "R": {
+        "joint": "handR",
+        "offset": [
+          0,
+          -0.4,
+          0.85
+        ]
+      },
+      "L": {
+        "joint": "handL",
+        "offset": [
+          0,
+          -0.4,
+          0.85
+        ]
+      }
     }
   },
   "inferno": {
@@ -298,8 +362,22 @@
     },
     "heightScale": 1.05,
     "muzzles": {
-      "R": { "joint": "handR", "offset": [0, -0.5, 1.05] },
-      "L": { "joint": "handL", "offset": [0, -0.5, 1.05] }
+      "R": {
+        "joint": "handR",
+        "offset": [
+          0,
+          -0.5,
+          1.05
+        ]
+      },
+      "L": {
+        "joint": "handL",
+        "offset": [
+          0,
+          -0.5,
+          1.05
+        ]
+      }
     }
   },
   "aegis": {
@@ -323,7 +401,30 @@
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
     },
-    "heightScale": 1.1
+    "heightScale": 1.1,
+    "alt": {
+      "url": "models/mech_aegis_alt.glb",
+      "bindPose": "native",
+      "yawOffset": 0,
+      "boneOverrides": {
+        "hips": "tripo0_Left_Limb_0",
+        "torso": "tripo0_Left_Limb_2",
+        "head": "tripoHead_1",
+        "shoulderR": "tripo0_Left_Limb_3",
+        "elbowR": "tripo0_Left_Limb_4",
+        "handR": "tripo0_Left_Limb_5",
+        "shoulderL": "bone_34",
+        "elbowL": "bone_36",
+        "handL": "bone_38",
+        "thighL": "bone_2",
+        "kneeL": "bone_3",
+        "ankleL": "bone_4",
+        "thighR": "bone_5",
+        "kneeR": "bone_6",
+        "ankleR": "bone_7"
+      },
+      "profileKey": "aegis_alt"
+    }
   },
   "jerry": {
     "url": "models/mech_jerry.glb",
@@ -342,7 +443,29 @@
       "thighL": "bone_34",
       "thighR": "bone_33"
     },
-    "heightScale": 0.95
+    "heightScale": 0.95,
+    "alt": {
+      "url": "models/mech_jerry_alt.glb",
+      "bindPose": "native",
+      "yawOffset": 270,
+      "boneOverrides": {
+        "hips": "tripoRoot",
+        "torso": "tripo1_Right_Limb_0",
+        "head": "tripoHead_0",
+        "shoulderR": "bone_34",
+        "elbowR": "bone_35",
+        "handR": "bone_36",
+        "shoulderL": "tripo1_Right_Limb_1",
+        "elbowL": "tripo1_Right_Limb_2",
+        "handL": "tripo1_Right_Limb_3",
+        "thighR": "tripo0_Right_Limb_2",
+        "kneeR": "tripo0_Right_Limb_3",
+        "ankleR": "tripo0_Right_Limb_4",
+        "thighL": "tripo1_Left_Limb_1",
+        "kneeL": "tripo1_Left_Limb_2",
+        "ankleL": "tripo1_Left_Limb_3"
+      }
+    }
   },
   "tempest": {
     "url": "models/mech_tempest.glb",
@@ -365,7 +488,29 @@
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
     },
-    "heightScale": 1.05
+    "heightScale": 1.05,
+    "alt": {
+      "url": "models/mech_tempest_alt.glb",
+      "bindPose": "native",
+      "yawOffset": 270,
+      "boneOverrides": {
+        "hips": "tripoRoot",
+        "torso": "tripo0_Right_Limb_1",
+        "head": "tripoHead_0",
+        "shoulderR": "tripo0_Right_Limb_3",
+        "elbowR": "tripo0_Right_Limb_4",
+        "handR": "tripo0_Right_Limb_5",
+        "shoulderL": "tripoSpine_1",
+        "elbowL": "bone_27",
+        "handL": "bone_28",
+        "thighR": "tripo0_Left_Limb_0",
+        "kneeR": "tripo0_Left_Limb_1",
+        "ankleR": "tripo0_Left_Limb_2",
+        "thighL": "tripo1_Left_Limb_0",
+        "kneeL": "tripo1_Left_Limb_1",
+        "ankleL": "tripo1_Left_Limb_2"
+      }
+    }
   },
   "vulcan": {
     "url": "models/mech_vulcan.glb",
