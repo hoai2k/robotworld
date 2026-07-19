@@ -365,21 +365,89 @@
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_0",
-      "head": "tripoHead_0",
+      "head": "bone_5",
       "shoulderL": "tripo0_Left_Limb_0",
       "elbowL": "tripo0_Left_Limb_1",
       "handL": "tripo0_Left_Limb_2",
-      "shoulderR": "bone_43",
-      "elbowR": "bone_44",
-      "handR": "bone_45",
-      "thighL": "tripo1_Left_Limb_0",
-      "kneeL": "tripo1_Left_Limb_1",
-      "ankleL": "tripo1_Left_Limb_2",
-      "thighR": "tripo0_Right_Limb_0",
-      "kneeR": "tripo0_Right_Limb_1",
-      "ankleR": "tripo0_Right_Limb_2"
+      "shoulderR": "bone_36",
+      "elbowR": "bone_37",
+      "handR": "bone_38",
+      "thighL": "tripo0_Right_Limb_0",
+      "kneeL": "tripo0_Right_Limb_1",
+      "ankleL": "tripo0_Right_Limb_2",
+      "thighR": "tripo1_Left_Limb_0",
+      "kneeR": "tripo1_Left_Limb_1",
+      "ankleR": "tripo1_Left_Limb_2"
     },
-    "heightScale": 1.1
+    "heightScale": 1.1,
+    "skinOps": [
+      {
+        "sel": {
+          "comp": 8
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 14
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 38
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 12
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 77
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 89
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 124
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 162
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 178
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 208
+        },
+        "to": "tripoSpine_0"
+      },
+      {
+        "sel": {
+          "comp": 11
+        },
+        "to": "tripoSpine_0"
+      }
+    ]
   },
   "jerry": {
     "url": "models/mech_jerry.glb",
