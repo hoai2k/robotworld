@@ -92,7 +92,7 @@ export async function runShowcase(which) {
         if (!a?.isObject3D) continue;
         if (name === 'muzzleR') markerAt(a, 0xff2020);
         else if (name === 'muzzleL') markerAt(a, 0x2060ff);
-        else if (/muzzle|barrel|cannon|spout|nozzle|mouth/i.test(name)) markerAt(a, 0x20ff40);
+        else if (/muzzle|barrel|cannon|spout|nozzle|mouth|pod/i.test(name)) markerAt(a, 0x20ff40);
       }
     }
   }

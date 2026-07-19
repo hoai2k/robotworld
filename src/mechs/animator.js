@@ -24,6 +24,11 @@ const ALL_JOINTS = [
 // hardware would pitch skyward, so the wrist rolls back by the raise amount
 // — capped near 90° so fully-raised arms read as hardware STRETCHED along
 // the arm line rather than a broken wrist. At rest (arms down) it's a no-op.
+// PROCEDURAL-ONLY: a GLB's hand hardware is authored aligned to the forearm
+// in its own bind pose, so this counter-pitch (built for the procedural
+// models' +Z hand hardware) just TWISTS the GLB's wrists off the weapon line
+// — Vulcan's gatlings bent downward, Inferno's torches upward. Call sites
+// skip it for isGLB.
 function levelHands(tgt) {
   for (const side of ['L', 'R']) {
     const raise = -(tgt['shoulder' + side][0] + tgt['elbow' + side][0] * 0.5);
@@ -476,14 +481,14 @@ export class Animator {
         this.spinVel = ctx.firing ? Math.min(this.spinVel + dt * 40, 28) : Math.max(this.spinVel - dt * 18, 0);
         if (J.gatlingR) J.gatlingR.rotation.z += this.spinVel * dt;
         if (J.gatlingL) J.gatlingL.rotation.z -= this.spinVel * dt;
-        levelHands(tgt); // gatling pods track the aim line as the arms rise
+        if (!this.mech.isGLB) levelHands(tgt); // gatling pods track the aim line as the arms rise
         break;
       }
       case 'inferno': {
         // the flamethrower bells point along the hand's +Z, so raising the
         // arm tips the torch SKYWARD — the wrist counter-pitch keeps it
         // aimed down the fire line whatever the arms are doing
-        levelHands(tgt);
+        if (!this.mech.isGLB) levelHands(tgt);
         break;
       }
       case 'nova':
@@ -692,7 +697,7 @@ export class Animator {
         tgt.torso[0] -= this._crankyRecoil;
         // raised arms STRETCH the pincers out along the arm line instead
         // of leaving them at the resting 90° wrist crook
-        levelHands(tgt);
+        if (!this.mech.isGLB) levelHands(tgt);
         break;
       }
       case 'jerry': {
