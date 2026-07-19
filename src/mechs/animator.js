@@ -316,18 +316,30 @@ export class Animator {
     }
 
     // ===== duck layer =====
-    // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat
+    // ctx.duck is 0..duckDepth — 1 folds the mech into a full squat.
+    // The hip drop is DERIVED from the leg fold: with the thigh pitched A
+    // from vertical and the shin countertilted (B-A), the leg's vertical
+    // reach shrinks by thigh*(1-cosA) + shin*(1-cos(B-A)) — drop the hips by
+    // exactly that and the feet stay planted instead of punching through the
+    // floor (the old fixed 0.62*hipHeight drop overshot the fold by ~2x).
+    // The head still gets low: deeper knee fold + butt back + a stronger
+    // forward torso lean make up the depth the reduced drop gave back.
     if (ctx.duck > 0.01) {
       const d = ctx.duck;
-      tgt.hipsPos[1] -= d * this.D.hipHeight * 0.62;
-      tgt.thighL[0] += -0.85 * d;
-      tgt.thighR[0] += -0.85 * d;
-      tgt.kneeL[0] += 1.5 * d;
-      tgt.kneeR[0] += 1.5 * d;
-      tgt.ankleL[0] += -0.62 * d;
-      tgt.ankleR[0] += -0.62 * d;
-      tgt.torso[0] += 0.34 * d;
-      tgt.head[0] += -0.3 * d;
+      const A = 1.05 * d;                    // thigh forward of vertical
+      const B = 2.0 * d;                     // knee fold
+      const drop = this.D.thighLen * (1 - Math.cos(A))
+                 + this.D.shinLen * (1 - Math.cos(B - A));
+      tgt.hipsPos[1] -= drop;
+      tgt.hipsPos[2] -= 0.5 * d * this.s;    // butt out a little...
+      tgt.thighL[0] += -A;
+      tgt.thighR[0] += -A;
+      tgt.kneeL[0] += B;
+      tgt.kneeR[0] += B;
+      tgt.ankleL[0] += -(B - A);             // foot flat on the ground
+      tgt.ankleR[0] += -(B - A);
+      tgt.torso[0] += 0.68 * d;              // ...upper body angled forward
+      tgt.head[0] += -0.5 * d;               // eyes stay up
       // arms tuck in, guard up
       tgt.shoulderL[0] += -0.35 * d;
       tgt.shoulderR[0] += -0.35 * d;
