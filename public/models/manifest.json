@@ -395,8 +395,10 @@
       "shoulderR": "bone_25",
       "elbowR": "bone_26",
       "handR": "bone_27",
-      "thighL": "bone_34",
-      "thighR": "bone_33"
+      "thighL": "bone_38",
+      "thighR": "bone_33",
+      "kneeL": "bone_39",
+      "kneeR": "bone_36"
     },
     "heightScale": 0.95
   },
