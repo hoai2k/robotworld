@@ -100,6 +100,10 @@ export async function runPoseTool(startId) {
 
   async function load(id) {
     curId = id;
+    // keep ?mech=<id> in the URL so a reload returns to the same model
+    const u = new URL(location.href);
+    u.searchParams.set('mech', id);
+    history.replaceState(null, '', u);
     gizmo.detach();
     selJoint = null;
     clearGroup(groupL, procMech); clearGroup(groupR, glbMech);
