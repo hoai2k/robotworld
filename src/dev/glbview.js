@@ -35,7 +35,8 @@ export async function runGlbView(id) {
   scene.add(marker);
 
   const manifest = await fetch(new URL('models/manifest.json', document.baseURI)).then((r) => r.json());
-  const entry = manifest[id];
+  // &alt=1 — inspect the mech's ALTERNATE model (manifest[id].alt)
+  const entry = params.get('alt') === '1' ? manifest[id]?.alt : manifest[id];
   if (!entry?.url) { document.title = `no manifest entry for ${id}`; return engine; }
   const gltf = await new Promise((res, rej) =>
     new GLTFLoader().load(new URL(entry.url, document.baseURI).href, res, undefined, rej));

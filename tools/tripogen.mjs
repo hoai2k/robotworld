@@ -76,20 +76,32 @@ async function download(url, outPath) {
 
 async function balance() { return (await api('GET', '/user/balance')).balance; }
 
-async function runMech(id) {
-  const rec = (state[id] ||= {});
-  if (rec.done) { console.log(`${id}: already done (${rec.glb}) — skip`); return; }
+async function runMech(id, { alt = false } = {}) {
+  // --alt: an ALTERNATE model for A/B comparison, generated on the P1 line
+  // ("cleaner structured mesh output" — better limb separation for rigging)
+  // with enable_image_autofix and P1's max face budget. Stored under
+  // mech_<id>_alt.glb / state key <id>_alt; never overwrites the original.
+  const key = alt ? `${id}_alt` : id;
+  const rec = (state[key] ||= {});
+  if (rec.done) { console.log(`${key}: already done (${rec.glb}) — skip`); return; }
   const img = path.join(ROOT, 'docs/canonical', `mech_${id === 'nullbot' ? 'null' : id}.png`);
   if (!fs.existsSync(img)) throw new Error(`${id}: no canonical image at ${img}`);
 
   const bal = await balance();
-  console.log(`\n=== ${id} (balance ${bal})`);
-  if (bal < 60) throw new Error(`balance ${bal} too low for another mech (~55 needed) — stopping`);
+  console.log(`\n=== ${key} (balance ${bal})`);
+  const need = alt ? 80 : 60; // P1 textured 50 + rig 25 vs H3 30 + 25
+  if (bal < need) throw new Error(`balance ${bal} too low for another mech (~${need} needed) — stopping`);
 
   // 1. model generation (reuse a previously successful model task on resume)
   if (!rec.modelTask || rec.modelFailed) {
     const token = await upload(img);
-    const t = await api('POST', '/task', {
+    const t = await api('POST', '/task', alt ? {
+      type: 'image_to_model',
+      file: { type: 'png', file_token: token },
+      model_version: 'P1-20260311',
+      enable_image_autofix: true,
+      face_limit: 20000, // P1's documented maximum (48..20000)
+    } : {
       type: 'image_to_model',
       file: { type: 'png', file_token: token },
       model_version: MODEL_VERSION,
@@ -100,7 +112,7 @@ async function runMech(id) {
     rec.modelTask = t.task_id; rec.modelFailed = false; save();
   }
   let modelDone;
-  try { modelDone = await poll(rec.modelTask, `${id} model`); }
+  try { modelDone = await poll(rec.modelTask, `${key} model`); }
   catch (e) { rec.modelFailed = true; save(); throw e; }
   rec.modelCredits = modelDone.consumed_credit; save();
 
@@ -109,7 +121,7 @@ async function runMech(id) {
     const t = await api('POST', '/task', { type: 'animate_prerigcheck', original_model_task_id: rec.modelTask });
     rec.checkTask = t.task_id; save();
   }
-  const check = await poll(rec.checkTask, `${id} rigcheck`);
+  const check = await poll(rec.checkTask, `${key} rigcheck`);
   rec.riggable = check.output?.riggable ?? null;
   rec.rigType = check.output?.rig_type ?? null; save();
   console.log(`  rigcheck: riggable=${rec.riggable} type=${rec.rigType}`);
@@ -128,17 +140,17 @@ async function runMech(id) {
     rec.rigTask = t.task_id; rec.rigFailed = false; save();
   }
   let rigDone;
-  try { rigDone = await poll(rec.rigTask, `${id} rig`); }
+  try { rigDone = await poll(rec.rigTask, `${key} rig`); }
   catch (e) { rec.rigFailed = true; save(); throw e; }
   rec.rigCredits = rigDone.consumed_credit; save();
 
   // 4. download immediately (urls expire in ~5 minutes)
   const url = rigDone.output?.model ?? rigDone.output?.pbr_model;
   if (!url) throw new Error(`${id}: rig task has no model url: ${JSON.stringify(rigDone.output)}`);
-  const glb = `public/models/mech_${id}.glb`;
+  const glb = `public/models/mech_${key}.glb`;
   const size = await download(url, path.join(ROOT, glb));
   const preview = rigDone.output?.rendered_image ?? modelDone.output?.rendered_image;
-  if (preview) await download(preview, path.join(ROOT, 'tools', `tripo-preview-${id}.png`)).catch(() => {});
+  if (preview) await download(preview, path.join(ROOT, 'tools', `tripo-preview-${key}.png`)).catch(() => {});
   rec.glb = glb; rec.bytes = size; rec.done = true; save();
   console.log(`  DONE ${glb} (${(size / 1e6).toFixed(1)} MB, ${(rec.modelCredits ?? 0) + (rec.rigCredits ?? 0)} credits)`);
 }
@@ -152,18 +164,20 @@ if (args[0] === '--status') {
   process.exit(0);
 }
 if (!KEY) { console.error('set TRIPO_API_KEY'); process.exit(1); }
-if (args[0] === '--redo') { delete state[args[1]]; save(); args.splice(0, 2, args[1] ?? ''); }
+const alt = args.includes('--alt'); // P1-line alternates (mech_<id>_alt.glb)
+if (alt) args.splice(args.indexOf('--alt'), 1);
+if (args[0] === '--redo') { delete state[alt ? `${args[1]}_alt` : args[1]]; save(); args.splice(0, 2, args[1] ?? ''); }
 let ids = args.filter(Boolean);
 if (ids[0] === '--all') {
   ids = fs.readdirSync(path.join(ROOT, 'docs/canonical'))
     .filter((f) => /^mech_[a-z]+\.png$/.test(f)).map((f) => f.match(/^mech_([a-z]+)\.png$/)[1])
     .map((n) => (n === 'null' ? 'nullbot' : n));
 }
-if (!ids.length) { console.error('usage: tripogen.mjs <mechId>... | --all | --status | --redo <id>'); process.exit(1); }
+if (!ids.length) { console.error('usage: tripogen.mjs [--alt] <mechId>... | --all | --status | --redo <id>'); process.exit(1); }
 
 let failed = 0;
 for (const id of ids) {
-  try { await runMech(id); }
+  try { await runMech(id, { alt }); }
   catch (e) {
     console.error(`${id}: FAILED — ${e.message}`); failed++;
     if (/balance .* too low/.test(e.message)) break;
