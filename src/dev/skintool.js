@@ -284,9 +284,16 @@ export async function runSkinTool(startId) {
       row.style.cssText = 'display:flex;gap:6px;align-items:center;margin:2px 0';
       const t = document.createElement('span');
       t.style.cssText = 'flex:1;font:11px ui-monospace,monospace;color:#9fdcc0';
-      const selTxt = op.sel.comp !== undefined && op.sel.bone === undefined
-        ? `#${op.sel.comp}` : `${op.sel.bone}[${op.sel.comp ?? '*'}]`;
-      t.textContent = `${selTxt} → ${op.to}`;
+      // ops without a `sel` are global weight-hygiene passes (purgeFar)
+      if (op.purgeFar) {
+        t.textContent = `purgeFar (strip far-hierarchy weights)`;
+      } else if (!op.sel) {
+        t.textContent = JSON.stringify(op);
+      } else {
+        const selTxt = op.sel.comp !== undefined && op.sel.bone === undefined
+          ? `#${op.sel.comp}` : `${op.sel.bone}[${op.sel.comp ?? '*'}]`;
+        t.textContent = `${selTxt} → ${op.to}`;
+      }
       const x = document.createElement('button');
       x.textContent = '✕';
       x.style.cssText = 'background:#3a2027;color:#ff9c9c;border:1px solid #553;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 6px';
