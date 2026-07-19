@@ -42,6 +42,10 @@
       "shoulderR": "bone_41",
       "elbowR": "bone_43",
       "handR": "bone_44"
+    },
+    "muzzles": {
+      "R": { "bone": "head", "offset": [-1.9, 0.0, 0] },
+      "L": { "bone": "head", "offset": [-1.9, 0.0, 0] }
     }
   },
   "titanus": {
@@ -241,6 +245,10 @@
       "thighR": "bone_16",
       "kneeR": "bone_17",
       "ankleR": "bone_18"
+    },
+    "muzzles": {
+      "R": { "joint": "torso", "offset": [1.5, 2.05, 2.1] },
+      "L": { "joint": "torso", "offset": [-1.5, 2.05, 2.1] }
     }
   },
   "frogger": {
@@ -264,7 +272,11 @@
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
     },
-    "heightScale": 1.05
+    "heightScale": 1.05,
+    "muzzles": {
+      "R": { "joint": "handR", "offset": [0, -0.4, 0.85] },
+      "L": { "joint": "handL", "offset": [0, -0.4, 0.85] }
+    }
   },
   "inferno": {
     "url": "models/mech_inferno.glb",
@@ -284,7 +296,11 @@
       "thighR": "bone_40",
       "kneeR": "bone_41"
     },
-    "heightScale": 1.05
+    "heightScale": 1.05,
+    "muzzles": {
+      "R": { "joint": "handR", "offset": [0, -0.5, 1.05] },
+      "L": { "joint": "handL", "offset": [0, -0.5, 1.05] }
+    }
   },
   "aegis": {
     "url": "models/mech_aegis.glb",

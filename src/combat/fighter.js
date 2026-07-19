@@ -1514,6 +1514,8 @@ export class Fighter {
     if (!this.alive) {
       this.applyPhysics(dt, 0, 0);
       this.animator.update(dt, { speed: 0, grounded: this.grounded, dead: true });
+      // GLB: rest the collapsed body flat on the ground (see groundClamp)
+      this.mech.groundClamp?.(this.grounded);
       return;
     }
 
@@ -1932,6 +1934,11 @@ export class Fighter {
       duck: dk,
       charging: this._charging,
     });
+    // GLB: while downed/rising, floor-clamp the prone body so it neither
+    // floats nor sinks (the shared clip's hips-drop is tuned to procedural
+    // bodies); a no-op for upright states and procedural mechs.
+    this.mech.groundClamp?.(
+      this.grounded && (this.state === 'knockdown' || this.state === 'getup'));
     // palm press / strike tracking must land after the pose is applied
     // (direct joint writes before applyPose get clobbered)
     if (this._palmPrey) {
