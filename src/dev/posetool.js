@@ -138,9 +138,20 @@ export async function runPoseTool(startId) {
     if (Array.isArray(world.projectiles)) world.projectiles.length = 0;
 
     const def = ROSTER_BY_ID[id];
-    procF = makeFighter(def, -PAIR_X, { pi: 0 });
+    // LEFT slot: procedural by default; with "Compare Alternate GLB" on, the
+    // mech's alternate model instead (own intake — full independent fighter),
+    // so alt-vs-original can be judged directly side by side.
+    const useAlt = compareAlt && manifest[id]?.alt?.url;
+    if (useAlt) {
+      const altBuilt = await buildGlbForTool(def, null, { alt: true });
+      procF = makeFighter(def, -PAIR_X, { pi: 0, mech: altBuilt.mech });
+    } else {
+      procF = makeFighter(def, -PAIR_X, { pi: 0 });
+    }
     const built = await buildGlbForTool(def);
     glbF = makeFighter(def, PAIR_X, { pi: 1, mech: built.mech });
+    altRow.style.display = manifest[id]?.alt?.url ? 'flex' : 'none';
+    altCheck.checked = !!useAlt;
     // dummies stand just in front (heavy reach + a hair) as attack targets
     const drange = (def.moves?.heavy?.range ?? 4) + 1.5;
     const ddef = applyColorScheme(ROSTER_BY_ID.titanus, 3);
@@ -252,6 +263,23 @@ export async function runPoseTool(startId) {
   for (const id of glbIds) { const o = document.createElement('option'); o.value = id; o.textContent = id; mechSel.appendChild(o); }
   mechSel.value = curId; mechSel.onchange = () => load(mechSel.value);
   panel.appendChild(mechSel);
+
+  // Compare Alternate GLB — only shown for mechs that have manifest[id].alt.
+  // Checked: the LEFT slot shows the alternate model instead of procedural.
+  let compareAlt = params.get('alt') === '1';
+  const altRow = el('label', 'display:none;gap:6px;align-items:center;cursor:pointer;margin-bottom:8px;font-size:11px;color:#cfe0f5');
+  const altCheck = document.createElement('input');
+  altCheck.type = 'checkbox';
+  altRow.appendChild(altCheck);
+  altRow.appendChild(document.createTextNode(' Compare Alternate GLB (left slot)'));
+  altCheck.onchange = () => {
+    compareAlt = altCheck.checked;
+    const u = new URL(location.href);
+    if (compareAlt) u.searchParams.set('alt', '1'); else u.searchParams.delete('alt');
+    history.replaceState(null, '', u);
+    load(curId);
+  };
+  panel.appendChild(altRow);
 
   // mode toggle
   const modeRow = el('div', 'display:flex;gap:6px;margin-bottom:8px');

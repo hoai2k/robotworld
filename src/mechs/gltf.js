@@ -79,11 +79,16 @@ function loadGLTF(url) {
 // Force-build a GLB mech straight from the on-disk manifest, bypassing the
 // ?debug=3d gate. Used by the ?debug=models pose tool. `entryOverride` lets
 // the caller preview edited manifest fields (bindPose/boneCorrections/...)
-// without touching the committed file. Returns the built mech and its entry.
-export async function buildGlbForTool(def, entryOverride) {
+// without touching the committed file. Pass {alt:true} in opts to build the
+// mech's ALTERNATE model: manifest[id].alt is a complete standalone entry
+// (own url/boneOverrides/yaw/size intake — deliberately NOT merged with the
+// primary entry, whose tuning belongs to different geometry). The game itself
+// never reads .alt; a promotion = copying it over the primary entry.
+export async function buildGlbForTool(def, entryOverride, opts = {}) {
   const m = await fetch(new URL('models/manifest.json', document.baseURI))
     .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
-  const entry = { ...(m[def.id] || {}), ...(entryOverride || {}) };
+  const baseEntry = opts.alt ? m[def.id]?.alt : m[def.id];
+  const entry = { ...(baseEntry || {}), ...(entryOverride || {}) };
   if (!entry.url) return { mech: buildMech(def), entry: null };
   const gltf = await loadGLTF(entry.url);
   return { mech: buildGlbMech(def, entry, gltf), entry };
@@ -168,7 +173,10 @@ function buildGlbMech(def, entry, gltf) {
   root.add(container);
 
   const mech = { group: root, joints, anchors: {}, materials: {}, dims: D, def, isGLB: true };
-  mech.animProfile = glbProfileFor(def.id); // reinterpret shared anims for this model
+  // reinterpret shared anims for this model. entry.profileKey lets a model
+  // VARIANT (e.g. an alt whose weapon sits in the other hand) carry its own
+  // glbanim profile ('aegis_alt') instead of the mech's default one.
+  mech.animProfile = glbProfileFor(entry.profileKey || def.id);
 
   // muzzleR / muzzleL (projectile-spawn anchors) are created below, AFTER the
   // boneMap is resolved — they may pin to a real GLB bone, not just a virtual
