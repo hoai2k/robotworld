@@ -17,7 +17,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Engine } from '../core/engine.js';
 import { ROSTER, ROSTER_BY_ID } from '../mechs/roster.js';
-import { loadRawGlbScene, fetchRawManifest } from '../mechs/gltf.js';
+import { loadRawGlbScene, fetchRawManifest, skinnedBox } from '../mechs/gltf.js';
 import { analyzeSkin, applySkinOps } from '../mechs/skinops.js';
 
 export async function runSkinTool(startId) {
@@ -115,18 +115,21 @@ export async function runSkinTool(startId) {
       skinWeight: mesh.geometry.attributes.skinWeight.array.slice(),
     };
     analysis = analyzeSkin(mesh);
-    // normalize display size: ~7 units tall, grounded, facing camera
+    // normalize display size: ~7 units tall, grounded, facing camera.
+    // Measure the RENDERED skin (skinnedBox), not the geometry box — Tripo
+    // rigs carry an Armature offset on the mesh node that skinning cancels,
+    // so a geometry-box ground sinks the rendered mech into the floor.
     holder = new THREE.Group();
     holder.add(raw.scene);
-    const box = new THREE.Box3().setFromObject(raw.scene);
+    if (raw.entry.yawOffset) raw.scene.rotation.y = raw.entry.yawOffset * Math.PI / 180;
+    const box = skinnedBox(raw.scene);
     const size = box.getSize(new THREE.Vector3());
     const k = 7 / Math.max(0.01, size.y);
     holder.scale.setScalar(k);
     holder.updateMatrixWorld(true);
-    const b2 = new THREE.Box3().setFromObject(holder);
+    const b2 = skinnedBox(holder);
     const c = b2.getCenter(new THREE.Vector3());
     holder.position.set(-c.x, -b2.min.y, -c.z);
-    if (raw.entry.yawOffset) raw.scene.rotation.y = raw.entry.yawOffset * Math.PI / 180;
     scene.add(holder);
     texturedMat = mesh.material;
     boneMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.05 });

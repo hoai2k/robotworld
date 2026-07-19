@@ -493,7 +493,7 @@ function proceduralHeadTop(def) {
 // sampled through getVertexPosition (applies bone transforms); plain meshes
 // through their world matrix. Model must not yet be scaled/parented.
 const _v = new THREE.Vector3();
-function skinnedBox(model) {
+export function skinnedBox(model) {
   model.updateMatrixWorld(true); // virtual dispatch → SkinnedMesh refreshes bindMatrixInverse
   const box = new THREE.Box3();
   model.traverse((o) => {
