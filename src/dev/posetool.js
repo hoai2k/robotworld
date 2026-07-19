@@ -77,6 +77,30 @@ export async function runPoseTool(startId) {
   const refGroup = new THREE.Group(); scene.add(refGroup);
   const scratch = blankIntent(), pad = blankIntent(), prev = {};
   let lastAction = 'idle';
+  let dummyPost = 8;   // z distance of the invisible aim targets
+  let idleT = 0;       // real seconds both fighters have been back at rest
+
+  // Actions that translate the mech (lunges, dashes) move it only
+  // TEMPORARILY: positions snap back home 3s after the action settles, or
+  // the moment the next action starts — so the animation can be studied
+  // without chasing the mechs around the stage.
+  function resetPositions() {
+    for (const [f, x] of [[procF, -PAIR_X], [glbF, PAIR_X]]) {
+      if (!f) continue;
+      f.pos.set(x, 0, 0);
+      f.vel.set(0, 0, 0);
+      f.yaw = f.targetYaw = f.torsoYaw = 0;
+      f.grounded = true;
+    }
+    idleT = 0;
+  }
+  function fighterBusy(f) {
+    return !!f && (f.state !== 'normal' || (f.animator.action && !f.animator.action.fadingOut));
+  }
+  function displaced(f, x) {
+    return !!f && (Math.abs(f.pos.x - x) > 0.05 || Math.abs(f.pos.z) > 0.05 || f.pos.y > 0.05 ||
+      Math.abs(f.yaw) > 0.02);
+  }
 
   function blankIntent() {
     return { moveX: 0, moveZ: 0, jump: false, jumpHeld: false, light: false, heavy: false,
@@ -122,9 +146,14 @@ export async function runPoseTool(startId) {
     procDummy = new Fighter(world, ddef, { pos: new THREE.Vector3(-PAIR_X, 0, drange), yaw: Math.PI, playerIndex: 2, isAI: true });
     glbDummy = new Fighter(world, ddef, { pos: new THREE.Vector3(PAIR_X, 0, drange), yaw: Math.PI, playerIndex: 3, isAI: true });
     procDummy.controlsLocked = glbDummy.controlsLocked = true;
+    // the dummies are pure AIM TARGETS: never rendered, pinned to their posts
+    // every frame (dummyPost) so targeted attacks aim as if an enemy stood
+    // just in front — without an enemy cluttering the comparison view
+    procDummy.group.visible = glbDummy.group.visible = false;
+    dummyPost = drange;
     world.fighters.push(procF, glbF, procDummy, glbDummy);
 
-    window.__poseDebug = { proc: procF.mech, glb: glbF.mech };
+    window.__poseDebug = { proc: procF.mech, glb: glbF.mech, procF, glbF, world };
     applyMode();
     buildJointButtons();
     setStatus('idle');
@@ -135,8 +164,6 @@ export async function runPoseTool(startId) {
     const poseMode = mode === 'pose';
     gizmo.visible = poseMode;
     if (!poseMode) gizmo.detach();
-    // dummies + reference guides only make sense in their mode
-    for (const d of [procDummy, glbDummy]) if (d) d.group.visible = !poseMode;
     refGroup.visible = poseMode;
     poseModeUI.style.display = poseMode ? 'block' : 'none';
     actionModeUI.style.display = poseMode ? 'none' : 'block';
@@ -167,11 +194,13 @@ export async function runPoseTool(startId) {
     ['dash', (s) => s.dash], ['ranged', (s) => s.ranged || s.rangedHeld], ['block', (s) => s.block],
   ];
   function detectAction() {
+    let pressed = false;
     for (const [name, test] of ACTION_FROM_INTENT) {
       const now = !!test(scratch), was = !!prev[name];
-      if (now && !was) { lastAction = name; setStatus(name); }
+      if (now && !was) { lastAction = name; setStatus(name); pressed = true; }
       prev[name] = now;
     }
+    return pressed;
   }
 
   // ---- status panel ----
@@ -356,18 +385,34 @@ export async function runPoseTool(startId) {
         else if (k === 'block') scratch.block = true;
         else { scratch[k] = true; scratch[k + 'Held'] = true; }
       }
+      // a NEW action press snaps everyone home first, so the move plays out
+      // from the reference spot (translation from the previous move is temporary)
+      if (detectAction()) resetPositions();
       for (const f of [procF, glbF]) {
         copyIntent(f.intent, scratch);
         f.hp = f.maxHp; f.ult = 1; f.specialCd = 0; f.rangedCd = 0; f.iframes = 0;
         if (f.ammoMax !== undefined) f.ammo = f.ammoMax;
       }
-      for (const d of [procDummy, glbDummy]) {
+      // pin the invisible aim targets to their posts (knockback would drift
+      // them, and a drifted target skews the next attack's aim)
+      for (const [d, x] of [[procDummy, -PAIR_X], [glbDummy, PAIR_X]]) {
         d.hp = d.maxHp;
         if (!d.alive) { d.alive = true; d.hp = d.maxHp; d.state = 'normal'; }
+        d.pos.set(x, 0, dummyPost);
+        d.vel.set(0, 0, 0);
+        d.yaw = d.targetYaw = Math.PI;
       }
       world.update(dt);      // dt pre-scaled by engine.timeScale
       input.endFrame();
-      detectAction();
+      // settle-reset: 3 REAL seconds after both mechs are back at rest (and
+      // something actually moved), snap them home — slow-mo doesn't stretch it
+      const busy = fighterBusy(procF) || fighterBusy(glbF);
+      const moved = displaced(procF, -PAIR_X) || displaced(glbF, PAIR_X);
+      if (busy) idleT = 0;
+      else if (moved) {
+        idleT += dt / (engine.timeScale || 1);
+        if (idleT > 3) resetPositions();
+      } else idleT = 0;
     } else {
       input.endFrame();
     }
