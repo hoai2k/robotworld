@@ -13,6 +13,8 @@ export function runDevMode(params) {
     import('./actiontest.js').then(({ runActionTest }) => runActionTest());
   } else if (debug === 'models') {
     import('./posetool.js').then(({ runPoseTool }) => runPoseTool(params.get('mech') || params.get('id')));
+  } else if (debug === 'skin') {
+    import('./skintool.js').then(({ runSkinTool }) => runSkinTool(params.get('mech') || params.get('id')));
   } else if (params.has('battle') || debug === 'finisher' || params.get('finisherdemo') === '1') {
     import('./battletest.js').then(({ runBattleTest }) => runBattleTest());
   } else if (params.has('ultfx')) {
