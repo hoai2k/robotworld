@@ -86,8 +86,10 @@ export async function runSkinTool(startId) {
   function applyAllOps() {
     // restore pristine weights, then re-apply the FULL ops list against the
     // pristine analysis — matches exactly how the game loader applies them.
-    mesh.geometry.attributes.skinIndex.copyArray(pristine.skinIndex);
-    mesh.geometry.attributes.skinWeight.copyArray(pristine.skinWeight);
+    // (array.set, not copyArray: saurion's GLB packs skin attributes as
+    // InterleavedBufferAttribute, which has no copyArray)
+    mesh.geometry.attributes.skinIndex.array.set(pristine.skinIndex);
+    mesh.geometry.attributes.skinWeight.array.set(pristine.skinWeight);
     mesh.geometry.attributes.skinIndex.needsUpdate = true;
     mesh.geometry.attributes.skinWeight.needsUpdate = true;
     applySkinOps(mesh, ops, analysis);
