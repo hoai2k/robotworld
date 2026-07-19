@@ -146,7 +146,16 @@ export class Animator {
     // relax to the plain rest stance; any motion, shot or action snaps the
     // guard back up. At speed the stance yields to the run cycle (arms are
     // the gait's), and it softens in the air.
-    const cp = this.profile?.combatPose ?? this.mech.def.combatPose;
+    //
+    // GLB mechs are the exception: the service models are AUTHORED in their own
+    // battle-ready stance (that IS the bind pose the retarget offsets capture),
+    // so their native carriage already reads as "guard up". Retargeting the
+    // procedural def.combatPose on top of that fights the bind and can wrench
+    // fused geometry off-axis — e.g. it rolls Viper's forearm energy blades
+    // flat instead of keeping them as clean extensions of the arm. So a GLB
+    // uses its native bind as the ready stance by default; a profile may still
+    // opt into an explicit combatPose (authored for that model) when wanted.
+    const cp = this.profile?.combatPose ?? (this.mech.isGLB ? null : this.mech.def.combatPose);
     if (cp) {
       const still = speed < 0.4 && !this.action && grounded &&
         !ctx.firing && !ctx.hovering && !ctx.charging;
