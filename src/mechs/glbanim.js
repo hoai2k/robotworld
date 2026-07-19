@@ -12,7 +12,17 @@
 // one GLB, at four well-defined seams:
 //
 //   restPose    {joint:[x,y,z]deg}   overrides the default/idle stance
-//   combatPose  {joint:[x,y,z]deg}   overrides the ready-guard stance
+//   combatPose  {joint:[x,y,z]deg}   overrides the ready-guard stance. NOTE:
+//                                     GLB mechs do NOT inherit the procedural
+//                                     def.combatPose — the service models are
+//                                     authored in their own battle-ready stance
+//                                     (that IS their bind pose, which the
+//                                     retarget offsets capture), so their native
+//                                     carriage already reads as "guard up".
+//                                     Retargeting the procedural combatPose on
+//                                     top of that fights the bind and wrenches
+//                                     fused geometry off-axis. Set this only to
+//                                     opt a GLB back into an explicit stance.
 //   mirrorArms  bool                 swap L<->R arm clip tracks (weapon in the
 //                                     opposite hand) — pitch kept, yaw/roll flip
 //   clipOverrides {name: clip}       a bespoke clip for an action that can't be
@@ -75,10 +85,21 @@ export const GLB_ANIM = {
     },
   },
 
-  // VIPER — twin energy blades ride ALONG THE FOREARMS at an angle (not held
-  // in the hands). A hand ROLL/yaw that would swing an in-hand sword instead
-  // twists a forearm blade flat, so during an attack damp hand roll/yaw and
-  // let the shoulder+elbow arc carry the slash. Preserves the swing's intent.
+  // VIPER — twin energy blades are FUSED to the forearms as rigid extensions
+  // of the arm (not held in the hands), so the blade axis IS the forearm axis:
+  // any twist of the forearm/wrist rolls the flat blade off that axis and it
+  // reads as bent. The "blade == forearm extension" invariant is held at two
+  // seams:
+  //   • rest / ready / menus / title & select carriage — the model's own bind
+  //     pose (both blades authored as clean forearm extensions). This holds
+  //     automatically because GLBs no longer inherit the procedural combatPose,
+  //     which used to retarget a wrist roll onto one arm and twist that blade
+  //     flat (the reported title/select bug). No combatPose override needed —
+  //     an empty/absent one already means "native bind = battle pose".
+  //   • attacks — the shared slash/stab/drill clips add a hand ROLL/yaw that
+  //     would swing an in-hand sword but instead twists a forearm blade. Damp
+  //     that roll/yaw and let the shoulder+elbow arc carry the slash, so the
+  //     blade stays speared along the forearm through the whole swing.
   viper: {
     post(anim, dt, ctx, tgt) {
       if (attacking(anim)) {
