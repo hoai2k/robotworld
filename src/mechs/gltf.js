@@ -145,7 +145,7 @@ function buildGlbMech(def, entry, gltf) {
   // verts follow bones and ignore the mesh node's own transform chain
   // (Tripo GLBs carry an Armature offset there), so a geometry-box ground
   // puts the rendered skin meters underground.
-  const targetH = (D.hipHeight + D.torsoH + D.headSize * 2) * (entry.heightScale ?? 1);
+  const targetH = (D.hipHeight + D.torsoH + D.headSize * 2); // heightScale applied once, at the end
   const box = skinnedBox(model);
   const size = box.getSize(new THREE.Vector3());
   let scale = size.y > 0.01 ? targetH / size.y : 1;
@@ -196,7 +196,7 @@ function buildGlbMech(def, entry, gltf) {
   // scales this target for manual per-mech tuning.
   if (boneMap.head && !entry.noHeadMatch) {
     root.updateWorldMatrix(true, true);
-    const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y * (entry.heightScale ?? 1);
+    const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y;
     const glbHeadY = boneMap.head.getWorldPosition(new THREE.Vector3()).y; // feet grounded at 0
     if (glbHeadY > 0.05 && targetHeadY > 0.05) {
       const k = targetHeadY / glbHeadY;
@@ -265,6 +265,23 @@ function buildGlbMech(def, entry, gltf) {
         adapter.hipsScale = 1 / (scale || 1);
       }
     }
+  }
+
+  // Final per-mech size override. The head-match above brings the GLB to the
+  // procedural canonical size (clamped); heightScale is a deliberate artist
+  // tweak on TOP of that (uncapped) — e.g. "make viper 10% bigger". Applied
+  // once, here, so it composes cleanly with the auto-match in every view.
+  const hs = entry.heightScale ?? 1;
+  if (Math.abs(hs - 1) > 1e-3) {
+    scale *= hs;
+    model.scale.setScalar(scale);
+    container.updateMatrixWorld(true);
+    const rb = skinnedBox(container);
+    const c = rb.getCenter(new THREE.Vector3());
+    model.position.x -= c.x;
+    model.position.y -= rb.min.y;
+    model.position.z -= c.z;
+    adapter.hipsScale = 1 / (scale || 1);
   }
   return mech;
 }

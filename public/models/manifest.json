@@ -130,7 +130,8 @@
       "thighR": "bone_48",
       "kneeR": "bone_49",
       "ankleR": "bone_50"
-    }
+    },
+    "heightScale": 1.1
   },
   "nova": {
     "url": "models/mech_nova.glb",
@@ -262,7 +263,8 @@
       "thighR": "tripo0_Right_Limb_0",
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
-    }
+    },
+    "heightScale": 1.05
   },
   "inferno": {
     "url": "models/mech_inferno.glb",
@@ -281,7 +283,8 @@
       "kneeL": "bone_43",
       "thighR": "bone_40",
       "kneeR": "bone_41"
-    }
+    },
+    "heightScale": 1.05
   },
   "aegis": {
     "url": "models/mech_aegis.glb",
@@ -303,7 +306,8 @@
       "thighR": "tripo0_Right_Limb_0",
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
-    }
+    },
+    "heightScale": 1.1
   },
   "jerry": {
     "url": "models/mech_jerry.glb",
@@ -321,7 +325,8 @@
       "handR": "bone_27",
       "thighL": "bone_34",
       "thighR": "bone_33"
-    }
+    },
+    "heightScale": 0.95
   },
   "tempest": {
     "url": "models/mech_tempest.glb",
@@ -343,7 +348,8 @@
       "thighR": "tripo0_Right_Limb_0",
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
-    }
+    },
+    "heightScale": 1.05
   },
   "vulcan": {
     "url": "models/mech_vulcan.glb",
@@ -365,6 +371,7 @@
       "thighR": "tripo0_Right_Limb_0",
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
-    }
+    },
+    "heightScale": 1.1
   }
 }
