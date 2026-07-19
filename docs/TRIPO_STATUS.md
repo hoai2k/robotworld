@@ -152,3 +152,20 @@ Not yet attempted — ~55 credits each; ~1005 credits remain.
 - Verified: aegis guard + battle, viper heavy swing, ace soaks
   (aegis/viper + titanus/saurion in 3d, aegis/viper procedural) zero crashes,
   vite build green.
+
+## Session 5 (2026-07-19): vulcan + tempest regenerated & integrated (17/17!)
+
+Canonical images verified clean (vulcan arms clearly separated, tempest legs
+split). Fresh-seed regens both now PASS prerigcheck (biped) — the original
+seeds' merged-limb geometry was the cause, not the source art.
+- tempest: fresh seed → prerigcheck ok → rig failed once server-side → plain
+  rig RETRY landed. Mapped (yaw -90) + verified idle/walk/soak.
+- vulcan: fresh seed #1 rig failed twice (same model). A SECOND fresh model
+  (--redo) rigged on the first try. Mapped (yaw 270) + verified. Both gatling
+  arms + missile pods read correctly.
+Lesson: when a rig fails right after a passing prerigcheck, retry the rig
+ONCE; if it fails again, regenerate the MODEL (--redo, new seed) rather than
+retrying the same model's rig. Credits: ~895 left.
+
+ALL 17 mechs now have integrated, verified GLBs (no procedural fallbacks
+except by ?debug default / missing-file safety).

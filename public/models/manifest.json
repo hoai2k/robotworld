@@ -344,5 +344,27 @@
       "kneeR": "tripo0_Right_Limb_1",
       "ankleR": "tripo0_Right_Limb_2"
     }
+  },
+  "vulcan": {
+    "url": "models/mech_vulcan.glb",
+    "bindPose": "native",
+    "yawOffset": 270,
+    "boneOverrides": {
+      "hips": "tripoRoot",
+      "torso": "tripo1_Left_Limb_1",
+      "head": "tripoHead_0",
+      "shoulderL": "bone_5",
+      "elbowL": "bone_6",
+      "handL": "bone_7",
+      "shoulderR": "tripo1_Left_Limb_3",
+      "elbowR": "tripo1_Left_Limb_4",
+      "handR": "tripo1_Left_Limb_5",
+      "thighL": "tripo0_Left_Limb_0",
+      "kneeL": "tripo0_Left_Limb_1",
+      "ankleL": "tripo0_Left_Limb_2",
+      "thighR": "tripo0_Right_Limb_0",
+      "kneeR": "tripo0_Right_Limb_1",
+      "ankleR": "tripo0_Right_Limb_2"
+    }
   }
 }
