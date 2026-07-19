@@ -37,6 +37,7 @@ const ids = await page.evaluate(async (only) => {
 }, only);
 
 const allSuggestions = {};
+const allRows = {};
 for (const id of ids) {
   await page.goto(`${base}/?debug=skin&id=${id}`, { waitUntil: 'networkidle' });
   // poll until the workbench has the mesh (saurion's 10MB GLB loads slowly)
@@ -182,6 +183,7 @@ for (const id of ids) {
   // (b) island owned by an UNMAPPED bone voting for a MAPPED one — unmapped
   // bones never animate, so their geometry freezes mid-air when the mapped
   // limb moves; riding the mapped bone is strictly better whatever its size.
+  allRows[id] = report.rows;
   const auto = report.rows.filter((r) =>
     (r.voteShare >= 0.6 && r.smallShare <= 0.4) ||
     (!r.ownerMapped && r.toMapped && r.voteShare >= 0.6));
@@ -197,5 +199,11 @@ for (const id of ids) {
 if (Object.keys(allSuggestions).length) {
   console.log('\n===== paste-ready suggestions =====');
   console.log(JSON.stringify(allSuggestions, null, 1));
+}
+// full structured dump for downstream filtering (env STRETCH_JSON=path)
+if (process.env.STRETCH_JSON) {
+  const fs = await import('fs');
+  fs.writeFileSync(process.env.STRETCH_JSON, JSON.stringify(allRows, null, 1));
+  console.log('rows written to', process.env.STRETCH_JSON);
 }
 await browser.close();
