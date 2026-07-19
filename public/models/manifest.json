@@ -212,6 +212,60 @@
       },
       {
         "purgeFar": true
+      },
+      {
+        "sel": {
+          "comp": 85
+        },
+        "to": "bone_8"
+      },
+      {
+        "sel": {
+          "comp": 78
+        },
+        "to": "bone_8"
+      },
+      {
+        "sel": {
+          "comp": 84
+        },
+        "to": "tripo0_Right_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 49
+        },
+        "to": "tripo0_Right_Limb_4"
+      },
+      {
+        "sel": {
+          "comp": 124
+        },
+        "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 168
+        },
+        "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 167
+        },
+        "to": "bone_8"
+      },
+      {
+        "sel": {
+          "comp": 99
+        },
+        "to": "bone_8"
+      },
+      {
+        "sel": {
+          "comp": 126
+        },
+        "to": "bone_8"
       }
     ]
   },
