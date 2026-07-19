@@ -232,6 +232,32 @@ function buildGlbMech(def, entry, gltf) {
   mech.postAnimate = () => { adapter.sync(); mech.postDress?.(); };
   mech.boneMap = boneMap;   // pose tool reaches bones by virtual-joint name
   mech.adapter = adapter;
+
+  // Second-pass head-height match. The bind-time match above aligns the head
+  // at BIND, but retargeting into the rest/combat pose shifts the head bone
+  // (spine bend, guard). Pose one real frame and correct the residual so the
+  // RENDERED head sits exactly at the procedural head-joint height — the SAME
+  // canonical size in every view (pose tool, showcase, battle, menus).
+  if (boneMap.head && !entry.noHeadMatch) {
+    mech.premadeAnimator.update(1 / 60, { grounded: true, alwaysReady: true }); // applies pose + postAnimate
+    root.updateWorldMatrix(true, true);
+    const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y;
+    const haveHeadY = boneMap.head.getWorldPosition(new THREE.Vector3()).y;
+    if (haveHeadY > 0.05 && targetHeadY > 0.05) {
+      const k = targetHeadY / haveHeadY;
+      if (Math.abs(k - 1) > 0.005) {
+        scale *= k;
+        model.scale.setScalar(scale);
+        container.updateMatrixWorld(true);
+        const rb = skinnedBox(container);
+        const c = rb.getCenter(new THREE.Vector3());
+        model.position.x -= c.x;
+        model.position.y -= rb.min.y;
+        model.position.z -= c.z;
+        adapter.hipsScale = 1 / (scale || 1);
+      }
+    }
+  }
   return mech;
 }
 

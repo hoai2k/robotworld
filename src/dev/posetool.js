@@ -36,6 +36,8 @@ export async function runPoseTool(startId) {
     new THREE.MeshStandardMaterial({ color: 0x353a44, roughness: 0.96 }));
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
+  // 1-unit ground grid so the canonical size is legible at a glance
+  scene.add(new THREE.GridHelper(40, 40, 0x38445a, 0x222c3a));
 
   camera.position.set(0, 6.5, 20);
   const orbit = new OrbitControls(camera, renderer.domElement);
@@ -60,6 +62,36 @@ export async function runPoseTool(startId) {
   const base = {};        // jname -> { q: Quaternion, p: Vector3 } captured at rest
   const groupL = new THREE.Group(); scene.add(groupL); // procedural (left)
   const groupR = new THREE.Group(); scene.add(groupR); // GLB (right)
+  const refGroup = new THREE.Group(); scene.add(refGroup); // size reference guides
+
+  // draw a head-height guide line spanning both mechs + a numeric readout, so
+  // the GLB's canonical rendered size (head matched to procedural) is obvious
+  // and identical to what appears in showcase/battle/menus.
+  function drawSizeRef() {
+    while (refGroup.children.length) {
+      const c = refGroup.children.pop();
+      c.geometry?.dispose?.(); c.material?.dispose?.();
+    }
+    if (!procMech?.joints?.head) return;
+    const procHeadY = procMech.joints.head.getWorldPosition(new THREE.Vector3()).y;
+    const glbHeadY = glbMech?.boneMap?.head
+      ? glbMech.boneMap.head.getWorldPosition(new THREE.Vector3()).y : procHeadY;
+    const line = new THREE.Line(
+      new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(-9, procHeadY, 0), new THREE.Vector3(9, procHeadY, 0)]),
+      new THREE.LineBasicMaterial({ color: 0x48b0ff }));
+    refGroup.add(line);
+    const dot = (x, y, col) => {
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.09, 10, 8),
+        new THREE.MeshBasicMaterial({ color: col }));
+      m.position.set(x, y, 0); refGroup.add(m);
+    };
+    dot(-5.5, procHeadY, 0x8fd8ff);   // procedural head
+    dot(5.5, glbHeadY, 0xffd060);     // GLB head
+    sizeReadout = `head height  proc ${procHeadY.toFixed(2)}  ·  glb ${glbHeadY.toFixed(2)}`
+      + `  (Δ ${(glbHeadY - procHeadY >= 0 ? '+' : '') + (glbHeadY - procHeadY).toFixed(2)})`;
+  }
+  let sizeReadout = '';
 
   function clearGroup(g, mech) {
     if (mech) g.remove(mech.group);
@@ -95,8 +127,10 @@ export async function runPoseTool(startId) {
         base[j] = { q: b.quaternion.clone(), p: b.position.clone() };
       }
     }
+    window.__poseDebug = { proc: procMech, glb: glbMech };
+    drawSizeRef();
     buildJointButtons();
-    setStatus(`${id.toUpperCase()} — ${glbMech.isGLB ? 'GLB loaded' : 'NO GLB (procedural only)'}`);
+    setStatus(`${id.toUpperCase()} — ${glbMech.isGLB ? 'GLB loaded' : 'NO GLB (procedural only)'}\n${sizeReadout}`);
   }
 
   // ---- UI ----
@@ -187,7 +221,7 @@ export async function runPoseTool(startId) {
   panel.appendChild(out);
 
   const status = document.createElement('div');
-  status.style.cssText = 'margin-top:8px;color:#9fb2c8;font-size:11px;min-height:2.4em';
+  status.style.cssText = 'margin-top:8px;color:#9fb2c8;font-size:11px;min-height:2.4em;white-space:pre-line';
   panel.appendChild(status);
   function setStatus(s) { status.textContent = s; }
 
