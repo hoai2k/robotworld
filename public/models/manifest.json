@@ -1207,6 +1207,12 @@
       },
       {
         "purgeFar": true
+      },
+      {
+        "sel": {
+          "comp": 26
+        },
+        "to": "tripoRoot"
       }
     ]
   },
