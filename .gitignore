@@ -4,3 +4,6 @@ dist/
 
 # Desktop build output
 release/
+
+# scratch GLB rigging diagnostics (local only)
+/_*.mjs
