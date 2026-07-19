@@ -2235,3 +2235,18 @@ controllers via Gamepad API), AI opponents.
   fists land where combat ranges/muzzle anchors expect.
 - Verified: idle (hands at mid-thigh, no seam tearing), light1 full
   extension, walk, uptown battle; ace soak crash-free; build green.
+## Phase 14o — COLOSSAL FORM camera lags the size change (user request, 2026-07-19)
+
+- Colossus' ult camera now lets the SCALE read before the reframe: the
+  zoom (camera distance only) eases at a slow rate (1.5) while a giant is
+  in frame, so on GROW he becomes huge first and the camera pulls out a
+  clear beat later, and on SHRINK he shrinks first and the camera follows
+  in after. The look target still rides up with him instantly so he stays
+  framed. Applied in both camera paths: combined (solo/spectator) via a
+  giant-aware `distRate`, and split via a per-viewport smoothed `ch.dist`
+  (near-instant at 12 when not a giant, so normal framing is unchanged).
+- Verified: deterministic step test (grow — mech full ~1.4s vs camera 90%
+  out ~later; shrink — mech back to normal ~0.9s before the camera zooms
+  back in); live frames confirm the tight looming-giant read mid-grow and
+  a clean practical wide shot once settled; colossus ace soak crash-free;
+  build green.

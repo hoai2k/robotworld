@@ -298,7 +298,12 @@ export class CameraSystem {
     // (A COLOSSAL-FORM giant in frame scales the whole envelope out.)
     if (solo) wantDist = clamp(wantDist * 0.58, 22 * giantF, 34 * giantF);
     if (!this.init) this.dist = wantDist;
-    this.dist = damp(this.dist, wantDist, 3, dt);
+    // COLOSSAL FORM: while a giant is in frame, ease the ZOOM slowly so the
+    // size change lands FIRST and the camera pulls out (grow) or back in
+    // (shrink) a clear beat later — the scale reads before the reframe. The
+    // look target still rides up with him instantly, so he stays in shot.
+    const distRate = giantF > 1.03 ? 1.5 : 3;
+    this.dist = damp(this.dist, wantDist, distRate, dt);
 
     // Manual look offsets hold while dragging, then ease back to the auto view.
     if (this.lookCd > 0) this.lookCd -= dt;
@@ -433,11 +438,16 @@ export class CameraSystem {
       // stacked viewports are short — pull back a touch so mechs fit.
       // A COLOSSAL-FORM giant needs the whole chase envelope scaled out.
       const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
-      const dist = (vp.h < 0.75 && vp.w > 0.75 ? 25 : 22) * gf;
+      const baseDist = (vp.h < 0.75 && vp.w > 0.75 ? 25 : 22) * gf;
+      // COLOSSAL FORM: ease the ZOOM behind the actual size change (grow →
+      // pull out after; shrink → move in after) while the mech-follow stays
+      // tight. Near-instant when not a giant, so normal framing is unchanged.
+      if (ch.dist === undefined) ch.dist = baseDist;
+      ch.dist = damp(ch.dist, baseDist, gf > 1.03 ? 1.5 : 12, dt);
       const el = ch.el;
       _v.set(
         Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)
-      ).multiplyScalar(dist);
+      ).multiplyScalar(ch.dist);
       const wantPos = _v.add(f.pos).add(new THREE.Vector3(0, 2 * gf, 0));
       // the chase cam tracks ONLY its own mech — opponents never pull the
       // frame; use the right stick to look around
