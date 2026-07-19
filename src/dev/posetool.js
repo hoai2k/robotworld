@@ -16,7 +16,7 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { Engine } from '../core/engine.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
-import { buildGlbForTool, fetchRawManifest } from '../mechs/gltf.js';
+import { buildGlbForTool, fetchRawManifest, measureHeadTop } from '../mechs/gltf.js';
 import { ROSTER, ROSTER_BY_ID } from '../mechs/roster.js';
 import { JOINT_ORDER } from '../mechs/rigadapter.js';
 
@@ -73,9 +73,10 @@ export async function runPoseTool(startId) {
       c.geometry?.dispose?.(); c.material?.dispose?.();
     }
     if (!procMech?.joints?.head) return;
-    const procHeadY = procMech.joints.head.getWorldPosition(new THREE.Vector3()).y;
-    const glbHeadY = glbMech?.boneMap?.head
-      ? glbMech.boneMap.head.getWorldPosition(new THREE.Vector3()).y : procHeadY;
+    // guide at the VISIBLE head-top of each (measured from geometry), which is
+    // what the GLB is sized to match — so the line lands on both actual heads
+    const procHeadY = measureHeadTop(procMech);
+    const glbHeadY = glbMech?.isGLB ? measureHeadTop(glbMech) : procHeadY;
     const line = new THREE.Line(
       new THREE.BufferGeometry().setFromPoints([
         new THREE.Vector3(-9, procHeadY, 0), new THREE.Vector3(9, procHeadY, 0)]),
@@ -86,9 +87,9 @@ export async function runPoseTool(startId) {
         new THREE.MeshBasicMaterial({ color: col }));
       m.position.set(x, y, 0); refGroup.add(m);
     };
-    dot(-5.5, procHeadY, 0x8fd8ff);   // procedural head
-    dot(5.5, glbHeadY, 0xffd060);     // GLB head
-    sizeReadout = `head height  proc ${procHeadY.toFixed(2)}  ·  glb ${glbHeadY.toFixed(2)}`
+    dot(-5.5, procHeadY, 0x8fd8ff);   // procedural head-top
+    dot(5.5, glbHeadY, 0xffd060);     // GLB head-top
+    sizeReadout = `head top  proc ${procHeadY.toFixed(2)}  ·  glb ${glbHeadY.toFixed(2)}`
       + `  (Δ ${(glbHeadY - procHeadY >= 0 ? '+' : '') + (glbHeadY - procHeadY).toFixed(2)})`;
   }
   let sizeReadout = '';
@@ -105,19 +106,19 @@ export async function runPoseTool(startId) {
     for (const k of Object.keys(base)) delete base[k];
 
     const def = ROSTER_BY_ID[id];
-    // LEFT: procedural, frozen at rest
+    // LEFT: procedural, frozen at the deterministic neutral rest (same pose
+    // the sizing was measured against — so the guide line lands truthfully)
     procMech = buildMech(def);
     procMech.animator = new Animator(procMech);
-    procMech.animator.update(0.016, REST_CTX);
+    procMech.animator.poseStatic();
     procMech.group.position.set(-5.5, 0, 0);
     groupL.add(procMech.group);
 
-    // RIGHT: GLB (forced, ignores ?debug gate), frozen at rest
+    // RIGHT: GLB (forced, ignores ?debug gate), same neutral rest
     const built = await buildGlbForTool(def);
     glbMech = built.mech;
     glbMech.animator = glbMech.premadeAnimator || new Animator(glbMech);
-    glbMech.animator.update(0.016, REST_CTX);
-    glbMech.postAnimate?.();
+    glbMech.animator.poseStatic();
     glbMech.group.position.set(5.5, 0, 0);
     groupR.add(glbMech.group);
 
