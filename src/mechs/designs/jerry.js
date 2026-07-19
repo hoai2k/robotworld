@@ -261,3 +261,53 @@ export function jerry(A, D, J, anchors, def) {
 
   anchors.core = addAnchor(J.torso, 0, chH * 0.4, W * 0.5);
 }
+
+// ---- GLB dressing: back-leg connector posts --------------------------------
+// The Tripo auto-rig split Jerry's back legs across sibling bone chains, so
+// the skinned segments pull apart as the legs animate (the lower back-right
+// pieces even hang off the BODY, not the leg). The manifest re-maps them to
+// the virtual knee so they FOLLOW the leg again, but visible seams remain —
+// bridge each gap with a black post (same trick as the procedural shoulder
+// axles bridging chest-to-arm), re-aimed every frame between its two bones.
+const _pa = new THREE.Vector3();
+const _pb = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);
+const _dir = new THREE.Vector3();
+export function jerryGlbDress(mech) {
+  const s = mech.dims.scale;
+  const mat = new THREE.MeshStandardMaterial({ color: 0x14161a, roughness: 0.6, metalness: 0.7 });
+  // sanitized-name pairs to bridge: [upper bone, lower bone]
+  const PAIRS = [
+    ['bone_33', 'bone_36'],   // back-right: leg -> orphaned lower pieces
+    ['bone_38', 'bone_39'],   // back-left: thigh -> shin segment
+  ];
+  const san = (n) => (n || '').replace(/[\s.:/\[\]]/g, '').replace(/[^\w-]/g, '');
+  const posts = PAIRS.map(() => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * s, 0.07 * s, 1, 8), mat);
+    m.castShadow = true;
+    mech.group.add(m);
+    return m;
+  });
+  let bones = null; // lazily resolved — boneMap doesn't exist at dress time
+  mech.postDress = () => {
+    if (!bones) {
+      const byName = new Map();
+      mech.group.traverse((o) => { if (o.isBone) byName.set(san(o.name), o); });
+      bones = PAIRS.map(([a, b]) => [byName.get(a), byName.get(b)]);
+    }
+    for (let i = 0; i < posts.length; i++) {
+      const [a, b] = bones[i];
+      const post = posts[i];
+      if (!a || !b) { post.visible = false; continue; }
+      a.getWorldPosition(_pa);
+      b.getWorldPosition(_pb);
+      mech.group.worldToLocal(_pa);
+      mech.group.worldToLocal(_pb);
+      const len = _pa.distanceTo(_pb);
+      post.visible = len > 0.05;
+      post.position.copy(_pa).add(_pb).multiplyScalar(0.5);
+      post.scale.set(1, Math.max(0.001, len), 1);
+      post.quaternion.setFromUnitVectors(_up, _dir.copy(_pb).sub(_pa).normalize());
+    }
+  };
+}
