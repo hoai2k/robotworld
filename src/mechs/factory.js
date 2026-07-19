@@ -305,6 +305,11 @@ export function addAnchor(parent, x, y, z) {
 // safely), and strips lights / charge shells / FX sprites — microseconds,
 // not hundreds of milliseconds.
 export function cloneMech(src) {
+  // GLB bodies are SkinnedMeshes — a plain Object3D.clone(true) shares the
+  // skeleton and leaves the copy welded to the source's bones (invisible /
+  // torn). buildGlbMech stamps a cloneGLB() that rebuilds a correct, fully
+  // rigged copy from the cached gltf; use it (SAURION's raptor pack on GLBs).
+  if (src.isGLB && src.cloneGLB) return src.cloneGLB();
   // stamp anchor names on the source once so the clone can re-find them
   for (const [k, a] of Object.entries(src.anchors)) {
     if (!a.name) a.name = '__anchor__' + k;

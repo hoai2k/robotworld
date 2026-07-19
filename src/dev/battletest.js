@@ -13,8 +13,9 @@ import { Input } from '../game/input.js';
 import { CameraSystem } from '../game/camera.js';
 import { pick } from '../core/utils.js';
 import { CONFIG } from '../core/config.js';
+import { createMech } from '../mechs/gltf.js';
 
-export function runBattleTest() {
+export async function runBattleTest() {
   const params = new URLSearchParams(location.search);
   const themeId = params.get('battle') || 'neon';
   const theme = THEMES_BY_ID[themeId] || THEMES[0];
@@ -42,12 +43,17 @@ export function runBattleTest() {
   const spawns = arena.spawnPoints(ids.length);
   const fighters = [];
   const ais = [];
-  ids.forEach((id, i) => {
-    // &c1..c4 pick a color scheme (0-3) per fighter for testing
-    const def = applyColorScheme(
-      ROSTER_BY_ID[id] || pick(ROSTER), +params.get('c' + (i + 1)) || 0);
+  // &c1..c4 pick a color scheme (0-3) per fighter for testing
+  const defs = ids.map((id, i) => applyColorScheme(
+    ROSTER_BY_ID[id] || pick(ROSTER), +params.get('c' + (i + 1)) || 0));
+  // Build through createMech so ?debug=3d exercises the SAME GLB models the
+  // real match ships (createMech falls back to procedural off-3d or on load
+  // failure), letting the soak/screenshot harness reproduce GLB-only bugs.
+  const builtMechs = await Promise.all(defs.map((def) => createMech(def)));
+  defs.forEach((def, i) => {
     const f = new Fighter(world, def, {
       pos: spawns[i].pos, yaw: spawns[i].yaw, playerIndex: i, isAI: auto || i > 0,
+      mech: builtMechs[i] || undefined,
     });
     fighters.push(f);
     world.fighters.push(f);

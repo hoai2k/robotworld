@@ -33,6 +33,8 @@ let manifest = null;
 let manifestPromise = null;
 const gltfCache = new Map(); // url -> Promise<GLTF>
 const loader = new GLTFLoader();
+const _gcTmp = new THREE.Vector3();   // groundClamp scratch
+const _gcTmp2 = new THREE.Vector3();
 
 // ?debug=3d enables the service GLB models; any other value (incl. default)
 // runs procedural. When on, menus/previews show a spinner instead of the
@@ -168,9 +170,9 @@ function buildGlbMech(def, entry, gltf) {
   const mech = { group: root, joints, anchors: {}, materials: {}, dims: D, def, isGLB: true };
   mech.animProfile = glbProfileFor(def.id); // reinterpret shared anims for this model
 
-  // default anchors (same semantics as procedural mechs)
-  mech.anchors.muzzleR = addAnchor(joints.handR, 0, -0.2 * D.scale, 0.4 * D.scale);
-  mech.anchors.muzzleL = addAnchor(joints.handL, 0, -0.2 * D.scale, 0.4 * D.scale);
+  // muzzleR / muzzleL (projectile-spawn anchors) are created below, AFTER the
+  // boneMap is resolved — they may pin to a real GLB bone, not just a virtual
+  // joint (see installMuzzles).
   mech.anchors.core = addAnchor(joints.torso, 0, D.torsoH * 0.5, D.torsoD * 0.4);
   mech.anchors.overhead = addAnchor(joints.root, 0, targetH + 1.2 * D.scale, 0);
   const coreLight = new THREE.PointLight(def.colors.glow, 14, 11 * D.scale, 2);
@@ -234,6 +236,38 @@ function buildGlbMech(def, entry, gltf) {
   mech.boneMap = boneMap;   // pose tool reaches bones by virtual-joint name
   mech.adapter = adapter;
 
+  // Muzzle (projectile-spawn) anchors — the SINGLE source of every ranged /
+  // cannon / special spawn origin for this GLB (combat reads ONLY
+  // anchors.muzzleR / muzzleL, in world.js + specials.js). A GLB's guns sit at
+  // model-specific spots the generic in-hand offset misses — Cranky's water
+  // cannons ride the SHELL, not the claws; Saurion breathes from the SKULL;
+  // Frogger's slime guns and Inferno's torches sit at forearm barrel tips — so
+  // a per-mech `muzzles` manifest entry pins each side explicitly:
+  //   "muzzles": { "R": { "joint": "torso", "offset": [x,y,z] }, "L": {...} }
+  //   • "joint": a VIRTUAL rig joint — canonical frame (+Z fwd, +Y up), offset
+  //     in mech-scale units. Best for body/hand-mounted guns on humanoid rigs.
+  //   • "bone":  a mapped GLB bone (boneMap key, e.g. "head") — rides the real
+  //     model geometry, for non-humanoid mounts a virtual joint can't reach
+  //     (a raptor's skull sits nowhere near the biped head joint). Offset is in
+  //     that bone's LOCAL frame, mech-scale units (model-scale compensated).
+  // The anchor rides the animated joint/bone, so the spawn tracks the weapon
+  // through the whole pose. No entry -> generic in-hand muzzle (unchanged for
+  // mechs whose weapon really is at the hand).
+  const installMuzzle = (side) => {
+    const spec = entry.muzzles?.[side];
+    const o = spec?.offset || [0, -0.2, 0.4];
+    if (spec?.bone && boneMap[spec.bone]) {
+      // bone-local units are model-space (pre model.scale); divide so the
+      // world offset matches the mech-scale numbers used for joint muzzles.
+      const k = D.scale / (scale || 1);
+      return addAnchor(boneMap[spec.bone], o[0] * k, o[1] * k, o[2] * k);
+    }
+    const joint = joints[spec?.joint] || joints['hand' + side];
+    return addAnchor(joint, o[0] * D.scale, o[1] * D.scale, o[2] * D.scale);
+  };
+  mech.anchors.muzzleR = installMuzzle('R');
+  mech.anchors.muzzleL = installMuzzle('L');
+
   // Second-pass head-height match, on the VISIBLE head. The bind-time match
   // above is a rough pre-scale on the head bone; this pass poses one real
   // frame and scales so the GLB's rendered head-region top sits at the
@@ -266,6 +300,50 @@ function buildGlbMech(def, entry, gltf) {
       }
     }
   }
+
+  // ---- prone / dead floor clamp (GLB) -----------------------------------
+  // The shared knockdown/death clips drop the hips by an amount tuned to the
+  // PROCEDURAL body. Retargeted onto a GLB whose proportions differ, that same
+  // drop leaves the prone body floating (inferno) or sunk through the floor
+  // (nullbot). groundClamp(true) shifts the whole model vertically so its
+  // LOWEST rendered point rests on the ground (root-local y = 0); (false)
+  // restores the natural offset. The fighter calls this ONLY in grounded
+  // down-states (knockdown / getup / dead) — upright stances keep the
+  // retarget's own per-foot grounding, which is already correct.
+  const clampBaseY = container.position.y;
+  mech.groundClamp = (active) => {
+    if (!active) {
+      if (container.position.y !== clampBaseY) container.position.y = clampBaseY;
+      return;
+    }
+    container.position.y = clampBaseY;
+    root.updateWorldMatrix(true, true);
+    const rootY = root.getWorldPosition(_gcTmp).y;
+    let minY = Infinity;
+    for (const m of meshes) {
+      const posAttr = m.geometry?.attributes?.position;
+      if (!posAttr) continue;
+      if (m.isSkinnedMesh) m.skeleton.update();
+      const stride = Math.max(1, Math.floor(posAttr.count / 1500));
+      for (let i = 0; i < posAttr.count; i += stride) {
+        m.getVertexPosition(i, _gcTmp2);   // skin-aware on SkinnedMesh
+        m.localToWorld(_gcTmp2);
+        if (_gcTmp2.y < minY) minY = _gcTmp2.y;
+      }
+    }
+    // container Y is root-local; root carries only translation + yaw, so a
+    // local-Y delta equals a world-Y delta. Bring worldMinY up/down to rootY.
+    if (minY !== Infinity) container.position.y = clampBaseY + (rootY - minY);
+  };
+
+  // Synchronous, CORRECT clone for combat spawns (SAURION's raptor pack).
+  // GLB bodies are SkinnedMeshes: Object3D.clone(true) shares the skeleton, so
+  // the copy stays welded to the ORIGINAL's bones and renders invisible/torn.
+  // Rebuild a fresh GLB mech from the already-cached gltf instead — no texture
+  // re-synthesis (the frame-stall cloneMech avoids), a properly reskinned
+  // clone, and its own rig / adapter / anchors / animation profile.
+  mech.cloneGLB = () => buildGlbMech(def, entry, gltf);
+
   return mech;
 }
 

@@ -49,6 +49,53 @@ export async function runShowcase(which) {
     mechs.push(mech);
   });
 
+  // ?muzzle — mark every projectile-spawn anchor with a bright sphere that
+  // tracks the pose, so a GLB's muzzles can be lined up with its cannon
+  // geometry. Red = muzzleR, blue = muzzleL, green = any other cannon anchor.
+  // Tuning (single mech): &mzj=<joint>&mzo=x,y,z re-pins muzzleR to that
+  // virtual joint at that mech-scale offset (muzzleL mirrors X); read the
+  // final numbers straight into the manifest "muzzles" field.
+  if (params.has('muzzle')) {
+    const markerAt = (anchor, color) => {
+      const m = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 12, 10),
+        new THREE.MeshBasicMaterial({ color, depthTest: false }));
+      m.renderOrder = 999;
+      anchor.add(m);
+    };
+    if (single && params.has('mzo')) {
+      const mech = mechs[0];
+      const useBone = params.has('mzbone'); // attach to a real GLB bone (boneMap)
+      const jn = params.get('mzj') || 'handR';
+      const jL = jn.endsWith('R') ? jn.slice(0, -1) + 'L' : jn;
+      const [ox, oy, oz] = params.get('mzo').split(',').map(Number);
+      // match installMuzzle's unit convention so tuned numbers drop into the
+      // manifest verbatim: joint -> *dims.scale; bone -> *dims.scale/modelScale
+      const modelScale = 1 / (mech.adapter?.hipsScale || 1);
+      const s = useBone ? mech.dims.scale / modelScale : mech.dims.scale;
+      const reAnchor = (name, key, sx) => {
+        const old = mech.anchors[name];
+        old?.parent?.remove(old);
+        const parent = useBone ? mech.boneMap?.[key] : mech.joints[key];
+        if (!parent) return;
+        const a = new THREE.Object3D();
+        a.position.set(sx * ox * s, oy * s, oz * s);
+        parent.add(a);
+        mech.anchors[name] = a;
+      };
+      reAnchor('muzzleR', jn, 1);
+      reAnchor('muzzleL', jL, -1);
+    }
+    for (const mech of mechs) {
+      for (const [name, a] of Object.entries(mech.anchors)) {
+        if (!a?.isObject3D) continue;
+        if (name === 'muzzleR') markerAt(a, 0xff2020);
+        else if (name === 'muzzleL') markerAt(a, 0x2060ff);
+        else if (/muzzle|barrel|cannon|spout|nozzle|mouth/i.test(name)) markerAt(a, 0x20ff40);
+      }
+    }
+  }
+
   if (defs.length === 1) {
     camera.position.set(4.2, 5.6, 12.2);
     camera.lookAt(0, 4.3, 0);
