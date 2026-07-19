@@ -180,6 +180,44 @@
   },
   "tempest_alt": {
     "modelTask": "d739be52-99c6-4af6-ba6d-28c872793e0e",
-    "modelFailed": false
+    "modelFailed": false,
+    "modelCredits": 50,
+    "checkTask": "754b7cbb-8273-4f35-98ee-b2f04e4de3f7",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "6d5c77f3-e753-4b43-9ff4-8e2075571b13",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_tempest_alt.glb",
+    "bytes": 2975252,
+    "done": true
+  },
+  "nova_alt": {
+    "modelTask": "f3dc7ec2-5f68-458f-bb0a-4d97ca9cf530",
+    "modelFailed": false,
+    "modelCredits": 50,
+    "checkTask": "421e2efe-7577-4c90-bb2f-58653373fc77",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "9077bd49-d09b-4fe0-bdec-555e5f9237a6",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_nova_alt.glb",
+    "bytes": 3328952,
+    "done": true
+  },
+  "aegis_alt": {
+    "modelTask": "ceb78610-32b3-4792-8119-cd5b225057cd",
+    "modelFailed": false,
+    "modelCredits": 50,
+    "checkTask": "a44fec4c-a7ef-42f9-bfe9-650e17ddfe5a",
+    "riggable": true,
+    "rigType": "biped",
+    "rigTask": "fd004a99-aaa0-4de0-81ba-7c338459d1db",
+    "rigFailed": false,
+    "rigCredits": 25,
+    "glb": "public/models/mech_aegis_alt.glb",
+    "bytes": 2997272,
+    "done": true
   }
 }
