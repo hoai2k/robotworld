@@ -79,6 +79,7 @@ export async function runPoseTool(startId) {
   let lastAction = 'idle';
   let dummyPost = 8;   // z distance of the invisible aim targets
   let idleT = 0;       // real seconds both fighters have been back at rest
+  let lastWasWalk = false; // last displacement came from stick movement (2s reset)
 
   // Actions that translate the mech (lunges, dashes) move it only
   // TEMPORARILY: positions snap back home 3s after the action settles, or
@@ -187,7 +188,10 @@ export async function runPoseTool(startId) {
   }
   function copyIntent(dstIntent, src) {
     for (const k of INTENT_BTNS) dstIntent[k] = src[k];
-    dstIntent.moveX = 0; dstIntent.moveZ = 0; dstIntent.aimYaw = undefined; // pinned, face forward
+    // movement passes through (left stick / WASD) so the walk/run cycle can be
+    // compared too; both mechs stride in the same direction in lockstep
+    dstIntent.moveX = src.moveX; dstIntent.moveZ = src.moveZ;
+    dstIntent.aimYaw = undefined;
   }
   const ACTION_FROM_INTENT = [
     ['special', (s) => s.special], ['heavy', (s) => s.heavy], ['light', (s) => s.light],
@@ -387,7 +391,7 @@ export async function runPoseTool(startId) {
       }
       // a NEW action press snaps everyone home first, so the move plays out
       // from the reference spot (translation from the previous move is temporary)
-      if (detectAction()) resetPositions();
+      if (detectAction()) { resetPositions(); lastWasWalk = false; }
       for (const f of [procF, glbF]) {
         copyIntent(f.intent, scratch);
         f.hp = f.maxHp; f.ult = 1; f.specialCd = 0; f.rangedCd = 0; f.iframes = 0;
@@ -404,14 +408,17 @@ export async function runPoseTool(startId) {
       }
       world.update(dt);      // dt pre-scaled by engine.timeScale
       input.endFrame();
-      // settle-reset: 3 REAL seconds after both mechs are back at rest (and
-      // something actually moved), snap them home — slow-mo doesn't stretch it
-      const busy = fighterBusy(procF) || fighterBusy(glbF);
+      // settle-reset: snap home a few REAL seconds after everything is at
+      // rest (slow-mo doesn't stretch the wait) — 2s after the stick is
+      // released from a walk, 3s after an action finishes
+      const walking = Math.abs(scratch.moveX) > 0.08 || Math.abs(scratch.moveZ) > 0.08;
+      if (walking) lastWasWalk = true;
+      const busy = walking || fighterBusy(procF) || fighterBusy(glbF);
       const moved = displaced(procF, -PAIR_X) || displaced(glbF, PAIR_X);
       if (busy) idleT = 0;
       else if (moved) {
         idleT += dt / (engine.timeScale || 1);
-        if (idleT > 3) resetPositions();
+        if (idleT > (lastWasWalk ? 2 : 3)) resetPositions();
       } else idleT = 0;
     } else {
       input.endFrame();
