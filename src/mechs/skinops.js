@@ -198,6 +198,104 @@ export function purgeFarWeights(mesh, { minDist = 3, minW = 0.05 } = {}) {
   return touched;
 }
 
+// ---- ENCLAVE detection ----------------------------------------------------
+// The pattern human eyes catch instantly in the ?debug=skin color view: a
+// small patch of one bone's color sitting inside an otherwise-solid region of
+// ANOTHER bone (a hip plate bound to a hand, a knuckle bound to a thigh).
+// Almost never intentional on a rigid mech, and the fix is exactly what a
+// human does: rebind the patch to the bone that owns everything around it.
+//
+// Detection is a pure graph property — no pose sweep, no thresholds on
+// motion: an island whose BOUNDARY (triangle edges + coincident-position weld
+// pairs, since auto-rigs often butt separate shells together) is mostly one
+// other bone is an enclave of that bone.
+
+// Cross-island adjacency: islandId -> Map(islandId -> contactCount), from
+// shared triangle edges AND position-welded vertex pairs (hard seams between
+// separate shells have no shared triangles — the weld pairs are the contact).
+export function buildIslandAdjacency(mesh, analysis) {
+  const geo = mesh.geometry;
+  const pos = geo.attributes.position;
+  const idx = geo.index;
+  const compId = analysis.compId;
+  const adj = new Map();
+  const bump = (a, b) => {
+    if (a === b) return;
+    let m = adj.get(a); if (!m) { m = new Map(); adj.set(a, m); }
+    m.set(b, (m.get(b) || 0) + 1);
+    let m2 = adj.get(b); if (!m2) { m2 = new Map(); adj.set(b, m2); }
+    m2.set(a, (m2.get(a) || 0) + 1);
+  };
+  if (idx) {
+    const seen = new Set();
+    const edge = (u, v) => {
+      if (compId[u] === compId[v]) return;
+      const key = u < v ? u * 4000000 + v : v * 4000000 + u;
+      if (seen.has(key)) return;
+      seen.add(key);
+      bump(compId[u], compId[v]);
+    };
+    for (let t = 0; t < idx.count; t += 3) {
+      const a = idx.getX(t), b = idx.getX(t + 1), c = idx.getX(t + 2);
+      edge(a, b); edge(a, c); edge(b, c);
+    }
+  }
+  // weld pairs across islands
+  const weld = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${Math.round(pos.getX(i) * 1e4)},${Math.round(pos.getY(i) * 1e4)},${Math.round(pos.getZ(i) * 1e4)}`;
+    const f = weld.get(key);
+    if (f === undefined) weld.set(key, i);
+    else if (compId[f] !== compId[i]) bump(compId[f], compId[i]);
+  }
+  return adj;
+}
+
+// Scan for enclaves and produce the rebind ops that dissolve them.
+// IMPORTANT composition contract: `analysis` must be the PRISTINE partition
+// with comps[].boneName reflecting the CURRENT (post-committed-ops) owner —
+// exactly what applySkinOps leaves behind. Returned ops select pristine
+// island ids, so appending them after the mech's existing manifest skinOps
+// reproduces this scan's result at load. Iterates to a fixpoint (dissolving
+// one enclave can expose another).
+export function enclaveScan(mesh, analysis, {
+  maxCount = 800,       // an enclave is a PATCH, not a limb
+  minSurround = 0.7,    // boundary share one other bone must own
+  minBoundary = 6,      // ignore degenerate contacts
+  rounds = 4,
+} = {}) {
+  const adj = buildIslandAdjacency(mesh, analysis);
+  const comps = analysis.comps;
+  const ops = [];
+  const report = [];
+  for (let r = 0; r < rounds; r++) {
+    let changed = 0;
+    for (const c of comps) {
+      if (c.count > maxCount) continue;
+      const m = adj.get(c.id);
+      if (!m) continue;
+      let tot = 0;
+      const votes = new Map();
+      for (const [nid, n] of m) {
+        tot += n;
+        const nb = comps[nid].boneName;
+        if (nb !== c.boneName) votes.set(nb, (votes.get(nb) || 0) + n);
+      }
+      if (tot < minBoundary) continue;
+      let top = null, topN = 0;
+      for (const [bn, n] of votes) if (n > topN) { topN = n; top = bn; }
+      if (!top || topN / tot < minSurround) continue;
+      ops.push({ sel: { comp: c.id }, to: top });
+      report.push({ island: c.id, from: c.boneName, to: top, count: c.count,
+        surround: +(topN / tot).toFixed(2), round: r });
+      c.boneName = top; // virtual apply — next round sees the merged region
+      changed++;
+    }
+    if (!changed) break;
+  }
+  return { ops, report };
+}
+
 // Resolve an op's selection to a list of components.
 export function selectComps(analysis, sel) {
   if (sel.comp !== undefined && sel.bone === undefined) {
