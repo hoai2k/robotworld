@@ -13,7 +13,7 @@ note says otherwise.
 Baseline: main @ 849b648, build green, review findings summarized per batch
 below (file:line refs are from that commit and drift as batches land).
 
-## Batch A — contract validator  [ ]
+## Batch A — contract validator  [x DONE 2026-07-20]
 
 The MECH_ART_GUIDE §5 joints/anchors contract is prose-only; animator/combat
 `if (J.x)`-guard every extra joint (animator.js:479-782), so a missing
@@ -22,13 +22,18 @@ GLB path never calls `design()` (gltf.js:149) so extra joints are absent
 there by design — the validator must encode *expected* per-route loss
 (glbanim.js:115-127 lists accepted GLB losses).
 
-- [ ] `src/mechs/contract.js`: §5 table as data — per mech id: required
-      joints, required anchors, GLB-exempt joints.
-- [ ] `validateMech(mech)` returning a list of violations.
-- [ ] Wire into `?rigtest` (hard fail display) and dev-mode boot
-      (console.warn per violation).
-- [ ] Verify: run ?rigtest + a soak; deliberately break one joint locally
-      to prove it fires, then revert.
+- [x] `src/mechs/contract.js`: §5 table as data (joints/anchors/materials
+      per mech, `glbAnchors` = manifest-reinstated subset).
+- [x] `validateMech(mech)` → { violations, glbLosses }.
+- [x] Wired into BOTH build factories instead of rigtest (better: fires in
+      every mode — battle, showcase, soak — for free): `warnContract` in
+      factory.buildMech + gltf.buildGlbMech, deduped per mech+route.
+      Violations = console.warn; known GLB losses = console.debug.
+- [x] Verified: procedural + GLB showcase clean (0 violations, 13 GLB
+      known-loss lines as expected; vulcan podL + nullbot glow2 correctly
+      satisfied by manifest/GLB_DRESS); sabotage test fired then reverted;
+      build green; titanus/viper ace soak crash:null.
+      New tool: tools/console.mjs (headless console capture).
 
 ## Batch B — skinOps compaction  [ ]
 
