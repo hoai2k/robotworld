@@ -1,6 +1,7 @@
 // Menu screens: Title → Setup → Mech Select → Arena Select → (battle) → Results.
 // Each screen builds DOM into #ui-root and consumes aggregated menu events.
-import { ROSTER, SCHEME_NAMES, SCHEME_COUNT, schemeSwatch } from '../mechs/roster.js';
+import { ROSTER } from '../mechs/roster.js';
+import { SCHEME_NAMES, SCHEME_COUNT, schemeSwatch } from '../mechs/colorscheme.js';
 import { THEMES } from '../arena/themes.js';
 import { isTouchDevice } from '../core/utils.js';
 import { mechIcon } from './icons.js';

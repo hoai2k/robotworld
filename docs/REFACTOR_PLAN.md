@@ -84,7 +84,17 @@ addUpdater(tick, end) already exists (world.js:134).
       (flame-jet 'fin' path) 90s and cranky (fx-only geyser) 300s with
       zero page errors.
 
-## Batch D — specials framework + fireRanged table  [ ]
+## Batch D — specials framework + fireRanged table  [x DONE 2026-07-20]
+
+DONE: movekit.js (stillCasting/cast/eachEnemy/volley/timedUpdater, doc'd);
+specials.js migrated conservatively — 35 cast sites, 14 volleys, 3
+eachEnemy, 2 timedUpdater; everything whose guards/skip-conditions
+differed from the helpers stayed inline BY DESIGN (allies/minion skips,
+victims-sets, delay arrays, recursive ticks — bending them would change
+behavior). specials.js 2765→2675 lines. world.fireRanged switch → WEAPONS
+table (21 handlers, verified token-identical to old switch bodies via
+normalized AST-ish diff). Verified: full-roster soak matrix (9 ace
+matchups covering all 17 mechs) + GLB soak all crash:null; build green.
 
 Every move body re-implements: cast scaffold (~20×), AoE sweep (22×),
 volley loops, liveness guards. world.fireRanged is a 340-line ~24-case
@@ -101,28 +111,44 @@ switch (world.js:510-849).
 - [ ] Verify: full-roster soak matrix (each mech at least once as p1 or
       p2, auto=1 diff=ace), build green.
 
-## Batch E — fighter.js dedup + balance constants + cycle cut  [ ]
+## Batch E — fighter.js dedup + balance constants + cycle cut  [x MOSTLY DONE 2026-07-20 — cycle cut deferred to remaining-work list]
 
-- [ ] Merge updateHeavyHold/updatePunchHold (fighter.js:641/713) into
-      updateChargeHold(cfg).
-- [ ] Unify 3 block-mitigation blocks in takeHit (1057/1088/1112) into one
-      helper. KEEP the two different ult-gain formulas as-is (dmg/3000 vs
-      maxHp-scaled) but name them and comment the asymmetry — reconciling
-      is a balance change, not a refactor.
-- [ ] Hoist inline balance literals to named constants in a TUNING block
-      (fighter.js top) or roster where per-mech: hitstun 0.42/0.24,
-      weight resist 0.45, soft-tick 0.35, block leak 0.12 (×2), momentum
-      bonus, dash/knockdown numbers, rumble magnitudes.
-- [ ] Cut fighter↔specials import cycle: specials.js gets Fighter via a
-      registration hook (fighter.js calls registerFighterCtor) or move
-      raptor-summon spawn to a neutral module.
-- [ ] roster.js: move color engine (roster.js:510-573) →
-      src/mechs/colorscheme.js; add DIGITIGRADE_REST preset (viper/fenrir
-      byte-identical restPose, wraith scaled variant stays explicit).
-- [ ] Verify: soak (incl. saurion for raptor summon, aegis for shield
-      block, titanus charge), build green.
+- [x] _chargeHoldPhase(dt, o) extracted (hold/accumulate/tell/full-beat
+      scaffold); updateHeavyHold/updatePunchHold keep their distinct
+      release choreography inline. Per-attack field names kept (startAttack
+      seeds them, update loop dispatches on them).
+- [x] _blockAbsorb helper unifies the raised-guard + AEGIS passive-cover
+      tails; their deliberate asymmetries (chip rounding, ult drip counts
+      full vs post-block dmg, push factor) are commented AT THE CALL SITES
+      and preserved. BLOCK_ULT_DIV=3000 named; both clean-hit maxHp-scaled
+      formulas untouched.
+- [x] Named: BLOCK_LEAK_DEFAULT, WEIGHT_KNOCK_RESIST, HITSTUN_HEAVY/LIGHT,
+      SOFT_FLINCH_CHANCE, DASH_SPEED_MULT/CHARGE_BOOST/COOLDOWN,
+      ESCAPE_JUMP_MULT/VY, MOMENTUM_FLOOR/DMG_RATE/DMG_CAP. (Rumble
+      magnitudes left inline — single-site, self-explanatory.)
+- [ ] Cut fighter↔specials import cycle — DEFERRED (works today; do as a
+      small follow-up: inject Fighter ctor into the raptor summon).
+- [x] colorscheme.js split out (SCHEME_NAMES/COUNT/schemeSwatch/
+      applyColorScheme + hsl math); roster.js is data-only again; 5
+      importers rewired. DIGITIGRADE_REST preset (viper+fenrir; wraith's
+      scaled variant intentionally explicit).
+- [x] Verified via the batch-D soak matrix (includes saurion raptors,
+      aegis shield, titanus charge holds); build green.
 
-## Batch F — animator SIGNATURES registry + animations REST_KEY  [ ]
+## Batch F — animator SIGNATURES registry + animations REST_KEY  [x DONE 2026-07-20]
+
+DONE: src/mechs/signatures.js — SIGNATURES[id] registry (12 entries) +
+levelHands + shield quats moved there; animator.signature() is now a
+3-line dispatcher; vulcan/inferno/cranky get roster `levelHands: true`
+instead of hardcoded id checks (inferno's whole case WAS just that flag).
+frogger's early `break` became `return` (same semantics — dispatcher
+still runs profile.post after). animations.js: REST_FULL/REST_ARMSTANCE/
+REST_UPPER consts replace 19 EXACT-duplicate end keys (the review's "~50
+verbatim" was wrong — only exact set+value matches were replaced; pose
+keys drive only listed joints, so near-misses MUST stay inline). Consts
+sit before CLIPS_RAW (TDZ). compile() copies pose arrays so sharing is
+safe (verified). Verified: showcase console clean both routes, lineup
+screenshot personality intact, soak matrix above.
 
 - [ ] animator.signature() 13-case switch (animator.js:479-782) →
       SIGNATURES[id] registry module (src/mechs/signatures.js); keep
