@@ -99,6 +99,14 @@ export async function runSkinTool(startId) {
 
   async function load(id) {
     curId = id;
+    // keep the URL's ?mech= in sync so a reload / shared link reopens this mech.
+    // replaceState (not pushState) avoids cluttering back-button history.
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('mech', id);
+      url.searchParams.delete('id'); // legacy alias; 'mech' wins, drop the dupe
+      window.history.replaceState(null, '', url);
+    } catch (_) { /* non-browser / opaque origin — URL sync is best-effort */ }
     if (holder) { scene.remove(holder); holder = null; }
     selComp = null; wiggle = null; ops = []; colorAttr = null;
     const raw = await loadRawGlbScene(id);
