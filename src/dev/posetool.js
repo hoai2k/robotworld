@@ -24,7 +24,8 @@ import { Input } from '../game/input.js';
 import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { buildGlbForTool, fetchRawManifest, measureHeadTop } from '../mechs/gltf.js';
-import { ROSTER, ROSTER_BY_ID, applyColorScheme } from '../mechs/roster.js';
+import { ROSTER, ROSTER_BY_ID } from '../mechs/roster.js';
+import { applyColorScheme } from '../mechs/colorscheme.js';
 import { JOINT_ORDER } from '../mechs/rigadapter.js';
 import { describeAction, ACTIONS } from './actionchars.js';
 

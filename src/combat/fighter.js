@@ -26,6 +26,24 @@ const SPRINT_REGEN = 0.6;  // tank refill rate (per second) while not sprinting
 const PUNCH_HOLD_CAP = 1.8; // seconds to fully bank a held haymaker
 const HEAVY_HOLD_CAP = 2.4; // seconds to fully bank a held heavy
 
+// ---- hit-reaction tuning (see takeHit) ----
+const BLOCK_LEAK_DEFAULT = 0.12; // damage fraction leaking through a guard when roster sets no blockMult
+const BLOCK_ULT_DIV = 3000;      // blocked-hit ult drip: flat dmg/3000 (NOT maxHp-scaled like clean hits — historical tuning, kept)
+const WEIGHT_KNOCK_RESIST = 0.45; // how much of stats.weight resists knockback/launch
+const HITSTUN_HEAVY = 0.42;      // seconds of stun from a heavy hit
+const HITSTUN_LIGHT = 0.24;
+const SOFT_FLINCH_CHANCE = 0.35; // rapid-tick chip: odds per tick of a torso rock (never stun-locks)
+const DASH_SPEED_MULT = 4.2;     // dash burst = stats.speed x this (a full coil nearly doubles it again)
+const DASH_CHARGE_BOOST = 0.95;
+const DASH_COOLDOWN = 0.9;
+const ESCAPE_JUMP_MULT = 2.6;    // knockdown escape spring: ground speed x this
+const ESCAPE_JUMP_VY = 13;
+// kinetic bonus: real momentum behind a punch (dash, dive) hits harder —
+// +4.5%/unit above 8 u/s, capped at +70%
+const MOMENTUM_FLOOR = 8;
+const MOMENTUM_DMG_RATE = 0.045;
+const MOMENTUM_DMG_CAP = 0.7;
+
 // ---- NULLBOT corruption ----
 // Every glitched hit converts another PART of the victim into flickering
 // data. Stacks last the whole round. The 10th stack OVERLOADS the frame:
@@ -492,7 +510,7 @@ export class Fighter {
     let dir;
     if (Math.abs(ix) + Math.abs(iz) > 0.2) dir = _v.set(ix, 0, iz).normalize();
     else dir = _v.set(Math.sin(this.yaw), 0, Math.cos(this.yaw));
-    const sp = this.def.stats.speed * 4.2 * (1 + 0.95 * k) * this.speedMult();
+    const sp = this.def.stats.speed * DASH_SPEED_MULT * (1 + DASH_CHARGE_BOOST * k) * this.speedMult();
     this.vel.x = dir.x * sp;
     this.vel.z = dir.z * sp;
     // strafe dash (AI only — players own their facing): keep facing a
@@ -503,7 +521,7 @@ export class Fighter {
         this.targetYaw = Math.atan2(e.pos.x - this.pos.x, e.pos.z - this.pos.z);
       }
     }
-    this.dashCd = 0.9;
+    this.dashCd = DASH_COOLDOWN;
     this.dashT = 0.3 + 0.32 * k;
     this.iframes = Math.max(this.iframes, 0.26 + 0.28 * k);
     this.setState('dash', this.dashT);
@@ -545,7 +563,7 @@ export class Fighter {
     this.uncloak();
     // kinetic bonus: real momentum behind a punch (dash, dive) hits harder
     const mom = Math.hypot(this.vel.x, this.vel.y, this.vel.z);
-    const momMult = 1 + Math.min(0.7, Math.max(0, mom - 8) * 0.045);
+    const momMult = 1 + Math.min(MOMENTUM_DMG_CAP, Math.max(0, mom - MOMENTUM_FLOOR) * MOMENTUM_DMG_RATE);
     atk = { ...atk, dmg: atk.dmg * momMult, knock: (atk.knock || 8) * (0.7 + 0.3 * momMult) };
     const reach = atk.range || 3.5;
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
@@ -638,37 +656,56 @@ export class Fighter {
     }
   }
 
-  // ---- hold-to-charge heavy: while the hold clip loops and the button
-  // stays down, power banks (capped); releasing fires the lunge with the
-  // banked damage/knock/launch — the longer the whirl, the harder it lands
-  updateHeavyHold(dt) {
-    const cap = HEAVY_HOLD_CAP;
-    if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(this.def.heavyClip)) {
-      this._whirlHold = null;
-      return;
+  // ---- shared hold-phase scaffold for the two hold-to-charge attacks
+  // (heavy whirl + TITANUS/COLOSSUS haymaker). While the hold clip loops
+  // and the button stays down: bank charge (capped), pin the attack state
+  // open, run the charge-tell FX on its tightening cadence, and beat the
+  // one-shot full-charge flourish. Field names stay per-attack (o.slot...)
+  // — startAttack seeds them and the animator/update loop read them.
+  // Returns null while holding (or when the hold is over/aborted); returns
+  // the banked k (0..1) exactly once at release — the caller owns the
+  // release choreography, which is where the two attacks truly differ.
+  _chargeHoldPhase(dt, o) {
+    if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(o.holdClip)) {
+      this[o.slot] = null;
+      return null;
     }
-    if (this.intent.heavyHeld) {
-      this._whirlHold = Math.min(cap, this._whirlHold + dt);
+    if (o.held) {
+      this[o.slot] = Math.min(o.cap, this[o.slot] + dt);
       this.stateT = Math.max(this.stateT, 0.3); // stay in the hold
-      // charge tell: rings tighten and quicken as the whirl banks power
-      const k = this._whirlHold / cap;
-      this._whirlFxT = (this._whirlFxT ?? 0) - dt;
-      if (this._whirlFxT <= 0) {
-        this._whirlFxT = 0.42 - 0.24 * k;
-        this.world.effects.rings.spawn(this.pos, {
-          from: 2.6, to: 0.8, dur: 0.26, color: this.def.colors.glow, y: 0.4,
-        });
+      const k = this[o.slot] / o.cap;
+      this[o.fxSlot] = (this[o.fxSlot] ?? 0) - dt;
+      if (this[o.fxSlot] <= 0) {
+        this[o.fxSlot] = o.fxInterval(k);
+        o.tell(k);
       }
-      if (k >= 1 && !this._whirlFull) {
-        this._whirlFull = true;
+      if (k >= 1 && !this[o.fullSlot]) {
+        this[o.fullSlot] = true;
         this.world.audio?.play('powerup');
-        this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4.5, dur: 0.35, color: 0xffffff, y: 0.5 });
+        o.fullFx();
       }
-      return;
+      return null;
     }
+    const k = clamp01(this[o.slot] / o.cap);
+    this[o.slot] = null;
+    return k;
+  }
+
+  // hold-to-charge heavy: releasing fires the lunge with the banked
+  // damage/knock/launch — the longer the whirl, the harder it lands
+  updateHeavyHold(dt) {
+    const k = this._chargeHoldPhase(dt, {
+      slot: '_whirlHold', fullSlot: '_whirlFull', fxSlot: '_whirlFxT',
+      cap: HEAVY_HOLD_CAP, holdClip: this.def.heavyClip, held: this.intent.heavyHeld,
+      // charge tell: rings tighten and quicken as the whirl banks power
+      fxInterval: (k) => 0.42 - 0.24 * k,
+      tell: () => this.world.effects.rings.spawn(this.pos, {
+        from: 2.6, to: 0.8, dur: 0.26, color: this.def.colors.glow, y: 0.4,
+      }),
+      fullFx: () => this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 4.5, dur: 0.35, color: 0xffffff, y: 0.5 }),
+    });
+    if (k === null) return;
     // released: discharge the banked hold into the strike
-    const k = clamp01(this._whirlHold / cap);
-    this._whirlHold = null;
     this._heavyLungeK = k;
     this.faceNearestEnemyIfClose(14); // re-square: they moved during the hold
     const mv = this.def.moves.heavy;
@@ -714,21 +751,14 @@ export class Fighter {
   // and releasing throws the punch with the banked damage/knock. A full
   // charge sends the victim across the street like nothing else ----
   updatePunchHold(dt) {
-    const cap = PUNCH_HOLD_CAP;
     const idx = this._punchIdx || 0;
-    const holdClip = idx ? 'punchHold2' : 'punchHold1';
-    if (!this.alive || this.state !== 'attack' || !this.animator.isPlaying(holdClip)) {
-      this._punchHold = null;
-      return;
-    }
-    if (this.intent.lightHeld) {
-      this._punchHold = Math.min(cap, this._punchHold + dt);
-      this.stateT = Math.max(this.stateT, 0.3); // stay in the hold
-      const k = this._punchHold / cap;
+    const k = this._chargeHoldPhase(dt, {
+      slot: '_punchHold', fullSlot: '_punchFull', fxSlot: '_punchFxT',
+      cap: PUNCH_HOLD_CAP, holdClip: idx ? 'punchHold2' : 'punchHold1',
+      held: this.intent.lightHeld,
       // charge tell: energy crackles off the cocked fist as power banks
-      this._punchFxT = (this._punchFxT ?? 0) - dt;
-      if (this._punchFxT <= 0) {
-        this._punchFxT = 0.3 - 0.18 * k;
+      fxInterval: (k) => 0.3 - 0.18 * k,
+      tell: (k) => {
         const j = this.mech.joints[idx ? 'handR' : 'handL'];
         if (j) {
           j.getWorldPosition(_v);
@@ -736,17 +766,11 @@ export class Fighter {
             rand(-1, 1), rand(0, 2), rand(-1, 1),
             { life: 0.22, size: 0.5 + 0.9 * k, color: this.def.colors.glow, alpha: 0.9 });
         }
-      }
-      if (k >= 1 && !this._punchFull) {
-        this._punchFull = true;
-        this.world.audio?.play('powerup');
-        this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 3.5, dur: 0.3, color: this.def.colors.glow, y: 0.5 });
-      }
-      return;
-    }
+      },
+      fullFx: () => this.world.effects.rings.spawn(this.pos, { from: 0.5, to: 3.5, dur: 0.3, color: this.def.colors.glow, y: 0.5 }),
+    });
+    if (k === null) return;
     // released: throw the banked punch
-    const k = clamp01(this._punchHold / cap);
-    this._punchHold = null;
     const mv = this.def.moves.light;
     this.faceNearestEnemyIfClose(12);
     const dur = this.animator.play(idx ? 'punchRelease2' : 'punchRelease1', {
@@ -1040,6 +1064,21 @@ export class Fighter {
   }
 
   // ================= damage =================
+  // shared tail of every "the guard/shield ate it" path in takeHit: chip
+  // damage that is never lethal (floor 1 hp), a reduced push instead of
+  // real knockback, the defender's small ult drip (flat BLOCK_ULT_DIV
+  // divisor), and the block spark + clank. Callers pick chip/ultFrom/push —
+  // the raised guard and AEGIS's passive cover are deliberately not
+  // identical (see the call sites).
+  _blockAbsorb(chip, ultFrom, dirX, dirZ, dLen, push, sparkPos, sparkColor) {
+    this.hp = Math.max(1, this.hp - chip);
+    this.vel.x += (dirX / dLen) * push;
+    this.vel.z += (dirZ / dLen) * push;
+    this.ult = clamp01(this.ult + (ultFrom / BLOCK_ULT_DIV) * ULT_RATE);
+    this.world.effects.blockSpark(sparkPos, sparkColor);
+    this.world.audio?.play('block');
+  }
+
   takeHit(dmg, attacker, { knock = 8, launch = 0, srcPos = null, heavy = false, status = null, silent = false, soft = false, unblockable = false, guardBreak = 0 } = {}) {
     if (!this.alive || this.iframes > 0) return;
     if (attacker && this.isAllyOf(attacker)) return; // no friendly fire on a summon team
@@ -1065,15 +1104,9 @@ export class Fighter {
         const underGuard = low && !this.ducking;            // high block vs low hit
         const shattered = gb > 0 && Math.random() < gb;
         if (!underGuard && !shattered) {
-          const pass = this.def.stats.blockMult ?? 0.12;    // fraction that leaks through
-          dmg *= pass;
-          knock *= 0.25 + pass;
-          this.world.effects.blockSpark(this.center(), 0x7fd8ff);
-          this.world.audio?.play('block');
-          this.hp = Math.max(1, this.hp - dmg);
-          this.vel.x += (dirX / dLen) * knock * 0.5;
-          this.vel.z += (dirZ / dLen) * knock * 0.5;
-          this.ult = clamp01(this.ult + (dmg / 3000) * ULT_RATE);
+          const pass = this.def.stats.blockMult ?? BLOCK_LEAK_DEFAULT; // fraction that leaks through
+          this._blockAbsorb(dmg * pass, dmg * pass,
+            dirX, dirZ, dLen, knock * (0.25 + pass) * 0.5, this.center(), 0x7fd8ff);
           return;
         }
         // guard beaten: orange spark, a jolt of extra hitstun, full damage
@@ -1100,13 +1133,12 @@ export class Fighter {
       if (sl > 0.35 && S.y > this.pos.y + 0.5 && S.y < this.pos.y + this.height) {
         const dot = (sx / sl) * (-dirX / dLen) + (sz / sl) * (-dirZ / dLen);
         if (dot > 0.5) {
-          const pass = this.def.stats.blockMult ?? 0.12;
-          this.hp = Math.max(1, this.hp - Math.max(1, Math.round(dmg * pass)));
-          this.vel.x += (dirX / dLen) * knock * 0.3;
-          this.vel.z += (dirZ / dLen) * knock * 0.3;
-          this.ult = clamp01(this.ult + (dmg / 3000) * ULT_RATE);
-          this.world.effects.blockSpark(S, 0x9fd8ff);
-          this.world.audio?.play('block');
+          const pass = this.def.stats.blockMult ?? BLOCK_LEAK_DEFAULT;
+          // asymmetries vs a raised guard, kept as tuned: chip is rounded
+          // (floor 1), the ult drip counts the FULL incoming dmg, and the
+          // push is gentler (no input was spent holding block)
+          this._blockAbsorb(Math.max(1, Math.round(dmg * pass)), dmg,
+            dirX, dirZ, dLen, knock * 0.3, S, 0x9fd8ff);
           return;
         }
       }
@@ -1141,7 +1173,7 @@ export class Fighter {
     }
 
     // knockback & reactions (weight resists)
-    const resist = 1 - this.def.stats.weight * 0.45;
+    const resist = 1 - this.def.stats.weight * WEIGHT_KNOCK_RESIST;
     const kb = knock * resist;
     this.vel.x += (dirX / dLen) * kb;
     this.vel.z += (dirZ / dLen) * kb;
@@ -1156,9 +1188,9 @@ export class Fighter {
       // the body rocks under the stream but NEVER stun-locks — the target
       // keeps full control so they can break away instead of standing
       // there eating the whole magazine
-      if (Math.random() < 0.35) this.animator.addImpulse('torso', [-0.22, 0, 0], 30, 11);
+      if (Math.random() < SOFT_FLINCH_CHANCE) this.animator.addImpulse('torso', [-0.22, 0, 0], 30, 11);
     } else if (this.state !== 'launched' && this.state !== 'knockdown') {
-      const stun = heavy ? 0.42 : 0.24;
+      const stun = heavy ? HITSTUN_HEAVY : HITSTUN_LIGHT;
       this.setState('hitstun', stun);
       this.animator.play('hitFlinch', { speed: heavy ? 0.8 : 1.15 });
       this.animator.addImpulse('torso', [-0.25, 0, 0], 30, 11);
@@ -1584,9 +1616,9 @@ export class Fighter {
           const ex = Math.abs(I.moveX) + Math.abs(I.moveZ) > 0.2
             ? _v.set(I.moveX, 0, I.moveZ).normalize()
             : _v.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw)); // default: backward
-          this.vel.x = ex.x * this.def.stats.speed * 2.6;
-          this.vel.z = ex.z * this.def.stats.speed * 2.6;
-          this.vel.y = 13;
+          this.vel.x = ex.x * this.def.stats.speed * ESCAPE_JUMP_MULT;
+          this.vel.z = ex.z * this.def.stats.speed * ESCAPE_JUMP_MULT;
+          this.vel.y = ESCAPE_JUMP_VY;
           this.grounded = false;
           this.iframes = 0.9;
           this.setState('getup', 0.3);
