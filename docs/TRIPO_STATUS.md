@@ -177,3 +177,41 @@ except by ?debug default / missing-file safety).
   to mech_nova.glb / mech_tempest.glb (3.3/3.0 MB). No .alt remains for them.
 - aegis_alt facing fixed: authored diagonally → yawOffset 315 (glbview sweep).
 - Alternates still pending judgment: aegis (spear/banner), jerry (spider-crab).
+
+## Session 6 (2026-07-20): skin workbench passes + rig-repair features
+
+User authored ?debug=skin passes shipped for: rhino (18 ops), jerry (7),
+titanus (32), aegis (63), frogger (93), inferno (100), viper (72). All are
+FULL replacements of that mech's manifest skinOps (the workbench exports the
+complete list).
+
+New engine seams added this session (all manifest/data-driven):
+- skinOps `{"purgePair": ["boneA","boneB"]}` (skinops.js): the two bones
+  never share a vertex — kills Tripo's mirrored-limb weight bleed (inferno's
+  thighs bulged each other; sibling limbs sit at hierarchy distance 2, under
+  purgeFar's minDist=3 default).
+- manifest `reparent` `{"child": "newParent"}` (gltf.js, per-clone, attach()
+  world-preserving): fixes auto-rig hierarchy mistakes. fenrir: front paws
+  (tripo0_Right_Limb_0, bone_40) re-hung from tripoRoot onto the hand bones;
+  chest mass bone_20 off the right hand onto tripoSpine_1; hind legs remapped
+  to the real chains.
+- glbanim profile `build(mech, def)` seam (called at end of buildGlbMech):
+  attach procedural geometry/joints to a GLB's virtual rig. wraith: wears the
+  PROCEDURAL cape (wraithCloak() extracted from designs/wraith.js) — hidden
+  normally, grown in during the wing-laser heavy; heavyFlare/heavyRaise/
+  heavyImpactFx then work unchanged (cloak joints + wing0..5 anchors exist).
+- `GLB_CLIP_VARIANTS` (animations.js): bespoke GLB clips compiled UNDER THE
+  ORIGINAL NAME so fighter machinery keyed on def.heavyClip still matches.
+  wraith's hover lift-off → grounded forward lean.
+- manifest muzzles `bone` now also accepts RAW GLB bone names (not just
+  boneMap keys). wraith muzzles.R = measured rifle barrel tip in handR frame.
+- ghostWalk (specials.js) bakes SkinnedMeshes skin-aware (getVertexPosition)
+  — the naive matrixWorld bake floated the GLB spectre meters up (the same
+  Armature-offset trap as skinnedBox; see that comment in gltf.js).
+- skintool grounding fixed the same way (skinnedBox export).
+- wraith left arm remapped: intake had the cape chain (bone_18/19/20) as the
+  left arm; real arm is bone_26/27/28.
+
+Deploy note: GH Pages had a brief platform outage ("no server available",
+Configure Pages step) — if a deploy fails there with a green build, just
+re-run or push again.
