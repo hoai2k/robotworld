@@ -7642,39 +7642,105 @@
       },
       {
         "sel": {
-          "comp": 25
+          "comp": 28
         },
-        "to": "bone_43"
+        "to": "tripo0_Left_Limb_0"
       },
       {
         "sel": {
-          "comp": 48
+          "comp": 133
         },
-        "to": "bone_40"
+        "to": "bone_20"
       },
       {
         "sel": {
-          "comp": 36
-        },
-        "to": "bone_5"
-      },
-      {
-        "sel": {
-          "comp": 34
+          "comp": 14
         },
         "to": "bone_42"
       },
       {
         "sel": {
-          "comp": 44
+          "comp": 25
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 26
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 104
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 149
+        },
+        "to": "bone_43"
+      },
+      {
+        "sel": {
+          "comp": 150
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 147
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 152
+        },
+        "to": "bone_42"
+      },
+      {
+        "sel": {
+          "comp": 24
         },
         "to": "bone_41"
       },
       {
         "sel": {
-          "comp": 46
+          "comp": 70
         },
         "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 153
+        },
+        "to": "bone_41"
+      },
+      {
+        "sel": {
+          "comp": 33
+        },
+        "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 146
+        },
+        "to": "bone_40"
+      },
+      {
+        "sel": {
+          "comp": 148
+        },
+        "to": "bone_40"
+      },
+      {
+        "purgePair": [
+          "bone_42",
+          "bone_40"
+        ]
       }
     ]
   },

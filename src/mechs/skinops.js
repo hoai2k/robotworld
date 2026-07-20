@@ -309,6 +309,41 @@ export function selectComps(analysis, sel) {
   return c ? [c] : [];
 }
 
+// purgePair: two bones that must never share a vertex (e.g. the two thighs —
+// Tripo mirror-bleeds weights across symmetric limbs, so wiggling one leg
+// bulges the other). Any vertex weighted to BOTH loses the smaller of the two
+// weights; the rest renormalizes. Pair distance is often only 2 in the
+// hierarchy (siblings), which the purgeFar minDist=3 default deliberately
+// spares — this is the targeted version.
+export function purgePairWeights(mesh, aName, bName) {
+  const geo = mesh.geometry;
+  const jnt = geo.attributes.skinIndex;
+  const wgt = geo.attributes.skinWeight;
+  const bones = mesh.skeleton.bones;
+  const ai = bones.findIndex((b) => b.name === aName);
+  const bi = bones.findIndex((b) => b.name === bName);
+  if (ai < 0 || bi < 0) { console.warn('purgePair: unknown bone', aName, bName); return 0; }
+  let touched = 0;
+  for (let i = 0; i < jnt.count; i++) {
+    let ka = -1, kb = -1;
+    for (let k = 0; k < 4; k++) {
+      const j = jnt.getComponent(i, k);
+      if (j === ai && wgt.getComponent(i, k) > 0) ka = k;
+      else if (j === bi && wgt.getComponent(i, k) > 0) kb = k;
+    }
+    if (ka < 0 || kb < 0) continue;
+    const drop = wgt.getComponent(i, ka) < wgt.getComponent(i, kb) ? ka : kb;
+    let sum = 0;
+    const keep = [0, 0, 0, 0];
+    for (let k = 0; k < 4; k++) { keep[k] = k === drop ? 0 : wgt.getComponent(i, k); sum += keep[k]; }
+    if (sum <= 0) continue;
+    touched++;
+    wgt.setXYZW(i, keep[0] / sum, keep[1] / sum, keep[2] / sum, keep[3] / sum);
+  }
+  if (touched) wgt.needsUpdate = true;
+  return touched;
+}
+
 // Apply ops to a SkinnedMesh's geometry: rigid-bind selected components to
 // the target bone. Mutates skinIndex/skinWeight in place. Returns a summary.
 export function applySkinOps(mesh, ops, analysis = null) {
@@ -324,6 +359,12 @@ export function applySkinOps(mesh, ops, analysis = null) {
     // ({"purgeFar": true, "minDist"?, "minW"?}) — see purgeFarWeights
     if (op.purgeFar) {
       const n = purgeFarWeights(mesh, { minDist: op.minDist, minW: op.minW });
+      if (n) { applied++; total += n; }
+      continue;
+    }
+    // {"purgePair": ["boneA", "boneB"]} — these two bones never share a vertex
+    if (op.purgePair) {
+      const n = purgePairWeights(mesh, op.purgePair[0], op.purgePair[1]);
       if (n) { applied++; total += n; }
       continue;
     }
