@@ -10,6 +10,7 @@ import { TidalWaveFX } from './wavefx.js';
 import { Fighter } from './fighter.js';
 import { AIController } from '../game/ai.js';
 import { cloneMech } from '../mechs/factory.js';
+import { stillCasting, cast, eachEnemy, volley, timedUpdater } from './movekit.js';
 
 const _v = new THREE.Vector3();
 
@@ -63,7 +64,8 @@ function aimDir(f, pitch = 0) {
 export const SPECIALS = {
   // TITANUS: seismic ground slam
   groundPound(f, sp) {
-    const dur = f.animator.play('groundPound', {
+    cast(f, 'groundPound', {
+      stateT: (dur) => dur * 0.92,
       onEvent: (t, a) => {
         if (t === 'fire') {
           const w = f.world;
@@ -72,28 +74,23 @@ export const SPECIALS = {
         } else if (t === 'shake') f.world.effects.addShake(a);
       },
     });
-    f.setState('special', dur * 0.92);
   },
 
   // VULCAN: homing micro-missile volley
   missileVolley(f, sp) {
-    const dur = f.animator.play('shoot');
-    f.setState('special', dur * 0.7);
+    cast(f, 'shoot', { stateT: (dur) => dur * 0.7 });
     const target = f.nearestEnemy();
-    for (let i = 0; i < sp.count; i++) {
-      f.world.schedule(0.08 * i, () => {
-        if (!f.alive) return;
-        const origin = f.mech.anchors.podL
-          ? f.mech.anchors.podL.getWorldPosition(new THREE.Vector3())
-          : muzzle(f);
-        const d = new THREE.Vector3(rand(-0.35, 0.35), rand(0.7, 1), rand(-0.35, 0.35)).normalize();
-        f.world.projectiles.spawn('missile', f, origin, d, {
-          dmg: sp.dmg * f.dmgMult(), speed: 30, splash: 2.8, color: 0xff7040,
-          homing: target, retarget: true, turnRate: 4.8, life: 4,
-        });
-        f.world.audio?.play('missile');
+    volley(f.world, f, sp.count, 0.08, () => {
+      const origin = f.mech.anchors.podL
+        ? f.mech.anchors.podL.getWorldPosition(new THREE.Vector3())
+        : muzzle(f);
+      const d = new THREE.Vector3(rand(-0.35, 0.35), rand(0.7, 1), rand(-0.35, 0.35)).normalize();
+      f.world.projectiles.spawn('missile', f, origin, d, {
+        dmg: sp.dmg * f.dmgMult(), speed: 30, splash: 2.8, color: 0xff7040,
+        homing: target, retarget: true, turnRate: 4.8, life: 4,
       });
-    }
+      f.world.audio?.play('missile');
+    });
   },
 
   // AEGIS: Bulwark Bash — the tower shield goes UP over his head face-up
@@ -103,24 +100,21 @@ export const SPECIALS = {
   shieldBash(f, sp) {
     const w = f.world;
     const RAISE = 0.95;
-    f.setState('special', RAISE + 0.9);
-    f.animator.play('shieldWhirlHold');
+    cast(f, 'shieldWhirlHold', { stateT: RAISE + 0.9 });
     // the shield itself tips FLAT — decorated face to the sky — and spins
     // about its own face normal like an umbrella/top balanced on the raised
     // fist (set overrides the rest-carry, z is the face axis once tipped)
     f._spinFx = { joint: 'shield', axis: 'z', rate: 26, dur: RAISE, set: [Math.PI / 2, 0, 0], t: 0, acc: 0 };
     w.audio?.play('whooshBig');
     // whirl tell: tightening rings overhead
-    for (let i = 0; i < 3; i++) {
-      w.schedule(i * 0.3, () => {
-        if (!f.alive || f.state !== 'special') return;
-        w.effects.rings.spawn(f.pos, { from: 3.4, to: 1, dur: 0.28, color: 0x49b7ff, y: f.height * 0.95 });
-      });
-    }
+    volley(w, f, 3, 0.3, () => {
+      w.effects.rings.spawn(f.pos, { from: 3.4, to: 1, dur: 0.28, color: 0x49b7ff, y: f.height * 0.95 });
+    }, { guard: (f) => stillCasting(f) });
     w.schedule(RAISE, () => {
       if (!f.alive || f.state !== 'special') return;
       f.faceNearestEnemyIfClose(14);
-      const dur = f.animator.play('aegisShieldSmash', {
+      cast(f, 'aegisShieldSmash', {
+        stateT: (dur) => dur * 0.95,
         onEvent: (t) => {
           if (t === 'hit') {
             f.onAttackEvent('hit', 0, {
@@ -130,19 +124,15 @@ export const SPECIALS = {
           }
         },
       });
-      f.setState('special', dur * 0.95);
       // the wall: the shield GROWS to a full mech's height through the
       // strike, then eases back to carry size
       f._scaleFx = { joint: 'shield', t: 0, grow: 0.2, hold: 0.5, back: 0.3, max: 1.75 };
       // and the smash CARRIES — a driving shield-rush through the strike
       // window instead of a standing shove
-      for (let i = 1; i <= 9; i++) {
-        w.schedule(i * 0.045, () => {
-          if (!f.alive || f.state !== 'special') return;
-          f.vel.x = Math.sin(f.yaw) * 25;
-          f.vel.z = Math.cos(f.yaw) * 25;
-        });
-      }
+      volley(w, f, 9, 0.045, () => {
+        f.vel.x = Math.sin(f.yaw) * 25;
+        f.vel.z = Math.cos(f.yaw) * 25;
+      }, { start: 0.045, guard: (f) => stillCasting(f) });
     });
     f.status.guard = { f: 0.6, t: sp.guard };
     f.world.effects.rings.spawn(f.pos, { from: 1, to: 5, dur: 0.5, color: 0x49b7ff, y: 1 });
@@ -155,8 +145,7 @@ export const SPECIALS = {
   bladeCyclone(f, sp) {
     const w = f.world;
     const DUR = 1.35;
-    f.setState('special', DUR + 0.15);
-    f.animator.play('viperWhirl');
+    cast(f, 'viperWhirl', { stateT: DUR + 0.15 });
     // post-pose torso spin: the waist is a free bearing — head and blades
     // whirl while the gait below stays forward
     f._spinFx = { joint: 'torso', axis: 'y', rate: 21, dur: DUR, t: 0, acc: 0 };
@@ -179,50 +168,43 @@ export const SPECIALS = {
               { life: 0.16, size: 0.7 * f.scale, color: 0x5aff2e, alpha: 0.85, grow: -1 });
           }
         }
-        for (const e of w.fighters) {
-          if (e === f || !e.alive) continue;
-          const dx = w.wrapDelta(e.pos.x - f.pos.x), dz = w.wrapDelta(e.pos.z - f.pos.z);
-          if (Math.hypot(dx, dz) < 3.6 * f.scale && (hitAt.get(e) ?? -1) <= t - 0.22) {
+        eachEnemy(w, f, f.pos, 3.6 * f.scale, (e) => {
+          if ((hitAt.get(e) ?? -1) <= t - 0.22) {
             hitAt.set(e, t);
             e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, srcPos: f.pos });
             w.audio?.play('slash');
             w.engine.addHitStop(0.03);
           }
-        }
+        });
       });
     }
   },
 
   // NOVA: three homing star orbs
   starfall(f, sp) {
-    const dur = f.animator.play('castRaise', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
+    cast(f, 'castRaise', {
+      stateT: (dur) => dur * 0.8,
+      onFire: () => {
         const target = f.nearestEnemy();
-        for (let i = 0; i < sp.count; i++) {
-          f.world.schedule(0.14 * i, () => {
-            if (!f.alive) return;
-            const origin = muzzle(f).add(new THREE.Vector3(rand(-1, 1), rand(1, 2.5), rand(-1, 1)));
-            const g = f.animator?.novaGlow || 0;
-            f.world.projectiles.spawn('plasma', f, origin, new THREE.Vector3(0, 1, 0), {
-              dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6 * (1 + 0.4 * g), color: 0xff5ce8,
-              homing: target, retarget: true, turnRate: 4.0, life: 4.5,
-              size: 1 + 0.7 * g,
-            });
-            f.world.audio?.play('plasma');
+        volley(f.world, f, sp.count, 0.14, () => {
+          const origin = muzzle(f).add(new THREE.Vector3(rand(-1, 1), rand(1, 2.5), rand(-1, 1)));
+          const g = f.animator?.novaGlow || 0;
+          f.world.projectiles.spawn('plasma', f, origin, new THREE.Vector3(0, 1, 0), {
+            dmg: sp.dmg * f.dmgMult(), speed: 22, splash: 2.6 * (1 + 0.4 * g), color: 0xff5ce8,
+            homing: target, retarget: true, turnRate: 4.0, life: 4.5,
+            size: 1 + 0.7 * g,
           });
-        }
+          f.world.audio?.play('plasma');
+        });
       },
     });
-    f.setState('special', dur * 0.8);
   },
 
   // RHINO: bull rush — gallops forward on all fours as long as B is HELD,
   // up to 5s. The run ENDS the moment it connects with someone (one clean
   // launch), or when the button is released.
   bullRush(f, sp) {
-    f.animator.play('chargeLean');
-    f.setState('special', 5.2); // held-charge ceiling; ended early on release
+    cast(f, 'chargeLean', { stateT: 5.2 }); // held-charge ceiling; ended early on release
     f.world.audio?.play('charge');
     f._chargeT = 0;
     const endRush = (recovery) => {
@@ -272,9 +254,9 @@ export const SPECIALS = {
   // a dark cloud gathers overhead, then lightning hammers DOWN out of it at
   // the ground and at anyone caught underneath
   staticField(f, sp) {
-    const dur = f.animator.play('burst', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
+    cast(f, 'burst', {
+      stateT: (dur) => dur * 0.85,
+      onFire: () => {
         const w = f.world;
         // storm placed well AHEAD of tempest — it's a zoning tool, not a
         // self-centered burst
@@ -312,11 +294,7 @@ export const SPECIALS = {
         // bolts hammer down over ~0.5s: every caught bot eats a strike from
         // the cloud, plus scattered ground strikes to sell the storm
         const bolts = [];
-        for (const e of w.fighters) {
-          if (e === f || !e.alive) continue;
-          const dx = w.wrapDelta(e.pos.x - center.x), dz = w.wrapDelta(e.pos.z - center.z);
-          if (Math.hypot(dx, dz) < sp.radius) bolts.push({ victim: e });
-        }
+        eachEnemy(w, f, center, sp.radius, (e) => bolts.push({ victim: e }));
         for (let i = 0; i < 7; i++) {
           const a = rand(Math.PI * 2), r = rand(1.5, sp.radius * 0.9);
           bolts.push({ x: center.x + Math.cos(a) * r, z: center.z + Math.sin(a) * r });
@@ -349,13 +327,11 @@ export const SPECIALS = {
         });
       },
     });
-    f.setState('special', dur * 0.85);
   },
 
   // FENRIR: lunar pounce
   pounce(f, sp) {
-    f.animator.play('lunge');
-    f.setState('special', 0.75);
+    cast(f, 'lunge', { stateT: 0.75 });
     f.world.audio?.play('howl');
     const e = f.nearestEnemy();
     if (e && f.isAI) {
@@ -397,8 +373,7 @@ export const SPECIALS = {
     // dwarfs the victim) and the hurl carries proportionally farther
     const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
     if (gf > 1.4) f._oneArmLift = true;
-    f.animator.play('grabReach');
-    f.setState('special', 1.6);
+    cast(f, 'grabReach', { stateT: 1.6 });
     w.audio?.play('servo');
     w.schedule(0.2, () => {
       if (!f.alive || f.state !== 'special') return;
@@ -488,30 +463,27 @@ export const SPECIALS = {
   // COLOSSUS (legacy): artillery barrage on target area
   barrage(f, sp) {
     const fallback = fwd(f, 24);
-    const dur = f.animator.play('brace', {
+    cast(f, 'brace', {
+      stateT: (dur) => dur * 0.85,
       onEvent: (t, a) => {
         if (t === 'shake') { f.world.effects.addShake(a); return; }
         if (t !== 'fire') return;
-        for (let i = 0; i < sp.count; i++) {
-          f.world.schedule(0.22 * i, () => {
-            if (!f.alive) return;
-            const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
-            // re-aim EACH shell at launch, led by its own flight time —
-            // one stale aim point misses everything by the last shell
-            const arcTime = rand(1.1, 1.5);
-            const e = f.nearestEnemy();
-            const target = e ? leadPos(f, e, arcTime * 0.85) : fallback;
-            const to = target.clone().add(new THREE.Vector3(rand(-sp.radius, sp.radius) * 0.45, 0, rand(-sp.radius, sp.radius) * 0.45));
-            f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
-              dmg: sp.dmg * f.dmgMult(), splash: 4, color: 0xffd23c, arcTo: to, arcTime,
-            });
-            f.world.audio?.play('mortar');
-            f.animator.addImpulse('torso', [-0.12, 0, 0], 30, 10);
+        volley(f.world, f, sp.count, 0.22, (i) => {
+          const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+          // re-aim EACH shell at launch, led by its own flight time —
+          // one stale aim point misses everything by the last shell
+          const arcTime = rand(1.1, 1.5);
+          const e = f.nearestEnemy();
+          const target = e ? leadPos(f, e, arcTime * 0.85) : fallback;
+          const to = target.clone().add(new THREE.Vector3(rand(-sp.radius, sp.radius) * 0.45, 0, rand(-sp.radius, sp.radius) * 0.45));
+          f.world.projectiles.spawn('mortar', f, from, new THREE.Vector3(0, 1, 0), {
+            dmg: sp.dmg * f.dmgMult(), splash: 4, color: 0xffd23c, arcTo: to, arcTime,
           });
-        }
+          f.world.audio?.play('mortar');
+          f.animator.addImpulse('torso', [-0.12, 0, 0], 30, 10);
+        });
       },
     });
-    f.setState('special', dur * 0.85);
   },
 
   // WRAITH: cloak (legacy — Ghost Protocol now uses ghostWalk below)
@@ -528,8 +500,7 @@ export const SPECIALS = {
   // his player sees a zip forward, everyone else sees the spectre solidify
   ghostWalk(f, sp) {
     const w = f.world;
-    f.setState('special', (sp.duration || 5) + 0.4);
-    f.animator.play('aim', { speed: 0.5 });
+    cast(f, 'aim', { stateT: (sp.duration || 5) + 0.4, speed: 0.5 });
     w.audio?.play('cloak');
 
     // build the spectre: bake the current pose into a throwaway shell whose
@@ -642,17 +613,13 @@ export const SPECIALS = {
 
   // INFERNO: napalm carpet
   napalm(f, sp) {
-    const dur = f.animator.play('shoot');
-    f.setState('special', dur * 0.7);
-    for (let i = 0; i < sp.patches; i++) {
-      f.world.schedule(0.12 * i, () => {
-        if (!f.alive) return;
-        const pos = fwd(f, 6 + i * 4.5);
-        pos.y = 0;
-        f.world.addFirePatch(f, pos, 3, sp.duration, sp.dmg);
-        f.world.audio?.play('flame');
-      });
-    }
+    cast(f, 'shoot', { stateT: (dur) => dur * 0.7 });
+    volley(f.world, f, sp.patches, 0.12, (i) => {
+      const pos = fwd(f, 6 + i * 4.5);
+      pos.y = 0;
+      f.world.addFirePatch(f, pos, 3, sp.duration, sp.dmg);
+      f.world.audio?.play('flame');
+    });
   },
 
   // CRANKY: water column erupts under the target — a bubbling warning patch
@@ -661,9 +628,9 @@ export const SPECIALS = {
   // roars for sp.duration seconds before draining back down
   geyser(f, sp) {
     const WARN = 0.85; // telegraph long enough to sidestep
-    const dur = f.animator.play('castRaise', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
+    cast(f, 'castRaise', {
+      stateT: (dur) => dur * 0.85,
+      onFire: () => {
         const w = f.world;
         const e = f.nearestEnemy();
         const target = e ? leadPos(f, e, WARN + 0.45) : fwd(f, 14);
@@ -684,18 +651,13 @@ export const SPECIALS = {
         w.schedule(WARN, () => {
           w.audio?.play('wave');
           w.audio?.play('explosionBig');
-          for (const v of w.fighters) {
-            if (v === f || !v.alive) continue;
-            const dx = w.wrapDelta(v.pos.x - target.x), dz = w.wrapDelta(v.pos.z - target.z);
-            if (Math.hypot(dx, dz) < sp.radius + v.hitRadius * 0.5) {
-              v.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, launch: sp.launch, srcPos: target, heavy: true });
-              v.applySoak?.(2.4); // drenched: dripping frame, half speed
-            }
-          }
+          eachEnemy(w, f, target, sp.radius, (v) => {
+            v.takeHit(sp.dmg * f.dmgMult(), f, { knock: 5, launch: sp.launch, srcPos: target, heavy: true });
+            v.applySoak?.(2.4); // drenched: dripping frame, half speed
+          }, (v) => v.hitRadius * 0.5);
         });
       },
     });
-    f.setState('special', dur * 0.85);
   },
 
   // SAURION: raptor pounce — a HIGH bird-of-prey kill-leap. The latch only
@@ -705,8 +667,7 @@ export const SPECIALS = {
   sickleRush(f, sp) {
     const w = f.world;
     const e = f.nearestEnemy();
-    f.animator.play('pounceLeap');
-    f.setState('special', 2.2);
+    cast(f, 'pounceLeap', { stateT: 2.2 });
     f.iframes = 0.4;
     w.audio?.play('jump');
     // tall ballistic pounce — high enough to drop onto a mech's shoulders
@@ -737,9 +698,8 @@ export const SPECIALS = {
       // TALONS IN — he lands on their upper body and PERCHES there, feet
       // gripping high on the frame, tearing in with quick raptor pecks
       const RIDE = 0.72;
-      f.setState('special', RIDE + 0.3);
+      cast(f, 'biteLatch', { stateT: RIDE + 0.3 });
       f.iframes = 0.5;
-      f.animator.play('biteLatch');
       w.audio?.play('slash');
       w.engine.addHitStop(0.09);
       prey.takeHit(sp.dmg * f.dmgMult(), f, { knock: 2, srcPos: f.pos, heavy: true });
@@ -850,43 +810,35 @@ export const SPECIALS = {
   slimeBarrage(f, sp) {
     // a rain of lumpy slime GLOBS — every wad that lands splats a puddle
     // and gunks blotches onto whoever it hits (the goop flag drives both)
-    const dur = f.animator.play('spray', { speed: 1.4 });
-    f.setState('special', Math.min(dur, 1.0));
-    for (let i = 0; i < sp.count; i++) {
-      f.world.schedule(0.09 * i, () => {
-        if (!f.alive) return;
-        const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
-        const arcTime = rand(0.7, 1.0);
-        const e = f.nearestEnemy();
-        const target = e ? leadPos(f, e, arcTime * 0.8) : fwd(f, 16);
-        target.x += rand(-sp.radius, sp.radius) * 0.4;
-        target.z += rand(-sp.radius, sp.radius) * 0.4;
-        f.world.projectiles.spawn('glob', f, from, new THREE.Vector3(0, 1, 0), {
-          dmg: sp.dmg * f.dmgMult(), splash: 2.6, color: 0x9ade2a, arcTo: target, arcTime,
-          status: { slow: 0.6, slowT: 1.8 }, goop: true, size: rand(0.9, 1.4),
-        });
-        f.world.effects.slime(from, 3, 2);
-        f.world.audio?.play('plasma');
+    cast(f, 'spray', { speed: 1.4, stateT: (dur) => Math.min(dur, 1.0) });
+    volley(f.world, f, sp.count, 0.09, (i) => {
+      const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+      const arcTime = rand(0.7, 1.0);
+      const e = f.nearestEnemy();
+      const target = e ? leadPos(f, e, arcTime * 0.8) : fwd(f, 16);
+      target.x += rand(-sp.radius, sp.radius) * 0.4;
+      target.z += rand(-sp.radius, sp.radius) * 0.4;
+      f.world.projectiles.spawn('glob', f, from, new THREE.Vector3(0, 1, 0), {
+        dmg: sp.dmg * f.dmgMult(), splash: 2.6, color: 0x9ade2a, arcTo: target, arcTime,
+        status: { slow: 0.6, slowT: 1.8 }, goop: true, size: rand(0.9, 1.4),
       });
-    }
+      f.world.effects.slime(from, 3, 2);
+      f.world.audio?.play('plasma');
+    });
   },
 
   // JERRY: both cannons cough up a scattering burst of live robo-shrimp
   // fleas that hop off hunting on their own
   fleaSwarm(f, sp) {
-    const dur = f.animator.play('shoot');
-    f.setState('special', Math.min(dur, 0.8));
-    for (let i = 0; i < sp.count; i++) {
-      f.world.schedule(0.09 * i, () => {
-        if (!f.alive) return;
-        const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
-        const a = f.yaw + rand(-0.55, 0.55);
-        f.world.fleas.spawn(f, from, new THREE.Vector3(Math.sin(a), 0.55, Math.cos(a)), {
-          dmg: sp.dmg * f.dmgMult(),
-        });
-        f.world.effects.muzzleFlash(from);
+    cast(f, 'shoot', { stateT: (dur) => Math.min(dur, 0.8) });
+    volley(f.world, f, sp.count, 0.09, (i) => {
+      const from = muzzle(f, i % 2 ? 'muzzleL' : 'muzzleR');
+      const a = f.yaw + rand(-0.55, 0.55);
+      f.world.fleas.spawn(f, from, new THREE.Vector3(Math.sin(a), 0.55, Math.cos(a)), {
+        dmg: sp.dmg * f.dmgMult(),
       });
-    }
+      f.world.effects.muzzleFlash(from);
+    });
   },
 
   // NULLBOT: SEGFAULT — he de-rezzes into a smear of corrupted frames and
@@ -894,8 +846,7 @@ export const SPECIALS = {
   // through gets a chunk of themselves converted (a glitch stack)
   segfault(f, sp) {
     const w = f.world;
-    f.animator.play('lunge');
-    f.setState('special', 0.48);
+    cast(f, 'lunge', { stateT: 0.48 });
     f.iframes = 0.42;
     const spd = f.def.stats.speed * 4.4;
     f.vel.x = Math.sin(f.yaw) * spd;
@@ -904,62 +855,55 @@ export const SPECIALS = {
     w.audio?.play('dash');
     w.effects.glitchBurst(f.center(), 14, 8, f.scale);
     const victims = new Set();
-    for (let i = 1; i <= 9; i++) {
-      w.schedule(i * 0.045, () => {
-        if (!f.alive) return;
-        // after-images: corrupted frames left hanging along the tear line
-        w.effects.glitchFleck(f.pos.x + rand(-0.6, 0.6), f.pos.y + rand(0.8, f.height * 0.9),
-          f.pos.z + rand(-0.6, 0.6), 1.5 * f.scale);
-        w.effects.dashTrail(f.pos, 0xff2df2, f.scale * 1.3);
-        for (const e of w.fighters) {
-          if (e === f || !e.alive || victims.has(e)) continue;
-          if (e.pos.distanceTo(f.pos) < 3.4 * f.scale) {
-            victims.add(e);
-            e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 10, srcPos: f.pos, status: { glitch: 1 } });
-            w.effects.glitchBurst(e.center(), 12, 7, e.scale);
-            w.engine.addHitStop(0.05);
-          }
+    volley(w, f, 9, 0.045, () => {
+      // after-images: corrupted frames left hanging along the tear line
+      w.effects.glitchFleck(f.pos.x + rand(-0.6, 0.6), f.pos.y + rand(0.8, f.height * 0.9),
+        f.pos.z + rand(-0.6, 0.6), 1.5 * f.scale);
+      w.effects.dashTrail(f.pos, 0xff2df2, f.scale * 1.3);
+      for (const e of w.fighters) {
+        if (e === f || !e.alive || victims.has(e)) continue;
+        if (e.pos.distanceTo(f.pos) < 3.4 * f.scale) {
+          victims.add(e);
+          e.takeHit(sp.dmg * f.dmgMult(), f, { knock: 10, srcPos: f.pos, status: { glitch: 1 } });
+          w.effects.glitchBurst(e.center(), 12, 7, e.scale);
+          w.engine.addHitStop(0.05);
         }
-      });
-    }
+      }
+    }, { start: 0.045 });
   },
 
   // GLACIER: cryo beam channel
   freezeBeam(f, sp) {
-    f.animator.play('shootLoop');
-    f.setState('special', sp.duration);
+    cast(f, 'shootLoop', { stateT: sp.duration });
     const ticks = Math.floor(sp.duration / 0.12);
-    for (let i = 0; i < ticks; i++) {
-      f.world.schedule(i * 0.12, () => {
-        if (!f.alive || f.state !== 'special') return;
-        f.firing = true;
-        f.faceNearestEnemyIfClose(40, true);
-        const from = muzzle(f);
-        const dir = aimDir(f);
-        const end = from.clone().addScaledVector(dir, 24);
-        f.world.effects.beams.spawn(from, end, { radius: 0.5, dur: 0.14, color: 0x9be8ff });
-        f.world.effects.snowCone(from, dir);
-        if (i % 3 === 0) f.world.audio?.play('freeze');
-        for (const e of f.world.fighters) {
-          if (e === f || !e.alive) continue;
-          const c = e.center();
-          const t = c.clone().sub(from).dot(dir);
-          if (t > 0 && t < 26) {
-            const closest = from.clone().addScaledVector(dir, t);
-            if (closest.distanceTo(c) < e.hitRadius + 1.2) {
-              // iced over: the whole body stays frost-WHITE for exactly as
-              // long as the beam is on them (thaws right back after), while
-              // the tick flinches shake them and the slow bogs them down
-              e._beamWhiteT = 0.18;
-              e.takeHit(sp.dmg * f.dmgMult(), f, {
-                knock: 1, srcPos: from, silent: true, soft: true,
-                status: { slow: sp.slow, slowT: 1.2 },
-              });
-            }
+    volley(f.world, f, ticks, 0.12, (i) => {
+      f.firing = true;
+      f.faceNearestEnemyIfClose(40, true);
+      const from = muzzle(f);
+      const dir = aimDir(f);
+      const end = from.clone().addScaledVector(dir, 24);
+      f.world.effects.beams.spawn(from, end, { radius: 0.5, dur: 0.14, color: 0x9be8ff });
+      f.world.effects.snowCone(from, dir);
+      if (i % 3 === 0) f.world.audio?.play('freeze');
+      for (const e of f.world.fighters) {
+        if (e === f || !e.alive) continue;
+        const c = e.center();
+        const t = c.clone().sub(from).dot(dir);
+        if (t > 0 && t < 26) {
+          const closest = from.clone().addScaledVector(dir, t);
+          if (closest.distanceTo(c) < e.hitRadius + 1.2) {
+            // iced over: the whole body stays frost-WHITE for exactly as
+            // long as the beam is on them (thaws right back after), while
+            // the tick flinches shake them and the slow bogs them down
+            e._beamWhiteT = 0.18;
+            e.takeHit(sp.dmg * f.dmgMult(), f, {
+              knock: 1, srcPos: from, silent: true, soft: true,
+              status: { slow: sp.slow, slowT: 1.2 },
+            });
           }
         }
-      });
-    }
+      }
+    }, { guard: (f) => stillCasting(f) });
     f.world.schedule(sp.duration + 0.05, () => { if (f.state === 'special') { f.animator.stop(); f.setState('normal'); } });
   },
 };
@@ -1008,11 +952,8 @@ function summonFlash(w, group, color = 0x9be8ff, dur = 0.45) {
     o.add(m);
     overlays.push(m);
   }
-  let t = 0;
-  w.addUpdater((dt) => {
-    t += dt;
+  timedUpdater(w, dur, (k, dt, t) => {
     mat.opacity = 0.95 * Math.pow(Math.max(0, 1 - t / dur), 1.5);
-    return t < dur;
   }, () => {
     for (const m of overlays) m.parent?.remove(m);
     mat.dispose();
@@ -1047,9 +988,7 @@ function summonPortal(w, x, z, { radius = 3.5, color = 0x6cd8ff, life = 1.6 } = 
   grp.add(spin);
   grp.position.set(x, 0, z);
   w.scene.add(grp);
-  let t = 0;
-  w.addUpdater((dt) => {
-    t += dt;
+  timedUpdater(w, life, (_k, dt, t) => {
     const k = Math.min(t / 0.22, 1) * ss(clamp01((life - t) / 0.35));
     discMat.opacity = 0.35 * k;
     rimMat.opacity = 0.9 * k;
@@ -1060,7 +999,6 @@ function summonPortal(w, x, z, { radius = 3.5, color = 0x6cd8ff, life = 1.6 } = 
       w.effects.glows.emit(x + Math.cos(a) * r, 0.3, z + Math.sin(a) * r,
         0, rand(2.5, 6), 0, { life: 0.4, size: 0.55, color, alpha: 0.8 });
     }
-    return t < life;
   }, () => {
     w.scene.remove(grp);
     disc.geometry.dispose();
@@ -1089,9 +1027,9 @@ export const ULTS = {
   // that leaves the ground burning where it lands
   meteorBreaker(f, u) {
     const w = f.world;
-    const dur = f.animator.play('castRaise', {
-      onEvent: (t) => {
-        if (t !== 'fire') return;
+    cast(f, 'castRaise', {
+      state: 'ult',
+      onFire: () => {
         w.audio?.play('powerup');
         w.audio?.play('thunder');
         const center = fwd(f, u.radius * 0.85);
@@ -1105,64 +1043,60 @@ export const ULTS = {
           color: 0x4a3a30, roughness: 0.95, metalness: 0.05,
           emissive: 0xff5a10, emissiveIntensity: 0.9,
         });
-        for (let i = 0; i < u.count; i++) {
-          w.schedule(0.15 + i * 0.17, () => {
-            if (!f.alive) return;
-            // half the rocks hunt whoever is standing in the zone, the rest
-            // carpet it at random
-            let gx, gz;
-            const prey = i % 2 === 0 ? nearestEnemyTo(f, center.x, center.z, u.radius * 1.2) : null;
-            if (prey) {
-              const p = leadPos(f, prey, 0.8);
-              gx = p.x + rand(-2.5, 2.5);
-              gz = p.z + rand(-2.5, 2.5);
-            } else {
-              const a = rand(TAU), r = Math.sqrt(Math.random()) * u.radius;
-              gx = center.x + Math.cos(a) * r;
-              gz = center.z + Math.sin(a) * r;
-            }
-            const s = rand(1.0, 1.7);
-            const rock = new THREE.Mesh(rockGeo, rockMat);
-            rock.scale.setScalar(s);
-            const FALL = 0.8;
-            // slanted entry: offset well to the storm side so the descent
-            // comes down at a real angle (~30°), not a vertical plummet
-            const slant = rand(24, 34);
-            const ox = Math.cos(stormA) * slant + rand(-4, 4);
-            const oz = Math.sin(stormA) * slant + rand(-4, 4);
-            rock.position.set(gx + ox, 48, gz + oz);
-            w.scene.add(rock);
-            const vel = new THREE.Vector3(-ox / FALL, -48 / FALL, -oz / FALL);
-            const spin = rand(-7, 7);
-            w.audio?.play('whoosh');
-            w.addUpdater((dt) => {
-              rock.position.addScaledVector(vel, dt);
-              rock.rotation.x += spin * dt;
-              rock.rotation.z += spin * 0.6 * dt;
-              // burning tail
-              w.effects.glows.emit(
-                rock.position.x + rand(-0.4, 0.4), rock.position.y + rand(0, 1), rock.position.z + rand(-0.4, 0.4),
-                rand(-1, 1), rand(3, 7), rand(-1, 1),
-                { life: 0.3, size: rand(1.1, 2) * s, color: 0xff7a20, alpha: 0.9 });
-              w.effects.smoke.emit(rock.position.x, rock.position.y + 1.2, rock.position.z,
-                rand(-1, 1), rand(2, 4), rand(-1, 1),
-                { life: 0.6, size: 1.6 * s, color: 0x30241c, alpha: 0.4, grow: 1.6 });
-              if (rock.position.y > 0.5 * s) return true;
-              // IMPACT: fire blast + burning crater
-              const hit = new THREE.Vector3(gx, 0, gz);
-              w.explode(hit, 4.6, u.dmg * f.dmgMult(), { unblockable: true,
-                owner: f, knock: u.knock, launch: 8, color: 0xff7a30,
-                status: { burn: 6, burnT: 2 },
-              });
-              w.addFirePatch(f, hit, 2.4, 2.8, 9);
-              w.effects.addShake(0.5);
-              return false;
-            }, () => { w.scene.remove(rock); });
-          });
-        }
+        volley(w, f, u.count, 0.17, (i) => {
+          // half the rocks hunt whoever is standing in the zone, the rest
+          // carpet it at random
+          let gx, gz;
+          const prey = i % 2 === 0 ? nearestEnemyTo(f, center.x, center.z, u.radius * 1.2) : null;
+          if (prey) {
+            const p = leadPos(f, prey, 0.8);
+            gx = p.x + rand(-2.5, 2.5);
+            gz = p.z + rand(-2.5, 2.5);
+          } else {
+            const a = rand(TAU), r = Math.sqrt(Math.random()) * u.radius;
+            gx = center.x + Math.cos(a) * r;
+            gz = center.z + Math.sin(a) * r;
+          }
+          const s = rand(1.0, 1.7);
+          const rock = new THREE.Mesh(rockGeo, rockMat);
+          rock.scale.setScalar(s);
+          const FALL = 0.8;
+          // slanted entry: offset well to the storm side so the descent
+          // comes down at a real angle (~30°), not a vertical plummet
+          const slant = rand(24, 34);
+          const ox = Math.cos(stormA) * slant + rand(-4, 4);
+          const oz = Math.sin(stormA) * slant + rand(-4, 4);
+          rock.position.set(gx + ox, 48, gz + oz);
+          w.scene.add(rock);
+          const vel = new THREE.Vector3(-ox / FALL, -48 / FALL, -oz / FALL);
+          const spin = rand(-7, 7);
+          w.audio?.play('whoosh');
+          w.addUpdater((dt) => {
+            rock.position.addScaledVector(vel, dt);
+            rock.rotation.x += spin * dt;
+            rock.rotation.z += spin * 0.6 * dt;
+            // burning tail
+            w.effects.glows.emit(
+              rock.position.x + rand(-0.4, 0.4), rock.position.y + rand(0, 1), rock.position.z + rand(-0.4, 0.4),
+              rand(-1, 1), rand(3, 7), rand(-1, 1),
+              { life: 0.3, size: rand(1.1, 2) * s, color: 0xff7a20, alpha: 0.9 });
+            w.effects.smoke.emit(rock.position.x, rock.position.y + 1.2, rock.position.z,
+              rand(-1, 1), rand(2, 4), rand(-1, 1),
+              { life: 0.6, size: 1.6 * s, color: 0x30241c, alpha: 0.4, grow: 1.6 });
+            if (rock.position.y > 0.5 * s) return true;
+            // IMPACT: fire blast + burning crater
+            const hit = new THREE.Vector3(gx, 0, gz);
+            w.explode(hit, 4.6, u.dmg * f.dmgMult(), { unblockable: true,
+              owner: f, knock: u.knock, launch: 8, color: 0xff7a30,
+              status: { burn: 6, burnT: 2 },
+            });
+            w.addFirePatch(f, hit, 2.4, 2.8, 9);
+            w.effects.addShake(0.5);
+            return false;
+          }, () => { w.scene.remove(rock); });
+        }, { start: 0.15 });
       },
     });
-    f.setState('ult', dur);
   },
 
   // VULCAN: his upper body spins loose and hoses out a hundred rounds that
@@ -1172,8 +1106,7 @@ export const ULTS = {
   bulletHurricane(f, u) {
     const w = f.world;
     const N = u.count || 100;
-    f.setState('ult', 1.15);
-    f.animator.play('spinFire');
+    cast(f, 'spinFire', { state: 'ult', stateT: 1.15 });
     f._spinFx = { joint: 'torso', axis: 'y', rate: 22, dur: 1.05, t: 0, acc: 0 };
     w.audio?.play('powerup');
     const geo = new THREE.SphereGeometry(0.24, 6, 5);
@@ -1276,19 +1209,15 @@ export const ULTS = {
   // (no finisher; they are simply gone). INNOCENT and the defendant walks.
   judgment(f, u) {
     const w = f.world;
-    f.setState('ult', 4.6);
-    f.animator.play('castRaise', { speed: 0.55 });
+    cast(f, 'castRaise', { state: 'ult', stateT: 4.6, speed: 0.55 });
     w.audio?.play('cast');
     w.effects.rings.spawn(f.pos, { from: 1, to: 9, dur: 0.8, color: 0xf6ecc2, y: 0.6 });
-    for (let i = 0; i < 10; i++) {
-      w.schedule(0.2 + i * 0.09, () => {
-        if (!f.alive) return;
-        const from = muzzle(f);
-        const top = from.clone().add(new THREE.Vector3(rand(-8, 8), 78, rand(-8, 8)));
-        w.effects.beams.spawn(from, top, { radius: rand(0.22, 0.42), dur: 1.5, color: 0xf6ecc2 });
-        if (i % 3 === 0) w.audio?.play('beam');
-      });
-    }
+    volley(w, f, 10, 0.09, (i) => {
+      const from = muzzle(f);
+      const top = from.clone().add(new THREE.Vector3(rand(-8, 8), 78, rand(-8, 8)));
+      w.effects.beams.spawn(from, top, { radius: rand(0.22, 0.42), dur: 1.5, color: 0xf6ecc2 });
+      if (i % 3 === 0) w.audio?.play('beam');
+    }, { start: 0.2 });
     const say = (text, color = null, hold = true) => w.events.emit('banner', { text, hold, color });
     w.schedule(1.0, () => f.alive && say('JUDGEMENT'));
     w.schedule(1.5, () => f.alive && say('JUDGEMENT .'));
@@ -1570,9 +1499,8 @@ export const ULTS = {
   supernova(f, u) {
     const w = f.world;
     const GROW = 1.3, SHRINK = 0.45;
-    f.setState('ult', GROW + SHRINK + 0.5);
+    cast(f, 'burst', { state: 'ult', stateT: GROW + SHRINK + 0.5, speed: 0.7 });
     f.iframes = GROW + SHRINK + 0.6;
-    f.animator.play('burst', { speed: 0.7 });
     w.audio?.play('charge');
     // the flash
     w.effects.glows.emit(f.pos.x, f.pos.y + f.height * 0.6, f.pos.z, 0, 0, 0,
@@ -1646,10 +1574,9 @@ export const ULTS = {
     const w = f.world;
     const COPIES = (u.copies || 10) - 1; // he leads the charge himself
     f.faceNearestEnemyIfClose(90, true);
-    f.animator.play('chargeLean');
     const spd = f.def.stats.speed * 3.6;
     const DUR = (u.range || 46) / spd;
-    f.setState('ult', DUR + 0.25);
+    cast(f, 'chargeLean', { state: 'ult', stateT: DUR + 0.25 });
     f.iframes = 0.5;
     w.audio?.play('powerup');
     w.audio?.play('charge');
@@ -1729,9 +1656,9 @@ export const ULTS = {
   // hammer down out of the deck onto everyone caught in the gloom
   thunderfall(f, u) {
     const w = f.world;
-    const dur = f.animator.play('castRaise', {
-      onEvent: (tt) => {
-        if (tt !== 'fire') return;
+    cast(f, 'castRaise', {
+      state: 'ult',
+      onFire: () => {
         const center = f.pos.clone();
         center.y = 0;
         const R = u.radius, DECK = 20;
@@ -1834,15 +1761,13 @@ export const ULTS = {
         });
       },
     });
-    f.setState('ult', dur);
   },
 
   // FENRIR: one howl at the sky — and a PACK of twenty low-running Fenrirs
   // floods the block, tearing through everything they brush past
   wildHunt(f, u) {
     const w = f.world;
-    f.setState('ult', 1.2);
-    f.animator.play('castRaise', { speed: 1.1 });
+    cast(f, 'castRaise', { state: 'ult', stateT: 1.2, speed: 1.1 });
     w.audio?.play('howl');
     w.effects.rings.spawn(f.pos, { from: 0.5, to: u.radius, dur: 0.9, color: 0x6cd8ff, y: 0.8 });
     // drop into the hunting crouch right before the pack bakes off him
@@ -1939,8 +1864,7 @@ export const ULTS = {
     if (f._giantK) return; // already grown
     const w = f.world;
     f._giantK = true;
-    f.setState('ult', 1.3);
-    f.animator.play('burst');
+    cast(f, 'burst', { state: 'ult', stateT: 1.3 });
     w.audio?.play('powerup');
     w.effects.rings.spawn(f.pos, { from: 1, to: 12, dur: 0.7, color: 0xffd23c, y: 0.5 });
     const base = { scale: f.scale, h: f.baseHeight, hr: f.baseHitRadius, r: f.radius };
@@ -2001,8 +1925,7 @@ export const ULTS = {
   deathSwarm(f, u) {
     const w = f.world;
     const N = u.count || 150;
-    f.setState('ult', 1.0);
-    f.animator.play('burst', { speed: 0.8 });
+    cast(f, 'burst', { state: 'ult', stateT: 1.0, speed: 0.8 });
     w.audio?.play('howl');
     w.audio?.play('cloak');
     // the eye flares, then the flock erupts off the cloak
@@ -2126,9 +2049,9 @@ export const ULTS = {
   // catches gets ripped into the sky inside the funnel
   fireTornado(f, u) {
     const w = f.world;
-    const dur = f.animator.play('burst', {
-      onEvent: (tt) => {
-        if (tt !== 'fire') return;
+    cast(f, 'burst', {
+      state: 'ult',
+      onFire: () => {
         const pos = fwd(f, 5);
         pos.y = 0;
         w.audio?.play('flame');
@@ -2230,7 +2153,6 @@ export const ULTS = {
         }, () => fx.extinguish(0.3)); // round sweep: gutter out, world disposes
       },
     });
-    f.setState('ult', dur);
   },
 
   // GLACIER: flash-freezes a huge round sheet of ground ahead — everything
@@ -2238,9 +2160,9 @@ export const ULTS = {
   // damage, and skates helplessly on the glass
   absoluteZero(f, u) {
     const w = f.world;
-    const dur = f.animator.play('burst', {
-      onEvent: (tt) => {
-        if (tt !== 'fire') return;
+    const dur = cast(f, 'burst', {
+      state: 'ult',
+      onFire: () => {
         const center = fwd(f, u.radius * 0.75);
         center.y = w.arena?.terrainHeightAt?.(center.x, center.z) || 0;
         w.audio?.play('freezeBig');
@@ -2329,7 +2251,6 @@ export const ULTS = {
         }, () => { w.scene.remove(sheet); geo.dispose(); mat.dispose(); });
       },
     });
-    f.setState('ult', dur);
     f.iframes = dur;
   },
 
@@ -2337,8 +2258,7 @@ export const ULTS = {
   // across the whole arena front, smashing everything in its path
   tsunami(f, u) {
     const w = f.world;
-    f.setState('ult', 1.5);
-    f.animator.play('castRaise');
+    cast(f, 'castRaise', { state: 'ult', stateT: 1.5 });
     w.audio?.play('cast');
     const dirX = Math.sin(f.yaw), dirZ = Math.cos(f.yaw);
     const perpX = dirZ, perpZ = -dirX;
@@ -2409,44 +2329,40 @@ export const ULTS = {
   // with a fraction of his plating and a timer on the visit
   raptorPack(f, u) {
     const w = f.world;
-    f.setState('ult', 1.1);
-    f.animator.play('taunt', { speed: 1.3 });
+    cast(f, 'taunt', { state: 'ult', stateT: 1.1, speed: 1.3 });
     w.audio?.play('howl');
     w.audio?.play('powerup');
-    for (let i = 0; i < (u.count || 3); i++) {
-      w.schedule(0.25 + i * 0.22, () => {
-        if (!f.alive) return;
-        const a = f.yaw + Math.PI + (i - 1) * 0.85 + rand(-0.15, 0.15);
-        const pos = new THREE.Vector3(
-          f.pos.x + Math.sin(a) * 3.6, 0, f.pos.z + Math.cos(a) * 3.6);
-        // cloneMech shares the boss's geometry/textures — spawning is
-        // near-free instead of a triple buildMech frame-stall
-        const clone = new Fighter(w, f.def, {
-          pos, yaw: f.yaw, playerIndex: f.playerIndex, isAI: true,
-          mech: cloneMech(f.mech),
-        });
-        clone.isMinion = true;
-        clone.allyOf = f;
-        clone.maxHp = clone.hp = Math.round(f.maxHp * (u.hpFrac || 0.35));
-        // runts of the litter: a shade smaller, darker plumage
-        clone.group.scale.setScalar(0.85);
-        clone.scale *= 0.85;
-        clone.baseHeight *= 0.85;
-        clone.height *= 0.85;
-        clone.baseHitRadius *= 0.85;
-        clone.hitRadius *= 0.85;
-        clone.radius *= 0.85;
-        for (const m of Object.values(clone.mech.materials)) {
-          if (m && m.color) m.color.multiplyScalar(0.7);
-        }
-        w.addMinion(clone, new AIController(clone, 'ace'), u.duration || 18);
-        // dragged across from another dimension: white-hot flash burning off
-        summonFlash(w, clone.mech.group, 0xff8a5a, 0.55);
-        w.effects.rings.spawn(pos, { from: 3.5, to: 0.5, dur: 0.4, color: 0xff3826, y: 1 });
-        w.effects.impactSparks(clone.center(), 0xff3826, 12, 8);
-        w.audio?.play('cast');
+    volley(w, f, u.count || 3, 0.22, (i) => {
+      const a = f.yaw + Math.PI + (i - 1) * 0.85 + rand(-0.15, 0.15);
+      const pos = new THREE.Vector3(
+        f.pos.x + Math.sin(a) * 3.6, 0, f.pos.z + Math.cos(a) * 3.6);
+      // cloneMech shares the boss's geometry/textures — spawning is
+      // near-free instead of a triple buildMech frame-stall
+      const clone = new Fighter(w, f.def, {
+        pos, yaw: f.yaw, playerIndex: f.playerIndex, isAI: true,
+        mech: cloneMech(f.mech),
       });
-    }
+      clone.isMinion = true;
+      clone.allyOf = f;
+      clone.maxHp = clone.hp = Math.round(f.maxHp * (u.hpFrac || 0.35));
+      // runts of the litter: a shade smaller, darker plumage
+      clone.group.scale.setScalar(0.85);
+      clone.scale *= 0.85;
+      clone.baseHeight *= 0.85;
+      clone.height *= 0.85;
+      clone.baseHitRadius *= 0.85;
+      clone.hitRadius *= 0.85;
+      clone.radius *= 0.85;
+      for (const m of Object.values(clone.mech.materials)) {
+        if (m && m.color) m.color.multiplyScalar(0.7);
+      }
+      w.addMinion(clone, new AIController(clone, 'ace'), u.duration || 18);
+      // dragged across from another dimension: white-hot flash burning off
+      summonFlash(w, clone.mech.group, 0xff8a5a, 0.55);
+      w.effects.rings.spawn(pos, { from: 3.5, to: 0.5, dur: 0.4, color: 0xff3826, y: 1 });
+      w.effects.impactSparks(clone.center(), 0xff3826, 12, 8);
+      w.audio?.play('cast');
+    }, { start: 0.25 });
   },
 
   // FROGGER: jaw drops open and a CROAK comes out — a resonant blast wave
@@ -2454,20 +2370,16 @@ export const ULTS = {
   // then lets the stored resonance tear loose all at once
   sonicCroak(f, u) {
     const w = f.world;
-    f.setState('ult', 1.4);
+    cast(f, 'burst', { state: 'ult', stateT: 1.4, speed: 0.8 });
     f.duckT = 1;
-    f.animator.play('burst', { speed: 0.8 });
     w.audio?.play('howl', { pitch: 0.42, vol: 1 });
     w.audio?.play('wave', { pitch: 0.6 });
     // ribbiting shock rings pour outward at throat height
-    for (let i = 0; i < 6; i++) {
-      w.schedule(i * 0.12, () => {
-        if (!f.alive) return;
-        w.effects.rings.spawn(f.pos, {
-          from: 1, to: u.radius * 2, dur: 0.55, color: 0x9ade2a, y: 0.8 + i * 0.6,
-        });
+    volley(w, f, 6, 0.12, (i) => {
+      w.effects.rings.spawn(f.pos, {
+        from: 1, to: u.radius * 2, dur: 0.55, color: 0x9ade2a, y: 0.8 + i * 0.6,
       });
-    }
+    });
     w.schedule(0.25, () => {
       if (!f.alive) return;
       w.effects.addShake(0.8);
@@ -2609,9 +2521,9 @@ export const ULTS = {
   // through the world and re-enter from the sky, hard.
   systemCrash(f, u) {
     const w = f.world;
-    const dur = f.animator.play('burst', {
-      onEvent: (tt) => {
-        if (tt !== 'fire') return;
+    const dur = cast(f, 'burst', {
+      state: 'ult',
+      onFire: () => {
         w.audio?.play('explosionBig');
         w.audio?.play('zap');
         w.effects.glitchBurst(f.center(), 40, 16, 1.4 * f.scale);
@@ -2758,7 +2670,6 @@ export const ULTS = {
         });
       },
     });
-    f.setState('ult', dur);
     f.iframes = dur;
   },
 };

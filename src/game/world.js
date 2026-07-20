@@ -501,344 +501,9 @@ export class World {
     }
     if (aimP) dir.copy(aimP).sub(from).normalize();
 
-    switch (mv.type) {
-      case 'gatling': {
-        const d = dir.clone();
-        d.x += rand(-mv.spread, mv.spread);
-        d.y += rand(-mv.spread, mv.spread) * 0.6;
-        d.z += rand(-mv.spread, mv.spread);
-        this.projectiles.spawn('bullet', f, from, d, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffd080, knock: 2, life: 1.6, soft: true,
-        });
-        this.effects.muzzleFlash(from);
-        this.audio?.play('gatling');
-        break;
-      }
-      case 'flame': {
-        // FLAMETHROWER: one roaring cone of burning fuel — a FAT stream
-        // tube, plus shader-card flames (FlameFX) licking off the nozzle
-        // along the aim and blooming up where the stream lands
-        const cool = fireCool(f.def);
-        const end = this.effects.jet('flame' + f.playerIndex, from, dir, {
-          type: cool ? 'firecool' : 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.32, r1: 2.2,
-        });
-        let fj = this.flameJets.get(f.playerIndex);
-        if (fj && (!fj.nozzle.alive || !fj.impact.alive)) {
-          fj.dead = true; // burnt out: its updater disposes it this frame
-          fj = null;
-        }
-        if (!fj) {
-          fj = {
-            nozzle: new FlameFX(this.scene, this.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false, cool }),
-            impact: new FlameFX(this.scene, this.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false, cool }),
-            ttl: 0,
-          };
-          this.spawnFlameJet(f.playerIndex, fj);
-        }
-        fj.ttl = 0.16;
-        fj.nozzle.rekindle();
-        fj.impact.rekindle();
-        fj.nozzle.setPose(from, dir);
-        if (end) fj.impact.setPose(end.setY(Math.max(0, end.y - 0.5)));
-        if (Math.random() < 0.4) this.effects.fire(from, dir, 34, 0.24, !!cool); // embers riding the blast
-        this.audio?.play('flame');
-        // cone tick damage
-        for (const t of this.fighters) {
-          if (t === f || !t.alive) continue;
-          const toT = t.center().sub(from);
-          const d = toT.length();
-          if (d < mv.range && toT.normalize().dot(dir) > 0.72) {
-            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 0.5, srcPos: from, status: { burn: 5, burnT: 2 }, soft: true });
-          }
-        }
-        break;
-      }
-      case 'rocket':
-        this.projectiles.spawn('rocket', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0xffb43c, knock: 14, launch: 6,
-        });
-        this.audio?.play('missile');
-        this.effects.muzzleFlash(from);
-        break;
-      case 'fist': { // TITANUS: the fist itself is the round — it flies out
-        // flat, swings around at range and comes home to the wrist,
-        // clobbering on both legs of the trip (boomerang + pierce).
-        // The projectile wears a CLONE of his real fist geometry (PBR
-        // materials and all) so it reads as HIS fist, not a glow blob.
-        // GLB mechs carry no geometry on the virtual handR joint (the fist is
-        // in the one skinned mesh, driven by a bone), so cloning it yields an
-        // EMPTY group — which still hides the projectile's own knuckle carrier
-        // and leaves nothing visible. Skip the clone for GLBs and let the
-        // built-in chunky-knuckle 'fist' mesh carry the throw instead.
-        let skin = null;
-        const hand = f.mech.joints.handR;
-        if (hand && !f.mech.isGLB) {
-          const c = hand.clone(true);
-          const strip = [];
-          c.traverse((o) => { if (o.userData.chargeShell) strip.push(o); });
-          for (const o of strip) o.parent?.remove(o);
-          c.position.set(0, 0, 0);
-          c.rotation.set(0, 0, 0);
-          c.scale.setScalar(1);
-          c.updateMatrixWorld(true);
-          const ctr = new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3());
-          c.position.copy(ctr).negate(); // center the knuckle mass on the carrier
-          skin = new THREE.Group();
-          skin.add(c);
-        }
-        const p = this.projectiles.spawn('fist', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffb43c,
-          knock: mv.knock, launch: 5, pierce: true, boomerang: true,
-          maxDist: mv.range, life: 6, skin,
-        });
-        p.onReturn = () => f.catchFist();
-        f.launchFist();
-        this.audio?.play('missile');
-        this.effects.muzzleFlash(from);
-        break;
-      }
-      case 'plasma': {
-        // NOVA: shots fired while the halo glows at apex alignment come out
-        // bigger and hotter (novaGlow 0..1 from the animator)
-        const g = f.animator?.novaGlow || 0;
-        this.projectiles.spawn('plasma', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed,
-          splash: mv.splash * (1 + 0.45 * g), color: 0xff5ce8, knock: 10 + 4 * g,
-          size: 1 + 0.75 * g,
-        });
-        this.audio?.play('plasma');
-        // apex shots detonate off the staff tip — the flash size tracks how
-        // bright the halo is burning, so a 2X-power shot LOOKS 2X
-        if (g > 0.4) {
-          this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
-            { life: 0.28, size: 2.5 + 4.5 * g, color: 0xff5ce8, alpha: 0.95 });
-          this.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
-            { life: 0.18, size: 1.2 + 2.2 * g, color: 0xfff0ff, alpha: 0.95 });
-          for (let i = 0; i < Math.round(6 * g); i++) {
-            const a = rand(Math.PI * 2);
-            this.effects.glows.emit(from.x, from.y, from.z,
-              Math.cos(a) * rand(3, 7), rand(-2, 4), Math.sin(a) * rand(3, 7),
-              { life: rand(0.25, 0.5), size: rand(0.5, 1.1), color: 0xff5ce8, alpha: 0.9, drag: 1.5 });
-          }
-        }
-        break;
-      }
-      case 'dart':
-        this.projectiles.spawn('dart', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x6cff5c, knock: 4,
-          status: { slow: 0.8, slowT: 1.2 },
-        });
-        this.audio?.play('dart');
-        break;
-      case 'blade': // VIPER: hurls a forearm sword end-over-end — the blade
-        // re-forges in her sheath a beat later (regrowWeapon)
-        this.projectiles.spawn('blade', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x5aff2e, knock: 5,
-          status: { slow: 0.85, slowT: 1 },
-        });
-        f.regrowWeapon?.('bladeR');
-        this.audio?.play('slash');
-        break;
-      case 'spear': { // AEGIS: javelin throw — the lance reforges in his grip.
-        // Launch from the throwing HAND: the far lance-tip anchor sits a
-        // whole shaft-length away mid-whip (often across the body), which
-        // read as the spear firing from the wrong arm.
-        const grip = f.mech.joints.handR
-          ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
-          : from;
-        grip.addScaledVector(dir, 1.1); // just clear of the fingers
-        this.projectiles.spawn('spear', f, grip, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9fd8ff, knock: 12,
-        });
-        f.regrowWeapon?.('lance');
-        this.effects.muzzleFlash(grip);
-        this.audio?.play('whooshBig');
-        break;
-      }
-      case 'wave':
-        // waves fly level, so cap the launch height at chest level — a
-        // high lance/claw muzzle would skim over every target's head
-        from.y = Math.min(from.y, f.pos.y + Math.min(f.height * 0.42, 3.6));
-        this.projectiles.spawn('wave', f, from, new THREE.Vector3(dir.x, 0, dir.z).normalize(), {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: f.def.colors.glow, knock: 8, pierce: true, maxDist: 34,
-        });
-        this.audio?.play('wave');
-        break;
-      case 'shell':
-        this.projectiles.spawn('shell', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0xff5040, knock: 10,
-        });
-        this.audio?.play('mortar');
-        this.effects.muzzleFlash(from);
-        break;
-      case 'mortar': {
-        // lob along the facing; if an enemy is down the barrel, range the
-        // arc to their distance (with velocity lead) — direction stays
-        // manual. An AIMED lob drops the shell exactly on the crosshair.
-        // COLOSSAL FORM: a giant's cannons throw giant ordnance — shells
-        // scale up visually and hit harder/wider, and the default lob
-        // ranges out with him
-        const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
-        const lobDist = barrelDot > 0.8 ? flatDist : 25 * gf;
-        const target = aimP
-          ? new THREE.Vector3(aimP.x, 0, aimP.z)
-          : new THREE.Vector3(
-            f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
-          ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
-        if (!aimP && e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
-        // twin cannons trade shots — doRanged toggled the side + mirrored clip
-        const mFrom = f._altSide && anchors.muzzleL
-          ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
-        this.projectiles.spawn('mortar', f, mFrom, new THREE.Vector3(0, 1, 0), {
-          dmg: mv.dmg * f.dmgMult() * (1 + (gf - 1) * 0.3),
-          splash: mv.splash * (1 + (gf - 1) * 0.5),
-          size: 1 + (gf - 1) * 0.55,
-          color: 0xffd23c, arcTo: target, arcTime: 1.35,
-          knock: 14 * Math.sqrt(gf), launch: 7 * Math.sqrt(gf),
-        });
-        this.audio?.play('mortar', gf > 1.4 ? { pitch: 0.7, vol: 1 } : undefined);
-        break;
-      }
-      case 'lightning':
-        this.projectiles.lightningZap(f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), chainRange: mv.chainRange, color: 0x8fe8ff,
-        });
-        this.audio?.play('zap');
-        break;
-      case 'railgun':
-        this.projectiles.railshot(f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), color: 0xff3838, knock: 12,
-        });
-        this.audio?.play('railgun');
-        f.animator.addImpulse('shoulderR', [0.4, 0, 0], 30, 10);
-        break;
-      case 'shard': { // GLACIER: a BARRAGE of icicles — a rapid scattered fan
-        // of frozen spikes off the launcher instead of one lone shard
-        const nIce = mv.count || 6;
-        for (let i = 0; i < nIce; i++) {
-          this.schedule(i * 0.055, () => {
-            if (!f.alive) return;
-            const from2 = f.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
-            const d2 = dir.clone();
-            d2.x += rand(-0.055, 0.055);
-            d2.y += rand(-0.015, 0.045);
-            d2.z += rand(-0.055, 0.055);
-            this.projectiles.spawn('shard', f, from2, d2.normalize(), {
-              dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.92, 1.1),
-              color: 0x9be8ff, knock: 3,
-              status: { slow: 0.85, slowT: 0.8 },
-            });
-            if (i % 2 === 0) this.audio?.play('shard');
-          });
-        }
-        break;
-      }
-      case 'hose': { // CRANKY: continuous high-pressure FIREHOSE stream —
-        // ticks alternate cannons so BOTH water arms are visibly blasting
-        f._hoseSide = !f._hoseSide;
-        const hFrom = f._hoseSide && anchors.muzzleL
-          ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
-        // the jet is ONE coherent pressurized tube of water (scrolling-
-        // noise stream mesh riding the ballistic arc); droplets and mist
-        // are just the breakup spray around it
-        // geyser two-shell tech: an aerated outer stream (foam ramp in the
-        // shader) around a dense white heart running up the middle
-        const jetEnd = this.effects.jet('hose' + f.playerIndex, hFrom, dir, {
-          type: 'water', speed: 46, range: mv.range * 1.2, gravity: 30, r0: 0.26, r1: 1.0,
-        });
-        this.effects.jet('hosecore' + f.playerIndex, hFrom, dir, {
-          type: 'watercore', speed: 46, range: mv.range * 1.15, gravity: 30, r0: 0.13, r1: 0.45,
-        });
-        this.effects.waterJet(hFrom, dir, 42);
-        if (jetEnd && jetEnd.y <= 0.4) { // the stream hammers the dirt
-          this.effects.splash(jetEnd, 4, 5, 0.9);
-          if (Math.random() < 0.25) this.effects.puddle(jetEnd, { slime: false, life: 2.5 });
-        }
-        if (Math.random() < 0.35) this.audio?.play('wave');
-        for (const t of this.fighters) {
-          if (t === f || !t.alive) continue;
-          const toT = t.center().sub(hFrom);
-          const d = toT.length();
-          if (d < mv.range && toT.normalize().dot(dir) > 0.8) {
-            // the stream SHOVES as it soaks — splash where it lands
-            t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 3.4, srcPos: hFrom, soft: true });
-            this.effects.splash(t.center(), 7, 7);
-          }
-        }
-        break;
-      }
-      case 'glitch': { // NULLBOT: a tumbling knot of corrupted voxels —
-        // whatever it hits gets a piece of itself turned into glitch
-        this.projectiles.spawn('glitch', f, from, dir, {
-          dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xff2df2, knock: 6,
-          status: { glitch: 1 },
-        });
-        this.effects.glitchBurst(from, 6, 4, 0.7 * f.scale);
-        this.audio?.play('zap');
-        break;
-      }
-      case 'bats': { // WRAITH: a swarm of hunting bats fans out and homes in
-        const target = e && f.isAI ? e : (e && barrelDot > 0.6 ? e : null);
-        for (let i = 0; i < (mv.count || 3); i++) {
-          const a = f.yaw + (i - ((mv.count || 3) - 1) / 2) * 0.22;
-          const bd = new THREE.Vector3(Math.sin(a), dir.y + 0.04, Math.cos(a));
-          this.projectiles.spawn('bat', f, from, bd, {
-            dmg: mv.dmg * f.dmgMult(), speed: (mv.speed || 24) * rand(0.9, 1.1),
-            color: 0x8a2030, knock: 4, life: 3.2, wobble: 1.1,
-            homing: target, retarget: !!target, turnRate: 2.4,
-          });
-        }
-        this.audio?.play('howl', { vol: 0.4, pitch: 1.6 });
-        this.effects.muzzleFlash(from);
-        break;
-      }
-      case 'groundpound': // TITANUS: the RT is a point-blank seismic quake
-        this.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
-        this.audio?.play('slam');
-        break;
-      case 'spikes': { // SAURION: a fan of BLACK quills thrown off both
-        // hands/forearms (his own plumage — regrows, costs nothing)
-        for (let i = 0; i < (mv.count || 3); i++) {
-          const hand = i % 2 ? f.mech.joints.handL : f.mech.joints.handR;
-          const armFrom = hand ? hand.getWorldPosition(new THREE.Vector3()) : from.clone();
-          armFrom.y += 0.2;
-          const d2 = dir.clone();
-          d2.x += rand(-0.04, 0.04);
-          d2.y += (i - 1) * 0.035 + rand(-0.01, 0.01);
-          d2.z += rand(-0.04, 0.04);
-          this.projectiles.spawn('quill', f, armFrom, d2, {
-            dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.95, 1.08),
-            color: 0x16161c, trailColor: 0x8a2318, knock: 4,
-          });
-        }
-        this.audio?.play('dart');
-        break;
-      }
-      case 'flea': // JERRY: launches a live robo-shrimp flea that hunts on foot
-        this.fleas.spawn(f, from, dir, { dmg: mv.dmg * f.dmgMult() });
-        this.effects.muzzleFlash(from);
-        break;
-      case 'slime': { // FROGGER: a sputtering STREAM of gel wads — a lead
-        // glob followed by trailing spatter, all dripping goo in flight
-        for (let i = 0; i < 3; i++) {
-          const d2 = dir.clone();
-          d2.x += rand(-0.045, 0.045); d2.y += rand(-0.015, 0.05); d2.z += rand(-0.045, 0.045);
-          this.projectiles.spawn('glob', f, from, d2, {
-            dmg: (i === 0 ? mv.dmg : mv.dmg * 0.12) * f.dmgMult(),
-            speed: mv.speed * (1 - i * 0.13),
-            splash: i === 0 ? mv.splash : 0,
-            color: i === 0 ? 0x86d22e : 0x6cb022,
-            knock: i === 0 ? 8 : 2,
-            status: i === 0 ? { slow: 0.7, slowT: 1.4 } : null,
-            size: 1 - i * 0.24,
-            goop: true,
-          });
-        }
-        this.effects.slime(from, 4, 4, dir); // muzzle splatter
-        this.audio?.play('plasma');
-        break;
-      }
-    }
+    // per-weapon behavior lives in the WEAPONS table below — same
+    // aiming context for every handler
+    WEAPONS[mv.type]?.(this, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors });
   }
 
 
@@ -870,3 +535,358 @@ export class World {
     this.fleas.clear();
   }
 }
+
+// ---- ranged weapon handlers -----------------------------------------------
+// One entry per roster move `type`, called by World.fireRanged with the
+// shared aiming context it computed: from (muzzle world pos), dir (aim,
+// already vertical-assisted / crosshair-overridden), e (nearest enemy or
+// null), aimP (manual crosshair point or null), barrelDot/flatDist (how
+// squarely the enemy sits down the barrel + flat range to them), anchors
+// (the mech's anchor map). Handlers are (w, f, mv, ctx) — w is the World.
+// Adding a weapon = adding an entry here + a `type` in roster.js.
+const WEAPONS = {
+  gatling(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    const d = dir.clone();
+    d.x += rand(-mv.spread, mv.spread);
+    d.y += rand(-mv.spread, mv.spread) * 0.6;
+    d.z += rand(-mv.spread, mv.spread);
+    w.projectiles.spawn('bullet', f, from, d, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffd080, knock: 2, life: 1.6, soft: true,
+    });
+    w.effects.muzzleFlash(from);
+    w.audio?.play('gatling');
+  },
+
+  flame(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    // FLAMETHROWER: one roaring cone of burning fuel — a FAT stream
+    // tube, plus shader-card flames (FlameFX) licking off the nozzle
+    // along the aim and blooming up where the stream lands
+    const cool = fireCool(f.def);
+    const end = w.effects.jet('flame' + f.playerIndex, from, dir, {
+      type: cool ? 'firecool' : 'fire', speed: 30, range: mv.range * 1.05, gravity: -4, r0: 0.32, r1: 2.2,
+    });
+    let fj = w.flameJets.get(f.playerIndex);
+    if (fj && (!fj.nozzle.alive || !fj.impact.alive)) {
+      fj.dead = true; // burnt out: its updater disposes it this frame
+      fj = null;
+    }
+    if (!fj) {
+      fj = {
+        nozzle: new FlameFX(w.scene, w.effects, from, { radius: 0.55, scale: 1.05, dir, cards: 5, light: false, cool }),
+        impact: new FlameFX(w.scene, w.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false, cool }),
+        ttl: 0,
+      };
+      w.spawnFlameJet(f.playerIndex, fj);
+    }
+    fj.ttl = 0.16;
+    fj.nozzle.rekindle();
+    fj.impact.rekindle();
+    fj.nozzle.setPose(from, dir);
+    if (end) fj.impact.setPose(end.setY(Math.max(0, end.y - 0.5)));
+    if (Math.random() < 0.4) w.effects.fire(from, dir, 34, 0.24, !!cool); // embers riding the blast
+    w.audio?.play('flame');
+    // cone tick damage
+    for (const t of w.fighters) {
+      if (t === f || !t.alive) continue;
+      const toT = t.center().sub(from);
+      const d = toT.length();
+      if (d < mv.range && toT.normalize().dot(dir) > 0.72) {
+        t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 0.5, srcPos: from, status: { burn: 5, burnT: 2 }, soft: true });
+      }
+    }
+  },
+
+  rocket(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    w.projectiles.spawn('rocket', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0xffb43c, knock: 14, launch: 6,
+    });
+    w.audio?.play('missile');
+    w.effects.muzzleFlash(from);
+  },
+
+  fist(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // TITANUS: the fist itself is the round — it flies out
+    // flat, swings around at range and comes home to the wrist,
+    // clobbering on both legs of the trip (boomerang + pierce).
+    // The projectile wears a CLONE of his real fist geometry (PBR
+    // materials and all) so it reads as HIS fist, not a glow blob.
+    // GLB mechs carry no geometry on the virtual handR joint (the fist is
+    // in the one skinned mesh, driven by a bone), so cloning it yields an
+    // EMPTY group — which still hides the projectile's own knuckle carrier
+    // and leaves nothing visible. Skip the clone for GLBs and let the
+    // built-in chunky-knuckle 'fist' mesh carry the throw instead.
+    let skin = null;
+    const hand = f.mech.joints.handR;
+    if (hand && !f.mech.isGLB) {
+      const c = hand.clone(true);
+      const strip = [];
+      c.traverse((o) => { if (o.userData.chargeShell) strip.push(o); });
+      for (const o of strip) o.parent?.remove(o);
+      c.position.set(0, 0, 0);
+      c.rotation.set(0, 0, 0);
+      c.scale.setScalar(1);
+      c.updateMatrixWorld(true);
+      const ctr = new THREE.Box3().setFromObject(c).getCenter(new THREE.Vector3());
+      c.position.copy(ctr).negate(); // center the knuckle mass on the carrier
+      skin = new THREE.Group();
+      skin.add(c);
+    }
+    const p = w.projectiles.spawn('fist', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xffb43c,
+      knock: mv.knock, launch: 5, pierce: true, boomerang: true,
+      maxDist: mv.range, life: 6, skin,
+    });
+    p.onReturn = () => f.catchFist();
+    f.launchFist();
+    w.audio?.play('missile');
+    w.effects.muzzleFlash(from);
+  },
+
+  plasma(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    // NOVA: shots fired while the halo glows at apex alignment come out
+    // bigger and hotter (novaGlow 0..1 from the animator)
+    const g = f.animator?.novaGlow || 0;
+    w.projectiles.spawn('plasma', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed,
+      splash: mv.splash * (1 + 0.45 * g), color: 0xff5ce8, knock: 10 + 4 * g,
+      size: 1 + 0.75 * g,
+    });
+    w.audio?.play('plasma');
+    // apex shots detonate off the staff tip — the flash size tracks how
+    // bright the halo is burning, so a 2X-power shot LOOKS 2X
+    if (g > 0.4) {
+      w.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
+        { life: 0.28, size: 2.5 + 4.5 * g, color: 0xff5ce8, alpha: 0.95 });
+      w.effects.glows.emit(from.x, from.y, from.z, 0, 0, 0,
+        { life: 0.18, size: 1.2 + 2.2 * g, color: 0xfff0ff, alpha: 0.95 });
+      for (let i = 0; i < Math.round(6 * g); i++) {
+        const a = rand(Math.PI * 2);
+        w.effects.glows.emit(from.x, from.y, from.z,
+          Math.cos(a) * rand(3, 7), rand(-2, 4), Math.sin(a) * rand(3, 7),
+          { life: rand(0.25, 0.5), size: rand(0.5, 1.1), color: 0xff5ce8, alpha: 0.9, drag: 1.5 });
+      }
+    }
+  },
+
+  dart(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    w.projectiles.spawn('dart', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x6cff5c, knock: 4,
+      status: { slow: 0.8, slowT: 1.2 },
+    });
+    w.audio?.play('dart');
+  },
+
+  blade(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // VIPER: hurls a forearm sword end-over-end — the blade
+    // re-forges in her sheath a beat later (regrowWeapon)
+    w.projectiles.spawn('blade', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x5aff2e, knock: 5,
+      status: { slow: 0.85, slowT: 1 },
+    });
+    f.regrowWeapon?.('bladeR');
+    w.audio?.play('slash');
+  },
+
+  spear(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // AEGIS: javelin throw — the lance reforges in his grip.
+    // Launch from the throwing HAND: the far lance-tip anchor sits a
+    // whole shaft-length away mid-whip (often across the body), which
+    // read as the spear firing from the wrong arm.
+    const grip = f.mech.joints.handR
+      ? f.mech.joints.handR.getWorldPosition(new THREE.Vector3())
+      : from;
+    grip.addScaledVector(dir, 1.1); // just clear of the fingers
+    w.projectiles.spawn('spear', f, grip, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0x9fd8ff, knock: 12,
+    });
+    f.regrowWeapon?.('lance');
+    w.effects.muzzleFlash(grip);
+    w.audio?.play('whooshBig');
+  },
+
+  wave(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    // waves fly level, so cap the launch height at chest level — a
+    // high lance/claw muzzle would skim over every target's head
+    from.y = Math.min(from.y, f.pos.y + Math.min(f.height * 0.42, 3.6));
+    w.projectiles.spawn('wave', f, from, new THREE.Vector3(dir.x, 0, dir.z).normalize(), {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: f.def.colors.glow, knock: 8, pierce: true, maxDist: 34,
+    });
+    w.audio?.play('wave');
+  },
+
+  shell(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    w.projectiles.spawn('shell', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, splash: mv.splash, color: 0xff5040, knock: 10,
+    });
+    w.audio?.play('mortar');
+    w.effects.muzzleFlash(from);
+  },
+
+  mortar(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    // lob along the facing; if an enemy is down the barrel, range the
+    // arc to their distance (with velocity lead) — direction stays
+    // manual. An AIMED lob drops the shell exactly on the crosshair.
+    // COLOSSAL FORM: a giant's cannons throw giant ordnance — shells
+    // scale up visually and hit harder/wider, and the default lob
+    // ranges out with him
+    const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+    const lobDist = barrelDot > 0.8 ? flatDist : 25 * gf;
+    const target = aimP
+      ? new THREE.Vector3(aimP.x, 0, aimP.z)
+      : new THREE.Vector3(
+        f.pos.x + Math.sin(f.yaw) * lobDist, 0, f.pos.z + Math.cos(f.yaw) * lobDist
+      ).add(new THREE.Vector3(rand(-2, 2), 0, rand(-2, 2)));
+    if (!aimP && e && barrelDot > 0.8) target.addScaledVector(e.vel, 1.15).setY(0);
+    // twin cannons trade shots — doRanged toggled the side + mirrored clip
+    const mFrom = f._altSide && anchors.muzzleL
+      ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
+    w.projectiles.spawn('mortar', f, mFrom, new THREE.Vector3(0, 1, 0), {
+      dmg: mv.dmg * f.dmgMult() * (1 + (gf - 1) * 0.3),
+      splash: mv.splash * (1 + (gf - 1) * 0.5),
+      size: 1 + (gf - 1) * 0.55,
+      color: 0xffd23c, arcTo: target, arcTime: 1.35,
+      knock: 14 * Math.sqrt(gf), launch: 7 * Math.sqrt(gf),
+    });
+    w.audio?.play('mortar', gf > 1.4 ? { pitch: 0.7, vol: 1 } : undefined);
+  },
+
+  lightning(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    w.projectiles.lightningZap(f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), chainRange: mv.chainRange, color: 0x8fe8ff,
+    });
+    w.audio?.play('zap');
+  },
+
+  railgun(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) {
+    w.projectiles.railshot(f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), color: 0xff3838, knock: 12,
+    });
+    w.audio?.play('railgun');
+    f.animator.addImpulse('shoulderR', [0.4, 0, 0], 30, 10);
+  },
+
+  shard(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // GLACIER: a BARRAGE of icicles — a rapid scattered fan
+    // of frozen spikes off the launcher instead of one lone shard
+    const nIce = mv.count || 6;
+    for (let i = 0; i < nIce; i++) {
+      w.schedule(i * 0.055, () => {
+        if (!f.alive) return;
+        const from2 = f.mech.anchors.muzzleR.getWorldPosition(new THREE.Vector3());
+        const d2 = dir.clone();
+        d2.x += rand(-0.055, 0.055);
+        d2.y += rand(-0.015, 0.045);
+        d2.z += rand(-0.055, 0.055);
+        w.projectiles.spawn('shard', f, from2, d2.normalize(), {
+          dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.92, 1.1),
+          color: 0x9be8ff, knock: 3,
+          status: { slow: 0.85, slowT: 0.8 },
+        });
+        if (i % 2 === 0) w.audio?.play('shard');
+      });
+    }
+  },
+
+  hose(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // CRANKY: continuous high-pressure FIREHOSE stream —
+    // ticks alternate cannons so BOTH water arms are visibly blasting
+    f._hoseSide = !f._hoseSide;
+    const hFrom = f._hoseSide && anchors.muzzleL
+      ? anchors.muzzleL.getWorldPosition(new THREE.Vector3()) : from;
+    // the jet is ONE coherent pressurized tube of water (scrolling-
+    // noise stream mesh riding the ballistic arc); droplets and mist
+    // are just the breakup spray around it
+    // geyser two-shell tech: an aerated outer stream (foam ramp in the
+    // shader) around a dense white heart running up the middle
+    const jetEnd = w.effects.jet('hose' + f.playerIndex, hFrom, dir, {
+      type: 'water', speed: 46, range: mv.range * 1.2, gravity: 30, r0: 0.26, r1: 1.0,
+    });
+    w.effects.jet('hosecore' + f.playerIndex, hFrom, dir, {
+      type: 'watercore', speed: 46, range: mv.range * 1.15, gravity: 30, r0: 0.13, r1: 0.45,
+    });
+    w.effects.waterJet(hFrom, dir, 42);
+    if (jetEnd && jetEnd.y <= 0.4) { // the stream hammers the dirt
+      w.effects.splash(jetEnd, 4, 5, 0.9);
+      if (Math.random() < 0.25) w.effects.puddle(jetEnd, { slime: false, life: 2.5 });
+    }
+    if (Math.random() < 0.35) w.audio?.play('wave');
+    for (const t of w.fighters) {
+      if (t === f || !t.alive) continue;
+      const toT = t.center().sub(hFrom);
+      const d = toT.length();
+      if (d < mv.range && toT.normalize().dot(dir) > 0.8) {
+        // the stream SHOVES as it soaks — splash where it lands
+        t.takeHit(mv.dmg * f.dmgMult(), f, { knock: 3.4, srcPos: hFrom, soft: true });
+        w.effects.splash(t.center(), 7, 7);
+      }
+    }
+  },
+
+  glitch(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // NULLBOT: a tumbling knot of corrupted voxels —
+    // whatever it hits gets a piece of itself turned into glitch
+    w.projectiles.spawn('glitch', f, from, dir, {
+      dmg: mv.dmg * f.dmgMult(), speed: mv.speed, color: 0xff2df2, knock: 6,
+      status: { glitch: 1 },
+    });
+    w.effects.glitchBurst(from, 6, 4, 0.7 * f.scale);
+    w.audio?.play('zap');
+  },
+
+  bats(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // WRAITH: a swarm of hunting bats fans out and homes in
+    const target = e && f.isAI ? e : (e && barrelDot > 0.6 ? e : null);
+    for (let i = 0; i < (mv.count || 3); i++) {
+      const a = f.yaw + (i - ((mv.count || 3) - 1) / 2) * 0.22;
+      const bd = new THREE.Vector3(Math.sin(a), dir.y + 0.04, Math.cos(a));
+      w.projectiles.spawn('bat', f, from, bd, {
+        dmg: mv.dmg * f.dmgMult(), speed: (mv.speed || 24) * rand(0.9, 1.1),
+        color: 0x8a2030, knock: 4, life: 3.2, wobble: 1.1,
+        homing: target, retarget: !!target, turnRate: 2.4,
+      });
+    }
+    w.audio?.play('howl', { vol: 0.4, pitch: 1.6 });
+    w.effects.muzzleFlash(from);
+  },
+
+  groundpound(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // TITANUS: the RT is a point-blank seismic quake
+    w.groundShockwave(f, f.pos, mv.radius, mv.dmg * f.dmgMult(), mv.knock, 0xffb43c);
+    w.audio?.play('slam');
+  },
+
+  spikes(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // SAURION: a fan of BLACK quills thrown off both
+    // hands/forearms (his own plumage — regrows, costs nothing)
+    for (let i = 0; i < (mv.count || 3); i++) {
+      const hand = i % 2 ? f.mech.joints.handL : f.mech.joints.handR;
+      const armFrom = hand ? hand.getWorldPosition(new THREE.Vector3()) : from.clone();
+      armFrom.y += 0.2;
+      const d2 = dir.clone();
+      d2.x += rand(-0.04, 0.04);
+      d2.y += (i - 1) * 0.035 + rand(-0.01, 0.01);
+      d2.z += rand(-0.04, 0.04);
+      w.projectiles.spawn('quill', f, armFrom, d2, {
+        dmg: mv.dmg * f.dmgMult(), speed: mv.speed * rand(0.95, 1.08),
+        color: 0x16161c, trailColor: 0x8a2318, knock: 4,
+      });
+    }
+    w.audio?.play('dart');
+  },
+
+  flea(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // JERRY: launches a live robo-shrimp flea that hunts on foot
+    w.fleas.spawn(f, from, dir, { dmg: mv.dmg * f.dmgMult() });
+    w.effects.muzzleFlash(from);
+  },
+
+  slime(w, f, mv, { from, dir, e, aimP, barrelDot, flatDist, anchors }) { // FROGGER: a sputtering STREAM of gel wads — a lead
+    // glob followed by trailing spatter, all dripping goo in flight
+    for (let i = 0; i < 3; i++) {
+      const d2 = dir.clone();
+      d2.x += rand(-0.045, 0.045); d2.y += rand(-0.015, 0.05); d2.z += rand(-0.045, 0.045);
+      w.projectiles.spawn('glob', f, from, d2, {
+        dmg: (i === 0 ? mv.dmg : mv.dmg * 0.12) * f.dmgMult(),
+        speed: mv.speed * (1 - i * 0.13),
+        splash: i === 0 ? mv.splash : 0,
+        color: i === 0 ? 0x86d22e : 0x6cb022,
+        knock: i === 0 ? 8 : 2,
+        status: i === 0 ? { slow: 0.7, slowT: 1.4 } : null,
+        size: 1 - i * 0.24,
+        goop: true,
+      });
+    }
+    w.effects.slime(from, 4, 4, dir); // muzzle splatter
+    w.audio?.play('plasma');
+  },
+};
