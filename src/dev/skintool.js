@@ -18,7 +18,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Engine } from '../core/engine.js';
 import { ROSTER, ROSTER_BY_ID } from '../mechs/roster.js';
 import { loadRawGlbScene, fetchRawManifest, skinnedBox } from '../mechs/gltf.js';
-import { analyzeSkin, applySkinOps } from '../mechs/skinops.js';
+import { analyzeSkin, applySkinOps, compactSkinOps, skinOpsToJson } from '../mechs/skinops.js';
 
 export async function runSkinTool(startId) {
   const engine = new Engine(document.getElementById('game-canvas'));
@@ -307,7 +307,9 @@ export async function runSkinTool(startId) {
   }
 
   panel.appendChild(actionBtn('Export ops ▶', () => {
-    const json = JSON.stringify({ [curId]: { skinOps: ops } }, null, 2);
+    // export compacted (superseded ops dropped) + one-op-per-line so pasting
+    // into manifest.json doesn't re-grow the file the compactor just shrank
+    const json = `{\n  "${curId}": {\n    "skinOps": ${skinOpsToJson(compactSkinOps(ops), '    ')}\n  }\n}`;
     out.style.display = 'block';
     out.value = json;
     out.select();

@@ -35,7 +35,7 @@ there by design — the validator must encode *expected* per-route loss
       build green; titanus/viper ace soak crash:null.
       New tool: tools/console.mjs (headless console capture).
 
-## Batch B — skinOps compaction  [ ]
+## Batch B — skinOps compaction  [x DONE 2026-07-20]
 
 manifest.json is ~9.5k lines, mostly verbose append-only skinOps dumps from
 ?debug=skin; superseded ops accumulate (titanus comp 50 mapped 3×; last
@@ -43,15 +43,20 @@ wins per applySkinOps order, skinops.js:357). Selectors are positional
 (n-th largest island, sort at skinops.js:102) — do NOT change selector
 semantics in this batch (stable keys are future work; re-exports are rare).
 
-- [ ] Compaction pass (offline script or skintool export): drop ops fully
-      superseded by a later op with identical selector; keep order of
-      survivors. purgeFar/purgePair are order-sensitive w.r.t. rebinds —
-      only dedupe *identical-selector* rebind pairs, never reorder.
-- [ ] One-line-per-op JSON formatting for skinOps arrays (custom
-      serializer in the tool/script) to cut file size ~5×.
-- [ ] Make ?debug=skin export emit compacted form going forward.
-- [ ] Verify: per-mech before/after screenshots (?showcase=<id>) pixel-
-      compared for every mech with skinOps; build green.
+- [x] compactSkinOps + skinOpsToJson in skinops.js. Census first: ALL 1504
+      ops are pure {comp:N} selectors (global ordinals, stable under
+      rebinds) → keep-last-per-comp dedupe is exact. {bone,comp} ordinal
+      selectors would NOT be safe to dedupe; compactor leaves them (and
+      purgeFar/purgePair) untouched — rationale documented in skinops.js.
+- [x] tools/compact-skinops.mjs: dedupe + one-op-per-line rewrite with a
+      symbolic old-vs-new equivalence check that aborts on mismatch.
+      Result: 1504→1425 ops, manifest.json 10.5k→2k lines. Idempotent.
+- [x] ?debug=skin export now emits compacted one-line form.
+- [x] Verified: symbolic equivalence + before/after screenshots
+      (titanus/jerry/glacier — pixel diff shown to be pure scene
+      nondeterminism via same-state control shot; visual compare
+      identical); GLB showcase contract-clean; aegis/jerry ace GLB soak
+      crash:null; build green.
 
 ## Batch C — world.js fx lifecycle unification  [ ]
 

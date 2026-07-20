@@ -401,3 +401,42 @@ export function applySkinOpsToGltf(gltfScene, ops) {
     if (res.applied) console.info(`skinOps: ${res.applied} op(s), ${res.verts} verts rebound`);
   });
 }
+
+// ---- op-list hygiene -------------------------------------------------------
+// The ?debug=skin workbench emits FULL-REPLACEMENT op lists, so a mech that
+// went through several sessions accumulates superseded ops: {comp:50 → A}
+// ... {comp:50 → B} — only the last rebind of a component survives
+// applySkinOps (later ops overwrite the same verts), the earlier ones are
+// noise a reader must mentally execute. compactSkinOps drops them.
+//
+// Scope of the guarantee: only PURE global-ordinal selectors ({sel:{comp:N}}
+// with no bone key) are deduped. Global ordinals are assigned once by
+// analyzeSkin and never shift, so keep-last is exact. {bone,comp} selectors
+// are ordinals WITHIN the bone's current group — earlier rebinds move
+// components in/out of groups and shift those ordinals — so ops using them
+// (none in today's manifest) are kept untouched, as are purgeFar/purgePair.
+// (purge ops between duplicates don't break the dedupe: they act per-vertex
+// on weights, and the surviving later rebind overwrites the component's
+// verts entirely either way.)
+export function compactSkinOps(ops) {
+  if (!ops?.length) return ops || [];
+  const lastForComp = new Map(); // comp ordinal -> index of last pure-comp rebind
+  ops.forEach((op, i) => {
+    if (op.sel && op.sel.comp !== undefined && op.sel.bone === undefined) {
+      lastForComp.set(op.sel.comp, i);
+    }
+  });
+  return ops.filter((op, i) => {
+    if (op.sel && op.sel.comp !== undefined && op.sel.bone === undefined) {
+      return lastForComp.get(op.sel.comp) === i;
+    }
+    return true; // bone selectors + global ops: never dropped
+  });
+}
+
+// Serialize an op list one op per line — a 100-op list stays ~100 lines
+// instead of the ~800 that pretty-printed JSON produces in manifest.json.
+export function skinOpsToJson(ops, indent = '  ') {
+  if (!ops?.length) return '[]';
+  return '[\n' + ops.map((o) => indent + '  ' + JSON.stringify(o)).join(',\n') + '\n' + indent + ']';
+}
