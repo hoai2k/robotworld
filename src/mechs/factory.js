@@ -5,6 +5,7 @@ import { Assembler } from './parts.js';
 import { platingTextures } from '../core/textures.js';
 import { skinMaterial } from '../core/pbrtex.js';
 import { DESIGNS } from './designs.js';
+import { warnContract } from './contract.js';
 
 // Joint conventions: mech faces +Z. X = pitch, Y = yaw, Z = roll.
 // Arms hang along -Y; shoulder.rotation.x = -PI/2 points the arm forward.
@@ -287,7 +288,9 @@ export function buildMech(def) {
   const coreLight = new THREE.PointLight(def.colors.glow, 14, 11 * D.scale, 2);
   anchors.core.add(coreLight);
 
-  return { group: root, joints, anchors, materials, dims: D, def };
+  const mech = { group: root, joints, anchors, materials, dims: D, def };
+  warnContract(mech); // §5 contract check — warns instead of failing silently
+  return mech;
 }
 
 export function addAnchor(parent, x, y, z) {

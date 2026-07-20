@@ -29,6 +29,7 @@ import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
 import { applySkinOpsToGltf } from './skinops.js';
 import { clamp } from '../core/utils.js';
+import { warnContract } from './contract.js';
 
 let manifest = null;
 let manifestPromise = null;
@@ -431,6 +432,7 @@ function buildGlbMech(def, entry, gltf) {
   // sees the final joints/anchors/scale.
   mech.animProfile?.build?.(mech, def);
 
+  warnContract(mech); // §5 contract check — warns instead of failing silently
   return mech;
 }
 
