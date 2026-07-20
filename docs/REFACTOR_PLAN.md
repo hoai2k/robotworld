@@ -96,21 +96,6 @@ table (21 handlers, verified token-identical to old switch bodies via
 normalized AST-ish diff). Verified: full-roster soak matrix (9 ace
 matchups covering all 17 mechs) + GLB soak all crash:null; build green.
 
-Every move body re-implements: cast scaffold (~20×), AoE sweep (22×),
-volley loops, liveness guards. world.fireRanged is a 340-line ~24-case
-switch (world.js:510-849).
-
-- [ ] `src/combat/movekit.js`: castAnim(f, clip, {onFire, stateMul}),
-      sweepEnemies(w, f, center, r, cb), volley(w, f, n, dt, cb),
-      timedUpdater(w, dur, tick, end), stillCasting(f) — thin, documented.
-- [ ] Migrate SPECIALS + ULTS bodies onto the kit (mechanical; keep every
-      number identical).
-- [ ] Fold bakeShell/summonFlash/summonPortal fade-updaters onto
-      timedUpdater.
-- [ ] fireRanged → WEAPONS[type] handler table (same file ok).
-- [ ] Verify: full-roster soak matrix (each mech at least once as p1 or
-      p2, auto=1 diff=ace), build green.
-
 ## Batch E — fighter.js dedup + balance constants + cycle cut  [x MOSTLY DONE 2026-07-20 — cycle cut deferred to remaining-work list]
 
 - [x] _chargeHoldPhase(dt, o) extracted (hold/accumulate/tell/full-beat
