@@ -8465,6 +8465,36 @@
           "comp": 148
         },
         "to": "tripo0_Right_Limb_3"
+      },
+      {
+        "sel": {
+          "comp": 60
+        },
+        "to": "tripoHead_0"
+      },
+      {
+        "sel": {
+          "comp": 80
+        },
+        "to": "tripoHead_0"
+      },
+      {
+        "sel": {
+          "comp": 45
+        },
+        "to": "tripoHead_0"
+      },
+      {
+        "sel": {
+          "comp": 79
+        },
+        "to": "tripoHead_0"
+      },
+      {
+        "sel": {
+          "comp": 92
+        },
+        "to": "tripoHead_0"
       }
     ]
   },
