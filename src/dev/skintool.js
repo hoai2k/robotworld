@@ -221,6 +221,12 @@ export async function runSkinTool(startId) {
     } else if (ev.key === 'w' || ev.key === 'W') {
       if (wiggle) stopWiggle();
       else if (selComp) startWiggle(bones[selComp.boneIndex]);
+    } else if (ev.key === 'q' || ev.key === 'Q') {
+      // same as clicking "Rebind → click target": toggle picktarget mode so you
+      // can click a patch, W to wiggle, Q to rebind, then click the correct bone
+      if (!selComp) { setStatus('Select an island first (click a patch).'); return; }
+      mode = mode === 'picktarget' ? 'select' : 'picktarget';
+      updateModeUI();
     } else if (ev.key === 'Escape') {
       selComp = null; mode = 'select'; stopWiggle(); rebuildColors(); updateModeUI();
     }
@@ -245,7 +251,7 @@ export async function runSkinTool(startId) {
 
   const btnRow = document.createElement('div');
   btnRow.style.cssText = 'display:flex;gap:6px;margin:4px 0';
-  const rebindBtn = actionBtn('Rebind → click target', () => {
+  const rebindBtn = actionBtn('Rebind → click target (Q)', () => {
     if (!selComp) { setStatus('Select an island first (click a patch).'); return; }
     mode = mode === 'picktarget' ? 'select' : 'picktarget';
     updateModeUI();
@@ -254,7 +260,7 @@ export async function runSkinTool(startId) {
   panel.appendChild(btnRow);
   function updateModeUI() {
     rebindBtn.style.background = mode === 'picktarget' ? '#b0702b' : '#1f7a4d';
-    rebindBtn.textContent = mode === 'picktarget' ? 'Click the CORRECT part…' : 'Rebind → click target';
+    rebindBtn.textContent = mode === 'picktarget' ? 'Click the CORRECT part…' : 'Rebind → click target (Q)';
   }
 
   const texRow = document.createElement('div');
@@ -366,7 +372,7 @@ export async function runSkinTool(startId) {
   help.style.cssText = 'margin-top:6px;color:#69788c;font-size:10.5px;line-height:1.5';
   help.innerHTML = 'Colors = which bone owns each patch.<br>'
     + '1. Click a wrong-colored patch (selects it, turns white)<br>'
-    + '2. “Rebind → click target”, then click the part it should move with<br>'
+    + '2. “Rebind → click target” (Q), then click the part it should move with<br>'
     + '3. Wiggle (W) to verify · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
