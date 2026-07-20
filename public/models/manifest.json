@@ -8487,12 +8487,12 @@
       "shoulderR": "bone_13",
       "elbowR": "bone_14",
       "handR": "bone_15",
-      "thighL": "tripo0_Right_Limb_0",
-      "kneeL": "bone_32",
-      "ankleL": "bone_33",
-      "thighR": "bone_40",
-      "kneeR": "bone_34",
-      "ankleR": "bone_32"
+      "thighL": "tripo1_Left_Limb_0",
+      "kneeL": "tripo1_Left_Limb_1",
+      "ankleL": "tripo1_Left_Limb_2",
+      "thighR": "tripo1_Right_Limb_0",
+      "kneeR": "tripo1_Right_Limb_1",
+      "ankleR": "bone_43"
     },
     "skinOps": [
       {
@@ -8762,7 +8762,12 @@
         },
         "to": "tripo0_Left_Limb_1"
       }
-    ]
+    ],
+    "reparent": {
+      "tripo0_Right_Limb_0": "bone_25",
+      "bone_40": "bone_15",
+      "bone_20": "tripoSpine_1"
+    }
   },
   "frogger": {
     "url": "models/mech_frogger.glb",

@@ -156,6 +156,24 @@ function buildGlbMech(def, entry, gltf) {
 
   const model = cloneSkinned(gltf.scene);
 
+  // manifest `reparent`: {"childBone": "newParentBone"} — fix auto-rig
+  // hierarchy mistakes (fenrir's front paws hang off tripoRoot instead of the
+  // forearm chains). attach() preserves the world transform, so the bind-pose
+  // skin is untouched (boneInverses stay valid); the child simply starts
+  // FOLLOWING its new parent. Applied per-clone, before the RigAdapter reads
+  // the hierarchy. Runs after skinOps so purgeFar keeps its committed
+  // hierarchy-distance semantics.
+  if (entry.reparent) {
+    model.updateMatrixWorld(true);
+    const byName = new Map();
+    model.traverse((o) => { if (o.isBone) byName.set(o.name, o); });
+    for (const [childName, parentName] of Object.entries(entry.reparent)) {
+      const c = byName.get(childName), p = byName.get(parentName);
+      if (c && p) p.attach(c);
+      else console.warn('reparent: unknown bone', childName, '->', parentName);
+    }
+  }
+
   // collect skeleton bones + meshes
   const bones = [];
   const meshes = [];
