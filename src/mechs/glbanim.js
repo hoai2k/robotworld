@@ -155,7 +155,22 @@ export const GLB_ANIM = {
       mech.capeRoot = capeRoot;
     },
     clipOverrides: { wraithLasers: GLB_CLIP_VARIANTS.wraithLasersGlb },
-    post(anim, dt, ctx) {
+    post(anim, dt, ctx, tgt) {
+      // LEFT (claw / non-gun) arm: this GLB's left-arm bones sit splayed
+      // outward at bind, so the retarget turns the jab's shoulder yaw+roll
+      // into a sideways swipe — the claw reaches OUT instead of punching in.
+      // When the arm is thrown forward (a punch), flatten that yaw/roll so
+      // the bone reads as driving straight ahead. Gated on forward pitch, so
+      // rest/guard poses (and the whole GUN arm) are left exactly as-is.
+      const sp = tgt.shoulderL;
+      if (sp && sp[0] < -0.7) {                 // arm past ~40° forward = punching
+        const k = Math.min(1, (-sp[0] - 0.7) / 0.7); // ramp in across -40°..-80°
+        sp[0] -= 0.2 * k;                       // drive a touch deeper down the line
+        sp[1] = sp[1] * (1 - k) - 0.8 * k;      // kill the outward yaw, then reach IN
+        sp[2] *= 1 - 2.2 * k;                   // cancel + reverse the splaying roll
+        const ep = tgt.elbowL;
+        if (ep) { ep[1] *= 1 - 0.9 * k; ep[2] *= 1 - 0.9 * k; }
+      }
       const cr = anim.mech.capeRoot;
       if (!cr) return;
       const act = anim.action;

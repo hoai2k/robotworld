@@ -727,7 +727,12 @@ const WEAPONS = {
     // scale up visually and hit harder/wider, and the default lob
     // ranges out with him
     const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
-    const lobDist = barrelDot > 0.8 ? flatDist : 25 * gf;
+    // his cannons ride high on his back, so a shell ranged onto a target
+    // right on top of him drops almost straight down onto his own chest.
+    // Floor the lob so the ordnance ALWAYS clears his footprint and lands
+    // clearly out front — this is a siege gun, not a close-quarters lobber.
+    const minLob = 11 * gf;
+    const lobDist = Math.max(barrelDot > 0.8 ? flatDist : 25 * gf, minLob);
     const target = aimP
       ? new THREE.Vector3(aimP.x, 0, aimP.z)
       : new THREE.Vector3(
@@ -741,7 +746,9 @@ const WEAPONS = {
       dmg: mv.dmg * f.dmgMult() * (1 + (gf - 1) * 0.3),
       splash: mv.splash * (1 + (gf - 1) * 0.5),
       size: 1 + (gf - 1) * 0.55,
-      color: 0xffd23c, arcTo: target, arcTime: 1.35,
+      // a tall, patient lob: the longer flight lifts the peak so it sails up
+      // in a proper artillery arc instead of skimming off the high muzzle
+      color: 0xffd23c, arcTo: target, arcTime: 1.8,
       knock: 14 * Math.sqrt(gf), launch: 7 * Math.sqrt(gf),
     });
     w.audio?.play('mortar', gf > 1.4 ? { pitch: 0.7, vol: 1 } : undefined);
