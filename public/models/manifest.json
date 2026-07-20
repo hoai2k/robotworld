@@ -1753,7 +1753,6 @@
     "skinOps": [
       {"sel":{"comp":26},"to":"bone_40"},
       {"sel":{"comp":34},"to":"bone_22"},
-      {"sel":{"comp":28},"to":"tripoSpine_0"},
       {"sel":{"comp":57},"to":"bone_13"},
       {"purgeFar":true},
       {"sel":{"comp":23},"to":"bone_45"},
@@ -1765,10 +1764,8 @@
       {"sel":{"comp":46},"to":"tripo1_Right_Limb_2"},
       {"sel":{"comp":50},"to":"tripoHead_0"},
       {"sel":{"comp":53},"to":"bone_21"},
-      {"sel":{"comp":56},"to":"bone_20"},
       {"sel":{"comp":58},"to":"bone_21"},
       {"sel":{"comp":60},"to":"bone_22"},
-      {"sel":{"comp":61},"to":"bone_20"},
       {"sel":{"comp":62},"to":"tripoSpine_0"},
       {"sel":{"comp":67},"to":"tripo1_Right_Limb_0"},
       {"sel":{"comp":71},"to":"tripoHead_0"},
@@ -1776,7 +1773,6 @@
       {"sel":{"comp":73},"to":"tripoHead_0"},
       {"sel":{"comp":74},"to":"bone_21"},
       {"sel":{"comp":75},"to":"bone_1"},
-      {"sel":{"comp":78},"to":"bone_20"},
       {"sel":{"comp":79},"to":"bone_1"},
       {"sel":{"comp":81},"to":"bone_21"},
       {"sel":{"comp":84},"to":"tripoHead_0"},
@@ -1807,7 +1803,14 @@
       {"sel":{"comp":13},"to":"tripoHead_0"},
       {"sel":{"comp":27},"to":"tripoHead_0"},
       {"sel":{"comp":31},"to":"tripoHead_0"},
-      {"sel":{"comp":44},"to":"tripoHead_0"}
+      {"sel":{"comp":44},"to":"tripoHead_0"},
+      {"sel":{"comp":66},"to":"tripoHead_0"},
+      {"sel":{"comp":56},"to":"tripoHead_0"},
+      {"sel":{"comp":61},"to":"tripoHead_0"},
+      {"sel":{"comp":77},"to":"bone_22"},
+      {"sel":{"comp":85},"to":"bone_22"},
+      {"sel":{"comp":28},"to":"tripoHead_0"},
+      {"sel":{"comp":78},"to":"tripoHead_0"}
     ]
   },
   "frogger": {
