@@ -1,5 +1,10 @@
-// The 12 fighters: proportions, palettes, stats, personalities, move sets.
+// The roster: proportions, palettes, stats, personalities, move sets.
 // All combat numbers live here so balance is tuned in one place.
+// (Color-scheme math lives in colorscheme.js — this file stays data.)
+
+// the digitigrade "raptor-leg" rest stance shared by the beast mechs
+// (read-only — never mutate; defs share the reference)
+const DIGITIGRADE_REST = { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] };
 
 export const ROSTER = [
   {
@@ -47,6 +52,7 @@ export const ROSTER = [
     body: { scale: 1.16, torsoW: 1.28, torsoH: 1.0, headSize: 0.85, armLen: 0.95, legLen: 1.0, hipW: 1.1, bulk: 1.12 },
     stats: { hp: 950, speed: 9.5, jump: 13, weight: 0.62, armor: 0.1, blockMult: 0.12 },
     ui: { power: 7, speed: 5, defense: 5 },
+    levelHands: true, // wrist counter-pitch keeps the hand hardware on the aim line (signatures.js)
     moves: {
       light: { dmg: [30, 32, 44], knock: [4, 5, 11], range: 2.9 },
       heavy: { dmg: 78, knock: 18, range: 3.2, launch: 7 },
@@ -108,7 +114,7 @@ export const ROSTER = [
       accent: { base: 0x1a1522, base2: 0x14101c, metal: 0x767c86, wear: 0.42, grime: 0.28, panelDepth: 4, roughPaint: 0.5, metalPaint: 0.35, normalStrength: 1.15 },
     },
     body: { scale: 1.0, torsoW: 0.85, torsoH: 0.95, headSize: 0.85, armLen: 1.05, legLen: 1.12, hipW: 0.85, bulk: 0.85 },
-    restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
+    restPose: DIGITIGRADE_REST,
     stats: { hp: 780, speed: 13.5, jump: 15.5, weight: 0.3, armor: 0, blockMult: 0.2 },
     ui: { power: 6, speed: 10, defense: 2 },
     // signature combat stance (additive over restPose; default carriage)
@@ -217,7 +223,7 @@ export const ROSTER = [
       accent: { base: 0x3a3e44, base2: 0x30343a, metal: 0x8a8f96, wear: 0.5, grime: 0.36, panelDepth: 3, roughPaint: 0.5, metalPaint: 0.5, normalStrength: 1.1 },
     },
     body: { scale: 1.05, torsoW: 1.0, torsoH: 0.95, headSize: 0.9, armLen: 1.08, legLen: 1.1, hipW: 0.9, bulk: 0.92 },
-    restPose: { thighL: [-31, 0, 0], thighR: [-31, 0, 0], kneeL: [57, 0, 0], kneeR: [57, 0, 0], ankleL: [-26, 0, 0], ankleR: [-26, 0, 0] },
+    restPose: DIGITIGRADE_REST,
     stats: { hp: 900, speed: 12.5, jump: 15, weight: 0.45, armor: 0.05, blockMult: 0.13 },
     ui: { power: 7, speed: 9, defense: 3 },
     // signature combat stance (additive over restPose; default carriage)
@@ -311,6 +317,7 @@ export const ROSTER = [
     body: { scale: 1.18, torsoW: 1.18, torsoH: 1.0, headSize: 0.9, armLen: 1.05, legLen: 0.98, hipW: 1.08, bulk: 1.05 },
     stats: { hp: 1050, speed: 8.8, jump: 12.5, weight: 0.75, armor: 0.14, blockMult: 0.11 },
     ui: { power: 8, speed: 4, defense: 6 },
+    levelHands: true, // wrist counter-pitch keeps the hand hardware on the aim line (signatures.js)
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.12, 0], torso: [8, 0, 0], head: [-6, 0, 0], shoulderL: [-44, 10, -12], shoulderR: [-44, -10, 12], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], thighL: [-12, 0, -8], thighR: [0, 0, 8], kneeL: [18, 0, 0], kneeR: [10, 0, 0] },
     moves: {
@@ -356,6 +363,7 @@ export const ROSTER = [
     restPose: { shoulderL: [8, 0, -26], shoulderR: [8, 0, 26], elbowL: [-38, 0, 0], elbowR: [-38, 0, 0], thighL: [-8, 0, -8], thighR: [-8, 0, 8], kneeL: [16, 0, 0], kneeR: [16, 0, 0], ankleL: [-8, 0, 0], ankleR: [-8, 0, 0] },
     stats: { hp: 1300, speed: 5.4, jump: 9, weight: 0.95, armor: 0.26, blockMult: 0.04 },
     ui: { power: 8, speed: 3, defense: 10 },
+    levelHands: true, // wrist counter-pitch keeps the hand hardware on the aim line (signatures.js)
     // signature combat stance (additive over restPose; default carriage)
     combatPose: { hipsPos: [0, -0.1, 0], torso: [6, 0, 0], head: [-4, 0, 0], shoulderL: [-38, 0, -14], shoulderR: [-38, 0, 14], elbowL: [-26, 0, 0], elbowR: [-26, 0, 0], thighL: [-6, 0, -6], thighR: [-6, 0, 6] },
     heavyClip: 'clawSnap', // giant pincer SNAP, not a pound
@@ -501,73 +509,3 @@ export const ROSTER = [
 ];
 
 export const ROSTER_BY_ID = Object.fromEntries(ROSTER.map((m) => [m.id, m]));
-
-// ============================= COLOR SCHEMES =============================
-// Alternate paint jobs so two players on the same mech stay readable.
-// Scheme recolors the PRIMARY armor (procedural synth AND texture-tint
-// paths both read skin.primary.base/base2) plus the menu tint / glow.
-
-function hexToHsl(hex) {
-  const r = ((hex >> 16) & 255) / 255, g = ((hex >> 8) & 255) / 255, b = (hex & 255) / 255;
-  const max = Math.max(r, g, b), min = Math.min(r, g, b);
-  const l = (max + min) / 2;
-  if (max === min) return [0, 0, l];
-  const d = max - min;
-  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-  let h;
-  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
-  else if (max === g) h = ((b - r) / d + 2) / 6;
-  else h = ((r - g) / d + 4) / 6;
-  return [h, s, l];
-}
-
-function hslToHex(h, s, l) {
-  h = ((h % 1) + 1) % 1;
-  const f = (n) => {
-    const k = (n + h * 12) % 12;
-    const a = s * Math.min(l, 1 - l);
-    return Math.round((l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1))) * 255);
-  };
-  return (f(0) << 16) | (f(8) << 8) | f(4);
-}
-
-const forceHue = (hex, h, minS) => {
-  const [, s, l] = hexToHsl(hex);
-  return hslToHex(h, Math.max(s, minS), l);
-};
-const darken = (hex) => {
-  const [h, s, l] = hexToHsl(hex);
-  return hslToHex(h, s * 0.5, Math.max(0.06, l * 0.32));
-};
-
-export const SCHEME_NAMES = ['STOCK', 'EMBER', 'TIDE', 'MIDNIGHT'];
-export const SCHEME_COUNT = SCHEME_NAMES.length;
-const SCHEMES = [
-  null,
-  { h: 0.02, minS: 0.6, glow: 0xff7a28 },   // EMBER — molten red-orange
-  { h: 0.58, minS: 0.55, glow: 0x3fc8ff },  // TIDE — deep-sea blue
-  { dark: true },                           // MIDNIGHT — blacked-out stealth
-];
-
-// swatch color for menus (cheap: primary after the scheme)
-export function schemeSwatch(def, v = 0) {
-  const S = SCHEMES[v];
-  if (!S) return def.colors.primary;
-  return S.dark ? darken(def.colors.primary) : forceHue(def.colors.primary, S.h, S.minS);
-}
-
-// Returns a def clone wearing the scheme; variant 0 is the stock paint.
-export function applyColorScheme(def, v = 0) {
-  const S = SCHEMES[v];
-  if (!S) return def;
-  const re = (hex) => (S.dark ? darken(hex) : forceHue(hex, S.h, S.minS));
-  return {
-    ...def,
-    variant: v,
-    colors: { ...def.colors, primary: re(def.colors.primary), glow: S.glow ?? def.colors.glow },
-    skin: def.skin ? {
-      ...def.skin,
-      primary: { ...def.skin.primary, base: re(def.skin.primary.base), base2: re(def.skin.primary.base2) },
-    } : def.skin,
-  };
-}
