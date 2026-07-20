@@ -121,7 +121,13 @@ export const GLB_ANIM = {
   inferno: {},   // flamer biped — direct map (levelHands is shape-shared)
   glacier: {},   // heavy biped — direct map
   cranky: {},    // crab — scuttle is tgt-driven, shape-shared
-  saurion: {},   // raptor — theropod carriage is tgt-driven, shape-shared
+
+  // SAURION — the GLB has big readable arm-claws, so its light cycle
+  // alternates sickle KICKS with claw RAKES (right kick, left rake, left
+  // kick, right rake); the procedural stays all-kick (def.lightClips).
+  saurion: {
+    lightClips: ['saurionKick1', 'saurionClawL', 'saurionKick2', 'saurionClawR'],
+  },
   frogger: {},   // four-arm — lower arms are procedural-only joints
   jerry: {},     // crustacean — antennae/struts are procedural-only joints
   nullbot: {},   // humanoid — direct map (glitch strobe is material-only)

@@ -301,16 +301,19 @@ export class Fighter {
       return;
     }
     // per-mech combo clips (sword forms, spear forms, haymakers...) — the
-    // shared punch trio is only the default
-    const names = this.def.lightClips || ['light1', 'light2', 'light3'];
-    const idx = this.comboIdx % 3;
+    // shared punch trio is only the default. A GLB animation profile may
+    // supply its OWN cycle (any length) when the model's anatomy wants a
+    // different mix (saurion GLB: kicks alternating with claw rakes).
+    const names = this.animator?.profile?.lightClips
+      || this.def.lightClips || ['light1', 'light2', 'light3'];
+    const idx = this.comboIdx % names.length;
     this.faceNearestEnemyIfClose(12);
     const dur = this.animator.play(names[idx], {
       onEvent: (type, arg) => this.onAttackEvent(type, arg, {
-        dmg: mv.dmg[idx] * this.dmgMult(),
-        knock: mv.knock[idx],
+        dmg: mv.dmg[idx % mv.dmg.length] * this.dmgMult(),
+        knock: mv.knock[idx % mv.knock.length],
         range: mv.range * this.scale,
-        launch: idx === 2 ? 10 : 0,
+        launch: idx === names.length - 1 ? 10 : 0,
         status: mv.status || null,
       }),
     });
@@ -2006,6 +2009,12 @@ export class Fighter {
     this.updateSpecialFx(dt);
     // ---- thrown weapons re-forging in the grip ----
     this.updateRegrow(dt);
+    // GLB rigs: everything above (heavy spins, palm clamps, scripted whirls)
+    // wrote to the VIRTUAL joints — but the adapter already synced the bones
+    // inside animator.update(), so those writes never reached the model
+    // (procedural mechs show their joints directly; GLB heavies didn't spin).
+    // Re-sync once so post-pose joint motion lands on the skin too.
+    if (this.mech.isGLB) this.mech.postAnimate?.();
     // ---- weapon trails: glowing streaks ride the blade/spear tips while a
     // one-shot attack clip swings, so cuts and thrusts read as EDGES ----
     if (this.def.bladeTrail) this.updateBladeTrail(dt);

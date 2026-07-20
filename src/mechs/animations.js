@@ -421,11 +421,40 @@ const CLIPS_RAW = {
     keys: [
       { t: 0, pose: {} },
       { t: 0.3, ease: 'inOutCubic', pose: { hipsPos: [0, -0.4, -0.12], hipsRot: [-4, 0, 0], torso: [14, 0, 0], head: [-30, 0, 0], thighL: [-10, 0, 0], thighR: [-10, 0, 0], kneeL: [14, 0, 0], kneeR: [14, 0, 0], ankleL: [-6, 0, 0], ankleR: [-6, 0, 0], shoulderL: [-16, 0, -14], shoulderR: [-16, 0, 14], elbowL: [-70, 0, 0], elbowR: [-70, 0, 0], handL: [34, 0, 12], handR: [34, 0, -12] } },
-      { t: 0.44, ease: 'outCubic', pose: { hipsPos: [0, 0.14, 0.28], hipsRot: [10, 0, 0], torso: [-12, 0, 0], head: [40, 0, 0], thighL: [18, 0, 0], thighR: [18, 0, 0], kneeL: [-30, 0, 0], kneeR: [-30, 0, 0], ankleL: [12, 0, 0], ankleR: [12, 0, 0], shoulderL: [-34, 0, -8], shoulderR: [-34, 0, 8], elbowL: [-40, 0, 0], elbowR: [-40, 0, 0] } },
-      { t: 0.58, ease: 'inOutQuad', pose: { hipsPos: [0, 0.04, 0.2], head: [30, 0, 0] } },
+      // the claws REACH with the jaws: arms thrown forward beside the head
+      // during the lunge (they used to stay tucked back in the raptor carry,
+      // which read as biting with the hands held behind him)
+      { t: 0.44, ease: 'outCubic', pose: { hipsPos: [0, 0.14, 0.28], hipsRot: [10, 0, 0], torso: [-12, 0, 0], head: [40, 0, 0], thighL: [18, 0, 0], thighR: [18, 0, 0], kneeL: [-30, 0, 0], kneeR: [-30, 0, 0], ankleL: [12, 0, 0], ankleR: [12, 0, 0], shoulderL: [-76, 0, -12], shoulderR: [-76, 0, 12], elbowL: [-22, 0, 0], elbowR: [-22, 0, 0], handL: [-8, 0, 6], handR: [-8, 0, -6] } },
+      { t: 0.58, ease: 'inOutQuad', pose: { hipsPos: [0, 0.04, 0.2], head: [30, 0, 0], shoulderL: [-66, 0, -10], shoulderR: [-66, 0, 10], elbowL: [-30, 0, 0], elbowR: [-30, 0, 0], handL: [2, 0, 8], handR: [2, 0, -8] } },
       { t: 0.9, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], thighL: [0, 0, 0], thighR: [0, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0], ankleL: [0, 0, 0], ankleR: [0, 0, 0], shoulderL: [-34, 0, -7], shoulderR: [-34, 0, 7], elbowL: [-62, 0, 0], elbowR: [-62, 0, 0], handL: [28, 0, 10], handR: [28, 0, -10] } },
     ],
     events: [{ t: 0.1, type: 'sfx', arg: 'charge' }, { t: 0.4, type: 'sfx', arg: 'whooshBig' }, { t: 0.48, type: 'hit', arg: 0 }, { t: 0.5, type: 'shake', arg: 0.35 }],
+  },
+
+  saurionClawR: { // raptor forehand SWIPE, right claw: chamber high outside,
+    // then rake across the body with the torso torquing into it. Used by the
+    // GLB light cycle (kicks alternate with claw rakes); procedural saurion
+    // keeps his all-kick doctrine unless a def opts in.
+    dur: 0.46,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.12, ease: 'outCubic', pose: { torso: [6, -10, 0], head: [-4, 8, 0], hipsRot: [0, -8, 0], hipsPos: [0, -0.08, 0], shoulderR: [-72, 22, 26], elbowR: [-82, 0, 0], handR: [-18, 0, -14], shoulderL: [-30, 0, -8], elbowL: [-58, 0, 0] } },
+      { t: 0.22, ease: 'outBack', pose: { torso: [-4, 14, 0], head: [6, -10, 0], hipsRot: [0, 10, 0], hipsPos: [0, 0, 0.06], shoulderR: [-58, -26, -8], elbowR: [-12, 0, 0], handR: [12, 0, -4] } },
+      { t: 0.33, ease: 'inOutQuad', pose: { shoulderR: [-42, -18, 0], elbowR: [-28, 0, 0] } },
+      { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderR: [-34, 0, 7], elbowR: [-62, 0, 0], handR: [28, 0, -10], shoulderL: [-34, 0, -7], elbowL: [-62, 0, 0] } },
+    ],
+    events: [{ t: 0.16, type: 'sfx', arg: 'whoosh' }, { t: 0.22, type: 'hit', arg: 1 }],
+  },
+  saurionClawL: { // mirrored left-claw rake
+    dur: 0.46,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.12, ease: 'outCubic', pose: { torso: [6, 10, 0], head: [-4, -8, 0], hipsRot: [0, 8, 0], hipsPos: [0, -0.08, 0], shoulderL: [-72, -22, -26], elbowL: [-82, 0, 0], handL: [-18, 0, 14], shoulderR: [-30, 0, 8], elbowR: [-58, 0, 0] } },
+      { t: 0.22, ease: 'outBack', pose: { torso: [-4, -14, 0], head: [6, 10, 0], hipsRot: [0, -10, 0], hipsPos: [0, 0, 0.06], shoulderL: [-58, 26, 8], elbowL: [-12, 0, 0], handL: [12, 0, 4] } },
+      { t: 0.33, ease: 'inOutQuad', pose: { shoulderL: [-42, 18, 0], elbowL: [-28, 0, 0] } },
+      { t: 0.46, ease: 'inOutQuad', pose: { torso: [0, 0, 0], head: [0, 0, 0], hipsRot: [0, 0, 0], hipsPos: [0, 0, 0], shoulderL: [-34, 0, -7], elbowL: [-62, 0, 0], handL: [28, 0, 10], shoulderR: [-34, 0, 7], elbowR: [-62, 0, 0] } },
+    ],
+    events: [{ t: 0.16, type: 'sfx', arg: 'whoosh' }, { t: 0.22, type: 'hit', arg: 1 }],
   },
 
   nullBackhand: { // NULLBOT heavy: a contemptuous one-arm BACKHAND — the
