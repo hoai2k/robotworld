@@ -3159,6 +3159,114 @@
           "comp": 137
         },
         "to": "tripo0_Left_Limb_1"
+      },
+      {
+        "sel": {
+          "comp": 17
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 24
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 22
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 21
+        },
+        "to": "tripo0_Right_Limb_3"
+      },
+      {
+        "sel": {
+          "comp": 142
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 60
+        },
+        "to": "bone_17"
+      },
+      {
+        "sel": {
+          "comp": 144
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 48
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 36
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 69
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 98
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 114
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 97
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 141
+        },
+        "to": "bone_15"
+      },
+      {
+        "sel": {
+          "comp": 42
+        },
+        "to": "bone_14"
+      },
+      {
+        "sel": {
+          "comp": 27
+        },
+        "to": "bone_14"
+      },
+      {
+        "sel": {
+          "comp": 63
+        },
+        "to": "bone_14"
+      },
+      {
+        "sel": {
+          "comp": 100
+        },
+        "to": "bone_14"
       }
     ]
   },
