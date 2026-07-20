@@ -40,12 +40,10 @@ export class World {
     this.arena = null;
     this.input = null;
     this.tasks = [];        // {t, fn}
-    this.firePatches = [];  // {pos, radius, t, dps, owner, flame}
-    this.geysers = [];      // live GeyserFX instances (CRANKY's special)
-    this.tornados = [];     // {fx, owner, dmg, radius, burn, tick, patch}
-    this.waves = [];        // {fx} live TidalWaveFX walls (CRANKY's tsunami)
-    this.flameJets = new Map(); // playerIndex -> {nozzle, impact, ttl} FlameFX pairs
-    this.iceBlocks = [];    // {mesh, t, fighter}
+    // flamethrower jets are RETRIGGERED every fire tick, so they need a
+    // lookup index (playerIndex / 'fin') on top of their sticky updater —
+    // all other environmental fx live purely in this.updaters now
+    this.flameJets = new Map(); // key -> {nozzle, impact, ttl} FlameFX pairs
     this.debris = [];       // finisher wreckage (frozen rubble): cleared each round
     this.pickups = [];      // ammo crates {mesh, pos, active, respawnT}
     // per-frame ultimate entities (orbit swarms, tornadoes, giant forms...):
@@ -131,16 +129,28 @@ export class World {
   // register a per-frame driver for a live combat entity. tick(dt) returns
   // false when the entity is finished; end() is the cleanup (scene removal,
   // material restore) and is guaranteed to run exactly once.
-  addUpdater(tick, end = null) {
-    this.updaters.push({ tick, end });
+  //
+  // sticky: survives the startFinisher endUpdaters() sweep. Ult entities
+  // (default) are killed when a finisher starts so nothing keeps hitting
+  // the two actors; environmental fx (fire patches, geysers, waves...)
+  // stay through the cinematic — finisher scripts even spawn their own —
+  // and die at their natural end or the round's clearTransient.
+  addUpdater(tick, end = null, { sticky = false } = {}) {
+    this.updaters.push({ tick, end, sticky });
   }
 
-  endUpdaters() {
+  endUpdaters(includeSticky = true) {
+    const keep = [];
     for (let i = this.updaters.length - 1; i >= 0; i--) {
       const u = this.updaters[i];
-      if (u && !u.ended) { u.ended = true; u.end?.(); }
+      if (!u || u.ended) continue;
+      if (!includeSticky && u.sticky) { keep.push(u); continue; }
+      u.ended = true;
+      u.end?.();
     }
+    keep.reverse(); // preserve registration order for the survivors
     this.updaters.length = 0;
+    this.updaters.push(...keep);
   }
 
   // ---- summoned fighters (they join world.fighters but never the match
@@ -284,125 +294,10 @@ export class World {
       }
     }
 
-    // geysers run their own lifecycle (telegraph -> erupt -> collapse);
-    // combat geysers ({owner, dmg}) also SCALD: anyone standing in the
-    // column keeps taking hits for as long as the water is up
-    for (let i = this.geysers.length - 1; i >= 0; i--) {
-      const g = this.geysers[i];
-      if (!g.fx.update(dt)) {
-        g.fx.dispose();
-        this.geysers.splice(i, 1);
-        continue;
-      }
-      if (!g.owner || g.fx.phase !== 'erupt') continue;
-      g.tick -= dt;
-      if (g.tick > 0) continue;
-      g.tick = 0.4;
-      for (const v of this.fighters) {
-        if (v === g.owner || !v.alive) continue;
-        const dx = this.wrapDelta(v.pos.x - g.fx.pos.x), dz = this.wrapDelta(v.pos.z - g.fx.pos.z);
-        // the column itself, not the full blast radius — matches the visual
-        if (Math.hypot(dx, dz) < g.radius * 0.55 + v.hitRadius * 0.5) {
-          v.takeHit(g.dmg * 0.2 * g.owner.dmgMult(), g.owner,
-            { knock: 3, launch: g.launch * 0.55, srcPos: g.fx.pos, soft: true });
-          v.applySoak?.(2.4); // drenched: dripping frame, half speed
-          this.effects.splash(v.center(), 6, 5, 1);
-        }
-      }
-    }
-
-    // tidal waves roll until they collapse into foam at the end of the run
-    for (let i = this.waves.length - 1; i >= 0; i--) {
-      if (!this.waves[i].fx.update(dt)) {
-        this.waves[i].fx.dispose();
-        this.waves.splice(i, 1);
-      }
-    }
-
-    // fire tornados roam, scorch whoever they touch, and torch the ground
-    for (let i = this.tornados.length - 1; i >= 0; i--) {
-      const n = this.tornados[i];
-      if (!n.fx.update(dt)) {
-        n.fx.dispose();
-        this.tornados.splice(i, 1);
-        continue;
-      }
-      if (!n.owner || n.fx.env < 0.4) continue;
-      n.patch -= dt;
-      if (n.patch <= 0) { // burning trail along the wander path
-        n.patch = 1.1;
-        this.addFirePatch(n.owner, n.fx.pos.clone().setY(0), 2, 3, 8);
-      }
-      n.tick -= dt;
-      if (n.tick > 0) continue;
-      n.tick = 0.5;
-      for (const v of this.fighters) {
-        if (v === n.owner || !v.alive) continue;
-        const dx = this.wrapDelta(v.pos.x - n.fx.pos.x), dz = this.wrapDelta(v.pos.z - n.fx.pos.z);
-        if (Math.hypot(dx, dz) < n.radius + v.hitRadius * 0.5) {
-          v.takeHit(n.dmg * n.owner.dmgMult(), n.owner, {
-            knock: 6, launch: 10, srcPos: n.fx.pos, soft: true,
-            status: { burn: n.burn || 8, burnT: 2.5 },
-          });
-        }
-      }
-    }
-
-    // flamethrower card-flames die shortly after the trigger releases
-    for (const [k, fj] of this.flameJets) {
-      fj.ttl -= dt;
-      if (fj.ttl <= 0 && fj.nozzle.alive && fj.nozzle._dieT === undefined) {
-        fj.nozzle.extinguish(0.22);
-        fj.impact.extinguish(0.35);
-      }
-      const nozzleLive = fj.nozzle.update(dt);
-      const impactLive = fj.impact.update(dt);
-      if (!nozzleLive && !impactLive) {
-        fj.nozzle.dispose();
-        fj.impact.dispose();
-        this.flameJets.delete(k);
-      }
-    }
-
-    // fire patches
-    for (let i = this.firePatches.length - 1; i >= 0; i--) {
-      const p = this.firePatches[i];
-      p.t -= dt;
-      if (p.t <= 0 && !p.dying) { p.dying = true; p.flame.extinguish(0.5); }
-      if (!p.flame.update(dt)) {
-        p.flame.dispose();
-        this.firePatches.splice(i, 1);
-        continue;
-      }
-      if (p.dying) continue; // burning out — no more damage ticks
-      p.tick -= dt;
-      if (p.tick <= 0) {
-        p.tick = 0.4;
-        for (const f of this.fighters) {
-          if (f === p.owner || !f.alive) continue;
-          if (f.grounded && f.pos.distanceTo(p.pos) < p.radius + f.radius) {
-            f.takeHit(p.dps, p.owner, { knock: 1, srcPos: p.pos, status: { burn: 6, burnT: 1.5 }, soft: true });
-          }
-        }
-      }
-    }
-
-    // ice blocks track frozen fighters
-    for (let i = this.iceBlocks.length - 1; i >= 0; i--) {
-      const ib = this.iceBlocks[i];
-      ib.t -= dt;
-      ib.mesh.position.copy(ib.fighter.pos);
-      ib.mesh.position.y += ib.fighter.height * 0.5;
-      if (ib.t <= 0 || !ib.fighter.alive) {
-        this.scene.remove(ib.mesh);
-        ib.mesh.geometry.dispose();
-        ib.mesh.material.dispose();
-        this.iceBlocks.splice(i, 1);
-        this.effects.impactSparks(ib.fighter.center(), 0x9be8ff, 14, 8);
-        this.audio?.play('shatter');
-      }
-    }
   }
+  // (geysers / waves / tornados / flame jets / fire patches / ice blocks
+  // used to have bespoke update loops here — they now run as sticky
+  // updaters registered by their spawn* APIs below)
 
   // area explosion: damages fighters w/ falloff + wrecks buildings + FX
   explode(pos, radius, dmg, { owner = null, knock = 12, color = 0xffa040, launch = 0, status = null, silentFx = false, unblockable = false } = {}) {
@@ -464,7 +359,90 @@ export class World {
       radius: radius * 0.8, scale: 1.0 + radius * 0.35, cards: 6, light: false,
       cool: fireCool(owner?.def),
     });
-    this.firePatches.push({ pos: pos.clone(), radius, t: duration, dps, owner, tick: 0, flame });
+    const at = pos.clone();
+    let t = duration, tick = 0, dying = false;
+    this.addUpdater((dt) => {
+      t -= dt;
+      if (t <= 0 && !dying) { dying = true; flame.extinguish(0.5); }
+      if (!flame.update(dt)) return false;
+      if (dying) return true; // burning out — no more damage ticks
+      tick -= dt;
+      if (tick <= 0) {
+        tick = 0.4;
+        for (const f of this.fighters) {
+          if (f === owner || !f.alive) continue;
+          if (f.grounded && f.pos.distanceTo(at) < radius + f.radius) {
+            f.takeHit(dps, owner, { knock: 1, srcPos: at, status: { burn: 6, burnT: 1.5 }, soft: true });
+          }
+        }
+      }
+      return true;
+    }, () => flame.dispose(), { sticky: true });
+  }
+
+  // GEYSER (CRANKY's special + finisher set-dressing): the fx runs its own
+  // telegraph -> erupt -> collapse show. Passing scald = {owner, dmg,
+  // radius, launch} arms the combat tick: anyone standing in the COLUMN
+  // (not the full blast radius — matches the visual) keeps taking hits for
+  // as long as the water is up. No scald = fx-only (finisher cinematics).
+  spawnGeyser(fx, scald = null) {
+    let tick = 0;
+    this.addUpdater((dt) => {
+      if (!fx.update(dt)) return false;
+      if (!scald || fx.phase !== 'erupt') return true;
+      tick -= dt;
+      if (tick > 0) return true;
+      tick = 0.4;
+      for (const v of this.fighters) {
+        if (v === scald.owner || !v.alive) continue;
+        const dx = this.wrapDelta(v.pos.x - fx.pos.x), dz = this.wrapDelta(v.pos.z - fx.pos.z);
+        if (Math.hypot(dx, dz) < scald.radius * 0.55 + v.hitRadius * 0.5) {
+          v.takeHit(scald.dmg * 0.2 * scald.owner.dmgMult(), scald.owner,
+            { knock: 3, launch: scald.launch * 0.55, srcPos: fx.pos, soft: true });
+          v.applySoak?.(2.4); // drenched: dripping frame, half speed
+          this.effects.splash(v.center(), 6, 5, 1);
+        }
+      }
+      return true;
+    }, () => fx.dispose(), { sticky: true });
+  }
+
+  // tidal wave wall: rolls until it collapses into foam at the end of the
+  // run. Lifecycle only — the casting special drives its own gameplay
+  // updater against the same travel integration.
+  spawnWave(fx) {
+    this.addUpdater((dt) => !!fx.update(dt), () => fx.dispose(), { sticky: true });
+  }
+
+  // fire tornado funnel: lifecycle only, same split as spawnWave (the
+  // inferno ult steers the funnel and runs the hunt/sweep gameplay in its
+  // own updater).
+  spawnTornado(fx) {
+    this.addUpdater((dt) => !!fx.update(dt), () => fx.dispose(), { sticky: true });
+  }
+
+  // flamethrower card-flame pair (nozzle + impact). Registered under a key
+  // (playerIndex, or 'fin' for the finisher) so the per-tick fire code can
+  // find and RETRIGGER the live jet instead of stacking new ones; the jet
+  // dies shortly after the trigger releases (ttl stops being refreshed).
+  spawnFlameJet(key, fj) {
+    this.flameJets.set(key, fj);
+    this.addUpdater((dt) => {
+      if (fj.dead) return false; // replaced by its owner (see fireRanged)
+      fj.ttl -= dt;
+      if (fj.ttl <= 0 && fj.nozzle.alive && fj.nozzle._dieT === undefined) {
+        fj.nozzle.extinguish(0.22);
+        fj.impact.extinguish(0.35);
+      }
+      const nozzleLive = fj.nozzle.update(dt);
+      const impactLive = fj.impact.update(dt);
+      return nozzleLive || impactLive;
+    }, () => {
+      fj.nozzle.dispose();
+      fj.impact.dispose();
+      // don't unindex a newer jet that already took over this key
+      if (this.flameJets.get(key) === fj) this.flameJets.delete(key);
+    }, { sticky: true });
   }
 
   freezeOverlay(fighter, duration) {
@@ -476,7 +454,23 @@ export class World {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.scale.y = 1.4;
     this.scene.add(mesh);
-    this.iceBlocks.push({ mesh, t: duration, fighter });
+    let t = duration;
+    this.addUpdater((dt) => {
+      t -= dt;
+      mesh.position.copy(fighter.pos);
+      mesh.position.y += fighter.height * 0.5;
+      if (t <= 0 || !fighter.alive) {
+        // shatter flourish only on a natural thaw — a round sweep just removes
+        this.effects.impactSparks(fighter.center(), 0x9be8ff, 14, 8);
+        this.audio?.play('shatter');
+        return false;
+      }
+      return true;
+    }, () => {
+      this.scene.remove(mesh);
+      geo.dispose();
+      mat.dispose();
+    }, { sticky: true });
   }
 
   // ranged attack dispatch (single shots and channel ticks)
@@ -530,9 +524,7 @@ export class World {
         });
         let fj = this.flameJets.get(f.playerIndex);
         if (fj && (!fj.nozzle.alive || !fj.impact.alive)) {
-          fj.nozzle.dispose();
-          fj.impact.dispose();
-          this.flameJets.delete(f.playerIndex);
+          fj.dead = true; // burnt out: its updater disposes it this frame
           fj = null;
         }
         if (!fj) {
@@ -541,7 +533,7 @@ export class World {
             impact: new FlameFX(this.scene, this.effects, end || from, { radius: 1.5, scale: 1.0, cards: 6, light: false, cool }),
             ttl: 0,
           };
-          this.flameJets.set(f.playerIndex, fj);
+          this.spawnFlameJet(f.playerIndex, fj);
         }
         fj.ttl = 0.16;
         fj.nozzle.rekindle();
@@ -852,28 +844,20 @@ export class World {
 
   startFinisher(winner, victim, onDone) {
     // the cinematic owns the stage: sweep live ult entities and summons so
-    // nothing keeps hitting (or upstaging) the two actors
-    this.endUpdaters();
+    // nothing keeps hitting (or upstaging) the two actors — but sticky
+    // environmental fx (fire patches, geysers...) stay for the cinematic
+    this.endUpdaters(false);
     this.clearMinions();
     this.finisher = new Finisher(this, winner, victim, onDone);
   }
 
   clearTransient() {
     this.tasks.length = 0;
+    // sticky included: fire patches / geysers / waves / tornados / flame
+    // jets / ice blocks are all sticky updaters whose end() disposes them
+    // (flame jets also unindex themselves from this.flameJets)
     this.endUpdaters();
     this.clearMinions();
-    for (const p of this.firePatches) p.flame.dispose();
-    this.firePatches.length = 0;
-    for (const g of this.geysers) g.fx.dispose();
-    this.geysers.length = 0;
-    for (const n of this.tornados) n.fx.dispose();
-    this.tornados.length = 0;
-    for (const wv of this.waves) wv.fx.dispose();
-    this.waves.length = 0;
-    for (const fj of this.flameJets.values()) { fj.nozzle.dispose(); fj.impact.dispose(); }
-    this.flameJets.clear();
-    for (const ib of this.iceBlocks) this.scene.remove(ib.mesh);
-    this.iceBlocks.length = 0;
     for (const p of this.projectiles.active) p.mesh.visible = false;
     this.projectiles.active.length = 0;
     this.projectiles.clearStuck();
