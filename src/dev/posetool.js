@@ -93,6 +93,7 @@ export async function runPoseTool(startId) {
       f.vel.set(0, 0, 0);
       f.yaw = f.targetYaw = f.torsoYaw = 0;
       f.grounded = true;
+      f._floorLift = 0;
     }
     idleT = 0;
   }
@@ -102,6 +103,44 @@ export async function runPoseTool(startId) {
   function displaced(f, x) {
     return !!f && (Math.abs(f.pos.x - x) > 0.05 || Math.abs(f.pos.z) > 0.05 || f.pos.y > 0.05 ||
       Math.abs(f.yaw) > 0.02);
+  }
+
+  // Lift-only floor clamp: a GLB whose retargeted gait pushes a rigid limb
+  // through the stage (fenrir's hind legs are single un-foldable bones, so
+  // the gallop's thigh swing overshoots downward) reads as sinking into the
+  // ground. Each frame, after the world poses the mech, raise it just enough
+  // that its LOWEST rendered vertex rests on the floor — never pull it down,
+  // so legitimate airtime (jump/lunge) still rises. Studying-tool cosmetic
+  // only; combat is untouched.
+  const _clampV = new THREE.Vector3();
+  function floorClamp(f, dt) {
+    if (!f?.mech?.isGLB) return;   // procedural gaits keep their own feet down
+    const g = f.group;
+    g.updateMatrixWorld(true);
+    let minY = Infinity;
+    g.traverse((o) => {
+      if (o.isSkinnedMesh) o.skeleton.update();
+      if (!o.isMesh && !o.isSkinnedMesh) return;
+      const pos = o.geometry?.attributes?.position;
+      if (!pos) return;
+      const stride = Math.max(1, Math.floor(pos.count / 1500));
+      for (let i = 0; i < pos.count; i += stride) {
+        o.getVertexPosition(i, _clampV); o.localToWorld(_clampV);
+        if (_clampV.y < minY) minY = _clampV.y;
+      }
+    });
+    if (minY === Infinity) return;
+    // Asymmetric envelope: rise INSTANTLY so the lowest vertex never dips
+    // below the floor, then settle back down. Settle is SLOW while a limb is
+    // still deep (need high) so the body holds near the planted height instead
+    // of heaving ~1u per stride, and FAST once the pose comes back up (need
+    // low) so a stopped mech drops promptly instead of hovering. Net: the
+    // gallop plants on the deepest limb with almost no bob; no sink anywhere.
+    const need = minY < 0 ? -minY : 0;
+    const prev = f._floorLift || 0;
+    const settle = need > 0.25 ? 0.8 : 12;   // units/sec
+    f._floorLift = need > prev ? need : Math.max(need, prev - settle * (dt || 0.016));
+    if (f._floorLift > 0.0005) { g.position.y += f._floorLift; g.updateMatrixWorld(true); }
   }
 
   function blankIntent() {
@@ -438,6 +477,7 @@ export async function runPoseTool(startId) {
         d.yaw = d.targetYaw = Math.PI;
       }
       world.update(dt);      // dt pre-scaled by engine.timeScale
+      floorClamp(glbF, dt); floorClamp(procF, dt);  // keep GLB rigid-limb overshoot on the floor
       input.endFrame();
       // settle-reset: snap home a few REAL seconds after everything is at
       // rest (slow-mo doesn't stretch the wait) — 2s after the stick is
