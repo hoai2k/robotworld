@@ -1,17 +1,14 @@
 // Dev battle test: full combat loop without menus.
 //   ?battle=foundry&p1=titanus&p2=viper&p3=vulcan&auto=1
 // auto=1 makes P1 an AI too (spectator soak test).
-import * as THREE from 'three';
 import { Engine } from '../core/engine.js';
-import { World } from '../game/world.js';
-import { Arena } from '../arena/arena.js';
 import { THEMES_BY_ID, THEMES } from '../arena/themes.js';
 import { ROSTER_BY_ID, ROSTER } from '../mechs/roster.js';
 import { applyColorScheme } from '../mechs/colorscheme.js';
 import { Fighter } from '../combat/fighter.js';
 import { AIController } from '../game/ai.js';
 import { Input } from '../game/input.js';
-import { CameraSystem } from '../game/camera.js';
+import { createBattle } from '../game/battle.js';
 import { pick } from '../core/utils.js';
 import { CONFIG } from '../core/config.js';
 import { createMech } from '../mechs/gltf.js';
@@ -23,16 +20,10 @@ export async function runBattleTest() {
   const auto = params.get('auto') === '1';
 
   const engine = new Engine(document.getElementById('game-canvas'));
-  const world = new World(engine, null);
-  const arena = new Arena(engine, theme);
-  world.arena = arena;
-  arena.bind(world);
-  world.spawnAmmoBoxes(6, arena.bounds * 0.6);
-  engine.onBeforeView = (cam) => world.applyViewWrap(cam);
-  engine.onAfterView = () => world.clearViewWrap();
-
   const input = new Input();
-  world.input = input;
+  // shared wiring with the real match (src/game/battle.js) — no audio, and
+  // no seed so the Arena keeps its deterministic dev-harness default
+  const { world, arena, cameraSys } = createBattle(engine, { theme, input });
 
   const ids = [];
   for (let i = 1; i <= 4; i++) {
@@ -62,8 +53,6 @@ export async function runBattleTest() {
   });
 
   let humans = auto ? [] : [fighters[0]];
-  const cameraSys = new CameraSystem(engine, world);
-  world.cameraSys = cameraSys; // aimed RB shots resolve their ray through this
   if (params.get('forcesplit') === '1') {
     humans = fighters.slice(0, Math.min(4, fighters.length));
     fighters.forEach((f, i) => f.pos.set((i % 2) * 90 - 45, 0, (i >> 1) * 60 - 30));

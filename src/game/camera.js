@@ -132,6 +132,42 @@ export class CameraSystem {
     ch.lookY = y;
   }
 
+  // ---- follow/lock/giant-zoom math shared by the combined and split cams ----
+
+  // azimuth that puts the camera behind `f` looking straight at `other`
+  // through the shortest wrapped path (target lock, and the solo
+  // behind-the-player framing toward the nearest enemy)
+  azimuthBehind(f, other) {
+    return Math.atan2(
+      -this.world.wrapDelta(other.pos.x - f.pos.x),
+      -this.world.wrapDelta(other.pos.z - f.pos.z)
+    );
+  }
+
+  // followFront hysteresis (shared 1.25/2.15 thresholds): while a mech runs
+  // at the camera, hold the FRONT view instead of whipping 180° around;
+  // biased toward the back view (moving away is the default read). Returns
+  // the azimuth to ease toward plus the new front-flag — each mode keeps
+  // its own damp rate and gating.
+  followAzimuth(curAz, yaw, wasFront) {
+    const front = Math.abs(angleDiff(curAz, yaw + Math.PI)) > (wasFront ? 1.25 : 2.15);
+    return { front, az: front ? yaw : yaw + Math.PI };
+  }
+
+  // how far past its natural size a mech is grown (COLOSSAL FORM) — 1 in a
+  // normal fight
+  giantFactor(f) {
+    return f.scale / (f.def.body.scale || 1);
+  }
+
+  // COLOSSAL-FORM zoom easing: while a giant is in frame (gf > 1.03) the
+  // zoom eases slowly (1.5) so the size change lands FIRST and the camera
+  // pulls out (grow) or back in (shrink) a clear beat later; otherwise each
+  // mode's own normalRate applies (combined 3, split 12 ≈ near-instant).
+  giantZoomDamp(cur, want, gf, normalRate, dt) {
+    return damp(cur, want, gf > 1.03 ? 1.5 : normalRate, dt);
+  }
+
   // spread a segment's occlusion samples across the fighter's whole body
   fillSegTargets(seg, camPos, f) {
     let dx = f.pos.x - camPos.x, dz = f.pos.z - camPos.z;
@@ -221,13 +257,13 @@ export class CameraSystem {
     // rides up with him on its own.)
     let giantF = 1;
     for (const f of framed) {
-      giantF = Math.max(giantF, f.scale / (f.def.body.scale || 1));
+      giantF = Math.max(giantF, this.giantFactor(f));
     }
     _center.y += upperY / pts.length;
 
     let radius = 10;
     for (let i = 0; i < pts.length; i++) {
-      const gf = framed[i].scale / (framed[i].def.body.scale || 1);
+      const gf = this.giantFactor(framed[i]);
       const headroom = gf > 1.05 ? framed[i].height * 0.8 : 0; // fit the whole giant
       radius = Math.max(radius, pts[i].distanceTo(_center) + 6 + headroom);
     }
@@ -264,27 +300,20 @@ export class CameraSystem {
         // TARGET LOCK (LB held): the camera swings behind the player and
         // aims straight down the line at the locked enemy — it owns the
         // view for as long as the lock is held
-        const lockAz = Math.atan2(
-          -this.world.wrapDelta(lockT.pos.x - player.pos.x),
-          -this.world.wrapDelta(lockT.pos.z - player.pos.z)
-        );
+        const lockAz = this.azimuthBehind(player, lockT);
         this.azimuth = this.azInit ? angleDamp(this.azimuth, lockAz, 5, dt) : lockAz;
         this.azInit = true;
         this.lookAzOffset = damp(this.lookAzOffset, 0, 4, dt);
       } else if (this.lookCd <= 0 && spd > 3 && fwdDot > 0.3) {
-        const dBehind = Math.abs(angleDiff(this.azimuth, player.yaw + Math.PI));
-        this._followFront = dBehind > (this._followFront ? 1.25 : 2.15);
-        const followAz = this._followFront ? player.yaw : player.yaw + Math.PI;
-        this.azimuth = this.azInit ? angleDamp(this.azimuth, followAz, 2.0, dt) : followAz;
+        const fa = this.followAzimuth(this.azimuth, player.yaw, this._followFront);
+        this._followFront = fa.front;
+        this.azimuth = this.azInit ? angleDamp(this.azimuth, fa.az, 2.0, dt) : fa.az;
         this.azInit = true;
       } else if (enemy && this.lookCd <= 0) {
         // (manual look owns the view — auto framing waits until it's released)
         // offset direction points from the enemy toward the player (behind
         // them) — via the shortest wrapped path
-        const behindAz = Math.atan2(
-          -this.world.wrapDelta(enemy.pos.x - player.pos.x),
-          -this.world.wrapDelta(enemy.pos.z - player.pos.z)
-        );
+        const behindAz = this.azimuthBehind(player, enemy);
         this.azimuth = this.azInit ? angleDamp(this.azimuth, behindAz, 1.8, dt) : behindAz;
         this.azInit = true;
       }
@@ -299,11 +328,9 @@ export class CameraSystem {
     if (solo) wantDist = clamp(wantDist * 0.58, 22 * giantF, 34 * giantF);
     if (!this.init) this.dist = wantDist;
     // COLOSSAL FORM: while a giant is in frame, ease the ZOOM slowly so the
-    // size change lands FIRST and the camera pulls out (grow) or back in
-    // (shrink) a clear beat later — the scale reads before the reframe. The
+    // size change lands FIRST — the scale reads before the reframe. The
     // look target still rides up with him instantly, so he stays in shot.
-    const distRate = giantF > 1.03 ? 1.5 : 3;
-    this.dist = damp(this.dist, wantDist, distRate, dt);
+    this.dist = this.giantZoomDamp(this.dist, wantDist, giantF, 3, dt);
 
     // Manual look offsets hold while dragging, then ease back to the auto view.
     if (this.lookCd > 0) this.lookCd -= dt;
@@ -420,30 +447,25 @@ export class CameraSystem {
       if (lockT && !stickActive) {
         // TARGET LOCK (LB held): this viewport swings behind its player and
         // keeps the locked enemy dead ahead (stick input still overrides)
-        const lockAz = Math.atan2(
-          -this.world.wrapDelta(lockT.pos.x - f.pos.x),
-          -this.world.wrapDelta(lockT.pos.z - f.pos.z)
-        );
-        ch.az = angleDamp(ch.az, lockAz, 5, dt);
+        ch.az = angleDamp(ch.az, this.azimuthBehind(f, lockT), 5, dt);
       } else if (ch.lookCd <= 0 && spd > 3 && f.alive && !lockT) {
         const fwdDot = (f.vel.x * Math.sin(f.yaw) + f.vel.z * Math.cos(f.yaw)) / spd;
         if (fwdDot > 0.3) {
-          const dBehind = Math.abs(angleDiff(ch.az, f.yaw + Math.PI));
-          ch.followFront = dBehind > (ch.followFront ? 1.25 : 2.15);
-          const followAz = ch.followFront ? f.yaw : f.yaw + Math.PI;
-          ch.az = angleDamp(ch.az, followAz, 1.6 * Math.min(1, spd / 10), dt);
+          const fa = this.followAzimuth(ch.az, f.yaw, ch.followFront);
+          ch.followFront = fa.front;
+          ch.az = angleDamp(ch.az, fa.az, 1.6 * Math.min(1, spd / 10), dt);
         }
       }
 
       // stacked viewports are short — pull back a touch so mechs fit.
       // A COLOSSAL-FORM giant needs the whole chase envelope scaled out.
-      const gf = Math.max(1, f.scale / (f.def.body.scale || 1));
+      const gf = Math.max(1, this.giantFactor(f));
       const baseDist = (vp.h < 0.75 && vp.w > 0.75 ? 25 : 22) * gf;
       // COLOSSAL FORM: ease the ZOOM behind the actual size change (grow →
       // pull out after; shrink → move in after) while the mech-follow stays
       // tight. Near-instant when not a giant, so normal framing is unchanged.
       if (ch.dist === undefined) ch.dist = baseDist;
-      ch.dist = damp(ch.dist, baseDist, gf > 1.03 ? 1.5 : 12, dt);
+      ch.dist = this.giantZoomDamp(ch.dist, baseDist, gf, 12, dt);
       const el = ch.el;
       _v.set(
         Math.sin(ch.az) * Math.cos(el), Math.sin(el), Math.cos(ch.az) * Math.cos(el)

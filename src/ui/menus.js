@@ -5,8 +5,7 @@ import { SCHEME_NAMES, SCHEME_COUNT, schemeSwatch } from '../mechs/colorscheme.j
 import { THEMES } from '../arena/themes.js';
 import { isTouchDevice } from '../core/utils.js';
 import { mechIcon } from './icons.js';
-
-const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
+import { PLAYER_COLORS_CSS as COLOR_CSS, hexCss } from '../core/colors.js';
 
 // pseudo roster entry: the RANDOM pick (last cell in the grid). Locking it
 // deals you a DIFFERENT random robot every round; the color scheme you pick
@@ -48,67 +47,105 @@ function frameHotButton(b, color) {
   b.el.style.opacity = color ? '1' : '';
 }
 
-// ---------------- TITLE ----------------
-export class TitleScreen {
-  constructor(root, { onPlay, onFullscreen, audio, hotButtons }) {
+// Shared vertical menu list used by the title / pause / settings / results
+// screens: the item DOM, hover/click selection, the up/down/confirm loop,
+// and (title/pause) the LB/RB corner hot-button ring for settings/sound.
+class MenuList {
+  constructor({ audio, hot = [] } = {}) {
     this.audio = audio;
-    this.onPlay = onPlay;
-    this.onFullscreen = onFullscreen;
-    this.hot = hotButtons || [];   // corner buttons (settings/sound)
+    this.hot = hot;                // corner buttons (settings/sound)
     this.corner = null;            // index into this.hot while LB/RB-focused
-    this.el = el('div', 'screen fade-in');
-    this.el.innerHTML = `
-      <div style="text-align:center">
-        <div class="mega-title">ROBOTWORLD</div>
-        <div class="mega-sub">MECH BATTLE ARENA</div>
-      </div>`;
-    this.menu = el('div', 'menu-list');
-    this.items = ['BATTLE', 'FULLSCREEN'];
     this.sel = 0;
-    this.itemEls = this.items.map((t, i) => {
-      const it = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), t);
-      it.addEventListener('click', () => { this.sel = i; this.confirm(); });
-      it.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
-      this.menu.appendChild(it);
-      return it;
-    });
-    this.el.appendChild(this.menu);
-    this.el.appendChild(el('div', 'hint-bar',
-      '<b>↑↓</b> select&nbsp;&nbsp;<b>ENTER / A</b> confirm&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) settings · sound&nbsp;&nbsp;·&nbsp;&nbsp;pad <b>SELECT</b> mouse pointer&nbsp;&nbsp;·&nbsp;&nbsp;P1 <b>WASD</b> + <b>F G H R T Y</b> · <b>SPACE</b> jump · <b>SHIFT</b> dash'));
-    root.appendChild(this.el);
+    this.menu = el('div', 'menu-list');
+    this.items = [];
+    this.itemEls = [];
   }
+
+  // items: [{ t, fn, ... }] — extra fields (relabel keys etc.) pass through;
+  // returns the .menu-list element for the screen to append
+  build(items) {
+    this.items = items;
+    this.itemEls = items.map((it, i) => {
+      const e = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), it.t);
+      e.addEventListener('click', () => { this.sel = i; this.confirm(); });
+      e.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
+      this.menu.appendChild(e);
+      return e;
+    });
+    return this.menu;
+  }
+
   refresh() {
     this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel && this.corner == null));
     this.hot.forEach((b, j) => frameHotButton(b, this.corner === j ? 'var(--hud-cyan)' : null));
   }
+
   confirm() {
     this.audio?.play('uiSelect');
-    if (this.items[this.sel] === 'BATTLE') this.onPlay();
-    else this.onFullscreen();
+    this.items[this.sel].fn();
   }
-  update(ev) {
-    // LB/RB (Q/E) hop the focus onto the corner buttons (settings/sound);
-    // A/ENTER activates, ↑↓ or B/ESC return to the menu list
+
+  // Corner hot-button ring: LB/RB (Q/E) hop the focus onto the corner
+  // buttons (settings/sound); A/ENTER activates, ↑↓ or B/ESC return to the
+  // menu list. `onPause` (pause screen only): START still resumes while a
+  // corner button is focused. Returns true while the ring owns this
+  // frame's input — the caller should bail out of its update.
+  hotNav(ev, onPause = null) {
     if (this.hot.length && (ev.lb || ev.rb)) {
       const ring = [null, ...this.hot.map((_, j) => j)];
       const cur = ring.indexOf(this.corner);
       this.corner = ring[(Math.max(0, cur) + (ev.rb ? 1 : -1) + ring.length) % ring.length];
       this.audio?.play('uiMove');
       this.refresh();
-      return;
+      return true;
     }
     if (this.corner != null) {
-      if (ev.confirm) { this.audio?.play('uiSelect'); this.hot[this.corner].activate(); return; }
-      if (ev.back) { this.corner = null; this.audio?.play('uiBack'); this.refresh(); return; }
+      if (onPause && ev.pause) { this.corner = null; this.refresh(); onPause(); return true; } // START still resumes
+      if (ev.confirm) { this.audio?.play('uiSelect'); this.hot[this.corner].activate(); return true; }
+      if (ev.back) { this.corner = null; this.audio?.play('uiBack'); this.refresh(); return true; }
       if (ev.up || ev.down) { this.corner = null; this.audio?.play('uiMove'); this.refresh(); } // rejoin the list
-      return;
+      return true;
     }
-    if (ev.up) { this.sel = (this.sel + this.items.length - 1) % this.items.length; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.down) { this.sel = (this.sel + 1) % this.items.length; this.audio?.play('uiMove'); this.refresh(); }
+    return false;
+  }
+
+  // the plain list loop: ↑↓ move the selection, ENTER/A confirms
+  nav(ev) {
+    const n = this.items.length;
+    if (ev.up) { this.sel = (this.sel + n - 1) % n; this.audio?.play('uiMove'); this.refresh(); }
+    if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
     if (ev.confirm) this.confirm();
   }
+
   destroy() {
     this.hot.forEach((b) => frameHotButton(b, null));
+  }
+}
+
+// ---------------- TITLE ----------------
+export class TitleScreen {
+  constructor(root, { onPlay, onFullscreen, audio, hotButtons }) {
+    this.el = el('div', 'screen fade-in');
+    this.el.innerHTML = `
+      <div style="text-align:center">
+        <div class="mega-title">ROBOTWORLD</div>
+        <div class="mega-sub">MECH BATTLE ARENA</div>
+      </div>`;
+    this.list = new MenuList({ audio, hot: hotButtons });
+    this.el.appendChild(this.list.build([
+      { t: 'BATTLE', fn: onPlay },
+      { t: 'FULLSCREEN', fn: onFullscreen },
+    ]));
+    this.el.appendChild(el('div', 'hint-bar',
+      '<b>↑↓</b> select&nbsp;&nbsp;<b>ENTER / A</b> confirm&nbsp;&nbsp;·&nbsp;&nbsp;<b>LB / RB</b> (Q/E) settings · sound&nbsp;&nbsp;·&nbsp;&nbsp;pad <b>SELECT</b> mouse pointer&nbsp;&nbsp;·&nbsp;&nbsp;P1 <b>WASD</b> + <b>F G H R T Y</b> · <b>SPACE</b> jump · <b>SHIFT</b> dash'));
+    root.appendChild(this.el);
+  }
+  update(ev) {
+    if (this.list.hotNav(ev)) return;
+    this.list.nav(ev);
+  }
+  destroy() {
+    this.list.destroy();
     this.el.remove();
   }
 }
@@ -145,7 +182,7 @@ export class MechSelectScreen {
         ? `<div class="cell-tint" style="background:linear-gradient(150deg, #2a3a52, transparent)"></div>
            <div class="cell-icon" style="font-size:clamp(26px,3vw,42px)">❓</div>
            <div class="cell-name">RANDOM</div>`
-        : `<div class="cell-tint" style="background:linear-gradient(150deg, #${m.colors.primary.toString(16).padStart(6, '0')}, transparent)"></div>
+        : `<div class="cell-tint" style="background:linear-gradient(150deg, ${hexCss(m.colors.primary)}, transparent)"></div>
            <div class="cell-icon">${mechIcon(m, 52)}</div>
            <div class="cell-name">${m.name}</div>`;
       c.addEventListener('mouseenter', () => {
@@ -459,7 +496,7 @@ export class MechSelectScreen {
       }
       const pk = this.pickers.find((p) => p.slotIdx === i);
       const m = pickAt(pk.cursor);
-      const mc = '#' + m.colors.glow.toString(16).padStart(6, '0');
+      const mc = hexCss(m.colors.glow);
       pc.classList.toggle('locked', pk.locked);
       pc.innerHTML = `<div class="pc-role" style="color:${col}">PLAYER ${i + 1} · ${this.deviceLabel(s.device)}</div>
         <div class="pc-dev" style="color:${mc}">${mechIcon(m, 18)}${m.name}${pk.locked ? ' ✓' : ''}</div>
@@ -472,7 +509,7 @@ export class MechSelectScreen {
   pcSchemeRow(m, pk) {
     let row = '';
     for (let v = 0; v < SCHEME_COUNT; v++) {
-      const col = '#' + schemeSwatch(m, v).toString(16).padStart(6, '0');
+      const col = hexCss(schemeSwatch(m, v));
       row += `<span class="pc-swatch${pk.variant === v ? ' on' : ''}" data-variant="${v}"
         title="${SCHEME_NAMES[v]}" style="background:${col};"></span>`;
     }
@@ -492,7 +529,7 @@ export class MechSelectScreen {
         return;
       }
       this.card.innerHTML = `
-        <div class="mi-name" style="color:#${m.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(m, 30)}${m.name}</div>
+        <div class="mi-name" style="color:${hexCss(m.colors.glow)}">${mechIcon(m, 30)}${m.name}</div>
         <div class="mi-title">${m.title}</div>
         <div class="mi-blurb">${m.blurb}</div>
         <div class="mi-stats">
@@ -519,7 +556,7 @@ export class MechSelectScreen {
                     background:rgba(10,18,30,0.45); border-radius:0 6px 6px 0;">
           <div style="font-size:11px;letter-spacing:0.2em;color:${pc};font-weight:800;">
             PLAYER ${pk.slotIdx + 1} ${pk.locked ? '· LOCKED ✓' : ''}</div>
-          <div class="mi-name" style="font-size:clamp(15px,1.6vw,21px);color:#${m.colors.glow.toString(16).padStart(6, '0')}">${nameHtml}</div>
+          <div class="mi-name" style="font-size:clamp(15px,1.6vw,21px);color:${hexCss(m.colors.glow)}">${nameHtml}</div>
           <div style="font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--hud-cyan);">${m.title}</div>
           <div class="mi-moves" style="margin-top:6px;">${movesLine}</div>
         </div>`;
@@ -755,7 +792,7 @@ export class ArenaSelectScreen {
     g.addColorStop(1, '#070c16');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-    const hx = (h) => '#' + h.toString(16).padStart(6, '0');
+    const hx = hexCss;
     THEMES.forEach((t, i) => { // one sky chip per arena fanned in an arc
       const a = (i / THEMES.length) * Math.PI * 2 - Math.PI / 2;
       ctx.save();
@@ -779,7 +816,7 @@ export class ArenaSelectScreen {
   drawArt(canvas, t) {
     const ctx = canvas.getContext('2d');
     const W = canvas.width, H = canvas.height;
-    const hx = (h) => '#' + h.toString(16).padStart(6, '0');
+    const hx = hexCss;
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, hx(t.sky.top));
     g.addColorStop(0.72, hx(t.sky.bottom));
@@ -863,12 +900,8 @@ export class ArenaSelectScreen {
 // ---------------- PAUSE ----------------
 export class PauseScreen {
   constructor(root, { audio, onResume, onQuit, onFullscreen = null, splitToggle = null, onSettings = null, hotButtons }) {
-    this.audio = audio;
-    this.hot = hotButtons || [];   // corner buttons (settings/sound)
-    this.corner = null;            // index into this.hot while LB/RB-focused
     this.el = el('div', 'screen dim fade-in');
     this.el.innerHTML = `<div class="mega-title pause-title">PAUSED</div>`;
-    this.menu = el('div', 'menu-list');
     this.items = [
       { t: 'RESUME', fn: onResume },
       { t: 'CONTROLS', fn: () => this.toggleControls() },
@@ -883,7 +916,7 @@ export class PauseScreen {
           toggle.fn();
           const i = this.items.findIndex((it) => it.key === key);
           this.items[i].t = toggle.label();
-          this.itemEls[i].textContent = this.items[i].t;
+          this.list.itemEls[i].textContent = this.items[i].t;
         },
         key,
       });
@@ -891,15 +924,8 @@ export class PauseScreen {
     addToggle(splitToggle, 'split');
     if (onSettings) this.items.push({ t: 'SETTINGS', fn: onSettings });
     this.items.push({ t: 'QUIT TO MENU', fn: onQuit });
-    this.sel = 0;
-    this.itemEls = this.items.map((it, i) => {
-      const e = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), it.t);
-      e.addEventListener('click', () => { this.sel = i; this.confirm(); });
-      e.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
-      this.menu.appendChild(e);
-      return e;
-    });
-    this.el.appendChild(this.menu);
+    this.list = new MenuList({ audio, hot: hotButtons });
+    this.el.appendChild(this.list.build(this.items));
     this.controls = el('div', 'panel');
     this.controls.style.cssText = 'margin-top:20px;padding:16px 26px;display:none;font-size:13px;line-height:1.9;color:#b8d4e6;';
     this.controls.innerHTML = `
@@ -921,36 +947,14 @@ export class PauseScreen {
   toggleControls() {
     this.controls.style.display = this.controls.style.display === 'none' ? 'block' : 'none';
   }
-  refresh() {
-    this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel && this.corner == null));
-    this.hot.forEach((b, j) => frameHotButton(b, this.corner === j ? 'var(--hud-cyan)' : null));
-  }
-  confirm() { this.audio?.play('uiSelect'); this.items[this.sel].fn(); }
   update(ev) {
     // LB/RB (Q/E) hop the focus onto the corner buttons, same as the title
-    if (this.hot.length && (ev.lb || ev.rb)) {
-      const ring = [null, ...this.hot.map((_, j) => j)];
-      const cur = ring.indexOf(this.corner);
-      this.corner = ring[(Math.max(0, cur) + (ev.rb ? 1 : -1) + ring.length) % ring.length];
-      this.audio?.play('uiMove');
-      this.refresh();
-      return;
-    }
-    if (this.corner != null) {
-      if (ev.pause) { this.corner = null; this.refresh(); this.items[0].fn(); return; } // START still resumes
-      if (ev.confirm) { this.audio?.play('uiSelect'); this.hot[this.corner].activate(); return; }
-      if (ev.back) { this.corner = null; this.audio?.play('uiBack'); this.refresh(); return; }
-      if (ev.up || ev.down) { this.corner = null; this.audio?.play('uiMove'); this.refresh(); } // rejoin the list
-      return;
-    }
-    const n = this.items.length;
-    if (ev.up) { this.sel = (this.sel + n - 1) % n; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.confirm) this.confirm();
+    if (this.list.hotNav(ev, () => this.items[0].fn())) return;
+    this.list.nav(ev);
     if (ev.back || ev.pause) this.items[0].fn();
   }
   destroy() {
-    this.hot.forEach((b) => frameHotButton(b, null));
+    this.list.destroy();
     this.el.remove();
   }
 }
@@ -968,7 +972,6 @@ export class SettingsScreen {
     this.el.style.zIndex = 30;
     this.el.style.background = 'rgba(5, 8, 14, 0.86)'; // hide the menu beneath
     this.el.innerHTML = `<div class="mega-title pause-title">SETTINGS</div>`;
-    this.menu = el('div', 'menu-list');
     this.items = [
       ...items.map((toggle) => ({
         t: toggle.label(),
@@ -976,31 +979,19 @@ export class SettingsScreen {
           toggle.fn();
           const i = this.items.findIndex((it) => it.toggle === toggle);
           this.items[i].t = toggle.label();
-          this.itemEls[i].textContent = this.items[i].t;
+          this.list.itemEls[i].textContent = this.items[i].t;
         },
         toggle,
       })),
       { t: 'BACK', fn: () => this.onBack() },
     ];
-    this.sel = 0;
-    this.itemEls = this.items.map((it, i) => {
-      const e = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), it.t);
-      e.addEventListener('click', () => { this.sel = i; this.confirm(); });
-      e.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
-      this.menu.appendChild(e);
-      return e;
-    });
-    this.el.appendChild(this.menu);
+    this.list = new MenuList({ audio });
+    this.el.appendChild(this.list.build(this.items));
     appendTouchBack(this.el, () => { this.audio?.play('uiBack'); this.onBack(); });
     root.appendChild(this.el);
   }
-  refresh() { this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel)); }
-  confirm() { this.audio?.play('uiSelect'); this.items[this.sel].fn(); }
   update(ev) {
-    const n = this.items.length;
-    if (ev.up) { this.sel = (this.sel + n - 1) % n; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.down) { this.sel = (this.sel + 1) % n; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.confirm) this.confirm();
+    this.list.nav(ev);
     if (ev.back || ev.pause) { this.audio?.play('uiBack'); this.onBack(); }
   }
   destroy() { this.el.remove(); }
@@ -1009,37 +1000,23 @@ export class SettingsScreen {
 // ---------------- RESULTS ----------------
 export class ResultsScreen {
   constructor(root, { winner, audio, onRematch, onChangeMechs, onMenu }) {
-    this.audio = audio;
     this.el = el('div', 'screen dim fade-in');
     const panel = el('div', 'panel results-panel');
     panel.innerHTML = `
       <div class="winner-sub">CHAMPION</div>
-      <div class="winner-name" style="color:#${winner.def.colors.glow.toString(16).padStart(6, '0')}">${mechIcon(winner.def, 34)}${winner.def.name}</div>
+      <div class="winner-name" style="color:${hexCss(winner.def.colors.glow)}">${mechIcon(winner.def, 34)}${winner.def.name}</div>
       <div class="winner-quote">${winner.def.quotes.win}</div>`;
     this.el.appendChild(panel);
-    this.menu = el('div', 'menu-list');
-    this.items = [
+    this.list = new MenuList({ audio });
+    this.el.appendChild(this.list.build([
       { t: 'REMATCH', fn: onRematch },
       { t: 'CHANGE MECHS', fn: onChangeMechs },
       { t: 'MAIN MENU', fn: onMenu },
-    ];
-    this.sel = 0;
-    this.itemEls = this.items.map((it, i) => {
-      const e = el('div', 'menu-item' + (i === 0 ? ' selected' : ''), it.t);
-      e.addEventListener('click', () => { this.sel = i; this.confirm(); });
-      e.addEventListener('mouseenter', () => { this.sel = i; this.refresh(); });
-      this.menu.appendChild(e);
-      return e;
-    });
-    this.el.appendChild(this.menu);
+    ]));
     root.appendChild(this.el);
   }
-  refresh() { this.itemEls.forEach((e, i) => e.classList.toggle('selected', i === this.sel)); }
-  confirm() { this.audio?.play('uiSelect'); this.items[this.sel].fn(); }
   update(ev) {
-    if (ev.up) { this.sel = (this.sel + 2) % 3; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.down) { this.sel = (this.sel + 1) % 3; this.audio?.play('uiMove'); this.refresh(); }
-    if (ev.confirm) this.confirm();
+    this.list.nav(ev);
   }
   destroy() { this.el.remove(); }
 }

@@ -158,7 +158,13 @@ screenshot personality intact, soak matrix above.
 - [ ] Verify: ?showcase screenshot sweep (all 12 + anim=walk spot checks),
       soak, build green.
 
-## Batch G — finisher sharding  [ ]
+## Batch G — finisher sharding  [x DONE 2026-07-20]
+
+DONE: finisher.js = 375-line DSL engine; 18 scripts in finisher/<id>.js
+(+ index.js registry, shared.js, carry.js with carryGrip(F,t0,t1) —
+titanus/colossus blocks were byte-identical except hold end 2.55 vs 2.5).
+nullbot BSOD → BSOD_HTML template fn. Verified: build green, titanus +
+nullbot finisherdemo loops 240s each, zero page errors.
 
 - [ ] Split SCRIPTS (finisher.js:384-1493, 18 scripts) into
       src/game/finisher/<id>.js + index that assembles the registry; DSL
@@ -168,7 +174,20 @@ screenshot personality intact, soak matrix above.
 - [ ] Verify: ?finishers debug page (see config.js) screenshots for
       titanus/colossus/nullbot + one soak to KO; build green.
 
-## Batch H — boot extraction + shared createBattle + UI dedupe  [ ]
+## Batch H — boot extraction + shared createBattle + UI dedupe  [x DONE 2026-07-20]
+
+DONE: menustage.js / padpointers.js / warmup.js (Warmup class; per-battle
+state stays on B.loading — boot loop + teardown read it) extracted; zoom
+guards folded into touch.js; boot.js ~810 lines of screen flow.
+battle.js createBattle() shared by boot + battletest (differences
+reconciled deliberately: seed param, audio=null, world.input order proven
+neutral, CameraSystem ctor timing proven DOM-only). core/colors.js owns
+PLAYER_COLORS + hexCss (fighter.js keeps a compat re-export — remove
+whenever). menus.js MenuList (list build/nav/hot-corner ring) under
+Title/Pause/Settings/Results; MechSelect untouched. camera.js: shared
+azimuthBehind/followAzimuth/giantFactor/giantZoomDamp; per-mode rates
+preserved at call sites. Verified: build, title screenshot, menu console
+clean, colossus giant-camera ace soaks crash:null.
 
 - [ ] Extract from boot.js: MenuStage (46-242) → src/game/menustage.js,
       PadPointers (275-359) → src/game/padpointers.js, warm-up loader
@@ -217,3 +236,18 @@ screenshot personality intact, soak matrix above.
 
 - 2026-07-20: plan created; branch reset onto main @ 849b648; baseline
   build green.
+- 2026-07-20 (later): ALL BATCHES COMPLETE. A-C merged to main
+  individually; D-F merged together (75309b6); G-J merged together at the
+  end of the session. Deploys ride the main pushes (Pages workflow).
+
+## Remaining follow-ups (small, safe to do anytime)
+- Cut the fighter.js <-> specials.js import cycle (inject the Fighter
+  ctor into the raptor summon, or move it to a neutral module); then drop
+  fighter.js's PLAYER_COLORS compat re-export (import core/colors.js
+  directly wherever it's still consumed via fighter.js).
+- CLAUDE.md/MECH_ART_GUIDE say "12 mechs" — roster is 17; refresh docs
+  (architecture map should also mention: movekit.js, signatures.js,
+  colorscheme.js, contract.js, core/colors.js, game/battle.js,
+  game/finisher/<id>.js being parallel-agent-safe).
+- Consider stable skinOps island keys (bone+centroid hash) if GLBs ever
+  get re-exported; today's ordinals silently rebind on re-export.
