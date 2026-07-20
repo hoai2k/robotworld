@@ -2,10 +2,8 @@
 // damage popups, special/ult callouts, controller toasts.
 import { mechIcon } from './icons.js';
 import * as THREE from 'three';
-import { PLAYER_COLORS } from '../combat/fighter.js';
+import { PLAYER_COLORS_CSS as COLOR_CSS } from '../core/colors.js';
 import { clamp01 } from '../core/utils.js';
-
-const COLOR_CSS = ['#38e8ff', '#ff4d5e', '#62ff9a', '#ffb43c'];
 const _v = new THREE.Vector3();
 
 export class Hud {

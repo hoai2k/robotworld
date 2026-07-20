@@ -6,6 +6,7 @@ import { buildMech } from '../mechs/factory.js';
 import { Animator } from '../mechs/animator.js';
 import { SPECIALS, ULTS } from './specials.js';
 import { CONFIG } from '../core/config.js';
+import { PLAYER_COLORS } from '../core/colors.js';
 
 const _v = new THREE.Vector3();
 const _v2 = new THREE.Vector3();
@@ -71,7 +72,7 @@ const CHARGE_GLOW_SETS = {
   lance: ['lance'],
 };
 
-export const PLAYER_COLORS = [0x38e8ff, 0xff4d5e, 0x62ff9a, 0xffb43c];
+export { PLAYER_COLORS } from '../core/colors.js'; // compat re-export, remove after finisher.js migrates
 
 export class Fighter {
   constructor(world, def, { pos = new THREE.Vector3(), yaw = 0, playerIndex = 0, isAI = false, mech = null } = {}) {

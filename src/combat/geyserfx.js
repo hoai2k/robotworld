@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { streamNoiseTexture } from '../core/textures.js';
 import { rand, clamp01 } from '../core/utils.js';
+import { GLSL_VNOISE } from './fxglsl.js';
 
 const COLUMN_VERT = /* glsl */`
   uniform float uTime;
@@ -24,15 +25,7 @@ const COLUMN_VERT = /* glsl */`
   varying vec3 vNrm;
   varying vec3 vViewDir;
 
-  // cheap value noise — continuous around the shell because it samples the
-  // unit-circle position, not the (seamed) uv.x
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float vnoise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x),
-               mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-  }
+  ${GLSL_VNOISE}
 
   void main() {
     vUv = uv;

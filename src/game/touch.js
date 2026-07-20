@@ -4,6 +4,32 @@
 // battle is running; hidden (and released) on every other screen.
 import { clamp } from '../core/utils.js';
 
+// Block the browser's built-in zoom gestures on touch devices. iOS Safari
+// ignores `user-scalable=no` in the viewport meta, so pinch-zoom and (the
+// common offender) double-tap-to-zoom while mashing buttons still fire and
+// wreck the fixed layout. touch-action:none handles Android; these listeners
+// handle iOS. Deliberately narrow so real gameplay multitouch is untouched:
+// gameplay buttons use pointer events, which none of this cancels.
+export function installTouchZoomGuards() {
+  // iOS pinch-zoom arrives as gesture* events — cancel them.
+  for (const t of ['gesturestart', 'gesturechange', 'gestureend']) {
+    document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+  }
+  // Double-tap-to-zoom: only suppress a second tap that lands in the same
+  // spot in quick succession (a zoom gesture), not two taps on different
+  // controls — so rapid, distinct button/menu taps keep working.
+  let lastT = 0, lastX = 0, lastY = 0;
+  document.addEventListener('touchend', (e) => {
+    const touch = e.changedTouches[0];
+    if (!touch) return;
+    const now = performance.now();
+    if (now - lastT <= 320 && Math.hypot(touch.clientX - lastX, touch.clientY - lastY) < 40) {
+      e.preventDefault();
+    }
+    lastT = now; lastX = touch.clientX; lastY = touch.clientY;
+  }, { passive: false });
+}
+
 // Action buttons. `hold: true` are read continuously (block/ranged); the rest
 // fire on the press edge, matching the keyboard/pad mapping in Input.readIntent.
 const BUTTONS = [

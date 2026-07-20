@@ -22,6 +22,9 @@ export const GLITCH_TINTS = [0xff2038, 0x27f6ff, 0xff2df2, 0x3350ff];
 export const glitchTint = () => GLITCH_TINTS[(Math.random() * GLITCH_TINTS.length) | 0];
 import { rand, clamp01 } from '../core/utils.js';
 
+const _emitCol = new THREE.Color();
+const _emitCol2 = new THREE.Color();
+
 // ---------- coherent substance streams (hose water, flamethrower) ----------
 // A jet is a ONE-PIECE tube mesh following the ballistic arc, skinned with
 // two layers of scrolling fractal noise — it reads as continuous pressurized
@@ -180,9 +183,11 @@ class ParticlePool {
     this.grav[i] = gravity;
     this.drag[i] = drag;
     this.grow[i] = grow;
-    const c = new THREE.Color(color);
+    // emit() runs hundreds of times a frame during heavy fights — reuse two
+    // module scratch Colors instead of allocating per particle
+    const c = _emitCol.set(color);
     this.baseCol[i * 3] = c.r; this.baseCol[i * 3 + 1] = c.g; this.baseCol[i * 3 + 2] = c.b;
-    const c2 = color2 === null ? c : new THREE.Color(color2);
+    const c2 = color2 === null ? c : _emitCol2.set(color2);
     this.endCol[i * 3] = c2.r; this.endCol[i * 3 + 1] = c2.g; this.endCol[i * 3 + 2] = c2.b;
     this.baseAlpha[i] = alpha;
     this.baseSize[i] = size;

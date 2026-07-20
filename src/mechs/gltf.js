@@ -33,6 +33,21 @@ import { warnContract } from './contract.js';
 
 let manifest = null;
 let manifestPromise = null;
+
+// Every key buildGlbMech (or the tool path) actually reads from a manifest
+// entry. `alt` is a complete standalone sub-entry (see buildGlbForTool).
+const KNOWN_ENTRY_KEYS = new Set([
+  'url', 'bindPose', 'boneOverrides', 'heightScale', 'yawOffset',
+  'emissiveBoost', 'stretch', 'bonePos', 'boneCorrections', 'noHeadMatch',
+  'skinOps', 'reparent', 'muzzles', 'profileKey', 'alt',
+]);
+const _entryWarned = new Set(); // "<id>|<msg>" — each complaint fires once per entry
+function warnEntryOnce(id, msg) {
+  const key = id + '|' + msg;
+  if (_entryWarned.has(key)) return;
+  _entryWarned.add(key);
+  console.warn(`manifest[${id}]: ${msg}`);
+}
 const gltfCache = new Map(); // url -> Promise<GLTF>
 const loader = new GLTFLoader();
 const _gcTmp = new THREE.Vector3();   // groundClamp scratch
@@ -52,6 +67,16 @@ export function manifestHasGlb(id) {
   return !!(manifest && manifest[id]?.url);
 }
 
+// One fetch+parse of public/models/manifest.json, shared by every manifest
+// reader. Missing/broken file resolves {} so the game always works. NOT
+// cached: loadManifest keeps its own promise cache, and the tool/raw readers
+// deliberately re-read the on-disk file each call.
+function fetchManifestJson() {
+  return fetch(new URL('models/manifest.json', document.baseURI))
+    .then((r) => (r.ok ? r.json() : {}))
+    .catch(() => ({}));
+}
+
 export function loadManifest() {
   if (!manifestPromise) {
     // GLB overrides are opt-in for now: ?debug=3d enables the service
@@ -61,10 +86,7 @@ export function loadManifest() {
       manifestPromise = Promise.resolve({}).then((m) => { manifest = m; return m; });
       return manifestPromise;
     }
-    manifestPromise = fetch(new URL('models/manifest.json', document.baseURI))
-      .then((r) => (r.ok ? r.json() : {}))
-      .catch(() => ({}))
-      .then((m) => { manifest = m; return m; });
+    manifestPromise = fetchManifestJson().then((m) => { manifest = m; return m; });
   }
   return manifestPromise;
 }
@@ -87,8 +109,7 @@ function loadGLTF(url) {
 // primary entry, whose tuning belongs to different geometry). The game itself
 // never reads .alt; a promotion = copying it over the primary entry.
 export async function buildGlbForTool(def, entryOverride, opts = {}) {
-  const m = await fetch(new URL('models/manifest.json', document.baseURI))
-    .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const m = await fetchManifestJson();
   const baseEntry = opts.alt ? m[def.id]?.alt : m[def.id];
   const entry = { ...(baseEntry || {}), ...(entryOverride || {}) };
   if (!entry.url) return { mech: buildMech(def), entry: null };
@@ -98,8 +119,7 @@ export async function buildGlbForTool(def, entryOverride, opts = {}) {
 
 // Read the raw manifest file (tool/debug use; not the ?debug=3d gate).
 export async function fetchRawManifest() {
-  return fetch(new URL('models/manifest.json', document.baseURI))
-    .then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  return fetchManifestJson();
 }
 
 // Load a mech's RAW gltf scene at bind pose — no rig, no retarget, no
@@ -149,12 +169,12 @@ function buildGlbMech(def, entry, gltf) {
   const D = computeDims(def);
   const { root, joints } = buildRig(D); // invisible virtual skeleton (no geometry)
 
-  // clone the scene so several fighters can use the same mech
-  // manifest `skinOps`: rebind auto-rig weight mistakes (a hip plate on a
-  // forearm, a banner on an arm) to the right bone — see skinops.js. Applied
-  // to the CACHED scene once (idempotent); clones share the fixed geometry.
-  applySkinOpsToGltf(gltf.scene, entry.skinOps);
+  // light manifest hygiene: flag typo'd/stale entry keys (once per entry)
+  for (const k of Object.keys(entry)) {
+    if (!KNOWN_ENTRY_KEYS.has(k)) warnEntryOnce(def.id, `unknown key "${k}"`);
+  }
 
+  // clone the scene so several fighters can use the same mech
   const model = cloneSkinned(gltf.scene);
 
   // manifest `reparent`: {"childBone": "newParentBone"} — fix auto-rig
@@ -162,8 +182,9 @@ function buildGlbMech(def, entry, gltf) {
   // forearm chains). attach() preserves the world transform, so the bind-pose
   // skin is untouched (boneInverses stay valid); the child simply starts
   // FOLLOWING its new parent. Applied per-clone, before the RigAdapter reads
-  // the hierarchy. Runs after skinOps so purgeFar keeps its committed
-  // hierarchy-distance semantics.
+  // the hierarchy. Only touches the CLONE's hierarchy — skinOps below runs on
+  // the CACHED scene, so purgeFar keeps its committed hierarchy-distance
+  // semantics regardless of order.
   if (entry.reparent) {
     model.updateMatrixWorld(true);
     const byName = new Map();
@@ -180,16 +201,48 @@ function buildGlbMech(def, entry, gltf) {
   const meshes = [];
   model.traverse((o) => {
     if (o.isBone) bones.push(o);
-    if (o.isMesh || o.isSkinnedMesh) {
-      meshes.push(o);
-      o.castShadow = true;
-      o.frustumCulled = false; // skinned bounds are unreliable mid-animation
-      if (entry.emissiveBoost && o.material?.emissive) {
-        o.material = o.material.clone();
-        o.material.emissiveIntensity = (o.material.emissiveIntensity || 1) * entry.emissiveBoost;
-      }
-    }
+    if (o.isMesh || o.isSkinnedMesh) meshes.push(o);
   });
+
+  // Map GLB bones onto the virtual rig's joints EARLY (mapBones is pure
+  // name-matching, so nothing else needs to happen first) and bail to the
+  // procedural model before paying for skinOps/scaling/dressing/Animator.
+  // A failing model therefore never gets its cached geometry skinOps'd —
+  // fine, since the procedural fallback never touches that geometry.
+  const boneMap = mapBones(bones, entry.boneOverrides || {});
+  const mapped = Object.keys(boneMap).length;
+  if (mapped < 10) {
+    console.warn(`GLB for ${def.id}: only ${mapped} bones mapped — falling back to procedural`);
+    return buildMech(def);
+  }
+  // more manifest hygiene: entries naming bones/joints that don't resolve.
+  // (mapBones silently ignores an override whose bone name doesn't exist;
+  // stretch/bonePos silently skip unmapped joints — surface those, once.)
+  for (const [joint, boneName] of Object.entries(entry.boneOverrides || {})) {
+    if (!bones.some((b) => b.name === boneName)) {
+      warnEntryOnce(def.id, `boneOverrides.${joint}: no bone named "${boneName}"`);
+    }
+  }
+  for (const key of ['stretch', 'bonePos']) {
+    for (const jname of Object.keys(entry[key] || {})) {
+      if (!boneMap[jname]) warnEntryOnce(def.id, `${key}.${jname}: joint not mapped to a bone`);
+    }
+  }
+
+  // manifest `skinOps`: rebind auto-rig weight mistakes (a hip plate on a
+  // forearm, a banner on an arm) to the right bone — see skinops.js. Applied
+  // to the CACHED scene once (idempotent guard on the geometry); clones share
+  // that geometry, so applying it after cloneSkinned still fixes this clone.
+  applySkinOpsToGltf(gltf.scene, entry.skinOps);
+
+  for (const o of meshes) {
+    o.castShadow = true;
+    o.frustumCulled = false; // skinned bounds are unreliable mid-animation
+    if (entry.emissiveBoost && o.material?.emissive) {
+      o.material = o.material.clone();
+      o.material.emissiveIntensity = (o.material.emissiveIntensity || 1) * entry.emissiveBoost;
+    }
+  }
 
   // scale + ground the model to the mech's gameplay height.
   // NOTE: measure the SKINNED vertices, not Box3.setFromObject — skinned
@@ -199,20 +252,27 @@ function buildGlbMech(def, entry, gltf) {
   const targetH = (D.hipHeight + D.torsoH + D.headSize * 2); // heightScale applied once, at the end
   const box = skinnedBox(model);
   const size = box.getSize(new THREE.Vector3());
-  let scale = size.y > 0.01 ? targetH / size.y : 1;
+  let scale = 1;
   const container = new THREE.Group();
   container.add(model);
-  model.scale.setScalar(scale);
-  // ground/center on the box the shader will actually render: assemble
-  // first, refresh matrices + attached-mode bindMatrixInverse, re-measure,
-  // then correct the residual. (Predicting this analytically breaks on
-  // rigs whose mesh-node chain carries offsets — Tripo's Armature does.)
-  container.updateMatrixWorld(true);
-  const rbox = skinnedBox(container);
-  const center = rbox.getCenter(new THREE.Vector3());
-  model.position.x -= center.x;
-  model.position.y -= rbox.min.y;
-  model.position.z -= center.z;
+  // Multiply the running model scale by k, then ground/center on the box the
+  // shader will actually render: assemble first, refresh matrices +
+  // attached-mode bindMatrixInverse, re-measure, then correct the residual.
+  // (Predicting this analytically breaks on rigs whose mesh-node chain
+  // carries offsets — Tripo's Armature does.) Used for the initial height
+  // fit and every later rescale (head matches, heightScale); callers that
+  // exist after the RigAdapter is built must also refresh adapter.hipsScale.
+  const rescaleAndReground = (k) => {
+    scale *= k;
+    model.scale.setScalar(scale);
+    container.updateMatrixWorld(true);
+    const rb = skinnedBox(container);
+    const c = rb.getCenter(new THREE.Vector3());
+    model.position.x -= c.x;
+    model.position.y -= rb.min.y;
+    model.position.z -= c.z;
+  };
+  rescaleAndReground(size.y > 0.01 ? targetH / size.y : 1);
   if (entry.yawOffset) container.rotation.y = entry.yawOffset * Math.PI / 180;
   root.add(container);
 
@@ -236,12 +296,6 @@ function buildGlbMech(def, entry, gltf) {
   // rest pose must be applied before offset capture -> create the Animator now
   mech.premadeAnimator = new Animator(mech);
 
-  const boneMap = mapBones(bones, entry.boneOverrides || {});
-  const mapped = Object.keys(boneMap).length;
-  if (mapped < 10) {
-    console.warn(`GLB for ${def.id}: only ${mapped} bones mapped — falling back to procedural`);
-    return buildMech(def);
-  }
   // head-height match: rescale the visual model so its head bone sits at the
   // same height as the procedural head joint. Keying the size on the HEAD
   // (rather than the raw bbox top) keeps GLB and procedural bodies the same
@@ -253,15 +307,7 @@ function buildGlbMech(def, entry, gltf) {
     const targetHeadY = joints.head.getWorldPosition(new THREE.Vector3()).y;
     const glbHeadY = boneMap.head.getWorldPosition(new THREE.Vector3()).y; // feet grounded at 0
     if (glbHeadY > 0.05 && targetHeadY > 0.05) {
-      const k = targetHeadY / glbHeadY;
-      scale *= k;
-      model.scale.setScalar(scale);
-      container.updateMatrixWorld(true);
-      const rb = skinnedBox(container);
-      const c = rb.getCenter(new THREE.Vector3());
-      model.position.x -= c.x;
-      model.position.y -= rb.min.y;
-      model.position.z -= c.z;
+      rescaleAndReground(targetHeadY / glbHeadY);
     }
   }
   // limb stretch: scale bone offsets away from bind before offset capture,
@@ -354,14 +400,7 @@ function buildGlbMech(def, entry, gltf) {
       const k = clamp(targetHeadY / haveHeadY, 0.9, 1.12);
       mech._headDebug.k = +k.toFixed(3);
       if (Math.abs(k - 1) > 0.005) {
-        scale *= k;
-        model.scale.setScalar(scale);
-        container.updateMatrixWorld(true);
-        const rb = skinnedBox(container);
-        const c = rb.getCenter(new THREE.Vector3());
-        model.position.x -= c.x;
-        model.position.y -= rb.min.y;
-        model.position.z -= c.z;
+        rescaleAndReground(k);
         adapter.hipsScale = 1 / (scale || 1);
       }
     }
@@ -373,14 +412,7 @@ function buildGlbMech(def, entry, gltf) {
   // once, here, so it composes cleanly with the auto-match in every view.
   const hs = entry.heightScale ?? 1;
   if (Math.abs(hs - 1) > 1e-3) {
-    scale *= hs;
-    model.scale.setScalar(scale);
-    container.updateMatrixWorld(true);
-    const rb = skinnedBox(container);
-    const c = rb.getCenter(new THREE.Vector3());
-    model.position.x -= c.x;
-    model.position.y -= rb.min.y;
-    model.position.z -= c.z;
+    rescaleAndReground(hs);
     adapter.hipsScale = 1 / (scale || 1);
   }
 
