@@ -541,7 +541,30 @@ export const SPECIALS = {
     const ghost = new THREE.Group();
     f.mech.group.updateWorldMatrix(true, true);
     f.mech.group.traverse((o) => {
-      if (!o.isMesh) return;
+      if (!o.isMesh || o.visible === false) return;
+      if (o.isSkinnedMesh) {
+        // a static shell can't reuse a SkinnedMesh's matrixWorld — rendered
+        // skinned verts follow the BONES and cancel the mesh node's own
+        // transform (Tripo's Armature offset), so the naive bake floats the
+        // spectre meters above the ground. Bake the posed skin instead.
+        o.skeleton.update();
+        const src = o.geometry.attributes.position;
+        const arr = new Float32Array(src.count * 3);
+        const v = new THREE.Vector3();
+        for (let i = 0; i < src.count; i++) {
+          o.getVertexPosition(i, v);   // skin-aware
+          o.localToWorld(v);
+          arr[i * 3] = v.x; arr[i * 3 + 1] = v.y; arr[i * 3 + 2] = v.z;
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
+        if (o.geometry.index) geo.setIndex(o.geometry.index);
+        const m = new THREE.Mesh(geo, gmat);
+        m.matrixAutoUpdate = false;
+        m.userData.bakedGeo = true; // owned by the ghost — dispose with it
+        ghost.add(m);
+        return;
+      }
       const m = new THREE.Mesh(o.geometry, gmat);
       m.matrixAutoUpdate = false;
       m.matrix.copy(o.matrixWorld);
@@ -561,6 +584,12 @@ export const SPECIALS = {
     const gx = () => ox + dirX * traveled;
     const gz = () => oz + dirZ * traveled;
 
+    const dropGhost = () => {
+      w.scene.remove(ghost);
+      gmat.dispose();
+      for (const m of ghost.children) if (m.userData.bakedGeo) m.geometry.dispose();
+    };
+
     const finish = () => {
       f._charging = false;
       // the spectre solidifies — the robot zips into its position
@@ -571,8 +600,7 @@ export const SPECIALS = {
       w.effects.dashTrail(f.pos, 0xbfe8ff, f.scale * 1.6);
       w.effects.rings.spawn(f.pos, { from: 0.5, to: 4, dur: 0.35, color: 0xbfe8ff, y: 1 });
       w.audio?.play('dash');
-      w.scene.remove(ghost);
-      gmat.dispose();
+      dropGhost();
       f.iframes = 0.35; // re-materialize grace
       f.animator.stop();
       f.setState('attack', 0.25);
@@ -581,8 +609,7 @@ export const SPECIALS = {
     const tick = () => {
       if (!f.alive || f.state !== 'special') {
         f._charging = false;
-        w.scene.remove(ghost);
-        gmat.dispose();
+        dropGhost();
         return;
       }
       const dt = 0.05;

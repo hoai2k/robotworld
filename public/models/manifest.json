@@ -3296,9 +3296,9 @@
       "hips": "tripo0_Left_Limb_0",
       "torso": "tripo0_Right_Limb_0",
       "head": "tripoHead_1",
-      "shoulderL": "bone_18",
-      "elbowL": "bone_19",
-      "handL": "bone_20",
+      "shoulderL": "bone_26",
+      "elbowL": "bone_27",
+      "handL": "bone_28",
       "shoulderR": "bone_30",
       "elbowR": "bone_31",
       "handR": "bone_34",
@@ -3574,7 +3574,17 @@
         },
         "to": "bone_27"
       }
-    ]
+    ],
+    "muzzles": {
+      "R": {
+        "bone": "handR",
+        "offset": [
+          -0.53,
+          2.64,
+          -0.5
+        ]
+      }
+    }
   },
   "rhino": {
     "url": "models/mech_rhino.glb",

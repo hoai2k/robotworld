@@ -307,11 +307,16 @@ function buildGlbMech(def, entry, gltf) {
   const installMuzzle = (side) => {
     const spec = entry.muzzles?.[side];
     const o = spec?.offset || [0, -0.2, 0.4];
-    if (spec?.bone && boneMap[spec.bone]) {
-      // bone-local units are model-space (pre model.scale); divide so the
-      // world offset matches the mech-scale numbers used for joint muzzles.
-      const k = D.scale / (scale || 1);
-      return addAnchor(boneMap[spec.bone], o[0] * k, o[1] * k, o[2] * k);
+    // "bone" resolves through the boneMap first (canonical joint keys), then
+    // as a RAW bone name — for mounts on bones no combat joint maps to
+    if (spec?.bone) {
+      const b = boneMap[spec.bone] || bones.find((x) => x.name === spec.bone);
+      if (b) {
+        // bone-local units are model-space (pre model.scale); divide so the
+        // world offset matches the mech-scale numbers used for joint muzzles.
+        const k = D.scale / (scale || 1);
+        return addAnchor(b, o[0] * k, o[1] * k, o[2] * k);
+      }
     }
     // R/L default to the hands; named extras (podL...) fall back to torso
     const joint = joints[spec?.joint] || joints['hand' + side] || joints.torso;
@@ -420,6 +425,11 @@ function buildGlbMech(def, entry, gltf) {
   // re-synthesis (the frame-stall cloneMech avoids), a properly reskinned
   // clone, and its own rig / adapter / anchors / animation profile.
   mech.cloneGLB = () => buildGlbMech(def, entry, gltf);
+
+  // profile build hook: attach extra PROCEDURAL geometry/joints to the
+  // virtual rig (e.g. wraith's cape for the wing-laser heavy) — last, so it
+  // sees the final joints/anchors/scale.
+  mech.animProfile?.build?.(mech, def);
 
   return mech;
 }

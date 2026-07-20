@@ -933,3 +933,26 @@ function compile(name, raw) {
 
 export const CLIPS = {};
 for (const [name, raw] of Object.entries(CLIPS_RAW)) CLIPS[name] = compile(name, raw);
+
+// ---------- GLB clip variants (glbanim clipOverrides) ----------
+// Compiled with the ORIGINAL clip's name so fighter machinery keyed on
+// def.heavyClip (heavyFlare / heavyRaise / hold logic) still matches.
+//
+// wraithLasers for the GLB: the procedural wraith LIFTS OFF and hovers while
+// his own cloak fans; the GLB body instead just LEANS INTO the mark a little
+// and lets the attached procedural cape (glbanim wraith.build) do the show.
+// Same duration and hit/sfx timings — gameplay identical.
+export const GLB_CLIP_VARIANTS = {
+  wraithLasersGlb: compile('wraithLasers', {
+    dur: 1.45,
+    keys: [
+      { t: 0, pose: {} },
+      { t: 0.3, ease: 'outCubic', pose: { hipsPos: [0, -0.06, 0], hipsRot: [3, 0, 0], torso: [10, 0, 0], head: [-6, 0, 0], shoulderL: [-18, 0, -30], shoulderR: [-18, 0, 30], elbowL: [-10, 0, 0], elbowR: [-10, 0, 0], kneeL: [10, 0, 0], kneeR: [10, 0, 0] } },
+      { t: 0.68, ease: 'inOutCubic', pose: { hipsPos: [0, -0.1, 0], hipsRot: [5, 0, 0], torso: [16, 0, 0], head: [-8, 0, 0], shoulderL: [-26, 0, -38], shoulderR: [-26, 0, 38] } },
+      { t: 0.95, ease: 'inOutQuad', pose: { hipsPos: [0, -0.08, 0], torso: [14, 0, 0], head: [-4, 0, 0] } },
+      { t: 1.15, ease: 'inOutQuad', pose: { hipsPos: [0, -0.04, 0], torso: [8, 0, 0] } },
+      { t: 1.45, ease: 'inOutQuad', pose: { hipsPos: [0, 0, 0], hipsRot: [0, 0, 0], torso: [0, 0, 0], head: [0, 0, 0], shoulderL: [0, 0, -10], shoulderR: [0, 0, 10], elbowL: [-12, 0, 0], elbowR: [-12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0] } },
+    ],
+    events: [{ t: 0.14, type: 'sfx', arg: 'charge' }, { t: 0.6, type: 'sfx', arg: 'charge' }, { t: 0.88, type: 'hit', arg: 0 }, { t: 0.88, type: 'sfx', arg: 'railgun' }, { t: 0.92, type: 'shake', arg: 0.45 }],
+  }),
+};

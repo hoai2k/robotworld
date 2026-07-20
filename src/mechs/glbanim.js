@@ -27,6 +27,9 @@
 //                                     opposite hand) — pitch kept, yaw/roll flip
 //   clipOverrides {name: clip}       a bespoke clip for an action that can't be
 //                                     remapped (redo, don't remap)
+//   build(mech, def)                 one-time hook at the end of buildGlbMech —
+//                                     attach extra PROCEDURAL geometry/joints to
+//                                     the GLB's virtual rig (wraith's cape)
 //   post(anim,dt,ctx,tgt)            per-frame reinterpretation hook, run after
 //                                     the built-in signature(); write radians
 //                                     into tgt / drive extra joints
@@ -42,7 +45,12 @@
 //
 // Procedural mechs have NO profile (mech.animProfile is undefined) and run the
 // engine unchanged. Only GLB mechs (buildGlbMech) attach one.
+import * as THREE from 'three';
 import { lerp, clamp01 } from '../core/utils.js';
+import { Assembler } from './parts.js';
+import { makeMaterials } from './factory.js';
+import { wraithCloak } from './designs/wraith.js';
+import { GLB_CLIP_VARIANTS } from './animations.js';
 
 export const ARM_JOINTS = ['shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'handL', 'handR'];
 export function mirrorJointName(j) {
@@ -53,6 +61,13 @@ export function mirrorJointName(j) {
 // mirror a joint value across the sagittal plane: pitch (x) preserved, yaw (y)
 // and roll (z) negated. Used with the L<->R name swap for mirrorArms.
 export function mirrorValue(v) { return [v[0], -v[1], -v[2]]; }
+
+// wraith cape materials — pbrtex synthesis is expensive, cache per-def so
+// every fighter build after the first reuses the same THREE materials
+let _wraithMats = null;
+function wraithMats(def) {
+  return (_wraithMats ??= makeMaterials(def));
+}
 
 // helper for post hooks: is an attack clip (non-looping action) playing?
 function attacking(anim) {
@@ -117,7 +132,40 @@ export const GLB_ANIM = {
   rhino: {},     // charger — bull-rush carriage is tgt-driven, shape-shared
   fenrir: {},    // quadruped — gallop gait is def.gait:'quad', shape-shared
   colossus: {},  // artillery biped — direct map (mortars procedural-only)
-  wraith: {},    // rifle biped — direct map
+
+  // WRAITH — the GLB's own cape geometry is a static drape (its punch-worthy
+  // arm chain is remapped in the manifest), so the WING-LASER heavy wears the
+  // PROCEDURAL cape instead: build() attaches the same cloak/cloakL/cloakR
+  // rig + blade strips + wing0..5 emitters from designs/wraith.js onto the
+  // virtual torso joint. It stays hidden in normal play and GROWS out while
+  // the heavy runs (heavyFlare/heavyRaise then spread and fan it exactly as
+  // on the procedural mech, and heavyImpactFx fires from the same wing tips).
+  // The body itself swaps the lift-off hover clip for a grounded forward lean.
+  wraith: {
+    build(mech, def) {
+      const A = new Assembler();
+      wraithCloak(A, mech.dims, mech.joints, mech.anchors);
+      A.build(mech.joints, wraithMats(def));
+      // wrapper between torso and cloak: the grow-in scale lives here so it
+      // never fights heavyFlare, which SETS the cloak joint's own scale
+      const capeRoot = new THREE.Group();
+      mech.joints.torso.add(capeRoot);
+      capeRoot.add(mech.joints.cloak);
+      capeRoot.visible = false;
+      mech.capeRoot = capeRoot;
+    },
+    clipOverrides: { wraithLasers: GLB_CLIP_VARIANTS.wraithLasersGlb },
+    post(anim, dt, ctx) {
+      const cr = anim.mech.capeRoot;
+      if (!cr) return;
+      const act = anim.action;
+      const playing = !!act && !act.fadingOut && act.clip.name === 'wraithLasers';
+      const k = lerp(anim._capeK || 0, playing ? 1 : 0, 1 - Math.exp(-10 * dt));
+      anim._capeK = k;
+      cr.visible = k > 0.03;
+      if (cr.visible) cr.scale.setScalar(Math.max(0.001, k));
+    },
+  },
   inferno: {},   // flamer biped — direct map (levelHands is shape-shared)
   glacier: {},   // heavy biped — direct map
   cranky: {},    // crab — scuttle is tgt-driven, shape-shared

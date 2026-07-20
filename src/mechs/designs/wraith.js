@@ -95,39 +95,7 @@ export function wraith(A, D, J, anchors, def) {
     A.plate('torso', 'frame', rhombOutline(W * 0.3, chH * 0.14, { cut: 0.3 }), 0.06 * s, {
       p: [sx * W * 0.52, chH * 0.94, -W * 0.12], r: [0.2, sx * 0.8, sx * 0.15], round: 0.15 });
   }
-  // jagged blade-strips: a = angle around the back (0 = straight back).
-  // Hang from the yoke, tilt backward, roll bottoms outward (skirt flare).
-  // The whole cloak lives on its own 'cloak' joint so combat can SPREAD it
-  // wide and tall like wings (wraith's heavy scales the group) — and each
-  // HALF lives on a cloakL/cloakR child joint so the heavy can roll the two
-  // wings outward and UP, fanning the spikes open above his head.
-  addJoint(J, 'cloak', 'torso', 0, chH * 0.92, -W * 0.3);
-  addJoint(J, 'cloakL', 'cloak', 0, 0, 0);
-  addJoint(J, 'cloakR', 'cloak', 0, 0, 0);
-  const strip = (mat, a, L, R, yTop, tilt, wid, th, taper) => {
-    const dirY = Math.cos(tilt), dirZ = Math.sin(tilt);
-    const wing = a < -0.05 ? 'cloakL' : a > 0.05 ? 'cloakR' : 'cloak';
-    A.blade(wing, mat, L, wid, th, {
-      p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - chH * 0.92 - dirY * L * 0.5,
-        -Math.cos(a) * R * 0.9 + W * 0.3 - dirZ * L * 0.5],
-      r: [Math.PI + tilt, 0, -a * 0.3], taper });
-  };
-  const jag = (i, k) => 0.82 + 0.18 * (((i * 7 + k * 3) % 4) / 3); // varied lengths
-  for (let i = 0; i < 11; i++) { // outer layer — near-black, shin-length at center
-    const a = (i / 10 - 0.5) * 4.1;
-    strip('accent', a, (3.6 - Math.abs(a) * 0.44) * jag(i, 1) * s, W * 0.5,
-      chH * 1.0, 0.09 + 0.24 * Math.cos(a * 0.5), 0.4 * s, 0.035 * s, 0.2);
-  }
-  for (let i = 0; i < 9; i++) { // mid layer
-    const a = (i / 8 - 0.5) * 3.3;
-    strip('primary', a, (2.8 - Math.abs(a) * 0.34) * jag(i, 2) * s, W * 0.43,
-      chH * 0.92, 0.06 + 0.2 * Math.cos(a * 0.5), 0.34 * s, 0.032 * s, 0.28);
-  }
-  for (let i = 0; i < 6; i++) { // inner underlayer
-    const a = (i / 5 - 0.5) * 2.5;
-    strip('dark', a, (2.0 - Math.abs(a) * 0.26) * jag(i, 3) * s, W * 0.36,
-      chH * 0.84, 0.05 + 0.16 * Math.cos(a * 0.5), 0.3 * s, 0.03 * s, 0.34);
-  }
+  wraithCloak(A, D, J, anchors);
   // side wrap strips framing the V-chest from the front
   for (const sx of [-1, 1]) {
     A.blade('torso', 'accent', 2.5 * s, 0.3 * s, 0.035 * s, {
@@ -324,6 +292,53 @@ export function wraith(A, D, J, anchors, def) {
 
   anchors.muzzleR = addAnchor(J.rifle, 0, -2.28 * s, -0.01 * s);
   anchors.scope = addAnchor(J.rifle, 0, 1.72 * s, 0.3 * s);
+  // core sits deep in the chest so the red light rims the cloak instead of
+  // blowing out the sternum gap
+  anchors.core = addAnchor(J.torso, 0, chH * 0.5, -W * 0.1);
+}
+
+// The tattered cloak + its combat rig, extracted so the GLB wraith can wear
+// the SAME cape (glbanim builds it onto the GLB's virtual torso joint for the
+// wing-laser heavy). Creates the cloak/cloakL/cloakR joints heavyFlare /
+// heavyRaise drive, three layers of jagged blade-strips, and the wing0..5
+// laser-emitter anchors heavyImpactFx fires from.
+export function wraithCloak(A, D, J, anchors) {
+  const s = D.scale;
+  const W = D.torsoW;
+  const chH = D.torsoH;
+  // jagged blade-strips: a = angle around the back (0 = straight back).
+  // Hang from the yoke, tilt backward, roll bottoms outward (skirt flare).
+  // The whole cloak lives on its own 'cloak' joint so combat can SPREAD it
+  // wide and tall like wings (wraith's heavy scales the group) — and each
+  // HALF lives on a cloakL/cloakR child joint so the heavy can roll the two
+  // wings outward and UP, fanning the spikes open above his head.
+  addJoint(J, 'cloak', 'torso', 0, chH * 0.92, -W * 0.3);
+  addJoint(J, 'cloakL', 'cloak', 0, 0, 0);
+  addJoint(J, 'cloakR', 'cloak', 0, 0, 0);
+  const strip = (mat, a, L, R, yTop, tilt, wid, th, taper) => {
+    const dirY = Math.cos(tilt), dirZ = Math.sin(tilt);
+    const wing = a < -0.05 ? 'cloakL' : a > 0.05 ? 'cloakR' : 'cloak';
+    A.blade(wing, mat, L, wid, th, {
+      p: [Math.sin(a) * R * (1 + 0.1 * L / s), yTop - chH * 0.92 - dirY * L * 0.5,
+        -Math.cos(a) * R * 0.9 + W * 0.3 - dirZ * L * 0.5],
+      r: [Math.PI + tilt, 0, -a * 0.3], taper });
+  };
+  const jag = (i, k) => 0.82 + 0.18 * (((i * 7 + k * 3) % 4) / 3); // varied lengths
+  for (let i = 0; i < 11; i++) { // outer layer — near-black, shin-length at center
+    const a = (i / 10 - 0.5) * 4.1;
+    strip('accent', a, (3.6 - Math.abs(a) * 0.44) * jag(i, 1) * s, W * 0.5,
+      chH * 1.0, 0.09 + 0.24 * Math.cos(a * 0.5), 0.4 * s, 0.035 * s, 0.2);
+  }
+  for (let i = 0; i < 9; i++) { // mid layer
+    const a = (i / 8 - 0.5) * 3.3;
+    strip('primary', a, (2.8 - Math.abs(a) * 0.34) * jag(i, 2) * s, W * 0.43,
+      chH * 0.92, 0.06 + 0.2 * Math.cos(a * 0.5), 0.34 * s, 0.032 * s, 0.28);
+  }
+  for (let i = 0; i < 6; i++) { // inner underlayer
+    const a = (i / 5 - 0.5) * 2.5;
+    strip('dark', a, (2.0 - Math.abs(a) * 0.26) * jag(i, 3) * s, W * 0.36,
+      chH * 0.84, 0.05 + 0.16 * Math.cos(a * 0.5), 0.3 * s, 0.03 * s, 0.34);
+  }
   // wing emitters spread across the cloak span — parented to the wing-half
   // joints so when the heavy fans the wings up, the laser origins ride up
   // with the raised spikes
@@ -332,7 +347,4 @@ export function wraith(A, D, J, anchors, def) {
     anchors['wing' + k] = addAnchor(a < 0 ? J.cloakL : J.cloakR,
       Math.sin(a) * W * 0.72, -1.5 * s, -Math.cos(a) * W * 0.42);
   }
-  // core sits deep in the chest so the red light rims the cloak instead of
-  // blowing out the sternum gap
-  anchors.core = addAnchor(J.torso, 0, chH * 0.5, -W * 0.1);
 }
