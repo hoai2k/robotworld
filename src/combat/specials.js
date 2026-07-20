@@ -671,16 +671,15 @@ export const SPECIALS = {
         w.audio?.play('cast');
         // the sim owns telegraph + eruption + collapse visuals; total show
         // length = warn + sustain + ~0.95s collapse = sp.duration. The
-        // {owner, dmg} fields arm the world's scald tick: anyone in the
-        // column keeps taking hits for the whole eruption
-        w.geysers.push({
-          fx: new GeyserFX(w.scene, w.effects, target, {
+        // scald opts arm the world's damage tick: anyone in the column
+        // keeps taking hits for the whole eruption
+        w.spawnGeyser(
+          new GeyserFX(w.scene, w.effects, target, {
             height: 22, radius: 1.5, warn: WARN,
             sustain: (sp.duration || 6) - WARN - 0.95,
             boilRadius: sp.radius * 0.4,
           }),
-          owner: f, dmg: sp.dmg, radius: sp.radius, launch: sp.launch, tick: 0,
-        });
+          { owner: f, dmg: sp.dmg, radius: sp.radius, launch: sp.launch });
         // damage: one big hit at the blowout moment, same as always
         w.schedule(WARN, () => {
           w.audio?.play('wave');
@@ -2136,12 +2135,12 @@ export const ULTS = {
         w.audio?.play('whooshBig');
         let t = 0, r = 1.6, swept = null, sweptT = 0, fpT = 0.4;
         // the funnel itself is a FireTornadoFX (helical shader shells +
-        // ember spiral + burning base); world.tornados owns its lifecycle,
+        // ember spiral + burning base); spawnTornado owns its lifecycle,
         // this updater steers it and runs the hunt/sweep gameplay
         const fx = new FireTornadoFX(w.scene, w.effects, pos, {
           height: f.height * 3, radius: 1.0, wander: 0, cool: fireCool(f.def),
         });
-        w.tornados.push({ fx });
+        w.spawnTornado(fx);
         w.addUpdater((dt) => {
           t += dt;
           r = Math.min(u.radius || 4.5, r + dt * 0.5); // growing larger and larger
@@ -2351,13 +2350,13 @@ export const ULTS = {
       w.audio?.play('explosionBig');
       // the wall is a real TidalWaveFX in tsunami mode: breaking-wave
       // profile, foam-by-steepness, crest spray, and a flood rectangle
-      // dragged behind the front. world.waves owns its lifecycle; this
+      // dragged behind the front. spawnWave owns its lifecycle; this
       // updater runs the gameplay against the same travel integration.
       const fx = new TidalWaveFX(w.scene, w.effects, new THREE.Vector3(ox, 0, oz), {
         height: H, r0: -3, r1: R + 9, speed: SPD,
         dir: new THREE.Vector3(dirX, 0, dirZ), width: W,
       });
-      w.waves.push({ fx });
+      w.spawnWave(fx);
       let travel = -3;
       const victims = new Set();
       const P = new THREE.Vector3();

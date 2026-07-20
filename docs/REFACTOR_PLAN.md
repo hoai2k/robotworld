@@ -58,7 +58,7 @@ semantics in this batch (stable keys are future work; re-exports are rare).
       identical); GLB showcase contract-clean; aegis/jerry ace GLB soak
       crash:null; build green.
 
-## Batch C — world.js fx lifecycle unification  [ ]
+## Batch C — world.js fx lifecycle unification  [x DONE 2026-07-20]
 
 world.js keeps 5 bespoke arrays (geysers/waves/tornados/firePatches/
 flameJets) each with its own reverse-iterate update/dispose loop
@@ -66,15 +66,23 @@ flameJets) each with its own reverse-iterate update/dispose loop
 into them directly (specials.js:649, 2117, 2333). A generic
 addUpdater(tick, end) already exists (world.js:134).
 
-- [ ] world.spawnGeyser/spawnWave/spawnTornado/spawnFlameJet/addFirePatch
-      register via addUpdater (keep any AoE-damage ticks identical —
-      geysers/tornados/firePatches embed damage sweeps; move sweep into
-      the spawn fn's tick closure verbatim).
-- [ ] specials.js: replace array pushes with the spawn APIs.
-- [ ] clearTransient: transient updaters flagged so round reset still
-      clears them (updaters get {transient:true} option).
-- [ ] Verify: soak with inferno/tempest/glacier/nova (geyser/tornado/wave/
-      flame users) + default soak; build green.
+- [x] spawnGeyser/spawnWave/spawnTornado/spawnFlameJet/addFirePatch/
+      freezeOverlay all register sticky updaters; damage ticks moved
+      verbatim. KEY DISCOVERY: startFinisher's endUpdaters() must NOT
+      kill environmental fx (they survive into cinematics; scripts spawn
+      their own) → updaters got a {sticky} flag; endUpdaters(false) at
+      startFinisher, endUpdaters() [all] at clearTransient. flameJets Map
+      kept as retrigger index only; jets self-unindex (guarded so a
+      replacement jet isn't unindexed by its predecessor's end()).
+- [x] specials.js + finisher.js converted to the spawn APIs. The tornado
+      loop's owner-damage branch was DEAD code (no push site ever set
+      owner — inferno ult runs its own damage updater) and was dropped.
+      freezeOverlay's end() now also disposes geo/mat on round sweeps
+      (fixes a small leak; previously only scene.remove).
+- [x] Verified: build green; ace soaks cranky/inferno, glacier/tempest,
+      titanus/viper all crash:null; finisherdemo loops for inferno
+      (flame-jet 'fin' path) 90s and cranky (fx-only geyser) 300s with
+      zero page errors.
 
 ## Batch D — specials framework + fireRanged table  [ ]
 

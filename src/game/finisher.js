@@ -1178,7 +1178,7 @@ const SCRIPTS = {
       });
       // shader-card flames ride the torch: tongues off the nozzle, and the
       // VICTIM becomes a growing FlameFX burning source as they char.
-      // Parked in w.flameJets so the world ticks/extinguishes/cleans it.
+      // Registered via spawnFlameJet so its updater ticks/extinguishes/cleans it.
       let fj = w.flameJets.get('fin');
       if (!fj) {
         fj = {
@@ -1186,7 +1186,7 @@ const SCRIPTS = {
           impact: new FlameFX(w.scene, w.effects, vic.pos, { radius: 1.0, scale: 0.9, cards: 7, light: false, cool }),
           ttl: 0,
         };
-        w.flameJets.set('fin', fj);
+        w.spawnFlameJet('fin', fj);
       }
       fj.ttl = 0.16;
       fj.nozzle.rekindle();
@@ -1353,11 +1353,9 @@ const SCRIPTS = {
       // the REAL geyser sim: 0.4s boil under the wreck, then the column
       // erupts at 4.0 exactly as the body launches (fx-only — no owner,
       // so the world's scald tick leaves the cinematic alone)
-      w.geysers.push({
-        fx: new GeyserFX(w.scene, w.effects, vic.pos.clone().setY(0), {
-          height: 27, radius: 1.7, warn: 0.4, sustain: 1.3, boilRadius: 3,
-        }),
-      });
+      w.spawnGeyser(new GeyserFX(w.scene, w.effects, vic.pos.clone().setY(0), {
+        height: 27, radius: 1.7, warn: 0.4, sustain: 1.3, boilRadius: 3,
+      }));
       w.audio?.play('wave');
     });
     F.at(4.0, () => {
