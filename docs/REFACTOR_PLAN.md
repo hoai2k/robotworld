@@ -197,16 +197,21 @@ screenshot personality intact, soak matrix above.
       names; keep prod fallback-to-procedural behavior.
 - [ ] Verify: ?showcase screenshot sweep (all GLB mechs), soak, build.
 
-## Batch J — perf smalls + shader dedupe  [ ]
+## Batch J — perf smalls + shader dedupe  [x DONE 2026-07-20 (scoped)]
 
-- [ ] Shared GLSL chunk (hash/vnoise) used by geyserfx/wavefx/nadofx;
-      ShaderFX base class for the 4 hero-fx files (uniform plumbing,
-      scene add/remove, dispose).
-- [ ] specials.js fwd/muzzle/leadPos/aimDir take optional out-vector;
-      audit new Vector3 in per-frame callbacks.
-- [ ] ParticlePool.emit: avoid per-emit new THREE.Color (effects.js:183).
-- [ ] Consider pooling FlameFX (recast often) — only if simple.
-- [ ] Verify: soak (ult-heavy matchups), ?showcase FX debug pages, build.
+- [x] src/combat/fxglsl.js: GLSL_VNOISE chunk replaces the 3 verbatim
+      hash/vnoise copies (geyserfx/nadofx/wavefx; flamefx never had one).
+      ShaderFX base class SKIPPED deliberately: the four fx classes share
+      only ~10 lines of ctor/dispose shape and unifying their lifecycles
+      would risk subtle regressions for little gain.
+- [x] fwd/muzzle gained optional `out` scratch params (documented aliasing
+      rules); blanket call-site conversion SKIPPED — retaining callers
+      exist and the GC win didn't justify the aliasing risk.
+- [x] ParticlePool.emit reuses two module scratch Colors.
+- [x] FlameFX pooling SKIPPED (not simple; extinguish/rekindle already
+      reuse live instances via the flameJets retrigger index).
+- [x] Verified: ?geyser + ?ultfx=wave/nado/tsunami pages error-free,
+      cranky/inferno ace soak crash:null, build green.
 
 ## Log
 

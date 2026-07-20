@@ -14,16 +14,20 @@ import { stillCasting, cast, eachEnemy, volley, timedUpdater } from './movekit.j
 
 const _v = new THREE.Vector3();
 
-function fwd(f, dist = 1, y = 0) {
-  return new THREE.Vector3(
+// Position helpers allocate a fresh Vector3 by default (safe to retain).
+// Hot per-frame callers (inside addUpdater/schedule ticks) can pass `out`
+// to reuse a scratch vector — ONLY when the result is consumed immediately
+// and never stored across frames.
+function fwd(f, dist = 1, y = 0, out = new THREE.Vector3()) {
+  return out.set(
     f.pos.x + Math.sin(f.yaw) * dist,
     f.pos.y + y,
     f.pos.z + Math.cos(f.yaw) * dist
   );
 }
-function muzzle(f, name = 'muzzleR') {
+function muzzle(f, name = 'muzzleR', out = new THREE.Vector3()) {
   const a = f.mech.anchors[name] || f.mech.anchors.muzzleR;
-  return a.getWorldPosition(new THREE.Vector3());
+  return a.getWorldPosition(out);
 }
 // ground aim point led by the victim's current velocity, for slow drops
 // (artillery arcs, delayed pillars) that otherwise land where they WERE.
