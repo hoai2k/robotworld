@@ -168,50 +168,23 @@ export const GLB_ANIM = {
   },
   inferno: {},   // flamer biped — direct map (levelHands is shape-shared)
   glacier: {},   // heavy biped — direct map
-  // CRANKY — the Tripo auto-rig welded BOTH giant claws onto ONE bone
-  // (tripo1_Left_Limb_0) and buried the arm chains in the thin walking-legs, so
-  // the shipped rig made a back leg swing on attacks while the claws sat dead
-  // (the reported bug). The manifest now leaves all six arm slots UNMAPPED — the
-  // mis-bound legs no longer flail — and hands the claw bone to us here.
+  // CRANKY — the Tripo auto-rig welded both giant claws onto one leg bone and
+  // buried the arm chains in the thin walking-legs, so the shipped rig swung a
+  // back leg on attacks while the claws sat dead (the reported bug). It's fixed
+  // upstream now: a hand-placed CUSTOM RIG (src/mechs/rigs/cranky.rig.js,
+  // authored in ?rigedit) re-skins the mesh so each giant claw is a real
+  // independent arm — the shared attack clips drive the claws directly through
+  // the retarget, no special-casing needed.
   //
-  // The claws are a single rigid double-pincer. Retargeting a virtual arm onto
-  // that bone shears it (the game shoulder's frame is nothing like the bone's,
-  // so a "punch" arrives as a twist that tears the two claws off opposite sides
-  // of the shared pivot). So we DON'T route the claws through the retarget:
-  //   • post() reads the live attack clip and stores a 0..1 swing envelope that
-  //     peaks near the hit frame — for EVERY one-shot melee (jab/cross/uppercut/
-  //     clawSnap), so the claws always lead, never a leg.
-  //   • build() sets postDress (runs AFTER adapter.sync, on the UNMAPPED claw
-  //     bone) to drive that envelope as a clean LOCAL-axis pitch — the exact
-  //     rigid swing verified with tools/animprobe + the pivot test, no shear.
-  // Hit windows/anchors are untouched (they read the virtual hands), so combat
-  // timing is identical; only the visible limb changes.
+  // The only reinterpretation left is aesthetic: the humanoid punch clips twist
+  // the torso like a boxer, which a wide crab shouldn't do — square him up so he
+  // THRUSTS the claws straight ahead instead of winding up.
   cranky: {
     post(anim, dt, ctx, tgt) {
       const act = anim.action;
-      let k = 0;
       if (act && !act.fadingOut && !act.clip.loop) {
-        const t = Math.min(act.t, act.clip.dur) / (act.clip.dur || 1);
-        k = Math.sin(Math.PI * Math.min(1, t)) * (act.weight ?? 1);
-        // the shared punch clips twist the torso like a boxer — wrong for a
-        // wide crab, and the body YAW also shears the rigid claw/shell seam.
-        // Square Cranky up so he THRUSTS the claws instead of winding up.
-        tgt.hipsRot[1] *= 0.15; tgt.torso[1] *= 0.15; tgt.torso[2] *= 0.3;
+        tgt.hipsRot[1] *= 0.2; tgt.torso[1] *= 0.2; tgt.torso[2] *= 0.4;
       }
-      anim.mech._clawSwing = k;
-    },
-    build(mech) {
-      let clawBone = null;
-      mech.group.traverse((o) => { if (o.isBone && o.name === 'tripo1_Left_Limb_0') clawBone = o; });
-      if (!clawBone) return;
-      // bind-pose local rotation, captured before the adapter first syncs.
-      // (shoulderL is mapped to this bone only to clear the mapped-bone
-      // threshold; postDress runs AFTER adapter.sync and fully OVERRIDES the
-      // sheared retarget with a clean local-pitch swing off the bind pose.)
-      const bx = clawBone.rotation.x, by = clawBone.rotation.y, bz = clawBone.rotation.z;
-      mech.postDress = () => {
-        clawBone.rotation.set(bx - 0.6 * (mech._clawSwing || 0), by, bz); // forward claw lunge
-      };
     },
   },
 
