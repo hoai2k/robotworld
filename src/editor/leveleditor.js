@@ -108,6 +108,10 @@ export async function runLevelEditor(params) {
     env.layout = { clearing: level.clearing, plaza: level.plaza, clusters: { count: 0, size: [2, 3] }, lanes: [], hills: null, bridges: null };
     envArena = new Arena(engine, env, 7);
     renderer.toneMappingExposure = base.exposure ?? 1.0;
+    // the arena's far skyline is camera-locked in a real match, but in the
+    // editor's free-orbit view it just reads as static black boxes you can't
+    // select — hide it so only the editable play cell shows.
+    if (engine.backdrop) engine.backdrop.visible = false;
   }
 
   // ================================================================ HELPERS (geometry)
@@ -548,8 +552,8 @@ export async function runLevelEditor(params) {
     bar.append(
       tag('span', 'le-logo', 'ROBOTWORLD · LEVEL BUILDER'),
       btn('New', () => { if (confirm('Discard current level?')) loadLevelData(emptyLevel(level.theme)); }),
+      buildOpenSelect(),
       btn('Save', () => saveSlot(prompt('Save as:', level.name) || level.name)),
-      btn('Load', showLoad),
       btn('Import', importJson),
       btn('Export ▾', exportJson, 'primary'),
       btn('▶ Playtest', playtest, 'go'),
@@ -752,13 +756,38 @@ export async function runLevelEditor(params) {
   }
   function autosave() { try { localStorage.setItem(LS_AUTOSAVE, serialize()); } catch { /* full */ } }
   function loadAutosave() { try { const s = localStorage.getItem(LS_AUTOSAVE); return s ? JSON.parse(s) : null; } catch { return null; } }
-  function showLoad() {
-    const names = slotList();
-    if (!names.length) { alert('No saved levels yet. Use Save first.'); return; }
-    const pick = prompt('Load which level?\n\n' + names.join('\n'), names[0]);
-    if (!pick) return;
-    const s = localStorage.getItem(LS_PREFIX + pick);
-    if (s) loadLevelData(JSON.parse(s)); else alert('Not found: ' + pick);
+  // dropdown of every level you can open: the built-in / shipped levels from
+  // public/levels/manifest.json, plus your own saved slots (localStorage).
+  function buildOpenSelect() {
+    const sel = el('select', 'le-sel le-open');
+    const ph = document.createElement('option'); ph.value = ''; ph.textContent = '📂 Open level…'; sel.append(ph);
+    const slots = slotList();
+    if (slots.length) {
+      const og = document.createElement('optgroup'); og.label = 'Saved (this browser)';
+      for (const n of slots) { const o = document.createElement('option'); o.value = 'slot:' + n; o.textContent = n; og.append(o); }
+      sel.append(og);
+    }
+    // built-in levels are fetched async, then appended
+    fetch('levels/manifest.json').then((r) => r.ok ? r.json() : []).then((list) => {
+      if (!Array.isArray(list) || !list.length) return;
+      const og = document.createElement('optgroup'); og.label = 'Built-in levels';
+      for (const n of list) { const o = document.createElement('option'); o.value = 'file:' + n; o.textContent = n; og.append(o); }
+      sel.append(og);
+    }).catch(() => {});
+    sel.onchange = () => {
+      const v = sel.value; sel.value = '';
+      if (v.startsWith('slot:')) {
+        const s = localStorage.getItem(LS_PREFIX + v.slice(5));
+        if (s) loadLevelData(JSON.parse(s));
+      } else if (v.startsWith('file:')) {
+        const n = v.slice(5);
+        fetch(`levels/${n}.json`).then((r) => r.ok ? r.json() : null).then((d) => {
+          if (d) { loadLevelData(d); setHint(`Loaded “${d.name || n}”.`); }
+          else alert('Could not load level: ' + n);
+        }).catch((e) => alert('Load failed: ' + e.message));
+      }
+    };
+    return sel;
   }
   function importJson() {
     const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
@@ -898,6 +927,7 @@ function injectCss() {
   .le-h { color:#6f86a4; font-size:10px; letter-spacing:.08em; text-transform:uppercase; margin:10px 2px 4px; border-top:1px solid #1a2740; padding-top:8px; }
   .le-h:first-child { border-top:none; padding-top:0; margin-top:2px; }
   .le-search, .le-txt, .le-num, .le-sel { width:100%; background:#0a0f18; color:#dfe8f5; border:1px solid #263650; border-radius:5px; padding:4px 6px; font-size:12px; box-sizing:border-box; }
+  .le-open { width:auto; background:#182338; border-color:#2c3d57; cursor:pointer; }
   .le-palh { color:#5f86b0; font-size:10px; margin:8px 2px 3px; letter-spacing:.05em; }
   .le-palgrid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
   .le-palitem { background:#141d30; color:#cbd9ee; border:1px solid #24344e; border-radius:5px; padding:5px 4px; cursor:pointer; font-size:11px; text-align:left; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
