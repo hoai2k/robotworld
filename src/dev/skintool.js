@@ -63,17 +63,33 @@ export async function runSkinTool(startId) {
   let hoverInfo = '';
   // undo/redo of the ops list (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)
   let undoStack = [], redoStack = [];
+  // ---- paint mode: split one island across two bones with a brush ----
+  let paintMode = false;
+  let paintPhase = 'off';    // off | pickBone | pickRegion | paint
+  let paintBone = null;      // target bone NAME to paint with
+  let paintRegion = null;    // the island (comp) the brush is constrained to
+  let regionSet = null;      // Set of that island's vertex indices
+  let regionWorld = null;    // Map vi -> world position (rest pose, cached)
+  let paintColorAttr = null; // RGBA vertex colors (region opaque, rest faded)
+  let paintMat = null;
+  let paintOp = null;        // live { sel:{verts:[]}, to } being grown
+  let paintSet = null;       // Set mirror of paintOp's verts
+  let painting = false;      // left button held & painting
+  let strokePushed = false;  // did this stroke already snapshot for undo
+  let brushRadius = 0.30;    // world units (model is normalized ~7 tall)
+  const PAINT_FADE = 0.12;
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
+  const _vp = new THREE.Vector3();
 
   const boneColor = (bi) => new THREE.Color().setHSL(((bi * 137.508) % 360) / 360, 0.8, 0.42);
 
   function rebuildColors() {
     const n = mesh.geometry.attributes.position.count;
-    if (!colorAttr) {
-      colorAttr = new THREE.BufferAttribute(new Float32Array(n * 3), 3);
-      mesh.geometry.setAttribute('color', colorAttr);
-    }
+    if (!colorAttr) colorAttr = new THREE.BufferAttribute(new Float32Array(n * 3), 3);
+    // ensure the geometry is showing the 3-comp bone colors (paint mode swaps
+    // in a 4-comp RGBA attribute; this switches it back)
+    if (mesh.geometry.getAttribute('color') !== colorAttr) mesh.geometry.setAttribute('color', colorAttr);
     // colors reflect the CURRENT (post-ops) dominant bone so a rebind is
     // instantly visible; islands still come from the pristine analysis.
     const live = analyzeSkin(mesh);
@@ -113,7 +129,8 @@ export async function runSkinTool(startId) {
     redoStack.push(snapshotOps());
     ops = undoStack.pop();
     selComp = null; stopWiggle();
-    applyAllOps();
+    paintOp = null; paintSet = null;   // live paint op is now detached from ops
+    afterHistory();
     setStatus(`Undo · ${ops.length} op(s).`);
   }
   function redo() {
@@ -121,8 +138,15 @@ export async function runSkinTool(startId) {
     undoStack.push(snapshotOps());
     ops = redoStack.pop();
     selComp = null; stopWiggle();
-    applyAllOps();
+    paintOp = null; paintSet = null;
+    afterHistory();
     setStatus(`Redo · ${ops.length} op(s).`);
+  }
+  // re-apply ops after an undo/redo — in paint mode, keep the paint view
+  // (region fade + painted colors) in sync with the restored ops
+  function afterHistory() {
+    applyAllOps();
+    if (paintMode && regionSet) refreshPaintColors();
   }
 
   async function load(id) {
@@ -138,6 +162,11 @@ export async function runSkinTool(startId) {
     if (holder) { scene.remove(holder); holder = null; }
     selComp = null; wiggle = null; wigglePaused = false; ops = []; colorAttr = null;
     undoStack = []; redoStack = [];
+    // reset paint mode for the new mesh (indices/islands differ per mech)
+    paintMode = false; paintPhase = 'off'; painting = false;
+    paintBone = null; paintRegion = null; regionSet = null; regionWorld = null;
+    paintOp = null; paintSet = null; paintColorAttr = null;
+    setOrbitPaintMode(false); updatePaintUI();
     const raw = await loadRawGlbScene(id);
     if (!raw) { setStatus('no GLB for ' + id); return; }
     mesh = null;
@@ -202,8 +231,23 @@ export async function runSkinTool(startId) {
     if (ev.button !== 0) return;
     ev._downX = ev.clientX; ev._downY = ev.clientY;
     renderer.domElement._down = { x: ev.clientX, y: ev.clientY };
+    if (paintMode && paintPhase === 'paint') {
+      painting = true; strokePushed = false;
+      paintStroke(ev);
+    }
   });
   renderer.domElement.addEventListener('pointerup', (ev) => {
+    if (painting) { painting = false; strokePushed = false; return; }
+    if (paintMode) {
+      const dd = renderer.domElement._down;
+      if (!dd || Math.hypot(ev.clientX - dd.x, ev.clientY - dd.y) > 6) return; // a drag (orbit)
+      if (!mesh) return;
+      if (paintPhase === 'pickRegion') {
+        const h = pick(ev);
+        if (h) enterRegion(h.comp);
+      }
+      return;   // in paint mode, model clicks never do normal selection
+    }
     const d = renderer.domElement._down;
     if (!d || Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 6) return; // it was a drag
     if (!mesh) return;
@@ -227,6 +271,7 @@ export async function runSkinTool(startId) {
   });
 
   renderer.domElement.addEventListener('pointermove', (ev) => {
+    if (painting) { paintStroke(ev); return; }
     if (!mesh || ev.buttons) return;
     const hit = pick(ev);
     hoverInfo = hit ? `${hit.comp.boneName} · island ${hit.comp.id} · ${hit.comp.count}v` : '';
@@ -254,6 +299,114 @@ export async function runSkinTool(startId) {
     selComp = null;
     applyAllOps();
     setStatus(`Island #${c.id} (${c.count}v) rebound 100% to ${c.boneName} — secondary weights removed.`);
+  }
+
+  // ================= PAINT MODE =================
+  // Split one island across two bones: pick a bone (the paint color) + a region
+  // (the island), then brush-paint sub-parts of that region onto the bone.
+  // Painted verts become a { sel:{verts:[...]}, to } op — exportable + applied
+  // at game load like every other op.
+  function setOrbitPaintMode(on) {
+    // free the LEFT button for the brush; rotate moves to RIGHT-drag
+    orbit.mouseButtons = on
+      ? { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE }
+      : { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+  }
+  function enterPaintMode() {
+    paintMode = true; paintPhase = 'pickBone';
+    paintBone = null; paintRegion = null; regionSet = null; regionWorld = null;
+    paintOp = null; paintSet = null;
+    selComp = null; stopWiggle(); mode = 'select'; updateModeUI();
+    setOrbitPaintMode(true);
+    updatePaintUI();
+    setStatus('PAINT: pick a BONE in the list below (the paint color).');
+  }
+  function exitPaintMode() {
+    paintMode = false; paintPhase = 'off'; painting = false;
+    paintBone = null; paintRegion = null; regionSet = null; regionWorld = null;
+    paintOp = null; paintSet = null;
+    setOrbitPaintMode(false);
+    if (mesh) mesh.material = showTex ? texturedMat : boneMat;
+    applyAllOps();               // restore the normal (opaque) bone-color view
+    updatePaintUI();
+    setStatus('Paint mode off.');
+  }
+  function setPaintBone(name) {
+    paintBone = name;
+    paintOp = null; paintSet = null;   // a bone change starts a fresh paint op
+    if (paintPhase === 'pickBone') paintPhase = 'pickRegion';
+    updatePaintUI();
+    setStatus(paintRegion
+      ? `PAINT: now painting → ${name}. Left-drag over the region.`
+      : `PAINT: color = ${name}. Now click a REGION on the model.`);
+  }
+  // skinned world position of a vertex (rest pose) — matches the raycast hit
+  // space so the brush selects what's under the cursor
+  function vertWorld(vi, out) {
+    mesh.getVertexPosition(vi, out);
+    return out.applyMatrix4(mesh.matrixWorld);
+  }
+  function enterRegion(comp) {
+    paintRegion = comp;
+    regionSet = new Set(comp.verts);
+    regionWorld = new Map();
+    mesh.updateMatrixWorld(true);
+    for (const vi of comp.verts) regionWorld.set(vi, vertWorld(vi, new THREE.Vector3()));
+    if (!paintMat) paintMat = new THREE.MeshStandardMaterial({
+      vertexColors: true, transparent: true, roughness: 0.85, metalness: 0.05 });
+    refreshPaintColors();
+    mesh.material = paintMat;
+    paintPhase = 'paint';
+    paintOp = null; paintSet = null;
+    updatePaintUI();
+    setStatus(`PAINT: region #${comp.id} (${comp.count}v). Left-drag = paint → ${paintBone}. Right-drag = orbit.`);
+  }
+  // RGBA vertex colors: region opaque in its live bone color, everything else
+  // faded to PAINT_FADE alpha so the region stands out
+  function refreshPaintColors() {
+    const n = mesh.geometry.attributes.position.count;
+    if (!paintColorAttr || paintColorAttr.count !== n) {
+      paintColorAttr = new THREE.BufferAttribute(new Float32Array(n * 4), 4);
+    }
+    const live = analyzeSkin(mesh);
+    for (let i = 0; i < n; i++) {
+      const c = boneColor(live.domBone[i]);
+      paintColorAttr.setXYZW(i, c.r, c.g, c.b, regionSet.has(i) ? 1 : PAINT_FADE);
+    }
+    mesh.geometry.setAttribute('color', paintColorAttr);
+    paintColorAttr.needsUpdate = true;
+  }
+  function paintStroke(ev) {
+    if (!regionSet || !paintBone) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(mesh, false);
+    if (!hits.length) return;
+    const p = hits[0].point;
+    const r2 = brushRadius * brushRadius;
+    const hitVerts = [];
+    for (const vi of regionSet) {
+      if (paintSet && paintSet.has(vi)) continue;
+      if (regionWorld.get(vi).distanceToSquared(p) <= r2) hitVerts.push(vi);
+    }
+    if (!hitVerts.length) return;
+    if (!strokePushed) { pushUndo(); strokePushed = true; }
+    if (!paintOp || paintOp.to !== paintBone) {
+      paintOp = { sel: { verts: [] }, to: paintBone }; ops.push(paintOp); paintSet = new Set();
+    }
+    const ti = bones.findIndex((b) => b.name === paintBone);
+    const jnt = mesh.geometry.attributes.skinIndex;
+    const wgt = mesh.geometry.attributes.skinWeight;
+    const c = boneColor(ti);
+    for (const vi of hitVerts) {
+      paintSet.add(vi); paintOp.sel.verts.push(vi);
+      jnt.setXYZW(vi, ti, 0, 0, 0); wgt.setXYZW(vi, 1, 0, 0, 0);
+      paintColorAttr.setXYZW(vi, c.r, c.g, c.b, 1);
+    }
+    jnt.needsUpdate = true; wgt.needsUpdate = true; paintColorAttr.needsUpdate = true;
+    renderOps();
   }
 
   // ---- bone wiggle (verify what moves) ----
@@ -288,6 +441,10 @@ export async function runSkinTool(startId) {
       }
       return;
     }
+    if (ev.key === 'p' || ev.key === 'P') { paintMode ? exitPaintMode() : enterPaintMode(); return; }
+    // in paint mode, swallow the other single-key tools (they'd fight the paint
+    // material / selection); undo/redo/space/P above still work
+    if (paintMode) { if (ev.key === 'Escape') exitPaintMode(); return; }
     if (ev.key === 't' || ev.key === 'T') {
       showTex = !showTex;
       if (mesh) mesh.material = showTex ? texturedMat : boneMat;
@@ -360,6 +517,45 @@ export async function runSkinTool(startId) {
   histRow.appendChild(actionBtn('↷ Redo (Ctrl+Shift+Z)', redo));
   panel.appendChild(histRow);
 
+  // ---- paint mode UI ----
+  const paintBtn = actionBtn('Paint geometry (P)', () => { paintMode ? exitPaintMode() : enterPaintMode(); });
+  panel.appendChild(paintBtn);
+  const paintPanel = document.createElement('div');
+  paintPanel.style.cssText = 'display:none;margin:4px 0;padding:7px;border:1px solid #4a3060;border-radius:6px;background:#191325';
+  const paintInfo = document.createElement('div');
+  paintInfo.style.cssText = 'font:11px ui-monospace,monospace;color:#d9c2ff;margin-bottom:5px';
+  paintPanel.appendChild(paintInfo);
+  const brushLbl = document.createElement('div');
+  brushLbl.style.cssText = 'color:#7d8ea3;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin:2px 0';
+  brushLbl.textContent = 'Brush size';
+  paintPanel.appendChild(brushLbl);
+  const brushRow = document.createElement('div');
+  brushRow.style.cssText = 'display:flex;gap:6px;margin-bottom:5px';
+  const brushBtns = [];
+  for (const [lab, rad] of [['S', 0.15], ['M', 0.30], ['L', 0.55]]) {
+    const b = actionBtn(lab, () => { brushRadius = rad; updatePaintUI(); });
+    b._r = rad; brushBtns.push(b); brushRow.appendChild(b);
+  }
+  paintPanel.appendChild(brushRow);
+  paintPanel.appendChild(actionBtn('Pick a different region', () => {
+    if (!paintMode) return;
+    paintPhase = 'pickRegion'; paintRegion = null; regionSet = null; regionWorld = null;
+    paintOp = null; paintSet = null;
+    if (mesh) mesh.material = showTex ? texturedMat : boneMat;
+    applyAllOps();
+    updatePaintUI();
+    setStatus('PAINT: click a REGION on the model to paint within.');
+  }));
+  panel.appendChild(paintPanel);
+  function updatePaintUI() {
+    paintBtn.style.background = paintMode ? '#7a3fb0' : '#1a2433';
+    paintBtn.style.color = paintMode ? '#fff' : '#cfe0f5';
+    paintBtn.textContent = paintMode ? 'Painting — click to exit (P)' : 'Paint geometry (P)';
+    paintPanel.style.display = paintMode ? 'block' : 'none';
+    paintInfo.textContent = `color: ${paintBone || '—'}  ·  region: ${paintRegion ? '#' + paintRegion.id : '—'}`;
+    for (const b of brushBtns) b.style.outline = (b._r === brushRadius) ? '2px solid #b98cff' : '';
+  }
+
   panel.appendChild(label('Ops (this session + committed)'));
   const opsEl = document.createElement('div');
   opsEl.style.cssText = 'margin-bottom:6px;max-height:150px;overflow:auto';
@@ -380,8 +576,12 @@ export async function runSkinTool(startId) {
       // ops without a `sel` are global weight-hygiene passes (purgeFar)
       if (op.purgeFar) {
         t.textContent = `purgeFar (strip far-hierarchy weights)`;
+      } else if (op.purgePair) {
+        t.textContent = `purgePair ${op.purgePair.join(' / ')}`;
       } else if (!op.sel) {
         t.textContent = JSON.stringify(op);
+      } else if (op.sel.verts) {
+        t.textContent = `paint ${op.sel.verts.length}v → ${op.to}`;
       } else {
         const selTxt = op.sel.comp !== undefined && op.sel.bone === undefined
           ? `#${op.sel.comp}` : `${op.sel.bone}[${op.sel.comp ?? '*'}]`;
@@ -441,8 +641,11 @@ export async function runSkinTool(startId) {
       row.append(sw, t, n);
       row.onmouseenter = () => { row.style.background = '#1a2433'; };
       row.onmouseleave = () => { row.style.background = ''; };
-      row.onclick = () => { const b = bones[bi]; if (b) (wiggle?.bone === b) ? stopWiggle() : startWiggle(b); };
-      row.ondblclick = () => { if (selComp) addOp(selComp, name); };
+      row.onclick = () => {
+        if (paintMode) { setPaintBone(name); return; }   // in paint mode the list is the color palette
+        const b = bones[bi]; if (b) (wiggle?.bone === b) ? stopWiggle() : startWiggle(b);
+      };
+      row.ondblclick = () => { if (!paintMode && selComp) addOp(selComp, name); };
       boneList.appendChild(row);
     }
   }
@@ -459,6 +662,9 @@ export async function runSkinTool(startId) {
     + '2. “Rebind → click target” (Q), then click the part it should move with<br>'
     + '3. Wiggle (W) to verify · SPACE pauses a wiggle to click a stretched piece<br>'
     + '4. “Bind 100% to own bone” (B) drops a patch’s secondary weights.<br>'
+    + '5. “Paint geometry” (P): pick a bone (list) + a region (click model), then '
+    + 'LEFT-drag to paint part of the region onto that bone — splits one island in two. '
+    + 'RIGHT-drag orbits while painting.<br>'
     + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
@@ -491,6 +697,32 @@ export async function runSkinTool(startId) {
   window.__skinTool = { engine, panel, get mesh() { return mesh; }, get ops() { return ops; }, get analysis() { return analysis; },
     addOpByComp: (cid, to) => { const c = analysis.comps[cid]; if (c) addOp(c, to); },
     selectComp: (cid) => { const c = analysis.comps[cid]; if (c) { selComp = c; rebuildColors(); } },
-    bindSelfHard: rebindSelfHard, undo, redo, load };
+    bindSelfHard: rebindSelfHard, undo, redo, load,
+    // paint-mode hooks (for testing/scripting)
+    paint: { enter: enterPaintMode, exit: exitPaintMode, bone: setPaintBone,
+      region: (cid) => { const c = analysis.comps[cid]; if (c) enterRegion(c); },
+      strokeAt: (worldVec, bone) => {   // paint all region verts within brush of a world point
+        if (bone) setPaintBone(bone);
+        if (!regionSet || !paintBone) return 0;
+        const r2 = brushRadius * brushRadius; const hitVerts = [];
+        for (const vi of regionSet) { if (paintSet && paintSet.has(vi)) continue;
+          if (regionWorld.get(vi).distanceToSquared(worldVec) <= r2) hitVerts.push(vi); }
+        if (!hitVerts.length) return 0;
+        if (!strokePushed) { pushUndo(); strokePushed = true; }
+        if (!paintOp || paintOp.to !== paintBone) { paintOp = { sel: { verts: [] }, to: paintBone }; ops.push(paintOp); paintSet = new Set(); }
+        const ti = bones.findIndex((b) => b.name === paintBone);
+        const jnt = mesh.geometry.attributes.skinIndex, wgt = mesh.geometry.attributes.skinWeight, c = boneColor(ti);
+        for (const vi of hitVerts) { paintSet.add(vi); paintOp.sel.verts.push(vi);
+          jnt.setXYZW(vi, ti, 0, 0, 0); wgt.setXYZW(vi, 1, 0, 0, 0); paintColorAttr.setXYZW(vi, c.r, c.g, c.b, 1); }
+        jnt.needsUpdate = wgt.needsUpdate = paintColorAttr.needsUpdate = true; strokePushed = false; renderOps();
+        return hitVerts.length;
+      },
+      get state() { return { paintMode, paintPhase, paintBone, region: paintRegion?.id, brushRadius }; },
+      get regionCentroidWorld() {
+        if (!regionSet) return null;
+        const v = new THREE.Vector3(); let n = 0;
+        for (const vi of regionSet) { v.add(regionWorld.get(vi)); n++; }
+        return n ? v.multiplyScalar(1 / n) : null;
+      } } };
   return engine;
 }
