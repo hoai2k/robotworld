@@ -21,10 +21,10 @@ const VIEW = 10;                 // display scale for the small raw model
 const JOINT_SET = new Set(JOINT_ORDER);
 // distinct colors per bone role (game joints get vivid hues; struts gray)
 function boneColor(name, i) {
-  if (name.startsWith('shoulderL') || name.startsWith('elbowL') || name.startsWith('handL')) return [1.0, 0.15, 0.12];
-  if (name.startsWith('shoulderR') || name.startsWith('elbowR') || name.startsWith('handR')) return [1.0, 0.62, 0.05];
-  if (name.startsWith('thighL') || name.startsWith('kneeL') || name.startsWith('ankleL')) return [0.15, 0.35, 1.0];
-  if (name.startsWith('thighR') || name.startsWith('kneeR') || name.startsWith('ankleR')) return [0.1, 0.8, 1.0];
+  if (name.startsWith('shoulderL') || name.startsWith('elbowL') || name.startsWith('handL') || name === 'clawL') return [1.0, 0.15, 0.12];
+  if (name.startsWith('shoulderR') || name.startsWith('elbowR') || name.startsWith('handR') || name === 'clawR') return [1.0, 0.62, 0.05];
+  if (name.startsWith('thighL') || name.startsWith('kneeL') || name.startsWith('ankleL') || name === 'footL') return [0.15, 0.35, 1.0];
+  if (name.startsWith('thighR') || name.startsWith('kneeR') || name.startsWith('ankleR') || name === 'footR') return [0.1, 0.8, 1.0];
   if (name === 'head') return [0.9, 0.9, 0.2];
   if (name === 'torso' || name === 'hips') return [0.55, 0.55, 0.6];
   // struts / extras — muted grays, slightly varied so neighbours differ
@@ -64,8 +64,7 @@ export async function runRigEdit(startId) {
   const handles = [];              // {mesh, name}
   let origMat = null, colorMat = null, colorOn = false;
   let swing = 0, swinging = false;
-  let soloRoot = null;             // solo a bone's subtree (dim the rest)
-  let soloForcedColor = false;     // solo auto-enabled color view; restore on exit
+  let soloRoot = null;             // solo a bone's subtree (declutter the rest)
   let undoStack = [], redoStack = [];
   let dragSnap = null;             // rig snapshot captured at gizmo drag-start
 
@@ -116,13 +115,12 @@ export async function runRigEdit(startId) {
     }
     return set;
   }
+  // Solo just DECLUTTERS: it hides the other bones' dots and the skeleton
+  // connections between them so you can focus on one subtree. It does NOT
+  // touch the robot rendering (no dimming, no forced color view) — the mesh
+  // looks exactly the same.
   function toggleSolo(name) {
     soloRoot = soloRoot === name ? null : name;
-    if (soloRoot) {
-      if (!colorOn) { soloForcedColor = true; setColorMode(true); }
-    } else if (soloForcedColor) {
-      soloForcedColor = false; setColorMode(false);
-    }
     updateSolo();
     styleList();
     refreshModeButtons();
@@ -130,7 +128,55 @@ export async function runRigEdit(startId) {
   function updateSolo() {
     const sub = soloRoot ? subtreeSet(soloRoot) : null;
     for (const h of handles) h.mesh.visible = !sub || sub.has(h.name);
-    updateColors();
+    // hide the full skeleton and, while soloing, draw ONLY the subtree's
+    // connections in a dedicated line set (masking the shared helper buffer is
+    // unreliable across GL backends, so use real geometry instead)
+    if (skelHelper) skelHelper.visible = !soloRoot;
+    buildSoloLines(sub);
+  }
+  // list of [{child, parent}] connections, one per skeleton segment
+  let helperSeg = [];
+  let soloLines = null;   // THREE.LineSegments of just the solo subtree
+  let soloSeg = [];       // the {child,parent} pairs currently in soloLines
+  function refreshHelperSeg() {
+    helperSeg = [];
+    if (!skelHelper) return;
+    for (const b of skelHelper.bones) {
+      if (b.parent && b.parent.isBone) helperSeg.push({ child: b.name, parent: b.parent.name });
+    }
+  }
+  function disposeSoloLines() {
+    if (!soloLines) return;
+    scene.remove(soloLines);
+    soloLines.geometry.dispose(); soloLines.material.dispose();
+    soloLines = null; soloSeg = [];
+  }
+  function buildSoloLines(sub) {
+    disposeSoloLines();
+    if (!sub) return;
+    soloSeg = helperSeg.filter((s) => sub.has(s.child) && sub.has(s.parent));
+    if (!soloSeg.length) return;
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(soloSeg.length * 6), 3));
+    // draw on top like the handles so the focused chain reads clearly
+    const mat = new THREE.LineBasicMaterial({ color: 0x8fe6b0, depthTest: false, transparent: true });
+    soloLines = new THREE.LineSegments(geo, mat);
+    soloLines.renderOrder = 998;
+    scene.add(soloLines);
+    updateSoloLines();
+  }
+  const _wa = new THREE.Vector3(), _wb = new THREE.Vector3();
+  function updateSoloLines() {
+    if (!soloLines) return;
+    const pos = soloLines.geometry.attributes.position;
+    for (let i = 0; i < soloSeg.length; i++) {
+      const cb = byName[soloSeg[i].child], pb = byName[soloSeg[i].parent];
+      if (!cb || !pb) continue;
+      cb.getWorldPosition(_wa); pb.getWorldPosition(_wb);
+      pos.setXYZ(i * 2, _wa.x, _wa.y, _wa.z);
+      pos.setXYZ(i * 2 + 1, _wb.x, _wb.y, _wb.z);
+    }
+    pos.needsUpdate = true;
   }
 
   function loadRig() {
@@ -171,6 +217,7 @@ export async function runRigEdit(startId) {
       skelHelper = new THREE.SkeletonHelper(root);
       skelHelper.material.linewidth = 2;
       scene.add(skelHelper);
+      refreshHelperSeg();
       buildHandles();
     }
     regenPosts();
@@ -269,15 +316,11 @@ export async function runRigEdit(startId) {
     const geo = mesh.geometry;
     const jnt = geo.attributes.skinIndex;
     const n = jnt.count;
-    const sub = soloRoot ? subtreeSet(soloRoot) : null;
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const bi = jnt.getX(i);
       const bd = rigObj.bones[bi];
-      // when soloing, everything outside the subtree goes near-black so the
-      // solo'd joints' geometry is the only thing that reads
-      const dim = sub && (!bd || !sub.has(bd.name));
-      const c = dim ? [0.06, 0.06, 0.08] : (bd ? boneColor(bd.name, bi) : [0.3, 0.3, 0.3]);
+      const c = bd ? boneColor(bd.name, bi) : [0.3, 0.3, 0.3];
       col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -405,7 +448,7 @@ export async function runRigEdit(startId) {
   const help = el('div', 'margin-top:8px;color:#69788c;font-size:10.5px;line-height:1.5');
   help.innerHTML = 'Orbit: drag empty space · Zoom: wheel<br>Red/orange = claws (arms) · blue/cyan = legs · gray = struts.<br>'
     + 'Drag a bone into the geometry it should drive, then Color view to check ownership.<br>'
-    + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Solo a bone’s subtree: select + S, or right-click a bone (dims the rest so only those joints are pickable).';
+    + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Solo a bone’s subtree: select + S, or right-click a bone (hides the other dots + connections so only those joints are pickable; the robot render is untouched).';
   panel.appendChild(help);
 
   function buildBoneUI() {
@@ -444,7 +487,7 @@ export async function runRigEdit(startId) {
     const pp = rigObj.bones.find((b) => b.name === parent)?.pos || [0, 0.3, 0];
     rigObj.bones.push({ name, parent, pos: [pp[0], pp[1] + 0.05, pp[2]] });
     addName.value = '';
-    rebuild(true); buildBoneUI(); selectBone(name); saveRig();
+    rebuild(true); buildBoneUI(); selectBone(name); updateSolo(); saveRig();
   }
   function delBone() {
     if (!selName || selName === 'hips') return;
@@ -471,6 +514,7 @@ export async function runRigEdit(startId) {
     }
     syncHandles();
     skelHelper?.update?.();
+    updateSoloLines();   // keep the solo subtree's connections on the bones
   };
   engine.onRender = () => orbit.update();
   engine.start();
