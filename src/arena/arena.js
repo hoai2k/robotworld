@@ -193,20 +193,31 @@ export class Arena {
     // the painted road grid, plus scattered solo cover — the terrain keeps
     // every site off lanes/hills/bridges and out of the spawn clearing, so
     // fighters always start in an open plaza with clear sight lines
-    const count = Math.min(theme.buildings.count * 2, 18);
-    for (const site of this.terrain.buildingSites(count, rng)) {
-      const nx = rng.int(2, 3), nz = rng.int(2, 3);
-      let ny = rng.int(theme.buildings.hRange[0], theme.buildings.hRange[1]);
-      // one landmark tower per cluster; its neighbors read as its skirt
-      if (site.tall) ny = theme.buildings.hRange[1] + rng.int(1, 2);
-      else if (site.cluster >= 0 && rng.chance(0.5)) ny = Math.max(theme.buildings.hRange[0], ny - 1);
-      const cw = rng.range(3.2, 3.9), ch = rng.range(3.1, 3.6), cd = rng.range(3.2, 3.9);
-      let tint = theme.buildings.tints[rng.int(0, theme.buildings.tints.length - 1)];
-      if (CONFIG.useTextures && FACADE_TEX[styleIdx]) {
-        // pack facades carry their own color — keep only a whisper of tint
-        tint = new THREE.Color(tint).lerp(new THREE.Color(0xffffff), 0.68).getHex();
+    // tint helper shared by procedural + authored placement (pack facades
+    // carry their own color, so only a whisper of tint survives)
+    const tintFor = (t) => (CONFIG.useTextures && FACADE_TEX[styleIdx])
+      ? new THREE.Color(t).lerp(new THREE.Color(0xffffff), 0.68).getHex() : t;
+    if (theme.authored) {
+      // authored levels place exact towers from the editor
+      for (const o of theme.authored) {
+        if (o.k !== 'building') continue;
+        const nx = o.nx || 2, ny = o.ny || 4, nz = o.nz || 2;
+        const cw = o.cw || 3.5, ch = o.ch || 3.3, cd = o.cd || 3.5;
+        const tint = tintFor(o.tint ?? theme.buildings.tints[0]);
+        this.destructo.addBuilding(o.x, o.z, nx, ny, nz, cw, ch, cd, { tint, rng });
       }
-      this.destructo.addBuilding(site.x, site.z, nx, ny, nz, cw, ch, cd, { tint, rng });
+    } else {
+      const count = Math.min(theme.buildings.count * 2, 18);
+      for (const site of this.terrain.buildingSites(count, rng)) {
+        const nx = rng.int(2, 3), nz = rng.int(2, 3);
+        let ny = rng.int(theme.buildings.hRange[0], theme.buildings.hRange[1]);
+        // one landmark tower per cluster; its neighbors read as its skirt
+        if (site.tall) ny = theme.buildings.hRange[1] + rng.int(1, 2);
+        else if (site.cluster >= 0 && rng.chance(0.5)) ny = Math.max(theme.buildings.hRange[0], ny - 1);
+        const cw = rng.range(3.2, 3.9), ch = rng.range(3.1, 3.6), cd = rng.range(3.2, 3.9);
+        const tint = tintFor(theme.buildings.tints[rng.int(0, theme.buildings.tints.length - 1)]);
+        this.destructo.addBuilding(site.x, site.z, nx, ny, nz, cw, ch, cd, { tint, rng });
+      }
     }
 
     // ---- props ----
@@ -227,72 +238,39 @@ export class Arena {
       if (needFlat && this.terrain.heightAt(x, z) > 0.15) return false;
       return true;
     };
-    for (const spec of theme.props || []) {
-      for (let i = 0; i < spec.count; i++) {
-        const skyAnchored = spec.ring[1] <= 6; // aurora-style props place their visuals far away
-        let a, r, x, z, tries = 0;
-        do {
-          a = rng.range(0, Math.PI * 2);
-          r = rng.range(spec.ring[0], spec.ring[1]) * 1.85; // rings scaled with arena
-          x = Math.cos(a) * r; z = Math.sin(a) * r;
-        } while (!skyAnchored && !propSpotOk(x, z, FLAT_PROPS.has(spec.name)) && ++tries < 14);
-        let opts = Array.isArray(spec.opts) ? spec.opts[i % spec.opts.length] : { ...(spec.opts || {}) };
-        opts = { ...opts, seed: rng.int(1, 99999) };
+    if (theme.authored) {
+      // authored levels place exact props from the editor (deterministic yaw,
+      // seed and optional uniform scale)
+      let aseed = 1;
+      for (const o of theme.authored) {
+        if (o.k !== 'prop') continue;
+        const opts = { ...(o.opts || {}), seed: o.opts?.seed ?? (aseed++ * 131 + 7), ry: o.ry ?? 0 };
         if (opts.mat === 'ice') opts.mat = PROP_MATS.ice;
-        const gy = skyAnchored ? 0 : this.terrain.heightAt(x, z);
-        const g = placeProp(this.propGroup, this.objects, spec.name, x, z, opts);
-        if (g && gy > 0.01) g.position.y += gy; // seat the prop on the terrain surface
-        if (g && g.userData.spin) this.spinners.push(g);
-        if (g && g.userData.steamY !== undefined) {
-          this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY + gy, z));
-        }
-        if (g && g.userData.explosive) {
-          const e = g.userData.explosive;
-          this.explosives.push({
-            group: g, x, z, r: e.r, bodyR: e.bodyR || e.r * 0.32,
-            hp: e.hp, top: e.top || 6, dead: false,
-          });
-        }
-        if (g && g.userData.spikes) this.spikes.push({ x, z, r: g.userData.spikes.r });
-        if (g && g.userData.campfire) {
-          this.campfires.push({ group: g, x, z, r: g.userData.campfire.r, litT: 0 });
-        }
-        // every standing structure is SOLID and BREAKABLE: measure a
-        // cylinder collider off the built prop (ground hazards and flat
-        // dressing — pads, channels, rails — stay walk-over)
-        if (g && !g.userData.spikes && !g.userData.campfire && !g.userData.noCollide) {
-          const bb = new THREE.Box3().setFromObject(g);
-          const rx = (bb.max.x - bb.min.x) / 2, rz = (bb.max.z - bb.min.z) / 2;
-          const h = bb.max.y;
-          // collider radius from the GROUND BAND only — what a walking mech
-          // can actually bump into. Boxing the WHOLE prop gave a billboard
-          // (thin pole, huge panel up top) a fat invisible cylinder at
-          // street level: the "invisible wall" bug. Only sub-meshes that
-          // reach below chest height count toward the footprint.
-          const bbLow = new THREE.Box3();
-          const mb = new THREE.Box3();
-          g.updateWorldMatrix(true, true);
-          g.traverse((o) => {
-            if (!o.isMesh) return;
-            mb.setFromObject(o);
-            if (mb.min.y < 3.2) bbLow.union(mb);
-          });
-          let rl = Math.max(rx, rz);
-          if (!bbLow.isEmpty()) {
-            rl = Math.max(
-              Math.abs(bbLow.max.x - x), Math.abs(bbLow.min.x - x),
-              Math.abs(bbLow.max.z - z), Math.abs(bbLow.min.z - z));
-          }
-          const r = Math.min(rl * 0.72, 7);
-          if (h > 1.7 && r > 0.4 && r < 7.5 && h / Math.max(rx, rz) > 0.35) {
-            this.propBodies.push({
-              group: g, idx: this.propGroup.children.indexOf(g),
-              x, z, r, h,
-              hp: 26 + r * Math.min(h, 16) * 7,
-              alive: true,
-              tint: g.userData.explosive ? 0x8a4030 : 0x8f887c,
-            });
-          }
+        const flat = FLAT_PROPS.has(o.name);
+        const gy = flat ? 0 : this.terrain.heightAt(o.x, o.z);
+        const g = placeProp(this.propGroup, this.objects, o.name, o.x, o.z, opts);
+        if (!g) continue;
+        if (o.s && o.s !== 1) g.scale.multiplyScalar(o.s);
+        if (gy > 0.01) g.position.y += gy;
+        this._regProp(g, o.x, o.z, gy);
+      }
+    } else {
+      for (const spec of theme.props || []) {
+        for (let i = 0; i < spec.count; i++) {
+          const skyAnchored = spec.ring[1] <= 6; // aurora-style props place their visuals far away
+          let a, r, x, z, tries = 0;
+          do {
+            a = rng.range(0, Math.PI * 2);
+            r = rng.range(spec.ring[0], spec.ring[1]) * 1.85; // rings scaled with arena
+            x = Math.cos(a) * r; z = Math.sin(a) * r;
+          } while (!skyAnchored && !propSpotOk(x, z, FLAT_PROPS.has(spec.name)) && ++tries < 14);
+          let opts = Array.isArray(spec.opts) ? spec.opts[i % spec.opts.length] : { ...(spec.opts || {}) };
+          opts = { ...opts, seed: rng.int(1, 99999) };
+          if (opts.mat === 'ice') opts.mat = PROP_MATS.ice;
+          const gy = skyAnchored ? 0 : this.terrain.heightAt(x, z);
+          const g = placeProp(this.propGroup, this.objects, spec.name, x, z, opts);
+          if (g && gy > 0.01) g.position.y += gy; // seat the prop on the terrain surface
+          if (g) this._regProp(g, x, z, gy);
         }
       }
     }
@@ -593,8 +571,73 @@ export class Arena {
     }
   }
 
+  // register a built prop's gameplay hooks + measure its solid collider.
+  // shared by procedural placement and authored (level-editor) placement.
+  _regProp(g, x, z, gy = 0) {
+    if (g.userData.spin) this.spinners.push(g);
+    if (g.userData.steamY !== undefined) {
+      this.steamSpots.push(new THREE.Vector3(x, g.userData.steamY + gy, z));
+    }
+    if (g.userData.explosive) {
+      const e = g.userData.explosive;
+      this.explosives.push({
+        group: g, x, z, r: e.r, bodyR: e.bodyR || e.r * 0.32,
+        hp: e.hp, top: e.top || 6, dead: false,
+      });
+    }
+    if (g.userData.spikes) this.spikes.push({ x, z, r: g.userData.spikes.r });
+    if (g.userData.campfire) {
+      this.campfires.push({ group: g, x, z, r: g.userData.campfire.r, litT: 0 });
+    }
+    // every standing structure is SOLID and BREAKABLE: measure a cylinder
+    // collider off the built prop (ground hazards and flat dressing — pads,
+    // channels, rails — stay walk-over)
+    if (!g.userData.spikes && !g.userData.campfire && !g.userData.noCollide) {
+      const bb = new THREE.Box3().setFromObject(g);
+      const rx = (bb.max.x - bb.min.x) / 2, rz = (bb.max.z - bb.min.z) / 2;
+      const h = bb.max.y;
+      // collider radius from the GROUND BAND only — what a walking mech can
+      // actually bump into (boxing the whole prop gave thin-pole/big-panel
+      // props a fat invisible cylinder at street level).
+      const bbLow = new THREE.Box3();
+      const mb = new THREE.Box3();
+      g.updateWorldMatrix(true, true);
+      g.traverse((o) => {
+        if (!o.isMesh) return;
+        mb.setFromObject(o);
+        if (mb.min.y < 3.2) bbLow.union(mb);
+      });
+      let rl = Math.max(rx, rz);
+      if (!bbLow.isEmpty()) {
+        rl = Math.max(
+          Math.abs(bbLow.max.x - x), Math.abs(bbLow.min.x - x),
+          Math.abs(bbLow.max.z - z), Math.abs(bbLow.min.z - z));
+      }
+      const r = Math.min(rl * 0.72, 7);
+      if (h > 1.7 && r > 0.4 && r < 7.5 && h / Math.max(rx, rz) > 0.35) {
+        this.propBodies.push({
+          group: g, idx: this.propGroup.children.indexOf(g),
+          x, z, r, h,
+          hp: 26 + r * Math.min(h, 16) * 7,
+          alive: true,
+          tint: g.userData.explosive ? 0x8a4030 : 0x8f887c,
+        });
+      }
+    }
+  }
+
   spawnPoints(n) {
     const pts = [];
+    // authored levels can pin exact spawn points; cycle if fewer than n
+    const sp = this.theme.spawns;
+    if (sp && sp.length) {
+      for (let i = 0; i < n; i++) {
+        const s = sp[i % sp.length];
+        const yaw = s.yaw ?? Math.atan2(-s.x, -s.z);
+        pts.push({ pos: new THREE.Vector3(s.x, 0, s.z), yaw });
+      }
+      return pts;
+    }
     const r = Math.min(this.bounds * 0.4, 34);
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.PI / n;
@@ -611,7 +654,10 @@ export class Arena {
     this.terrain.update(dt);
     this.updateExplosives();
     this.updateHazards(dt);
-    for (const g of this.spinners) g.rotation.z += g.userData.spin * dt;
+    for (const g of this.spinners) {
+      const t = g.userData.spinName ? (g.getObjectByName(g.userData.spinName) || g) : g;
+      t.rotation[g.userData.spinAxis || 'z'] += g.userData.spin * dt;
+    }
 
     // ambient particles
     const fx = this.world?.effects;

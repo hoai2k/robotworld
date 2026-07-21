@@ -7,7 +7,9 @@
 // is a real game toggle, routed through the normal boot path, not a dev mode.
 export function runDevMode(params) {
   const debug = params.get('debug');
-  if (params.has('showcase')) {
+  if (params.get('edit') === 'level') {
+    import('../editor/leveleditor.js').then(({ runLevelEditor }) => runLevelEditor(params));
+  } else if (params.has('showcase')) {
     import('./showcase.js').then(({ runShowcase }) => runShowcase(params.get('showcase')));
   } else if (debug === 'actions') {
     import('./actiontest.js').then(({ runActionTest }) => runActionTest());

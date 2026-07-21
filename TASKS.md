@@ -2250,3 +2250,38 @@ controllers via Gamepad API), AI opponents.
   back in); live frames confirm the tight looming-giant read mid-grow and
   a clean practical wide shot once settled; colossus ace soak crash-free;
   build green.
+
+## Phase 15 — LEVEL BUILDER (`?edit=level`) + authored levels (user request, 2026-07-21)
+
+- New in-browser level editor behind `?edit=level`: pick a base theme, then
+  place / move / rotate / scale / delete buildings, props, terrain (hills,
+  platform decks, bridges, lanes) and spawn points on a real themed stage.
+  Grid snap, undo/redo, duplicate, inspector, save/load slots (localStorage),
+  Import/Export JSON, and a live **tiling view** — the 8 toroidal neighbour
+  tiles render around your cell so the wrap reads exactly like the match.
+  Files: `src/editor/leveleditor.js` (editor), `src/editor/catalog.js`
+  (palette — every arena prop + the new obstacles + all lane kinds).
+- Authored-level pipeline: the game had NO explicit per-object placement
+  (everything was procedural from theme+seed). Added `theme.authored`
+  (exact building/prop list), `theme.spawns`, and explicit terrain lists
+  (`layout.hills.list` / `bridges.list` / lanes with `axis`+`at`) consumed
+  by `Arena` + `Terrain`. `src/arena/level.js` converts an editor level →
+  a theme the Arena builds verbatim. Prop registration extracted to
+  `Arena._regProp` (shared by procedural + authored). `Terrain.addBridge`
+  extracted; `buildHills`/`buildBridges`/`buildLanes` accept explicit lists;
+  hills now resolve deck/colour/edge per-hill.
+- Load & play authored levels: `?battle=<theme>&level=<name>` loads
+  `public/levels/<name>.json`; the editor's **▶ Playtest** stashes the level
+  in sessionStorage and opens `&level=__edit` for an instant live battle.
+  Sample: `public/levels/sample-arena.json`.
+- New OBSTACLES (`src/arena/props.js`, wired to existing gameplay hooks):
+  `barricade` (destructible cover), `pillar`, `sentryTurret` (sweeping
+  head), `forceWall` (energy barrier), `mine` (explosive), `spikeStrip`
+  (cut+shove), `jumpPad`, `teleporter`, `beacon` (sweeping light), `crater`.
+  Spinner update now honours `spinName`+`spinAxis` (JSON-safe for ghost
+  clones). New TERRAIN lane kinds: `acid` (burns, green) + `mud` (heavy
+  drag) in `terrain.js` (KINDS + paint + hazards).
+- Verified: editor loads + renders the sample level with tiling ghosts
+  (VIEW the shots); `sample-arena` ace soak crash-free; foundry + quarry
+  procedural soaks crash-free (no regression); uptown procedural battle
+  visually intact; `vite build` green.
