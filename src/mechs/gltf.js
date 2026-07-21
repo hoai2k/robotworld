@@ -24,10 +24,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { buildMech, buildRig, computeDims, addAnchor } from './factory.js';
 import { Animator } from './animator.js';
-import { RigAdapter, mapBones } from './rigadapter.js';
+import { RigAdapter, mapBones, JOINT_ORDER } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
 import { applySkinOpsToGltf } from './skinops.js';
+import { rigFor } from './rigs/index.js';
+import { applyCustomRig } from './reskin.js';
 import { clamp } from '../core/utils.js';
 import { warnContract } from './contract.js';
 
@@ -204,36 +206,52 @@ function buildGlbMech(def, entry, gltf) {
     if (o.isMesh || o.isSkinnedMesh) meshes.push(o);
   });
 
-  // Map GLB bones onto the virtual rig's joints EARLY (mapBones is pure
-  // name-matching, so nothing else needs to happen first) and bail to the
-  // procedural model before paying for skinOps/scaling/dressing/Animator.
-  // A failing model therefore never gets its cached geometry skinOps'd —
-  // fine, since the procedural fallback never touches that geometry.
-  const boneMap = mapBones(bones, entry.boneOverrides || {});
+  // CUSTOM RIG (src/mechs/rigs/<id>.rig.js): when an auto-rig is too scrambled
+  // to fix by remapping (a crab with both claws welded to one leg bone), a
+  // hand-placed skeleton — authored in ?rigedit — REPLACES it. The mesh is
+  // re-skinned to bones that ARE the game joints, so the retarget drives real,
+  // correctly-located limbs. Supersedes boneOverrides + skinOps for that mech.
+  const customRig = rigFor(def.id);
+  let boneMap;
+  if (customRig) {
+    const sk = meshes.find((m) => m.isSkinnedMesh);
+    boneMap = {};
+    if (sk) {
+      const { byName } = applyCustomRig(sk, customRig);
+      for (const j of JOINT_ORDER) if (byName[j]) boneMap[j] = byName[j];
+    }
+  } else {
+    // Map GLB bones onto the virtual rig's joints EARLY (mapBones is pure
+    // name-matching) and bail to the procedural model before paying for
+    // skinOps/scaling/dressing/Animator.
+    boneMap = mapBones(bones, entry.boneOverrides || {});
+  }
   const mapped = Object.keys(boneMap).length;
   if (mapped < 10) {
     console.warn(`GLB for ${def.id}: only ${mapped} bones mapped — falling back to procedural`);
     return buildMech(def);
   }
-  // more manifest hygiene: entries naming bones/joints that don't resolve.
-  // (mapBones silently ignores an override whose bone name doesn't exist;
-  // stretch/bonePos silently skip unmapped joints — surface those, once.)
-  for (const [joint, boneName] of Object.entries(entry.boneOverrides || {})) {
-    if (!bones.some((b) => b.name === boneName)) {
-      warnEntryOnce(def.id, `boneOverrides.${joint}: no bone named "${boneName}"`);
+  // manifest hygiene: entries naming bones/joints that don't resolve. (mapBones
+  // silently ignores an override whose bone name doesn't exist; stretch/bonePos
+  // skip unmapped joints — surface those, once.) Skipped under a custom rig,
+  // which ignores those manifest fields.
+  if (!customRig) {
+    for (const [joint, boneName] of Object.entries(entry.boneOverrides || {})) {
+      if (!bones.some((b) => b.name === boneName)) {
+        warnEntryOnce(def.id, `boneOverrides.${joint}: no bone named "${boneName}"`);
+      }
     }
-  }
-  for (const key of ['stretch', 'bonePos']) {
-    for (const jname of Object.keys(entry[key] || {})) {
-      if (!boneMap[jname]) warnEntryOnce(def.id, `${key}.${jname}: joint not mapped to a bone`);
+    for (const key of ['stretch', 'bonePos']) {
+      for (const jname of Object.keys(entry[key] || {})) {
+        if (!boneMap[jname]) warnEntryOnce(def.id, `${key}.${jname}: joint not mapped to a bone`);
+      }
     }
+    // manifest `skinOps`: rebind auto-rig weight mistakes to the right bone —
+    // see skinops.js. Applied to the CACHED scene once (idempotent guard on the
+    // geometry); clones share it, so applying after cloneSkinned still fixes
+    // this clone. (A custom rig re-skins from scratch, so it needs no skinOps.)
+    applySkinOpsToGltf(gltf.scene, entry.skinOps);
   }
-
-  // manifest `skinOps`: rebind auto-rig weight mistakes (a hip plate on a
-  // forearm, a banner on an arm) to the right bone — see skinops.js. Applied
-  // to the CACHED scene once (idempotent guard on the geometry); clones share
-  // that geometry, so applying it after cloneSkinned still fixes this clone.
-  applySkinOpsToGltf(gltf.scene, entry.skinOps);
 
   for (const o of meshes) {
     o.castShadow = true;

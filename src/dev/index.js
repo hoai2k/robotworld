@@ -25,6 +25,8 @@ export function runDevMode(params) {
     import('./geysertest.js').then(({ runGeyserTest }) => runGeyserTest());
   } else if (params.has('glbview')) {
     import('./glbview.js').then(({ runGlbView }) => runGlbView(params.get('glbview')));
+  } else if (params.has('rigedit')) {
+    import('./rigedit.js').then(({ runRigEdit }) => runRigEdit(params.get('rigedit')));
   } else if (params.has('rigtest')) {
     import('./rigtest.js').then(({ runRigTest }) => runRigTest());
   } else {

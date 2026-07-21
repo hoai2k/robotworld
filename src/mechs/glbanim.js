@@ -183,7 +183,25 @@ export const GLB_ANIM = {
   },
   inferno: {},   // flamer biped — direct map (levelHands is shape-shared)
   glacier: {},   // heavy biped — direct map
-  cranky: {},    // crab — scuttle is tgt-driven, shape-shared
+  // CRANKY — the Tripo auto-rig welded both giant claws onto one leg bone and
+  // buried the arm chains in the thin walking-legs, so the shipped rig swung a
+  // back leg on attacks while the claws sat dead (the reported bug). It's fixed
+  // upstream now: a hand-placed CUSTOM RIG (src/mechs/rigs/cranky.rig.js,
+  // authored in ?rigedit) re-skins the mesh so each giant claw is a real
+  // independent arm — the shared attack clips drive the claws directly through
+  // the retarget, no special-casing needed.
+  //
+  // The only reinterpretation left is aesthetic: the humanoid punch clips twist
+  // the torso like a boxer, which a wide crab shouldn't do — square him up so he
+  // THRUSTS the claws straight ahead instead of winding up.
+  cranky: {
+    post(anim, dt, ctx, tgt) {
+      const act = anim.action;
+      if (act && !act.fadingOut && !act.clip.loop) {
+        tgt.hipsRot[1] *= 0.2; tgt.torso[1] *= 0.2; tgt.torso[2] *= 0.4;
+      }
+    },
+  },
 
   // SAURION — the GLB has big readable arm-claws, so its light cycle
   // alternates sickle KICKS with claw RAKES (right kick, left rake, left
