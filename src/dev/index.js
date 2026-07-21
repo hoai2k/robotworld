@@ -27,6 +27,8 @@ export function runDevMode(params) {
     import('./glbview.js').then(({ runGlbView }) => runGlbView(params.get('glbview')));
   } else if (params.has('rigedit')) {
     import('./rigedit.js').then(({ runRigEdit }) => runRigEdit(params.get('rigedit')));
+  } else if (params.has('bake')) {
+    import('./bake.js').then(({ runBake }) => runBake(params.get('bake')));
   } else if (params.has('rigtest')) {
     import('./rigtest.js').then(({ runRigTest }) => runRigTest());
   } else {

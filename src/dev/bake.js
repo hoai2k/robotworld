@@ -1,0 +1,47 @@
+// ?bake=<id> — headless GLB finalization. Bakes every geometry/skeleton/skin
+// edit (custom rig, skinOps, reparent, rig posts, stretch, bonePos) into a GLB
+// and exposes the bytes for tools/bake-glb.mjs to write to disk. NOT an
+// interactive tool — it renders nothing; it just prepares window.__bakeGlb.
+//
+// The RUNTIME half of the pipeline (RigAdapter retarget, glbanim gait, muzzles,
+// height scaling) is intentionally NOT baked — it stays in the manifest/code
+// and re-applies on load, driving the baked bones by name. See bakeMechScene.
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { bakeMechScene } from '../mechs/gltf.js';
+
+export async function runBake(id) {
+  window.__bakeReady = false;
+  window.__bakeErr = null;
+  try {
+    const res = await bakeMechScene(id);
+    if (!res) throw new Error(`no GLB manifest entry for "${id}"`);
+    const { model, boneMap, customRig } = res;
+
+    let meshes = 0, verts = 0;
+    const boneNames = [];
+    model.traverse((o) => {
+      if (o.isBone) boneNames.push(o.name);
+      if (o.isMesh || o.isSkinnedMesh) { meshes++; verts += o.geometry?.attributes?.position?.count || 0; }
+    });
+
+    const exporter = new GLTFExporter();
+    const buf = await new Promise((resolve, reject) =>
+      exporter.parse(model, resolve, reject, { binary: true, onlyVisible: false }));
+
+    // ArrayBuffer -> base64 (chunked; a GLB can be several MB)
+    const u8 = new Uint8Array(buf);
+    let bin = '';
+    const CH = 0x8000;
+    for (let i = 0; i < u8.length; i += CH) bin += String.fromCharCode.apply(null, u8.subarray(i, i + CH));
+    window.__bakeGlb = {
+      base64: btoa(bin),
+      byteLength: buf.byteLength,
+      report: { id, customRig, bones: boneNames.length, meshes, verts,
+        mappedJoints: Object.keys(boneMap).length, boneNames },
+    };
+    window.__bakeReady = true;
+  } catch (e) {
+    window.__bakeErr = String((e && e.stack) || e);
+    window.__bakeReady = true;
+  }
+}

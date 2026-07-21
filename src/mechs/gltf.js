@@ -155,6 +155,100 @@ export async function loadRawGlbScene(id, opts = {}) {
   return { scene, entry };
 }
 
+// ---- shared geometry-edit helpers (load path AND bake path) ---------------
+// Factored so buildGlbMech and bakeMechScene apply identical edits — the bake
+// can never drift from what the game renders.
+
+// manifest `reparent`: {"childBone": "newParentBone"}. attach() preserves the
+// child's world transform, so the bind-pose skin stays valid (boneInverses
+// unchanged); the child just starts following its new parent.
+function applyReparent(model, reparent) {
+  if (!reparent) return;
+  model.updateMatrixWorld(true);
+  const byName = new Map();
+  model.traverse((o) => { if (o.isBone) byName.set(o.name, o); });
+  for (const [childName, parentName] of Object.entries(reparent)) {
+    const c = byName.get(childName), p = byName.get(parentName);
+    if (c && p) p.attach(c);
+    else console.warn('reparent: unknown bone', childName, '->', parentName);
+  }
+}
+
+// bind-skeleton nudges from the ?debug=models tool: `stretch` lengthens a bone's
+// offset from its parent; `bonePos` translates a bone's rest position. Both act
+// on the mapped bones (in bone-local units) before offset capture / export.
+function applyBoneNudges(boneMap, entry) {
+  if (entry.stretch) {
+    for (const [jname, k] of Object.entries(entry.stretch)) boneMap[jname]?.position.multiplyScalar(k);
+  }
+  if (entry.bonePos) {
+    for (const [jname, d] of Object.entries(entry.bonePos)) {
+      const b = boneMap[jname];
+      if (b) b.position.set(b.position.x + d[0], b.position.y + d[1], b.position.z + d[2]);
+    }
+  }
+}
+
+// Finalization baker: produce the fully-EDITED scene subtree (mesh + skeleton +
+// skin, with reparent / custom-rig / skinOps / rig-posts / stretch / bonePos all
+// applied) at BIND POSE, ready to hand to GLTFExporter. This is the GEOMETRY
+// half of the load pipeline; the RUNTIME half (height scaling, virtual rig,
+// RigAdapter retarget, muzzles, glbanim gait) is NOT baked — it stays in the
+// manifest/code and re-applies on load, driving the baked bones by name. So the
+// finalized manifest keeps bindPose / yawOffset / heightScale / boneCorrections
+// / muzzles / profileKey and drops rig / skinOps / reparent / stretch / bonePos.
+// Returns { model, entry, boneMap, customRig } or null. tools/bake-glb.mjs +
+// src/dev/bake.js drive this. Uses the tool-path reader (bypasses the 3d gate).
+export async function bakeMechScene(id) {
+  const m = await fetchRawManifest();
+  const entry = m[id];
+  if (!entry?.url) return null;
+  const gltf = await loadGLTF(entry.url);
+  const model = cloneSkinned(gltf.scene);
+  // private geometry so the edits never touch the shared gltf cache
+  model.traverse((o) => {
+    if (o.isSkinnedMesh) { o.geometry = o.geometry.clone(); delete o.geometry.userData.__skinOpsApplied; }
+  });
+
+  applyReparent(model, entry.reparent);
+
+  const bones = [], meshes = [];
+  model.traverse((o) => { if (o.isBone) bones.push(o); if (o.isMesh || o.isSkinnedMesh) meshes.push(o); });
+
+  // rig + skin — mirrors buildGlbMech's resolution: a custom rig re-skins to
+  // game-joint bones (+ optional skinOps + rig-post rods baked AS geometry),
+  // else stock mapBones + skinOps on the auto-rig skeleton.
+  const customRig = entry.rig ? rigFor(entry.rig) : null;
+  let boneMap;
+  if (customRig) {
+    const sk = meshes.find((mm) => mm.isSkinnedMesh);
+    boneMap = {};
+    if (sk) {
+      const { byName } = applyCustomRig(sk, customRig);
+      for (const j of JOINT_ORDER) if (byName[j]) boneMap[j] = byName[j];
+      buildRigPosts(byName, customRig);
+      if (entry.skinOps?.length) applySkinOps(sk, entry.skinOps);
+      // prune the now-orphaned original auto-rig skeleton so the baked GLB
+      // carries ONLY the custom bones (no dead Tripo bones). Safe: the mesh was
+      // rebound to the new skeleton, and the originals sit in a separate subtree
+      // (verified never the mesh's transform ancestors — guarded below anyway).
+      const keep = new Set(sk.skeleton.bones);
+      const ancestors = new Set(); for (let a = sk; a; a = a.parent) ancestors.add(a);
+      const dead = [];
+      model.traverse((o) => { if (o.isBone && !keep.has(o) && !ancestors.has(o)) dead.push(o); });
+      for (const d of dead) d.removeFromParent();
+    }
+  } else {
+    boneMap = mapBones(bones, entry.boneOverrides || {});
+    if (entry.skinOps?.length) {
+      for (const mm of meshes) if (mm.isSkinnedMesh) applySkinOps(mm, entry.skinOps);
+    }
+  }
+
+  applyBoneNudges(boneMap, entry);
+  return { model, entry, boneMap, customRig: !!customRig };
+}
+
 // Preload the models for a set of mech ids (call during select/loading).
 export async function preloadMechModels(ids) {
   const m = await loadManifest();
@@ -199,16 +293,7 @@ function buildGlbMech(def, entry, gltf) {
   // the hierarchy. Only touches the CLONE's hierarchy — skinOps below runs on
   // the CACHED scene, so purgeFar keeps its committed hierarchy-distance
   // semantics regardless of order.
-  if (entry.reparent) {
-    model.updateMatrixWorld(true);
-    const byName = new Map();
-    model.traverse((o) => { if (o.isBone) byName.set(o.name, o); });
-    for (const [childName, parentName] of Object.entries(entry.reparent)) {
-      const c = byName.get(childName), p = byName.get(parentName);
-      if (c && p) p.attach(c);
-      else console.warn('reparent: unknown bone', childName, '->', parentName);
-    }
-  }
+  applyReparent(model, entry.reparent);
 
   // collect skeleton bones + meshes
   const bones = [];
@@ -371,21 +456,9 @@ function buildGlbMech(def, entry, gltf) {
       rescaleAndReground(targetHeadY / glbHeadY);
     }
   }
-  // limb stretch: scale bone offsets away from bind before offset capture,
-  // so a model whose proportions undershoot the mech (e.g. short arms) is
-  // lengthened once and animates normally from there
-  if (entry.stretch) {
-    for (const [jname, k] of Object.entries(entry.stretch)) {
-      boneMap[jname]?.position.multiplyScalar(k);
-    }
-  }
-  // per-bone rest-position nudge from the ?debug=models tool (translate mode)
-  if (entry.bonePos) {
-    for (const [jname, d] of Object.entries(entry.bonePos)) {
-      const b = boneMap[jname];
-      if (b) b.position.set(b.position.x + d[0], b.position.y + d[1], b.position.z + d[2]);
-    }
-  }
+  // limb stretch + per-bone rest-position nudge (?debug=models), applied to the
+  // bind skeleton before offset capture. Shared with bakeMechScene.
+  applyBoneNudges(boneMap, entry);
   const adapter = new RigAdapter(joints, boneMap, {
     bindPose: entry.bindPose ?? 'tpose',
     hipsScale: 1 / (scale || 1),

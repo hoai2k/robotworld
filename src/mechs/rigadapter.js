@@ -24,23 +24,26 @@ export const JOINT_ORDER = [
 ];
 
 // Bone-name aliases per joint (matched case-insensitively as suffix, with
-// namespace prefixes like "mixamorig:" stripped). Order = preference.
+// namespace prefixes like "mixamorig:" stripped). Order = preference. The
+// joint's OWN name leads every list, so a hand-authored or BAKED GLB whose
+// bones are named exactly as the game joints (hips, torso, shoulderL, ...)
+// auto-maps with no boneOverrides — the finalized form after tools/bake-glb.
 const BONE_ALIASES = {
   hips: ['hips', 'pelvis', 'hip', 'root_m', 'spine_00'],
-  torso: ['spine2', 'spine1', 'chest', 'spine', 'upperchest'],
+  torso: ['torso', 'spine2', 'spine1', 'chest', 'spine', 'upperchest'],
   head: ['head', 'neck'],
-  shoulderL: ['leftarm', 'l_upperarm', 'upperarm_l', 'arm_l', 'leftupperarm', 'shoulder_l', 'l_arm'],
-  elbowL: ['leftforearm', 'l_forearm', 'forearm_l', 'lowerarm_l', 'leftlowerarm', 'elbow_l', 'l_elbow'],
-  handL: ['lefthand', 'l_hand', 'hand_l', 'wrist_l'],
-  shoulderR: ['rightarm', 'r_upperarm', 'upperarm_r', 'arm_r', 'rightupperarm', 'shoulder_r', 'r_arm'],
-  elbowR: ['rightforearm', 'r_forearm', 'forearm_r', 'lowerarm_r', 'rightlowerarm', 'elbow_r', 'r_elbow'],
-  handR: ['righthand', 'r_hand', 'hand_r', 'wrist_r'],
-  thighL: ['leftupleg', 'l_thigh', 'thigh_l', 'upleg_l', 'leftupperleg', 'leg_l'],
-  kneeL: ['leftleg', 'l_calf', 'calf_l', 'shin_l', 'leftlowerleg', 'knee_l', 'lowerleg_l', 'l_shin', 'l_knee'],
-  ankleL: ['leftfoot', 'l_foot', 'foot_l', 'ankle_l'],
-  thighR: ['rightupleg', 'r_thigh', 'thigh_r', 'upleg_r', 'rightupperleg', 'leg_r'],
-  kneeR: ['rightleg', 'r_calf', 'calf_r', 'shin_r', 'rightlowerleg', 'knee_r', 'lowerleg_r', 'r_shin', 'r_knee'],
-  ankleR: ['rightfoot', 'r_foot', 'foot_r', 'ankle_r'],
+  shoulderL: ['shoulderl', 'leftarm', 'l_upperarm', 'upperarm_l', 'arm_l', 'leftupperarm', 'shoulder_l', 'l_arm'],
+  elbowL: ['elbowl', 'leftforearm', 'l_forearm', 'forearm_l', 'lowerarm_l', 'leftlowerarm', 'elbow_l', 'l_elbow'],
+  handL: ['handl', 'lefthand', 'l_hand', 'hand_l', 'wrist_l'],
+  shoulderR: ['shoulderr', 'rightarm', 'r_upperarm', 'upperarm_r', 'arm_r', 'rightupperarm', 'shoulder_r', 'r_arm'],
+  elbowR: ['elbowr', 'rightforearm', 'r_forearm', 'forearm_r', 'lowerarm_r', 'rightlowerarm', 'elbow_r', 'r_elbow'],
+  handR: ['handr', 'righthand', 'r_hand', 'hand_r', 'wrist_r'],
+  thighL: ['thighl', 'leftupleg', 'l_thigh', 'thigh_l', 'upleg_l', 'leftupperleg', 'leg_l'],
+  kneeL: ['kneel', 'leftleg', 'l_calf', 'calf_l', 'shin_l', 'leftlowerleg', 'knee_l', 'lowerleg_l', 'l_shin', 'l_knee'],
+  ankleL: ['anklel', 'leftfoot', 'l_foot', 'foot_l', 'ankle_l'],
+  thighR: ['thighr', 'rightupleg', 'r_thigh', 'thigh_r', 'upleg_r', 'rightupperleg', 'leg_r'],
+  kneeR: ['kneer', 'rightleg', 'r_calf', 'calf_r', 'shin_r', 'rightlowerleg', 'knee_r', 'lowerleg_r', 'r_shin', 'r_knee'],
+  ankleR: ['ankler', 'rightfoot', 'r_foot', 'foot_r', 'ankle_r'],
 };
 
 // How to pose OUR virtual rig so it matches the model's bind pose while the
