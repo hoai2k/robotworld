@@ -30,6 +30,7 @@ import { profileFor as glbProfileFor } from './glbanim.js';
 import { applySkinOpsToGltf, applySkinOps } from './skinops.js';
 import { rigFor } from './rigs/index.js';
 import { applyCustomRig, buildRigPosts } from './reskin.js';
+import { recolorMaterial } from './recolorglb.js';
 import { clamp } from '../core/utils.js';
 import { warnContract } from './contract.js';
 
@@ -273,12 +274,34 @@ function buildGlbMech(def, entry, gltf) {
     applySkinOpsToGltf(gltf.scene, entry.skinOps);
   }
 
+  // Alternate paint scheme (colorscheme.js): repaint the baked GLB textures so
+  // a "blue Inferno" is actually blue. variant 0 / no recolor => untouched.
+  const recolor = def.recolor && def.recolor.variant ? def.recolor : null;
+  // Own each material once per build (dedup by source uuid) before mutating it:
+  // clones share the cached gltf's materials/textures, so recolor / emissive
+  // boost must never write through to them.
+  const _owned = new Map(); // srcMat.uuid -> cloned material
+  const ownMat = (o) => {
+    const src = o.material;
+    if (!src) return null;
+    let c = _owned.get(src.uuid);
+    if (!c) { c = src.clone(); _owned.set(src.uuid, c); }
+    o.material = c;
+    return c;
+  };
   for (const o of meshes) {
     o.castShadow = true;
     o.frustumCulled = false; // skinned bounds are unreliable mid-animation
-    if (entry.emissiveBoost && o.material?.emissive) {
-      o.material = o.material.clone();
-      o.material.emissiveIntensity = (o.material.emissiveIntensity || 1) * entry.emissiveBoost;
+    if (!recolor && !(entry.emissiveBoost && o.material?.emissive)) continue;
+    const mat = ownMat(o);
+    if (!mat) continue;
+    if (recolor && !mat.userData.__recolored) {
+      recolorMaterial(mat, recolor);
+      mat.userData.__recolored = true;
+    }
+    if (entry.emissiveBoost && mat.emissive && !mat.userData.__eBoosted) {
+      mat.emissiveIntensity = (mat.emissiveIntensity || 1) * entry.emissiveBoost;
+      mat.userData.__eBoosted = true;
     }
   }
 

@@ -58,9 +58,25 @@ export function applyColorScheme(def, v = 0) {
   const S = SCHEMES[v];
   if (!S) return def;
   const re = (hex) => (S.dark ? darken(hex) : forceHue(hex, S.h, S.minS));
+  const [stockHue, stockSat] = hexToHsl(def.colors.primary); // BEFORE the repaint
   return {
     ...def,
     variant: v,
+    // GLB mechs can't re-synthesize maps from the recolored skin, so they carry
+    // this spec to recolorglb.js, which repaints the baked textures to match.
+    recolor: {
+      variant: v,
+      dark: !!S.dark,
+      hue: S.h,                                    // undefined for MIDNIGHT
+      minS: S.minS,                                // undefined for MIDNIGHT
+      glowHue: S.glow != null ? hexToHsl(S.glow)[0] : null,
+      stockHue,
+      // A near-grey/tan primary (the "metal" mechs) gives an unreliable hue —
+      // and no vivid primary to distinguish from accents — so recolor ANY
+      // saturated paint, not just the stock-hue family. Vivid primaries keep
+      // the hue-band so two-tone accents / glows survive.
+      anyHue: stockSat < 0.22,
+    },
     colors: { ...def.colors, primary: re(def.colors.primary), glow: S.glow ?? def.colors.glow },
     skin: def.skin ? {
       ...def.skin,
