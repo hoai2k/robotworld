@@ -27,7 +27,7 @@ import { Animator } from './animator.js';
 import { RigAdapter, mapBones, JOINT_ORDER } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
-import { applySkinOpsToGltf } from './skinops.js';
+import { applySkinOpsToGltf, rigidifyGltf } from './skinops.js';
 import { rigFor } from './rigs/index.js';
 import { applyCustomRig } from './reskin.js';
 import { clamp } from '../core/utils.js';
@@ -60,6 +60,21 @@ const _gcTmp2 = new THREE.Vector3();
 // procedural stand-in while a GLB downloads, then swap the GLB in.
 export function is3dMode() {
   return new URLSearchParams(location.search).get('debug') === '3d';
+}
+
+// "Hard-surface skinning" preview flag: strip the auto-riggers' smooth,
+// organic look off the GLB mechs at load time, non-destructively, so they can
+// be compared without re-authoring any weights.
+//   ?skin=rigid — collapse skin weights to one bone per vertex (hinge joints)
+//   ?skin=flat  — flat/faceted surface shading (machined-metal panels)
+//   ?skin=hard  — both (also the meaning of a bare ?skin / ?skin=1 / ?skin=both)
+// Absent -> the normal smooth organic look. Read once at load, like is3dMode().
+export function glbSkinStyle() {
+  const raw = new URLSearchParams(location.search).get('skin');
+  if (raw === null) return { rigid: false, flat: false };
+  const v = raw.toLowerCase();
+  const both = v === '' || v === 'hard' || v === '1' || v === 'both';
+  return { rigid: both || v === 'rigid', flat: both || v === 'flat' };
 }
 
 // Sync check — only meaningful once loadManifest() has resolved (which the
@@ -198,6 +213,8 @@ function buildGlbMech(def, entry, gltf) {
     }
   }
 
+  const skinStyle = glbSkinStyle(); // ?skin= hard-surface preview (rigid/flat)
+
   // collect skeleton bones + meshes
   const bones = [];
   const meshes = [];
@@ -255,6 +272,11 @@ function buildGlbMech(def, entry, gltf) {
     // this clone. (A custom rig re-skins from scratch, so it needs no skinOps.)
     applySkinOpsToGltf(gltf.scene, entry.skinOps);
   }
+  // ?skin=rigid|hard: drop the smooth multi-bone blend so the auto-rigged
+  // model bends as a rigid hard-surface robot. (Custom-rig / skinOps parts are
+  // already ~rigid; this snaps the residual blend on the cached, shared
+  // geometry, once — idempotent via the geometry guard in rigidifyGltf.)
+  if (skinStyle.rigid) rigidifyGltf(gltf.scene);
 
   for (const o of meshes) {
     o.castShadow = true;
@@ -262,6 +284,14 @@ function buildGlbMech(def, entry, gltf) {
     if (entry.emissiveBoost && o.material?.emissive) {
       o.material = o.material.clone();
       o.material.emissiveIntensity = (o.material.emissiveIntensity || 1) * entry.emissiveBoost;
+    }
+    // ?skin=flat|hard: faceted shading so smooth organic surfaces read as
+    // machined-metal panels. Clone the (clone-shared) material first so the
+    // preview flag never leaks onto other mechs sharing the same source.
+    if (skinStyle.flat && o.material) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      const flat = mats.map((m) => { const c = m.clone(); c.flatShading = true; c.needsUpdate = true; return c; });
+      o.material = Array.isArray(o.material) ? flat : flat[0];
     }
   }
 

@@ -388,6 +388,50 @@ export function applySkinOps(mesh, ops, analysis = null) {
   return { applied, verts: total };
 }
 
+// ---- rigidify (the "hard-surface skinning" preview) -----------------------
+// Collapse every vertex onto its single DOMINANT bone at weight 1.0, throwing
+// away the auto-rigger's smooth multi-bone blend. That blend is what makes an
+// auto-rigged GLB bend organically (flesh-like) at the joints; without it a
+// limb bends as a rigid hinge — exactly how a hard-surface robot should move,
+// and what the custom-rig / skinOps repair path already produces per-part.
+// Drives the ?skin=rigid|hard preview flag (see gltf.js glbSkinStyle) so the
+// GLB mechs can be viewed non-organically WITHOUT re-authoring any weights.
+export function rigidifySkinnedMesh(mesh) {
+  const geo = mesh.geometry;
+  const jnt = geo.attributes.skinIndex;
+  const wgt = geo.attributes.skinWeight;
+  if (!jnt || !wgt) return 0;
+  const n = jnt.count;
+  for (let i = 0; i < n; i++) {
+    let bw = -1, bk = 0;
+    for (let k = 0; k < 4; k++) {
+      const w = wgt.getComponent(i, k);
+      if (w > bw) { bw = w; bk = k; }
+    }
+    const bi = jnt.getComponent(i, bk);   // dominant bone index
+    jnt.setXYZW(i, bi, 0, 0, 0);
+    wgt.setXYZW(i, 1, 0, 0, 0);
+  }
+  jnt.needsUpdate = true;
+  wgt.needsUpdate = true;
+  return n;
+}
+
+// Rigidify every skinned mesh of a loaded gltf ONCE. Like applySkinOpsToGltf
+// this mutates the CACHED, clone-shared geometry, so the idempotency guard
+// keeps a per-fighter call from re-running it. Order-independent with skinOps
+// (which only rebinds a component's dominant bone) — running after them keeps
+// their corrected assignments and simply drops the residual blend weights.
+export function rigidifyGltf(gltfScene) {
+  gltfScene.traverse((o) => {
+    if (!o.isSkinnedMesh) return;
+    if (o.geometry.userData.__rigidified) return;
+    o.geometry.userData.__rigidified = true;
+    const n = rigidifySkinnedMesh(o);
+    if (n) console.info(`rigidify: ${n} verts snapped to their dominant bone`);
+  });
+}
+
 // Runtime entry: apply a manifest's skinOps to a loaded gltf ONCE (the
 // geometry is shared by every clone, so a per-fighter application would
 // double-apply; the guard makes this idempotent).

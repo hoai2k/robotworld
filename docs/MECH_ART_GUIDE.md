@@ -139,6 +139,13 @@ node tools/shot.mjs "http://localhost:5173/?battle=uptown&p1=<id>&p2=viper&auto=
 `executablePath` for other environments. `?rigtest` sanity-checks the GLB
 retargeting math itself.)
 
+**Preview a GLB mech WITHOUT its smooth organic auto-rig look** (add to any
+`?debug=3d` URL — a non-destructive load-time toggle, no re-authoring):
+`?skin=rigid` collapses skin weights to one bone/vertex (hinge joints instead
+of flesh — only visible in motion) · `?skin=flat` flat-shades surfaces
+(machined-metal panels, visible even at idle) · `?skin=hard` (or a bare
+`?skin`) does both. See `glbSkinStyle` / `rigidifyGltf` in gltf.js + skinops.js.
+
 **Judging checklist** (VIEW the images — don't assume):
 1. Silhouette matches the concept's mass rhythm at a squint.
 2. Arms hang naturally at rest; fists/weapons don't intersect hips.
