@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import { Engine } from '../core/engine.js';
 import { ROSTER } from '../mechs/roster.js';
+import { applyColorScheme } from '../mechs/colorscheme.js';
 import { Animator } from '../mechs/animator.js';
 import { CLIPS } from '../mechs/animations.js';
 import { createMech } from '../mechs/gltf.js';
@@ -28,7 +29,11 @@ export async function runShowcase(which) {
   scene.add(ground);
 
   const single = which && which !== 'true' && which !== '1' && which !== 'all';
-  const defs = single ? ROSTER.filter((m) => m.id === which) : ROSTER;
+  // &c=<0-3> paints the mech in a color scheme (STOCK/EMBER/TIDE/MIDNIGHT) so
+  // recolors can be judged from the same camera as stock.
+  const scheme = +params.get('c') || 0;
+  const defs = (single ? ROSTER.filter((m) => m.id === which) : ROSTER)
+    .map((d) => applyColorScheme(d, scheme));
 
   const mechs = [];
   window.__showcaseMechs = mechs; // probe hook
