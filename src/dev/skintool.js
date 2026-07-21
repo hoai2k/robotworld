@@ -58,7 +58,11 @@ export async function runSkinTool(startId) {
   let mode = 'select';       // select | picktarget
   let texturedMat = null, boneMat = null, showTex = false;
   let wiggle = null;         // {bone, orig} while wiggling
+  let wigglePaused = false;  // SPACE freezes the wiggle so you can click a
+                             // stretched-out piece of geometry
   let hoverInfo = '';
+  // undo/redo of the ops list (Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y)
+  let undoStack = [], redoStack = [];
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
@@ -97,6 +101,30 @@ export async function runSkinTool(startId) {
     renderOps();
   }
 
+  // ---- undo/redo (snapshots of the ops list) ----
+  const snapshotOps = () => ops.map((o) => JSON.parse(JSON.stringify(o)));
+  function pushUndo() {
+    undoStack.push(snapshotOps());
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+  }
+  function undo() {
+    if (!undoStack.length) { setStatus('Nothing to undo.'); return; }
+    redoStack.push(snapshotOps());
+    ops = undoStack.pop();
+    selComp = null; stopWiggle();
+    applyAllOps();
+    setStatus(`Undo · ${ops.length} op(s).`);
+  }
+  function redo() {
+    if (!redoStack.length) { setStatus('Nothing to redo.'); return; }
+    undoStack.push(snapshotOps());
+    ops = redoStack.pop();
+    selComp = null; stopWiggle();
+    applyAllOps();
+    setStatus(`Redo · ${ops.length} op(s).`);
+  }
+
   async function load(id) {
     curId = id;
     // keep the URL's ?mech= in sync so a reload / shared link reopens this mech.
@@ -108,7 +136,8 @@ export async function runSkinTool(startId) {
       window.history.replaceState(null, '', url);
     } catch (_) { /* non-browser / opaque origin — URL sync is best-effort */ }
     if (holder) { scene.remove(holder); holder = null; }
-    selComp = null; wiggle = null; ops = []; colorAttr = null;
+    selComp = null; wiggle = null; wigglePaused = false; ops = []; colorAttr = null;
+    undoStack = []; redoStack = [];
     const raw = await loadRawGlbScene(id);
     if (!raw) { setStatus('no GLB for ' + id); return; }
     mesh = null;
@@ -206,29 +235,67 @@ export async function runSkinTool(startId) {
 
   function addOp(comp, toBone) {
     if (comp.boneName === toBone) { setStatus('That island already belongs to ' + toBone); return; }
+    pushUndo();
     ops.push({ sel: { comp: comp.id }, to: toBone });
     selComp = null;
     applyAllOps();
     setStatus(`Rebound island #${comp.id} (${comp.count}v) → ${toBone}`);
   }
 
+  // Rebind the selected island 100% to ITS OWN dominant bone — a rigid
+  // (weight 1.0) op strips any secondary-bone weights that island's verts
+  // carry, so it stops following any other bone. Use when a patch is fine on
+  // its own bone but rubber-blends toward a neighbour.
+  function rebindSelfHard() {
+    if (!selComp) { setStatus('Select an island first (click a patch).'); return; }
+    const c = selComp;
+    pushUndo();
+    ops.push({ sel: { comp: c.id }, to: c.boneName });
+    selComp = null;
+    applyAllOps();
+    setStatus(`Island #${c.id} (${c.count}v) rebound 100% to ${c.boneName} — secondary weights removed.`);
+  }
+
   // ---- bone wiggle (verify what moves) ----
   function startWiggle(bone) {
     stopWiggle();
     wiggle = { bone, orig: bone.quaternion.clone(), t: 0 };
-    setStatus(`Wiggling ${bone.name} — watch what moves. W or click list to stop.`);
+    wigglePaused = false;
+    setStatus(`Wiggling ${bone.name} — watch what moves. SPACE pauses · W stops.`);
   }
   function stopWiggle() {
     if (wiggle) { wiggle.bone.quaternion.copy(wiggle.orig); wiggle = null; }
+    wigglePaused = false;
   }
 
   window.addEventListener('keydown', (ev) => {
+    // undo/redo — Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z or Ctrl/Cmd+Y
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'z' || ev.key === 'Z')) {
+      ev.preventDefault();
+      if (ev.shiftKey) redo(); else undo();
+      return;
+    }
+    if ((ev.ctrlKey || ev.metaKey) && (ev.key === 'y' || ev.key === 'Y')) {
+      ev.preventDefault(); redo(); return;
+    }
+    if (ev.key === ' ') {
+      // SPACE — freeze/unfreeze the wiggle so a stretched-out piece of
+      // geometry holds still long enough to click
+      if (wiggle) {
+        ev.preventDefault();
+        wigglePaused = !wigglePaused;
+        setStatus(`Wiggle ${wigglePaused ? 'PAUSED — click the stretched geometry now' : 'resumed'} (${wiggle.bone.name}).`);
+      }
+      return;
+    }
     if (ev.key === 't' || ev.key === 'T') {
       showTex = !showTex;
       if (mesh) mesh.material = showTex ? texturedMat : boneMat;
     } else if (ev.key === 'w' || ev.key === 'W') {
       if (wiggle) stopWiggle();
       else if (selComp) startWiggle(bones[selComp.boneIndex]);
+    } else if (ev.key === 'b' || ev.key === 'B') {
+      rebindSelfHard();
     } else if (ev.key === 'q' || ev.key === 'Q') {
       // same as clicking "Rebind → click target": toggle picktarget mode so you
       // can click a patch, W to wiggle, Q to rebind, then click the correct bone
@@ -284,6 +351,15 @@ export async function runSkinTool(startId) {
   }));
   panel.appendChild(texRow);
 
+  // rebind the selected island 100% to its own bone (drop secondary weights)
+  panel.appendChild(actionBtn('Bind selected 100% to own bone (B)', rebindSelfHard));
+
+  const histRow = document.createElement('div');
+  histRow.style.cssText = 'display:flex;gap:6px;margin:4px 0';
+  histRow.appendChild(actionBtn('↶ Undo (Ctrl+Z)', undo));
+  histRow.appendChild(actionBtn('↷ Redo (Ctrl+Shift+Z)', redo));
+  panel.appendChild(histRow);
+
   panel.appendChild(label('Ops (this session + committed)'));
   const opsEl = document.createElement('div');
   opsEl.style.cssText = 'margin-bottom:6px;max-height:150px;overflow:auto';
@@ -314,7 +390,7 @@ export async function runSkinTool(startId) {
       const x = document.createElement('button');
       x.textContent = '✕';
       x.style.cssText = 'background:#3a2027;color:#ff9c9c;border:1px solid #553;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 6px';
-      x.onclick = () => { ops.splice(i, 1); applyAllOps(); };
+      x.onclick = () => { pushUndo(); ops.splice(i, 1); applyAllOps(); };
       row.append(t, x);
       opsEl.appendChild(row);
     });
@@ -381,7 +457,9 @@ export async function runSkinTool(startId) {
   help.innerHTML = 'Colors = which bone owns each patch.<br>'
     + '1. Click a wrong-colored patch (selects it, turns white)<br>'
     + '2. “Rebind → click target” (Q), then click the part it should move with<br>'
-    + '3. Wiggle (W) to verify · Export when happy.<br>'
+    + '3. Wiggle (W) to verify · SPACE pauses a wiggle to click a stretched piece<br>'
+    + '4. “Bind 100% to own bone” (B) drops a patch’s secondary weights.<br>'
+    + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
 
@@ -402,7 +480,7 @@ export async function runSkinTool(startId) {
   updateModeUI();
   engine.onUpdate = (dt) => {
     orbit.update();
-    if (wiggle) {
+    if (wiggle && !wigglePaused) {
       wiggle.t += dt;
       const a = Math.sin(wiggle.t * 3.2) * 0.55;
       wiggle.bone.quaternion.copy(wiggle.orig)
@@ -410,6 +488,9 @@ export async function runSkinTool(startId) {
     }
   };
   engine.start();
-  window.__skinTool = { engine, panel, get mesh() { return mesh; }, get ops() { return ops; }, get analysis() { return analysis; }, addOpByComp: (cid, to) => { const c = analysis.comps[cid]; if (c) addOp(c, to); }, load };
+  window.__skinTool = { engine, panel, get mesh() { return mesh; }, get ops() { return ops; }, get analysis() { return analysis; },
+    addOpByComp: (cid, to) => { const c = analysis.comps[cid]; if (c) addOp(c, to); },
+    selectComp: (cid) => { const c = analysis.comps[cid]; if (c) { selComp = c; rebuildColors(); } },
+    bindSelfHard: rebindSelfHard, undo, redo, load };
   return engine;
 }
