@@ -368,6 +368,17 @@ export function applySkinOps(mesh, ops, analysis = null) {
       if (n) { applied++; total += n; }
       continue;
     }
+    // {"sel":{"verts":[i,j,...]}, "to":bone} — bind an explicit vertex set
+    // rigidly to the target bone. Emitted by the ?debug=skin paint brush to
+    // split one island across two bones by hand; vertex indices are stable for
+    // a given GLB so this re-applies deterministically at load.
+    if (op.sel && Array.isArray(op.sel.verts)) {
+      const vti = bones.findIndex((b) => b.name === op.to);
+      if (vti < 0) { console.warn('skinOps: unknown target bone', op.to); continue; }
+      for (const v of op.sel.verts) { jnt.setXYZW(v, vti, 0, 0, 0); wgt.setXYZW(v, 1, 0, 0, 0); }
+      applied++; total += op.sel.verts.length;
+      continue;
+    }
     const ti = bones.findIndex((b) => b.name === op.to);
     if (ti < 0) { console.warn('skinOps: unknown target bone', op.to); continue; }
     const targets = selectComps(a, op.sel || {});
