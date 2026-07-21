@@ -472,6 +472,14 @@ function buildGlbMech(def, entry, gltf) {
     if (minY !== Infinity) container.position.y = clampBaseY + (rootY - minY);
   };
 
+  // Visual-only floor lift for the ?debug=models pose tool. Raises just the
+  // rendered model (the container is a CHILD of the physics group), so it never
+  // touches the fighter's pos — which IS group.position (aliased), meaning a
+  // lift on the group corrupts physics: it accumulates (mech floats up) and
+  // jerks pos.y during animation (twitch + spurious airborne/landing states).
+  // dy is a root-local (= world) Y offset over the natural clamp base.
+  mech.visualFloorLift = (dy) => { container.position.y = clampBaseY + (dy || 0); };
+
   // Synchronous, CORRECT clone for combat spawns (SAURION's raptor pack).
   // GLB bodies are SkinnedMeshes: Object3D.clone(true) shares the skeleton, so
   // the copy stays welded to the ORIGINAL's bones and renders invisible/torn.

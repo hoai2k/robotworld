@@ -93,7 +93,7 @@ export async function runPoseTool(startId) {
       f.vel.set(0, 0, 0);
       f.yaw = f.targetYaw = f.torsoYaw = 0;
       f.grounded = true;
-      f._floorLift = 0;
+      f._floorLift = 0; f.mech.visualFloorLift?.(0); // clear the pose-tool floor lift
     }
     idleT = 0;
   }
@@ -114,8 +114,17 @@ export async function runPoseTool(startId) {
   // only; combat is untouched.
   const _clampV = new THREE.Vector3();
   function floorClamp(f, dt) {
-    if (!f?.mech?.isGLB) return;   // procedural gaits keep their own feet down
+    // Only GLBs, and apply the lift to the MODEL (mech.visualFloorLift), NEVER
+    // f.group.position — that IS f.pos (aliased), so lifting the group corrupts
+    // physics: it accumulates (mech floats up) and jerks pos.y during animation
+    // (the reported twitch + a spurious airborne/landing "circle").
+    if (!f?.mech?.isGLB || !f.mech.visualFloorLift) return;
     const g = f.group;
+    // Reset the model to its base first, so minY is the UN-lifted penetration
+    // (combat's groundClamp resets the container some frames, so we can't trust
+    // an accumulated offset — measure absolute each frame). `need` is then the
+    // exact lift that plants the lowest vertex on y=0.
+    f.mech.visualFloorLift(0);
     g.updateMatrixWorld(true);
     let minY = Infinity;
     g.traverse((o) => {
@@ -130,17 +139,15 @@ export async function runPoseTool(startId) {
       }
     });
     if (minY === Infinity) return;
-    // Asymmetric envelope: rise INSTANTLY so the lowest vertex never dips
-    // below the floor, then settle back down. Settle is SLOW while a limb is
-    // still deep (need high) so the body holds near the planted height instead
-    // of heaving ~1u per stride, and FAST once the pose comes back up (need
-    // low) so a stopped mech drops promptly instead of hovering. Net: the
-    // gallop plants on the deepest limb with almost no bob; no sink anywhere.
+    // Asymmetric envelope: rise INSTANTLY so the lowest vertex never dips below
+    // the floor, then settle back down — SLOW while still lifted a lot (hold
+    // near the planted height instead of heaving per stride), FAST once barely
+    // lifted (a stopped mech drops promptly). Applied to the MODEL only.
     const need = minY < 0 ? -minY : 0;
     const prev = f._floorLift || 0;
-    const settle = need > 0.25 ? 0.8 : 12;   // units/sec
+    const settle = need > 0.25 ? 0.8 : 12;          // units/sec
     f._floorLift = need > prev ? need : Math.max(need, prev - settle * (dt || 0.016));
-    if (f._floorLift > 0.0005) { g.position.y += f._floorLift; g.updateMatrixWorld(true); }
+    if (f._floorLift > 0.0005) { f.mech.visualFloorLift(f._floorLift); g.updateMatrixWorld(true); }
   }
 
   function blankIntent() {
@@ -223,6 +230,7 @@ export async function runPoseTool(startId) {
       // freeze both at the deterministic rest and capture the gizmo baseline
       procF.animator.poseStatic();
       glbF.animator.poseStatic();
+      for (const f of [procF, glbF]) { if (f) { f._floorLift = 0; f.mech.visualFloorLift?.(0); } }
       drawSizeRef();
       for (const [j, b] of Object.entries(glbF.mech.boneMap || {})) {
         base[j] = { q: b.quaternion.clone(), p: b.position.clone() };
