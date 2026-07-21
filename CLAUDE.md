@@ -15,6 +15,10 @@ audio). Progress history: `TASKS.md`.
 - Debug URLs: `?showcase` (12-mech lineup) · `?showcase=<id>&anim=<clip|walk|none>`
   (single mech, judging camera) · `?battle=<arena>&p1=<id>&p2=<id>[&p3..p4][&auto=1][&diff=ace][&forcesplit=1]`
   · `?rigtest` (GLB retarget math check)
+- Level builder: `?edit=level` (place/move buildings, props, terrain + export)
+  · `?edit=level&load=<name>` edits `public/levels/<name>.json` ·
+  `?battle=<theme>&level=<name>` plays an authored level. Editor: `src/editor/`,
+  loader + authored-placement format: `src/arena/level.js`.
 
 ## Mech art pipeline — READ `docs/MECH_ART_GUIDE.md` FIRST
 

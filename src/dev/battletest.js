@@ -12,12 +12,21 @@ import { createBattle } from '../game/battle.js';
 import { pick } from '../core/utils.js';
 import { CONFIG } from '../core/config.js';
 import { createMech } from '../mechs/gltf.js';
+import { loadLevel, themeFromLevel } from '../arena/level.js';
 
 export async function runBattleTest() {
   const params = new URLSearchParams(location.search);
   const themeId = params.get('battle') || 'neon';
-  const theme = THEMES_BY_ID[themeId] || THEMES[0];
+  let theme = THEMES_BY_ID[themeId] || THEMES[0];
   const auto = params.get('auto') === '1';
+
+  // ?level=<name> plays an authored level from the editor (public/levels/<name>.json,
+  // or the live editor stash when name is __edit / playtest)
+  const levelName = params.get('level');
+  if (levelName) {
+    const lvl = await loadLevel(levelName);
+    if (lvl) theme = themeFromLevel(lvl);
+  }
 
   const engine = new Engine(document.getElementById('game-canvas'));
   const input = new Input();

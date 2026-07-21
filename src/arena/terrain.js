@@ -32,6 +32,8 @@ const KINDS = {
   crystal: { hazard: null,    minR: 20 },
   sand:    { hazard: null,    minR: 20 },
   stripe:  { hazard: null,    minR: 16 },
+  acid:    { hazard: 'acid',  minR: 0 },   // corrosive stream — burns like lava
+  mud:     { hazard: 'mud',   minR: 0 },   // bog — drags harder than oil
 };
 
 const hex = (c) => '#' + new THREE.Color(c).getHexString();
@@ -93,6 +95,17 @@ export class Terrain {
     let axisFlip = rng.chance(0.5);
     for (const spec of this.L.lanes || []) {
       const kind = KINDS[spec.kind] || KINDS.road;
+      // authored lane: exact geometry from the level editor (axis + centerline
+      // offset given), no seeded placement. Still fully tiling-safe.
+      if (spec.axis && spec.at !== undefined) {
+        this.lanes.push({
+          kind: spec.kind, style: spec.style || spec.kind, axis: spec.axis,
+          at: spec.at, amp: spec.amp || 0, phase: spec.phase || 0,
+          half: (spec.width ?? 6) / 2, hazard: kind.hazard,
+          glow: spec.glow || null, dash: spec.dash || null, color: spec.color || null,
+        });
+        continue;
+      }
       for (let i = 0; i < (spec.count || 1); i++) {
         const organic = spec.kind !== 'road' && spec.kind !== 'stripe';
         for (let tries = 0; tries < 24; tries++) {
@@ -122,6 +135,18 @@ export class Terrain {
     const H = this.L.hills;
     if (!H) return;
     const deck = H.style === 'deck'; // platform pads keep a wide flat top
+    // authored hills: exact placement + per-hill shape/style from the editor
+    if (H.list) {
+      for (const hl of H.list) {
+        const d = hl.deck ?? deck;
+        this.hills.push({
+          x: hl.x, z: hl.z, R: hl.R ?? 12,
+          Rtop: hl.Rtop ?? (hl.R ?? 12) * (d ? 0.72 : 0.34),
+          H: hl.H ?? 3.5, deck: d, color: hl.color, edge: hl.edge,
+        });
+      }
+      return;
+    }
     for (let i = 0; i < H.count; i++) {
       for (let tries = 0; tries < 30; tries++) {
         const R = rng.range(10, 15.5);
@@ -145,9 +170,43 @@ export class Terrain {
     return hl.H * (hl.R - d) / (hl.R - hl.Rtop);
   }
 
+  // build one bridge record (segments + geometry params) from a placement.
+  // shared by procedural placement and the level editor's explicit list.
+  addBridge(x, z, axis, flatNeed, opts = {}) {
+    const BR = this.L.bridges || {};
+    const w = 8, H = opts.H ?? BR.h ?? 3.2, rampL = 6;
+    const nSeg = Math.max(3, Math.round(flatNeed / 3.4));
+    const segLen = flatNeed / nSeg;
+    const len = flatNeed + rampL * 2;
+    const br = {
+      x, z, axis, w, H, rampL, flat: flatNeed, len, segLen, nSeg,
+      color: opts.color ?? BR.color ?? 0x54565c, edge: opts.edge ?? BR.edge ?? null,
+      collapsing: false, segs: [],
+    };
+    for (let sIdx = 0; sIdx < nSeg; sIdx++) {
+      br.segs.push({
+        alive: true, hp: 80,
+        a0: -flatNeed / 2 + sIdx * segLen,
+        a1: -flatNeed / 2 + (sIdx + 1) * segLen,
+        meshes: [],
+      });
+    }
+    this.bridges.push(br);
+    return br;
+  }
+
   buildBridges(rng) {
     const BR = this.L.bridges;
-    const count = BR?.count || 0;
+    if (!BR) return;
+    // authored bridges: exact placement from the editor
+    if (BR.list) {
+      for (const b of BR.list) {
+        this.addBridge(b.x, b.z, b.axis || 'x', b.flat ?? 12,
+          { H: b.H, color: b.color, edge: b.edge });
+      }
+      return;
+    }
+    const count = BR.count || 0;
     if (!count) return;
     // span streams first, roads second
     const wet = this.lanes.filter((l) => l.hazard || l.kind === 'sand' || l.kind === 'ice');
@@ -168,9 +227,7 @@ export class Terrain {
           axis = rng.chance(0.5) ? 'x' : 'z';
           flatNeed = 14;
         }
-        const w = 8, H = BR.h ?? 3.2, rampL = 6;
-        const nSeg = Math.max(3, Math.round(flatNeed / 3.4));
-        const segLen = flatNeed / nSeg;
+        const w = 8, rampL = 6;
         const len = flatNeed + rampL * 2;
         // whole span must stay inside the cell (bridges don't wrap-split)
         const halfSpan = len / 2 + 2;
@@ -178,20 +235,7 @@ export class Terrain {
         if (Math.abs(aC) + halfSpan > this.P / 2 - 4 || Math.abs(pC) + w > this.P / 2 - 4) continue;
         if (this.bridges.some((o) => Math.hypot(o.x - x, o.z - z) < 30)) continue;
         if (this.hills.some((o) => Math.hypot(o.x - x, o.z - z) < o.R + len / 2)) continue;
-        const br = {
-          x, z, axis, w, H, rampL, flat: flatNeed, len, segLen, nSeg,
-          color: BR.color ?? 0x54565c, edge: BR.edge ?? null, collapsing: false,
-          segs: [],
-        };
-        for (let sIdx = 0; sIdx < nSeg; sIdx++) {
-          br.segs.push({
-            alive: true, hp: 80,
-            a0: -flatNeed / 2 + sIdx * segLen,
-            a1: -flatNeed / 2 + (sIdx + 1) * segLen,
-            meshes: [],
-          });
-        }
-        this.bridges.push(br);
+        this.addBridge(x, z, axis, flatNeed);
         break;
       }
     }
@@ -363,22 +407,24 @@ export class Terrain {
       if (!f.alive || !f.grounded || f.pos.y > 0.5) continue;
       const lane = this.onLane(f.pos.x, f.pos.z, -0.4);
       if (!lane || !lane.hazard) continue;
-      if (lane.hazard === 'lava') {
+      if (lane.hazard === 'lava' || lane.hazard === 'acid') {
+        const acid = lane.hazard === 'acid';
         f._lavaT = (f._lavaT ?? 0) - dt;
         if (f._lavaT <= 0) {
           f._lavaT = 0.5;
-          f.takeHit(9, null, {
+          f.takeHit(acid ? 7 : 9, null, {
             knock: 2, srcPos: _v.set(f.pos.x, -1, f.pos.z),
-            status: { burn: 8, burnT: 2.2 }, soft: true,
+            status: { burn: acid ? 6 : 8, burnT: acid ? 2.6 : 2.2 }, soft: true,
           });
           for (let i = 0; i < 5; i++) {
             w.effects.glows.emit(f.pos.x + rand(-1.2, 1.2), rand(0.2, 1), f.pos.z + rand(-1.2, 1.2),
               rand(-1, 1), rand(4, 9), rand(-1, 1),
-              { life: rand(0.4, 0.8), size: rand(0.8, 1.6), color: i % 2 ? 0xff7a20 : 0xffd23c, alpha: 0.95 });
+              { life: rand(0.4, 0.8), size: rand(0.8, 1.6),
+                color: acid ? (i % 2 ? 0x9bff3c : 0x3cff9a) : (i % 2 ? 0xff7a20 : 0xffd23c), alpha: 0.95 });
           }
         }
-      } else { // water / oil: heavy going
-        const drag = lane.hazard === 'oil' ? 2.6 : 1.9;
+      } else { // water / oil / mud: heavy going
+        const drag = lane.hazard === 'mud' ? 3.2 : lane.hazard === 'oil' ? 2.6 : 1.9;
         const k = Math.max(0, 1 - drag * dt);
         f.vel.x *= k; f.vel.z *= k;
         f._splashT = (f._splashT ?? 0) - dt;
@@ -465,15 +511,21 @@ export class Terrain {
   buildMeshes() {
     const group = new THREE.Group();
     const L = this.L;
-    // hills
+    // hills — style/color resolved per-hill so authored levels can mix
+    // walkable mounds and platform decks in one arena
     if (this.hills.length) {
-      const deckStyle = L.hills?.style === 'deck';
-      const mat = new THREE.MeshStandardMaterial({
-        color: L.hills?.color ?? 0x5a5248,
-        roughness: deckStyle ? 0.42 : 0.94,
-        metalness: deckStyle ? 0.6 : 0.04,
-      });
+      const matCache = new Map();
       for (const hl of this.hills) {
+        const deckStyle = hl.deck ?? (L.hills?.style === 'deck');
+        const color = hl.color ?? L.hills?.color ?? 0x5a5248;
+        const key = `${color}:${deckStyle}`;
+        let mat = matCache.get(key);
+        if (!mat) {
+          mat = new THREE.MeshStandardMaterial({
+            color, roughness: deckStyle ? 0.42 : 0.94, metalness: deckStyle ? 0.6 : 0.04,
+          });
+          matCache.set(key, mat);
+        }
         const geo = new THREE.CylinderGeometry(hl.Rtop, hl.R, hl.H, deckStyle ? 8 : 22, 1);
         const m = new THREE.Mesh(geo, mat);
         m.position.set(hl.x, hl.H / 2, hl.z);
@@ -481,10 +533,10 @@ export class Terrain {
         m.castShadow = true;
         m.receiveShadow = true;
         group.add(m);
-        if (deckStyle && L.hills.edge) {
+        const edge = hl.edge ?? (deckStyle ? L.hills?.edge : null);
+        if (deckStyle && edge) {
           const eMat = new THREE.MeshStandardMaterial({
-            color: L.hills.edge, emissive: L.hills.edge, emissiveIntensity: 2.0,
-            side: THREE.DoubleSide,
+            color: edge, emissive: edge, emissiveIntensity: 2.0, side: THREE.DoubleSide,
           });
           const ring = new THREE.Mesh(new THREE.CylinderGeometry(hl.Rtop + 0.06, hl.Rtop + 0.06, 0.35, 8, 1, true), eMat);
           ring.position.set(hl.x, hl.H - 0.12, hl.z);
@@ -575,7 +627,7 @@ export class Terrain {
     const cv = document.createElement('canvas');
     cv.width = cv.height = S;
     const ctx = cv.getContext('2d');
-    const needGlow = this.lanes.some((l) => l.glow || l.hazard === 'lava' || l.kind === 'crystal');
+    const needGlow = this.lanes.some((l) => l.glow || l.hazard === 'lava' || l.hazard === 'acid' || l.kind === 'crystal');
     let ecv = null, ectx = null;
     if (needGlow) {
       ecv = document.createElement('canvas');
@@ -667,6 +719,19 @@ export class Terrain {
           strokeLane(ctx, l, W, '#0b0c10', 0.92);
           strokeLane(ctx, l, W * 0.5, '#1c1f26', 0.8);
           strokeLane(ctx, l, W * 0.2, '#2c3a44', 0.35, { dash: [3, 5] });
+          break;
+        case 'acid':
+          strokeLane(ctx, l, W * 1.2, '#0a1206', 0.9);
+          strokeLane(ctx, l, W * 0.9, '#123008', 0.95);
+          strokeLane(ectx, l, W * 0.82, '#2c7a10', 1);
+          strokeLane(ectx, l, W * 0.5, '#7bff2a', 1);
+          strokeLane(ectx, l, W * 0.2, '#d6ff8c', 1);
+          break;
+        case 'mud':
+          strokeLane(ctx, l, W * 1.12, '#241a10', 0.5);   // damp banks
+          strokeLane(ctx, l, W, base || '#332413', 0.9);
+          strokeLane(ctx, l, W * 0.55, '#241809', 0.8);
+          strokeLane(ctx, l, W * 0.2, '#4a3a22', 0.4, { dash: [1.4, 3] });
           break;
         case 'ice':
           strokeLane(ctx, l, W, '#bfe2f2', 0.62);
