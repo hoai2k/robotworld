@@ -225,10 +225,36 @@ export async function runRigEdit(startId) {
   }
 
   // (re)wire the black posts from the current bone positions (they're parented
-  // to the bones, so this reflects every move/add the user makes)
+  // to the bones, so this reflects every move/add the user makes). This runs on
+  // structural changes (add/del/reset); the per-frame updatePostsLive() below
+  // keeps the rods glued to the bones WHILE you drag.
   function regenPosts() {
     for (const m of postMeshes) { m.parent?.remove(m); m.geometry?.dispose?.(); }
     postMeshes = buildRigPosts(byName, rigObj);
+  }
+
+  // The posts are an add-on for rendering, not core geometry — they must track
+  // the back-leg bones live. Each rod cylinder is parented to its PARENT bone
+  // and points at the CHILD bone; every frame we re-length + re-orient it from
+  // the bones' current positions so moving a joint drags its rod with it. (Cap
+  // spheres are parented to the child bone, so they follow on their own.)
+  const _PU = new THREE.Vector3(0, 1, 0);
+  const _pc = new THREE.Vector3();
+  function updatePostsLive() {
+    for (const m of postMeshes) {
+      const childName = m.userData.rigPost;               // set only on rod cylinders
+      if (!childName || !m.geometry?.parameters?.height) continue;
+      const child = byName[childName];
+      const parentBone = m.parent;                        // the bone the rod hangs off
+      if (!child || !parentBone) continue;
+      child.getWorldPosition(_pc);
+      parentBone.worldToLocal(_pc);                       // child offset in parent space
+      const len = _pc.length();
+      if (len < 1e-4) continue;
+      m.scale.set(1, len / m.geometry.parameters.height, 1); // geometry base sits at origin
+      m.quaternion.setFromUnitVectors(_PU, _pc.normalize());
+      m.position.set(0, 0, 0);
+    }
   }
 
   function groundIt() {
@@ -412,6 +438,26 @@ export async function runRigEdit(startId) {
   const histRow = el('div', 'display:flex;gap:6px;margin:0 0 6px');
   histRow.append(tog('↶ Undo', undo), tog('↷ Redo', redo));
   panel.appendChild(histRow);
+
+  // background color of the 3D viewer — the black posts vanish on a black
+  // backdrop, so let the user recolor it (persisted across reloads)
+  const BG_KEY = 'rigedit:bg';
+  const savedBg = localStorage.getItem(BG_KEY) || '#1a1f29';
+  scene.background = new THREE.Color(savedBg);
+  const bgRow = el('div', 'display:flex;gap:5px;align-items:center;margin:0 0 6px');
+  const bgLab = el('span', 'color:#7d8ea3;font-size:10px;text-transform:uppercase;letter-spacing:.05em');
+  bgLab.textContent = 'BG';
+  const bgInput = el('input', 'width:30px;height:22px;border:1px solid #2c3648;border-radius:4px;background:#0e131b;cursor:pointer;padding:1px');
+  bgInput.type = 'color'; bgInput.value = savedBg;
+  const setBg = (hex) => { scene.background = new THREE.Color(hex); bgInput.value = hex; try { localStorage.setItem(BG_KEY, hex); } catch { /* ignore */ } };
+  bgInput.oninput = () => setBg(bgInput.value);
+  bgRow.append(bgLab, bgInput);
+  for (const [name, hex] of [['dark', '#1a1f29'], ['slate', '#4a5568'], ['light', '#c8d0da'], ['teal', '#123a3a']]) {
+    const sw = el('button', `width:20px;height:20px;border-radius:4px;border:1px solid #2c3648;cursor:pointer;background:${hex}`);
+    sw.title = name; sw.onclick = () => setBg(hex);
+    bgRow.appendChild(sw);
+  }
+  panel.appendChild(bgRow);
   function refreshModeButtons() {
     bColor.style.background = colorOn ? '#24405e' : '#1a2433';
     bSolo.style.background = soloRoot ? '#1f7a4d' : '#1a2433';
@@ -515,6 +561,7 @@ export async function runRigEdit(startId) {
     syncHandles();
     skelHelper?.update?.();
     updateSoloLines();   // keep the solo subtree's connections on the bones
+    updatePostsLive();   // keep the black rods glued to the back-leg bones
   };
   engine.onRender = () => orbit.update();
   engine.start();
