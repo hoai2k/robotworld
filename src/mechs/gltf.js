@@ -27,7 +27,7 @@ import { Animator } from './animator.js';
 import { RigAdapter, mapBones, JOINT_ORDER } from './rigadapter.js';
 import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
-import { applySkinOpsToGltf } from './skinops.js';
+import { applySkinOpsToGltf, applySkinOps } from './skinops.js';
 import { rigFor } from './rigs/index.js';
 import { applyCustomRig, buildRigPosts } from './reskin.js';
 import { clamp } from '../core/utils.js';
@@ -140,6 +140,17 @@ export async function loadRawGlbScene(id, opts = {}) {
       delete o.geometry.userData.__skinOpsApplied;
     }
   });
+  // custom-rig entries: re-skin to the OFFICIAL hand-authored skeleton so the
+  // workbench colors/edits/wiggles the same skinning the game actually uses
+  // (game-joint bones), not the raw Tripo weights that are never rendered.
+  // skinOps the tool exports then layer on top exactly as buildGlbMech applies
+  // them. Comp ids stay in sync because both sides analyze this identical rig.
+  const customRig = entry.rig ? rigFor(entry.rig) : null;
+  if (customRig) {
+    let sk = null;
+    scene.traverse((o) => { if (o.isSkinnedMesh && !sk) sk = o; });
+    if (sk) applyCustomRig(sk, customRig);
+  }
   return { scene, entry };
 }
 
@@ -223,6 +234,11 @@ function buildGlbMech(def, entry, gltf) {
       const { byName } = applyCustomRig(sk, customRig);
       for (const j of JOINT_ORDER) if (byName[j]) boneMap[j] = byName[j];
       buildRigPosts(byName, customRig); // black rods through `post` bones (jerry's back legs)
+      // skinOps refine the CUSTOM rig's proximity skinning too: the ?debug=skin
+      // workbench shows this exact custom-rig skinning (see loadRawGlbScene), so
+      // a rebind it exports lands here. applyCustomRig clones the geometry per
+      // build, so this is a per-clone application — no shared-scene guard needed.
+      if (entry.skinOps?.length) applySkinOps(sk, entry.skinOps);
     }
   } else {
     // Map GLB bones onto the virtual rig's joints EARLY (mapBones is pure
@@ -253,7 +269,7 @@ function buildGlbMech(def, entry, gltf) {
     // manifest `skinOps`: rebind auto-rig weight mistakes to the right bone —
     // see skinops.js. Applied to the CACHED scene once (idempotent guard on the
     // geometry); clones share it, so applying after cloneSkinned still fixes
-    // this clone. (A custom rig re-skins from scratch, so it needs no skinOps.)
+    // this clone. (A custom rig takes its own skinOps in the branch above.)
     applySkinOpsToGltf(gltf.scene, entry.skinOps);
   }
 
