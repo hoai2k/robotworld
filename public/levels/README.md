@@ -18,7 +18,13 @@ e.g. `?battle=neon&level=sample-arena&p1=titanus&p2=viper` plays
 2. Pick a theme, place buildings / props / terrain, drop spawn points.
 3. **▶ Playtest** launches a live battle immediately, or **Export** downloads
    the JSON — save it here as `public/levels/<name>.json`.
-4. Re-open it any time with `?edit=level&load=<name>`.
+4. Re-open it any time with `?edit=level&load=<name>`, or pick it from the
+   **📂 Open level…** dropdown in the editor's top bar.
+
+To make a level show up in that dropdown, add its name to `manifest.json`
+here (a plain JSON array of file basenames, e.g. `["sample-arena", "my-level"]`).
+Your own **Save**d levels (stored in the browser) always appear in the dropdown
+automatically.
 
 ## Format (version 1)
 
