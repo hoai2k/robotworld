@@ -14,7 +14,7 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import { Engine } from '../core/engine.js';
 import { loadRawGlbScene } from '../mechs/gltf.js';
 import { rigFor } from '../mechs/rigs/index.js';
-import { applyCustomRig, setWeights, rebindRest } from '../mechs/reskin.js';
+import { applyCustomRig, setWeights, rebindRest, buildRigPosts } from '../mechs/reskin.js';
 import { JOINT_ORDER } from '../mechs/rigadapter.js';
 
 const VIEW = 10;                 // display scale for the small raw model
@@ -59,6 +59,7 @@ export async function runRigEdit(startId) {
   let rigObj = null, bones = null, byName = null, root = null;
   let selName = null;
   let skelHelper = null;
+  let postMeshes = [];             // black rig posts (reskin.buildRigPosts)
   const handles = [];              // {mesh, name}
   let origMat = null, colorMat = null, colorOn = false;
   let swing = 0, swinging = false;
@@ -105,7 +106,15 @@ export async function runRigEdit(startId) {
       scene.add(skelHelper);
       buildHandles();
     }
+    regenPosts();
     updateColors();
+  }
+
+  // (re)wire the black posts from the current bone positions (they're parented
+  // to the bones, so this reflects every move/add the user makes)
+  function regenPosts() {
+    for (const m of postMeshes) { m.parent?.remove(m); m.geometry?.dispose?.(); }
+    postMeshes = buildRigPosts(byName, rigObj);
   }
 
   function groundIt() {
@@ -162,6 +171,7 @@ export async function runRigEdit(startId) {
     syncRigFromBones();
     setWeights(mesh, rigObj);   // reassign vertices to the nearest new bone
     rebindRest(mesh, bones);
+    regenPosts();               // posts follow the moved bones
     updateColors();
     saveRig();
   }

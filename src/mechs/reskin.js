@@ -82,6 +82,48 @@ export function buildSkeletonBones(rig) {
   return { bones, byName, root };
 }
 
+// Wire visible "posts" (metal rods) through the rig — for every bone flagged
+// `post` in the rig, a cylinder from its PARENT to it, parented to the parent
+// bone so it follows the animation and bends at each joint. Purely generated
+// from the current bone positions, so it survives any rig edit: move a bone and
+// the post moves, add a bone (with post) and a new segment appears. Fills in a
+// limb the GLB never modeled (jerry's back legs). Returns the meshes so the
+// caller can dispose + rebuild them after an edit. General — any rig can use it.
+//   bone.post: true | { radius?, color? }
+export function buildRigPosts(byName, rig, opts = {}) {
+  const meshes = [];
+  const up = new THREE.Vector3(0, 1, 0);
+  const to = new THREE.Vector3();
+  const byBd = Object.fromEntries(rig.bones.map((b) => [b.name, b]));
+  for (const bd of rig.bones) {
+    if (!bd.post || !bd.parent) continue;
+    const bone = byName[bd.name], parent = byName[bd.parent];
+    if (!bone || !parent) continue;
+    to.copy(bone.position);                 // child's local offset from parent (bind)
+    const len = to.length();
+    if (len < 1e-4) continue;
+    const cfg = typeof bd.post === 'object' ? bd.post : {};
+    const r = cfg.radius ?? opts.radius ?? 0.02;
+    const geo = new THREE.CylinderGeometry(r, r, len, 10);
+    geo.translate(0, len / 2, 0);           // base at the parent joint, extends toward the child
+    const mat = new THREE.MeshStandardMaterial({
+      color: cfg.color ?? opts.color ?? 0x0b0b0e, roughness: 0.45, metalness: 0.85,
+    });
+    const m = new THREE.Mesh(geo, mat);
+    m.quaternion.setFromUnitVectors(up, to.clone().normalize());
+    m.castShadow = true;
+    m.userData.rigPost = bd.name;
+    parent.add(m);
+    meshes.push(m);
+    // a little cap sphere at the joint so segments read as one continuous rod
+    if (byBd[bd.name]?.post) {
+      const cap = new THREE.Mesh(new THREE.SphereGeometry(r * 1.25, 10, 8), mat);
+      bone.add(cap); meshes.push(cap);
+    }
+  }
+  return meshes;
+}
+
 // Re-write the mesh's per-vertex weights from the current rig (used live by
 // ?rigedit after a bone is moved) without touching the skeleton binding.
 export function setWeights(mesh, rig) {

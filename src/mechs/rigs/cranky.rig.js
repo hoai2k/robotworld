@@ -25,25 +25,34 @@ export const CRANKY_RIG = {
     { name: 'shoulderR', parent: 'torso', pos: [0.16, 0.30, -0.18], bias: 0.4 },
     { name: 'elbowR', parent: 'shoulderR', pos: [0.32, 0.19, -0.22], bias: 0.4 },
     { name: 'handR', parent: 'elbowR', pos: [0.52, 0.13, -0.27], bias: 0.4 },
-    // ==== SIX crab legs (hip pivot -> foot). back pair = game leg joints ====
+    // ==== SIX crab legs — each hip -> knee -> foot (3 bones) so the skin binds
+    //      along the whole leg (the hip attaches far out from the body centre,
+    //      so one segment couldn't reach). The gait swings the HIP bone. Back
+    //      pair carries the game leg joints. ====
     // back-left  (game legL)
     { name: 'thighL', parent: 'hips', pos: [-0.08, 0.49, 0.25] },
-    { name: 'ankleL', parent: 'thighL', pos: [-0.22, 0.12, 0.46] },
+    { name: 'kneeL', parent: 'thighL', pos: [-0.17, 0.34, 0.38] },
+    { name: 'ankleL', parent: 'kneeL', pos: [-0.22, 0.12, 0.46] },
     // back-right (game legR)
     { name: 'thighR', parent: 'hips', pos: [-0.12, 0.48, -0.27] },
-    { name: 'ankleR', parent: 'thighR', pos: [-0.22, 0.12, -0.46] },
+    { name: 'kneeR', parent: 'thighR', pos: [-0.19, 0.34, -0.38] },
+    { name: 'ankleR', parent: 'kneeR', pos: [-0.22, 0.12, -0.46] },
     // mid-left (kept low/back off the pincer base so a step can't tear the claw)
     { name: 'legMLhip', parent: 'hips', pos: [-0.14, 0.28, 0.26], bias: 1.3 },
-    { name: 'legMLfoot', parent: 'legMLhip', pos: [0.00, 0.09, 0.30] },
+    { name: 'legMLknee', parent: 'legMLhip', pos: [-0.08, 0.20, 0.29], bias: 1.3 },
+    { name: 'legMLfoot', parent: 'legMLknee', pos: [0.00, 0.09, 0.30] },
     // front-left
     { name: 'legFLhip', parent: 'hips', pos: [0.02, 0.30, 0.16] },
-    { name: 'legFLfoot', parent: 'legFLhip', pos: [0.08, 0.05, 0.20] },
+    { name: 'legFLknee', parent: 'legFLhip', pos: [0.06, 0.19, 0.19] },
+    { name: 'legFLfoot', parent: 'legFLknee', pos: [0.08, 0.05, 0.20] },
     // mid-right
     { name: 'legMRhip', parent: 'hips', pos: [-0.14, 0.26, -0.16], bias: 1.3 },
-    { name: 'legMRfoot', parent: 'legMRhip', pos: [-0.06, 0.07, -0.18] },
+    { name: 'legMRknee', parent: 'legMRhip', pos: [-0.09, 0.19, -0.18], bias: 1.3 },
+    { name: 'legMRfoot', parent: 'legMRknee', pos: [-0.06, 0.07, -0.18] },
     // front-right
     { name: 'legFRhip', parent: 'hips', pos: [0.02, 0.28, -0.16] },
-    { name: 'legFRfoot', parent: 'legFRhip', pos: [0.02, 0.07, -0.26] },
+    { name: 'legFRknee', parent: 'legFRhip', pos: [0.03, 0.19, -0.21] },
+    { name: 'legFRfoot', parent: 'legFRknee', pos: [0.02, 0.07, -0.26] },
     // ---- static struts: mouth/underbelly between the claws ----
     { name: 'mouth', parent: 'hips', pos: [0.20, 0.22, 0.00], bias: 0.7 },
     { name: 'belly', parent: 'hips', pos: [-0.04, 0.12, 0.04] },

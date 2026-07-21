@@ -29,7 +29,7 @@ import { GLB_DRESS } from './designs.js';
 import { profileFor as glbProfileFor } from './glbanim.js';
 import { applySkinOpsToGltf } from './skinops.js';
 import { rigFor } from './rigs/index.js';
-import { applyCustomRig } from './reskin.js';
+import { applyCustomRig, buildRigPosts } from './reskin.js';
 import { clamp } from '../core/utils.js';
 import { warnContract } from './contract.js';
 
@@ -222,6 +222,7 @@ function buildGlbMech(def, entry, gltf) {
     if (sk) {
       const { byName } = applyCustomRig(sk, customRig);
       for (const j of JOINT_ORDER) if (byName[j]) boneMap[j] = byName[j];
+      buildRigPosts(byName, customRig); // black rods through `post` bones (jerry's back legs)
     }
   } else {
     // Map GLB bones onto the virtual rig's joints EARLY (mapBones is pure

@@ -31,10 +31,19 @@ export const JERRY_RIG = {
     { name: 'thighR', parent: 'hips', pos: [-0.12, 0.44, -0.18] },
     { name: 'kneeR', parent: 'thighR', pos: [-0.33, 0.27, -0.15] },
     { name: 'ankleR', parent: 'kneeR', pos: [-0.38, 0.06, -0.17] },
+    // ---- BACK LEGS (rear pair of the quadruped). The GLB never modeled these,
+    //      so each bone is flagged `post` — a black metal rod is wired through
+    //      hip -> knee -> foot from the joint positions, and it follows the
+    //      bones as they animate (and re-wires if you move/add joints in
+    //      ?rigedit). 3 joints each. ----
+    { name: 'backLhip', parent: 'hips', pos: [-0.20, 0.40, 0.14], post: true },
+    { name: 'backLknee', parent: 'backLhip', pos: [-0.30, 0.16, 0.16], post: true },
+    { name: 'backLfoot', parent: 'backLknee', pos: [-0.34, -0.16, 0.18], post: true },
+    { name: 'backRhip', parent: 'hips', pos: [-0.20, 0.40, -0.14], post: true },
+    { name: 'backRknee', parent: 'backRhip', pos: [-0.30, 0.16, -0.16], post: true },
+    { name: 'backRfoot', parent: 'backRknee', pos: [-0.34, -0.16, -0.18], post: true },
     // ---- static struts: tail over the back + spare legs/antennae ----
     { name: 'tail', parent: 'torso', pos: [-0.10, 0.86, 0.00], bias: 0.7 },
-    { name: 'strutRearL', parent: 'hips', pos: [-0.22, 0.40, 0.10] },
-    { name: 'strutRearR', parent: 'hips', pos: [-0.22, 0.40, -0.10] },
     { name: 'strutMidL', parent: 'hips', pos: [0.05, 0.42, 0.16] },
     { name: 'strutMidR', parent: 'hips', pos: [0.05, 0.42, -0.16] },
     { name: 'belly', parent: 'hips', pos: [0.00, 0.34, 0.00] },
