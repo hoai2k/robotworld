@@ -213,10 +213,10 @@
       {"sel":{"comp":31},"to":"tripo0_Right_Limb_0"},
       {"sel":{"comp":42},"to":"tripo0_Right_Limb_0"},
       {"sel":{"comp":47},"to":"bone_11"},
-      {"sel":{"comp":34},"to":"bone_8"},
       {"sel":{"comp":69},"to":"bone_21"},
       {"sel":{"comp":63},"to":"bone_11"},
-      {"sel":{"comp":66},"to":"bone_8"}
+      {"sel":{"comp":66},"to":"bone_21"},
+      {"sel":{"comp":34},"to":"bone_29"}
     ]
   },
   "nova": {

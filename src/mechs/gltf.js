@@ -454,6 +454,15 @@ function buildGlbMech(def, entry, gltf) {
     }
     container.position.y = clampBaseY;
     root.updateWorldMatrix(true, true);
+    // Refresh each skinned mesh's bindMatrixInverse to the just-reset pose.
+    // getVertexPosition() reads bones' matrixWorld (which include the current
+    // container offset) and cancels the rig frame with bindMatrixInverse; in
+    // AttachedBindMode that inverse is only rebuilt by updateMatrixWorld(), NOT
+    // updateWorldMatrix(). Skip it and the stale inverse leaves the container
+    // shift double-counted (every measured Y moves ~2x the container delta), so
+    // the correction below overshoots and the prone body sinks through / launches
+    // off the floor — the reported knockdown bug. This resyncs it to 1:1.
+    for (const m of meshes) if (m.isSkinnedMesh) m.updateMatrixWorld();
     const rootY = root.getWorldPosition(_gcTmp).y;
     let minY = Infinity;
     for (const m of meshes) {
