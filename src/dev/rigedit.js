@@ -50,7 +50,8 @@ export async function runRigEdit(startId) {
   scene.add(gizmo.getHelper ? gizmo.getHelper() : gizmo);
   gizmo.addEventListener('dragging-changed', (e) => {
     orbit.enabled = !e.value;
-    if (!e.value) onEditCommit();     // reweight when the drag ends
+    if (e.value) dragSnap = snapshotRig();   // capture pre-drag state for undo
+    else onEditCommit();                     // reweight when the drag ends
   });
   gizmo.addEventListener('objectChange', onGizmoMove);
 
@@ -63,8 +64,74 @@ export async function runRigEdit(startId) {
   const handles = [];              // {mesh, name}
   let origMat = null, colorMat = null, colorOn = false;
   let swing = 0, swinging = false;
+  let soloRoot = null;             // solo a bone's subtree (dim the rest)
+  let soloForcedColor = false;     // solo auto-enabled color view; restore on exit
+  let undoStack = [], redoStack = [];
+  let dragSnap = null;             // rig snapshot captured at gizmo drag-start
 
   const LS_KEY = () => `rigedit:${id}`;
+
+  // ---- undo/redo (snapshots of rigObj) ----
+  const snapshotRig = () => JSON.parse(JSON.stringify(rigObj));
+  function pushUndo() {
+    undoStack.push(snapshotRig());
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+  }
+  function restoreRig(snap) {
+    rigObj = snap;
+    rebuild(true); buildBoneUI();
+    if (selName && rigObj.bones.some((b) => b.name === selName)) selectBone(selName);
+    else { gizmo.detach(); selName = null; }
+    if (soloRoot && !rigObj.bones.some((b) => b.name === soloRoot)) soloRoot = null;
+    updateSolo();
+    saveRig();
+  }
+  function undo() {
+    if (!undoStack.length) return;
+    redoStack.push(snapshotRig());
+    restoreRig(undoStack.pop());
+  }
+  function redo() {
+    if (!redoStack.length) return;
+    undoStack.push(snapshotRig());
+    restoreRig(redoStack.pop());
+  }
+
+  // ---- solo a bone's subtree (bone + all descendants) ----
+  function subtreeSet(rootName) {
+    const set = new Set();
+    if (!rootName) return set;
+    const kids = new Map();
+    for (const b of rigObj.bones) {
+      if (!kids.has(b.parent)) kids.set(b.parent, []);
+      kids.get(b.parent).push(b.name);
+    }
+    const stack = [rootName];
+    while (stack.length) {
+      const n = stack.pop();
+      if (set.has(n)) continue;
+      set.add(n);
+      for (const k of (kids.get(n) || [])) stack.push(k);
+    }
+    return set;
+  }
+  function toggleSolo(name) {
+    soloRoot = soloRoot === name ? null : name;
+    if (soloRoot) {
+      if (!colorOn) { soloForcedColor = true; setColorMode(true); }
+    } else if (soloForcedColor) {
+      soloForcedColor = false; setColorMode(false);
+    }
+    updateSolo();
+    styleList();
+    refreshModeButtons();
+  }
+  function updateSolo() {
+    const sub = soloRoot ? subtreeSet(soloRoot) : null;
+    for (const h of handles) h.mesh.visible = !sub || sub.has(h.name);
+    updateColors();
+  }
 
   function loadRig() {
     const saved = localStorage.getItem(LS_KEY());
@@ -169,6 +236,14 @@ export async function runRigEdit(startId) {
   function onEditCommit() {
     if (!selName || swinging) return;
     syncRigFromBones();
+    // record the pre-drag snapshot on the undo stack only if the drag actually
+    // moved something
+    if (dragSnap && JSON.stringify(dragSnap) !== JSON.stringify(rigObj)) {
+      undoStack.push(dragSnap);
+      if (undoStack.length > 200) undoStack.shift();
+      redoStack.length = 0;
+    }
+    dragSnap = null;
     setWeights(mesh, rigObj);   // reassign vertices to the nearest new bone
     rebindRest(mesh, bones);
     regenPosts();               // posts follow the moved bones
@@ -194,11 +269,15 @@ export async function runRigEdit(startId) {
     const geo = mesh.geometry;
     const jnt = geo.attributes.skinIndex;
     const n = jnt.count;
+    const sub = soloRoot ? subtreeSet(soloRoot) : null;
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       const bi = jnt.getX(i);
       const bd = rigObj.bones[bi];
-      const c = bd ? boneColor(bd.name, bi) : [0.3, 0.3, 0.3];
+      // when soloing, everything outside the subtree goes near-black so the
+      // solo'd joints' geometry is the only thing that reads
+      const dim = sub && (!bd || !sub.has(bd.name));
+      const c = dim ? [0.06, 0.06, 0.08] : (bd ? boneColor(bd.name, bi) : [0.3, 0.3, 0.3]);
       col[i * 3] = c[0]; col[i * 3 + 1] = c[1]; col[i * 3 + 2] = c[2];
     }
     geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
@@ -212,6 +291,7 @@ export async function runRigEdit(startId) {
     } else {
       mesh.material = origMat;
     }
+    refreshModeButtons();
   }
 
   // ---- picking ----
@@ -222,8 +302,24 @@ export async function runRigEdit(startId) {
     const r = renderer.domElement.getBoundingClientRect();
     ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const hit = ray.intersectObjects(handles.map((h) => h.mesh), false)[0];
+    // only pick VISIBLE handles — when soloing, the dimmed-out bones aren't
+    // selectable, so you can only move the joints you're focused on
+    const hit = ray.intersectObjects(handles.filter((h) => h.mesh.visible).map((h) => h.mesh), false)[0];
     if (hit) selectBone(hit.object.userData.name);
+  });
+
+  // ---- keyboard: undo/redo + solo ----
+  window.addEventListener('keydown', (e) => {
+    if (document.activeElement === addName) return;   // don't hijack the name field
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault(); if (e.shiftKey) redo(); else undo(); return;
+    }
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault(); redo(); return;
+    }
+    if (e.key === 's' || e.key === 'S') {
+      if (selName) toggleSolo(selName);
+    }
   });
 
   // ---- test swing (rotate the claw + leg joints to check articulation) ----
@@ -267,7 +363,17 @@ export async function runRigEdit(startId) {
   const modeRow = el('div', 'display:flex;gap:6px;margin:6px 0');
   const bMove = tog('Move', () => gizmo.setMode('translate'));
   const bColor = tog('Color view', () => setColorMode(!colorOn));
-  modeRow.append(bMove, bColor); panel.appendChild(modeRow);
+  const bSolo = tog('Solo subtree (S)', () => { if (selName) toggleSolo(selName); });
+  modeRow.append(bMove, bColor, bSolo); panel.appendChild(modeRow);
+
+  const histRow = el('div', 'display:flex;gap:6px;margin:0 0 6px');
+  histRow.append(tog('↶ Undo', undo), tog('↷ Redo', redo));
+  panel.appendChild(histRow);
+  function refreshModeButtons() {
+    bColor.style.background = colorOn ? '#24405e' : '#1a2433';
+    bSolo.style.background = soloRoot ? '#1f7a4d' : '#1a2433';
+    bSolo.textContent = soloRoot ? `Solo: ${soloRoot} (S)` : 'Solo subtree (S)';
+  }
 
   panel.appendChild(lbl('Bones (click to select, drag gizmo to place)'));
   const jointList = el('div', 'display:flex;flex-wrap:wrap;gap:3px;margin-bottom:6px');
@@ -287,11 +393,19 @@ export async function runRigEdit(startId) {
   swRow.append(swChk, document.createTextNode(' Swing claws/legs (loop)')); panel.appendChild(swRow);
 
   panel.appendChild(btn('Export rig ▶', exportRig, true));
-  panel.appendChild(btn('Reset to file rig', () => { localStorage.removeItem(LS_KEY()); rigObj = loadRig(); rebuild(true); groundIt(); buildBoneUI(); }));
+  panel.appendChild(btn('Reset to file rig', () => {
+    pushUndo();
+    localStorage.removeItem(LS_KEY());
+    rigObj = loadRig(); rebuild(true); groundIt(); buildBoneUI();
+    if (soloRoot && !rigObj.bones.some((b) => b.name === soloRoot)) soloRoot = null;
+    updateSolo();
+  }));
   const out = el('textarea', `width:100%;height:150px;margin-top:8px;background:#0b0f16;color:#8fe;border:1px solid #2c3648;font:10.5px/1.35 ui-monospace,monospace;display:none`);
   panel.appendChild(out);
   const help = el('div', 'margin-top:8px;color:#69788c;font-size:10.5px;line-height:1.5');
-  help.innerHTML = 'Orbit: drag empty space · Zoom: wheel<br>Red/orange = claws (arms) · blue/cyan = legs · gray = struts.<br>Drag a bone into the geometry it should drive, then Color view to check ownership.';
+  help.innerHTML = 'Orbit: drag empty space · Zoom: wheel<br>Red/orange = claws (arms) · blue/cyan = legs · gray = struts.<br>'
+    + 'Drag a bone into the geometry it should drive, then Color view to check ownership.<br>'
+    + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Solo a bone’s subtree: select + S, or right-click a bone (dims the rest so only those joints are pickable).';
   panel.appendChild(help);
 
   function buildBoneUI() {
@@ -302,15 +416,20 @@ export async function runRigEdit(startId) {
       b.textContent = bd.name; b.dataset.name = bd.name;
       b.style.borderLeft = `4px solid rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`;
       b.onclick = () => selectBone(bd.name);
+      b.oncontextmenu = (e) => { e.preventDefault(); toggleSolo(bd.name); }; // right-click = solo
+      b.title = 'click: select · right-click: solo subtree';
       jointList.appendChild(b);
     });
     styleList();
   }
   function styleList() {
+    const sub = soloRoot ? subtreeSet(soloRoot) : null;
     for (const c of jointList.children) {
       const on = c.dataset.on === 'true';
-      c.style.outline = on ? '2px solid #48b0ff' : '';
-      c.style.background = on ? '#24405e' : '#1a2433';
+      const solo = sub && sub.has(c.dataset.name);
+      c.style.outline = on ? '2px solid #48b0ff' : (c.dataset.name === soloRoot ? '2px solid #6ee7a0' : '');
+      c.style.background = on ? '#24405e' : (solo ? '#255c3f' : '#1a2433');
+      c.style.opacity = (sub && !solo) ? '0.4' : '1';
     }
   }
   function posReadout() {
@@ -320,6 +439,7 @@ export async function runRigEdit(startId) {
   function addBone() {
     const name = (addName.value || '').trim();
     if (!name || rigObj.bones.some((b) => b.name === name)) return;
+    pushUndo();
     const parent = selName || 'hips';
     const pp = rigObj.bones.find((b) => b.name === parent)?.pos || [0, 0.3, 0];
     rigObj.bones.push({ name, parent, pos: [pp[0], pp[1] + 0.05, pp[2]] });
@@ -328,9 +448,11 @@ export async function runRigEdit(startId) {
   }
   function delBone() {
     if (!selName || selName === 'hips') return;
+    pushUndo();
+    if (soloRoot === selName) soloRoot = null;
     rigObj.bones = rigObj.bones.filter((b) => b.name !== selName && b.parent !== selName);
     gizmo.detach(); selName = null;
-    rebuild(true); buildBoneUI(); saveRig();
+    rebuild(true); buildBoneUI(); updateSolo(); saveRig();
   }
 
   function el(t, css) { const e = document.createElement(t); e.style.cssText = css; return e; }
@@ -352,6 +474,7 @@ export async function runRigEdit(startId) {
   };
   engine.onRender = () => orbit.update();
   engine.start();
-  window.__rigedit = { get rig() { return rigObj; }, byName: () => byName };
+  window.__rigedit = { get rig() { return rigObj; }, byName: () => byName,
+    solo: toggleSolo, undo, redo, select: selectBone };
   return engine;
 }
