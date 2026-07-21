@@ -39,29 +39,36 @@ const DASH_CHARGE_BOOST = 0.95;
 const DASH_COOLDOWN = 0.9;
 const ESCAPE_JUMP_MULT = 2.6;    // knockdown escape spring: ground speed x this
 const ESCAPE_JUMP_VY = 13;
-// KINETIC IMPACT: a strike's real force is MOMENTUM — the closing speed between
-// the two bodies along the attack line, scaled by the attacker's MASS (weight).
-// Closing speed reads both fighters' motion: a punch reads forward run speed, a
-// smash also reads the downward dive; two mechs charging in, or one barreling
-// into a still one, land far harder than a hit thrown standing still. Weight
-// then draws the roster together — heavy mechs are slow but hit like a truck,
-// light mechs are fast but flit — so every mech's flat-out sprint lands about
-// the same wallop instead of the featherweights being the only ones who floor.
-//   impact (u/s-equivalent) = closingSpeed * (WEIGHT_IMPACT_BASE + GAIN*weight)
-const WEIGHT_IMPACT_BASE = 0.7;  // mass factor at weightless (w=0)
-const WEIGHT_IMPACT_GAIN = 0.6;  // ...rising to BASE+GAIN at a max-weight (w=1) bruiser
-const IMPACT_FLOOR = 6;          // no bonus below this (normal shuffling/jitter)
-const IMPACT_DMG_RATE = 0.05;    // +5% damage per unit of impact past the floor
+// KINETIC IMPACT — momentum physics behind a melee blow. Two quantities drive
+// it, both read from the CLOSING SPEED between the bodies along the attack line
+// (a punch reads forward run speed; a smash also reads the downward dive; both
+// fighters' motion counts, so two mechs charging in — or one barreling into a
+// still one — land far harder than a hit thrown standing still):
+//   • DAMAGE / KNOCKBACK grow with the wallop = closing speed, leaning modestly
+//     on the attacker's weight (a heavier frame stings a little more).
+//   • KNOCKDOWN is decided by MOMENTUM vs the victim's MASS — see below.
+//
+// MASS is the weight stat times physical size CUBED (volume) at the LIVE scale,
+// so a bruiser reads ~7-8x a nimble scout and a COLOSSAL-FORM giant (scale ~5)
+// is effectively immovable. This is what "weight" means for collisions here.
+const MASS_SIZE_POW = 3;
+const WEIGHT_DMG_BASE = 0.7;     // attacker mass lean at weightless (w=0)...
+const WEIGHT_DMG_GAIN = 0.6;     // ...rising to BASE+GAIN for a max-weight bruiser
+const IMPACT_FLOOR = 6;          // no damage bonus below this wallop
+const IMPACT_DMG_RATE = 0.05;    // +5% damage per unit of wallop past the floor
 const IMPACT_DMG_CAP = 1.1;      // capped at +110% on a full-speed collision
 const IMPACT_KNOCK_RATE = 0.07;  // knockback grows a little faster than damage
 const IMPACT_KNOCK_CAP = 1.6;
-// past this impact ANY hit (even a jab) becomes a knockdown. Tuned just under
-// the SLOWEST/heaviest mech's flat-out sprint momentum (~13) so a full dash-run
-// into a standing target always floors it, roster-wide; mutual charges and
-// dash-ins clear it easily, while a jab traded standing still never does.
-const KNOCKDOWN_IMPACT = 12;
+// KNOCKDOWN: the shove velocity the target eats = closing speed × (attacker mass
+// / victim mass). A featherweight can floor a same-size rival by sprinting in
+// (or even at a fast walk) but NEVER a heavy, however fast it runs; a heavy
+// floors a light almost by leaning on it. Below CLOSING_MIN nothing floors, so
+// standing jab-trades and gentle jostling never knock anyone down.
+const CLOSING_MIN = 5;           // real forward motion required before any floor
+const KNOCKDOWN_KICK = 9.5;      // shove velocity (u/s) that puts a target down
 const IMPACT_LAUNCH_MIN = 11;    // launch velocity injected right at the threshold
-const IMPACT_LAUNCH_RATE = 0.55; // extra launch per unit of impact beyond it
+const IMPACT_LAUNCH_RATE = 0.4;  // extra launch per u/s of shove beyond it...
+const IMPACT_LAUNCH_MAX = 20;    // ...clamped so a lopsided mass ratio can't orbit
 // a smash/dive folds downward closing speed into the impact too (a punch does
 // not — it's a horizontal blow); plunge dives count it in full
 const SMASH_DOWN_WEIGHT = 0.7;
@@ -207,6 +214,14 @@ export class Fighter {
 
   center(out = _v2) {
     return out.set(this.pos.x, this.pos.y + this.height * 0.55, this.pos.z).clone();
+  }
+
+  // physical mass for collision/momentum math: the weight stat times physical
+  // size CUBED (volume) at the LIVE scale — so a heavy bruiser reads ~7-8x a
+  // scout, and a colossal-form giant (scale ~5) is effectively immovable. Used
+  // by the melee KNOCKDOWN test (attacker momentum vs victim inertia).
+  massFactor() {
+    return this.def.stats.weight * this.scale ** MASS_SIZE_POW;
   }
 
   // world-space midpoint of both palms — where hoisted cargo rests. Falls
@@ -640,17 +655,21 @@ export class Fighter {
         // smash/dive: fold in how fast we're dropping onto the target
         if (downW) closing += downW * Math.max(0, f.vel.y - this.vel.y);
         closing = Math.max(0, closing);
-        // momentum = closing speed * attacker mass: a heavy bruiser needs less
-        // speed to hit as hard as a featherweight at a flat-out sprint
-        const closingImpact = closing * (WEIGHT_IMPACT_BASE + WEIGHT_IMPACT_GAIN * this.def.stats.weight);
-        const over = Math.max(0, closingImpact - IMPACT_FLOOR);
+        // DAMAGE / KNOCKBACK: the wallop is closing speed with a modest lean on
+        // the attacker's weight (heavier frame stings a bit more)
+        const wallop = closing * (WEIGHT_DMG_BASE + WEIGHT_DMG_GAIN * this.def.stats.weight);
+        const over = Math.max(0, wallop - IMPACT_FLOOR);
         const dmgMult = 1 + Math.min(IMPACT_DMG_CAP, over * IMPACT_DMG_RATE);
         const knockMult = 1 + Math.min(IMPACT_KNOCK_CAP, over * IMPACT_KNOCK_RATE);
-        // a hard enough closing speed turns ANY hit (jab included) into a
-        // knockdown; existing launchers just ride the impact scaling
+        // KNOCKDOWN: momentum vs the victim's MASS — the shove velocity they eat
+        // is closing speed scaled by the attacker/victim mass ratio. A light mech
+        // floors a same-size rival by charging in, but can't budge a heavy one no
+        // matter how fast; a heavy bowls over a light almost by leaning on it.
         let launch = atk.launch || 0;
-        if (closingImpact >= KNOCKDOWN_IMPACT) {
-          launch = Math.max(launch, IMPACT_LAUNCH_MIN + (closingImpact - KNOCKDOWN_IMPACT) * IMPACT_LAUNCH_RATE);
+        const kick = closing >= CLOSING_MIN ? closing * this.massFactor() / f.massFactor() : 0;
+        if (kick >= KNOCKDOWN_KICK) {
+          launch = Math.max(launch,
+            Math.min(IMPACT_LAUNCH_MAX, IMPACT_LAUNCH_MIN + (kick - KNOCKDOWN_KICK) * IMPACT_LAUNCH_RATE));
         } else if (launch > 0) {
           launch *= knockMult;
         }
