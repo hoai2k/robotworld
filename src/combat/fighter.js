@@ -39,11 +39,33 @@ const DASH_CHARGE_BOOST = 0.95;
 const DASH_COOLDOWN = 0.9;
 const ESCAPE_JUMP_MULT = 2.6;    // knockdown escape spring: ground speed x this
 const ESCAPE_JUMP_VY = 13;
-// kinetic bonus: real momentum behind a punch (dash, dive) hits harder —
-// +4.5%/unit above 8 u/s, capped at +70%
-const MOMENTUM_FLOOR = 8;
-const MOMENTUM_DMG_RATE = 0.045;
-const MOMENTUM_DMG_CAP = 0.7;
+// KINETIC IMPACT: a strike's real force is MOMENTUM — the closing speed between
+// the two bodies along the attack line, scaled by the attacker's MASS (weight).
+// Closing speed reads both fighters' motion: a punch reads forward run speed, a
+// smash also reads the downward dive; two mechs charging in, or one barreling
+// into a still one, land far harder than a hit thrown standing still. Weight
+// then draws the roster together — heavy mechs are slow but hit like a truck,
+// light mechs are fast but flit — so every mech's flat-out sprint lands about
+// the same wallop instead of the featherweights being the only ones who floor.
+//   impact (u/s-equivalent) = closingSpeed * (WEIGHT_IMPACT_BASE + GAIN*weight)
+const WEIGHT_IMPACT_BASE = 0.7;  // mass factor at weightless (w=0)
+const WEIGHT_IMPACT_GAIN = 0.6;  // ...rising to BASE+GAIN at a max-weight (w=1) bruiser
+const IMPACT_FLOOR = 6;          // no bonus below this (normal shuffling/jitter)
+const IMPACT_DMG_RATE = 0.05;    // +5% damage per unit of impact past the floor
+const IMPACT_DMG_CAP = 1.1;      // capped at +110% on a full-speed collision
+const IMPACT_KNOCK_RATE = 0.07;  // knockback grows a little faster than damage
+const IMPACT_KNOCK_CAP = 1.6;
+// past this impact ANY hit (even a jab) becomes a knockdown. Tuned just under
+// the SLOWEST/heaviest mech's flat-out sprint momentum (~13) so a full dash-run
+// into a standing target always floors it, roster-wide; mutual charges and
+// dash-ins clear it easily, while a jab traded standing still never does.
+const KNOCKDOWN_IMPACT = 12;
+const IMPACT_LAUNCH_MIN = 11;    // launch velocity injected right at the threshold
+const IMPACT_LAUNCH_RATE = 0.55; // extra launch per unit of impact beyond it
+// a smash/dive folds downward closing speed into the impact too (a punch does
+// not — it's a horizontal blow); plunge dives count it in full
+const SMASH_DOWN_WEIGHT = 0.7;
+const PLUNGE_DOWN_WEIGHT = 1.0;
 
 // ---- NULLBOT corruption ----
 // Every glitched hit converts another PART of the victim into flickering
@@ -165,6 +187,7 @@ export class Fighter {
     };
     this.plunging = false;   // aerial ground-smash riding down to impact
     this._plungeVy = 0;
+    this._moveAttack = false; // basic light/heavy melee lets you keep moving
     this.alive = true;
     this.wins = 0;
     this.lastAttacker = null;
@@ -295,6 +318,9 @@ export class Fighter {
   setState(s, t = 0) {
     this.state = s;
     this.stateT = t;
+    // a mobile light/heavy grants locomotion only for its own 'attack' window;
+    // any other transition (attack end, launch, special...) drops it
+    if (s !== 'attack') this._moveAttack = false;
   }
 
   lockFor(t) { this.setState('attack', t); }
@@ -310,6 +336,7 @@ export class Fighter {
     // hold-to-charge haymaker (TITANUS/COLOSSUS): the wind-up pose HOLDS
     // while X stays down; the punch itself fires on release (updatePunchHold)
     if (this.def.punchHold) {
+      this._moveAttack = false; // rooted wind-up haymaker
       this._punchIdx = this.comboIdx % 2; // alternate arms
       this._punchHold = 0.0001;
       this._punchFull = false;
@@ -337,6 +364,7 @@ export class Fighter {
       }),
     });
     this.setState('attack', dur * 0.82);
+    this._moveAttack = true;  // keep walking/running through the jab (upper-body clip)
     this.comboIdx++;
     this.comboWindow = dur + 0.35;
     this.world.audio?.play('servo');
@@ -347,6 +375,7 @@ export class Fighter {
     if (!this.grounded && this.pos.y > 2.5) {
       // aerial ground smash: ride the swing all the way down and detonate
       // on landing — fall speed feeds the damage
+      this._moveAttack = false;
       this.plunging = true;
       this.hovering = false;
       this.vel.y = Math.min(this.vel.y, -14);
@@ -360,6 +389,7 @@ export class Fighter {
     // the hold clip LOOPS while Y stays down, banking power; the strike and
     // the hit come on release (updateHeavyHold)
     if (this.def.heavyHold) {
+      this._moveAttack = false; // rooted charge-up whirl/pound
       this._whirlHold = 0.0001;
       this._whirlFull = false;
       this.animator.play(this.def.heavyClip);
@@ -374,11 +404,13 @@ export class Fighter {
         range: mv.range * this.scale,
         launch: mv.launch,
         heavy: true,
+        smash: true, // overhead/driving blow: downward closing speed counts too
         fx: this.def.heavyFx,
         status: mv.status || null,
       }),
     });
     this.setState('attack', dur * 0.9);
+    this._moveAttack = true;  // stride into the swing
     this.comboIdx = 0;
     // track the actual victim through the whole swing: torso twists and the
     // fists CONVERGE onto their body, so a landed pound visibly LANDS
@@ -434,6 +466,7 @@ export class Fighter {
   doRanged() {
     const mv = this.def.moves.ranged;
     if (this.rangedCd > 0) return;
+    this._moveAttack = false;
     if (mv.type === 'fist' && this._fistOut) return; // fist still in flight
     if (this.ammoMax !== undefined && this.ammo <= 0) {
       this.world.audio?.play('uiBack'); // dry click — find an ammo crate
@@ -481,6 +514,7 @@ export class Fighter {
     const sp = this.def.moves.special;
     const impl = SPECIALS[sp.id];
     if (!impl) return;
+    this._moveAttack = false;
     this.uncloak();
     this.specialCd = sp.cooldown;
     this.faceNearestEnemyIfClose(40, true);
@@ -494,6 +528,7 @@ export class Fighter {
     const u = this.def.moves.ult;
     const impl = ULTS[u.id];
     if (!impl) return;
+    this._moveAttack = false;
     this.uncloak();
     this.ult = 0;
     this.faceNearestEnemyIfClose(80, true);
@@ -562,10 +597,11 @@ export class Fighter {
     if (type === 'fx') { this.heavyChargeFx(atk); return; } // pre-impact charge beat
     if (type !== 'hit') return;
     this.uncloak();
-    // kinetic bonus: real momentum behind a punch (dash, dive) hits harder
-    const mom = Math.hypot(this.vel.x, this.vel.y, this.vel.z);
-    const momMult = 1 + Math.min(MOMENTUM_DMG_CAP, Math.max(0, mom - MOMENTUM_FLOOR) * MOMENTUM_DMG_RATE);
-    atk = { ...atk, dmg: atk.dmg * momMult, knock: (atk.knock || 8) * (0.7 + 0.3 * momMult) };
+    // KINETIC IMPACT is resolved per-victim below (closing speed is relative to
+    // each target), so the attack line — attacker forward, plus a downward
+    // component for smashes/dives — is captured here once for the whole swing.
+    const fwdX = Math.sin(this.yaw), fwdZ = Math.cos(this.yaw);
+    const downW = this.plunging ? PLUNGE_DOWN_WEIGHT : (atk.smash ? SMASH_DOWN_WEIGHT : 0);
     const reach = atk.range || 3.5;
     const cx = this.pos.x + Math.sin(this.yaw) * reach * 0.75;
     const cz = this.pos.z + Math.cos(this.yaw) * reach * 0.75;
@@ -594,8 +630,32 @@ export class Fighter {
       const dx = this.world.wrapDelta(c.x - cx), dy = c.y - cy, dz = this.world.wrapDelta(c.z - cz);
       const rr = reach * 0.8 + f.hitRadius;
       if (dx * dx + dy * dy + dz * dz < rr * rr) {
-        f.takeHit(atk.dmg, this, {
-          knock: atk.knock, launch: atk.launch,
+        // CLOSING SPEED along the attack line: relative velocity (both bodies'
+        // motion) projected onto attacker-forward, plus — for a smash/dive —
+        // the downward relative speed. Two mechs closing add their speeds; a
+        // charge into a still target reads the full run; standing still and
+        // hitting a mech that runs onto your fist reads ITS run just the same.
+        const rvx = this.vel.x - f.vel.x, rvz = this.vel.z - f.vel.z;
+        let closing = rvx * fwdX + rvz * fwdZ;
+        // smash/dive: fold in how fast we're dropping onto the target
+        if (downW) closing += downW * Math.max(0, f.vel.y - this.vel.y);
+        closing = Math.max(0, closing);
+        // momentum = closing speed * attacker mass: a heavy bruiser needs less
+        // speed to hit as hard as a featherweight at a flat-out sprint
+        const closingImpact = closing * (WEIGHT_IMPACT_BASE + WEIGHT_IMPACT_GAIN * this.def.stats.weight);
+        const over = Math.max(0, closingImpact - IMPACT_FLOOR);
+        const dmgMult = 1 + Math.min(IMPACT_DMG_CAP, over * IMPACT_DMG_RATE);
+        const knockMult = 1 + Math.min(IMPACT_KNOCK_CAP, over * IMPACT_KNOCK_RATE);
+        // a hard enough closing speed turns ANY hit (jab included) into a
+        // knockdown; existing launchers just ride the impact scaling
+        let launch = atk.launch || 0;
+        if (closingImpact >= KNOCKDOWN_IMPACT) {
+          launch = Math.max(launch, IMPACT_LAUNCH_MIN + (closingImpact - KNOCKDOWN_IMPACT) * IMPACT_LAUNCH_RATE);
+        } else if (launch > 0) {
+          launch *= knockMult;
+        }
+        f.takeHit(atk.dmg * dmgMult, this, {
+          knock: (atk.knock || 8) * knockMult, launch,
           srcPos: this.pos, heavy: atk.heavy, status: atk.status || null,
         });
         hitAny = true;
@@ -717,6 +777,7 @@ export class Fighter {
         range: mv.range * this.scale * (1 + 0.3 * k), // charged slams reach deeper
         launch: mv.launch * (1 + 0.5 * k),
         heavy: true,
+        smash: true, // overhead slam — downward closing counts if airborne
       }),
     });
     this.setState('attack', dur * 0.9);
@@ -1908,8 +1969,12 @@ export class Fighter {
 
     // ---- movement ----
     let ax = 0, az = 0;
-    const canMove = (this.state === 'normal' || this.state === 'channel') &&
-      !this.blocking; // charging a dash no longer roots you — it just winds slower
+    // basic light/heavy keep locomotion (jab clips are upper-body, and running
+    // momentum feeds the kinetic-impact model); holds, specials, ults, ranged
+    // and blocking still root you, and charging a dash just winds slower
+    const canMove = (this.state === 'normal' || this.state === 'channel' ||
+      (this.state === 'attack' && this._moveAttack)) &&
+      !this.blocking;
     if (canMove) {
       ax = I.moveX; az = I.moveZ;
       const len = Math.hypot(ax, az);
