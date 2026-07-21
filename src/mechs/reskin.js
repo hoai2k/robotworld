@@ -103,6 +103,12 @@ export function rebindRest(mesh, bones) {
 // they inherit the model's transform (scale/ground/yaw) exactly like the
 // original armature did. Returns { bones, byName, root, skeleton }.
 export function applyCustomRig(mesh, rig) {
+  // Own the geometry before rewriting skin weights. cloneSkinned shares
+  // geometry across clones (and the cached gltf scene), so re-skinning in place
+  // would corrupt every other user of this GLB — notably a same-file variant
+  // (glacier's `alt` is the same GLB as its Tripo primary). A private clone
+  // keeps the re-skin local to this build.
+  mesh.geometry = mesh.geometry.clone();
   const { bones, byName, root } = buildSkeletonBones(rig);
 
   // place the bone tree in the SAME space the geometry lives in. mesh.matrix

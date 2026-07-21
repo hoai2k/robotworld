@@ -73,9 +73,10 @@ export async function runRigEdit(startId) {
   }
   function saveRig() { localStorage.setItem(LS_KEY(), JSON.stringify(rigObj)); }
 
+  const useAlt = new URLSearchParams(location.search).get('alt') === '1';
   async function load() {
-    const raw = await loadRawGlbScene(id);
-    if (!raw) { alert(`no GLB for ${id}`); return; }
+    const raw = await loadRawGlbScene(id, { alt: useAlt });
+    if (!raw) { alert(`no GLB for ${id}${useAlt ? ' (alt)' : ''}`); return; }
     container = new THREE.Group();
     container.scale.setScalar(VIEW);
     container.add(raw.scene);

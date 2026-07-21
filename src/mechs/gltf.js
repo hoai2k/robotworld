@@ -41,7 +41,7 @@ let manifestPromise = null;
 const KNOWN_ENTRY_KEYS = new Set([
   'url', 'bindPose', 'boneOverrides', 'heightScale', 'yawOffset',
   'emissiveBoost', 'stretch', 'bonePos', 'boneCorrections', 'noHeadMatch',
-  'skinOps', 'reparent', 'muzzles', 'profileKey', 'alt',
+  'skinOps', 'reparent', 'muzzles', 'profileKey', 'alt', 'rig',
 ]);
 const _entryWarned = new Set(); // "<id>|<msg>" — each complaint fires once per entry
 function warnEntryOnce(id, msg) {
@@ -128,9 +128,9 @@ export async function fetchRawManifest() {
 // skinOps — with PRIVATE geometry so callers may mutate skin weights freely
 // (SkeletonUtils.clone shares geometry; the game cache must stay pristine).
 // For the ?debug=skin workbench and the skin audit.
-export async function loadRawGlbScene(id) {
+export async function loadRawGlbScene(id, opts = {}) {
   const m = await fetchRawManifest();
-  const entry = m[id];
+  const entry = opts.alt ? m[id]?.alt : m[id];
   if (!entry?.url) return null;
   const gltf = await loadGLTF(entry.url);
   const scene = cloneSkinned(gltf.scene);
@@ -206,12 +206,15 @@ function buildGlbMech(def, entry, gltf) {
     if (o.isMesh || o.isSkinnedMesh) meshes.push(o);
   });
 
-  // CUSTOM RIG (src/mechs/rigs/<id>.rig.js): when an auto-rig is too scrambled
+  // CUSTOM RIG (src/mechs/rigs/<name>.rig.js): when an auto-rig is too scrambled
   // to fix by remapping (a crab with both claws welded to one leg bone), a
   // hand-placed skeleton — authored in ?rigedit — REPLACES it. The mesh is
   // re-skinned to bones that ARE the game joints, so the retarget drives real,
-  // correctly-located limbs. Supersedes boneOverrides + skinOps for that mech.
-  const customRig = rigFor(def.id);
+  // correctly-located limbs. Supersedes boneOverrides + skinOps for that entry.
+  // Keyed on the ENTRY's `rig` field (not the mech id) so a model VARIANT (an
+  // `alt`) can carry a custom rig while the primary keeps its stock rig — the
+  // ?debug=models "Compare Alternate GLB" toggle then shows old vs new rig.
+  const customRig = entry.rig ? rigFor(entry.rig) : null;
   let boneMap;
   if (customRig) {
     const sk = meshes.find((m) => m.isSkinnedMesh);

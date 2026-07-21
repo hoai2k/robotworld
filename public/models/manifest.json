@@ -937,7 +937,13 @@
       {"sel":{"comp":77},"to":"tripo0_Right_Limb_3"},
       {"sel":{"comp":42},"to":"bone_26"},
       {"sel":{"comp":33},"to":"bone_28"}
-    ]
+    ],
+    "alt": {
+      "url": "models/mech_glacier.glb",
+      "bindPose": "native",
+      "yawOffset": 270,
+      "rig": "glacier"
+    }
   },
   "jerry": {
     "url": "models/mech_jerry.glb",
@@ -963,6 +969,7 @@
       "url": "models/mech_jerry_alt.glb",
       "bindPose": "native",
       "yawOffset": 270,
+      "rig": "jerry",
       "boneOverrides": {
         "hips": "tripoRoot",
         "torso": "tripo1_Right_Limb_0",
@@ -1595,6 +1602,7 @@
     "url": "models/mech_cranky.glb",
     "bindPose": "native",
     "yawOffset": 270,
+    "rig": "cranky",
     "boneOverrides": {
       "hips": "tripoRoot",
       "torso": "tripoSpine_1",
