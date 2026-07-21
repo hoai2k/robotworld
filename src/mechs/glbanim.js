@@ -195,11 +195,58 @@ export const GLB_ANIM = {
   // the torso like a boxer, which a wide crab shouldn't do — square him up so he
   // THRUSTS the claws straight ahead instead of winding up.
   cranky: {
+    // post: crab-squaring during attacks (no boxer torso-twist) + advance the
+    // hexapod gait clock from walk speed. build: drive all SIX legs in a tripod
+    // gait (custom rig gives each crab leg a real hip bone; two carry the game
+    // leg joints, four are extra). postDress runs AFTER the retarget so it owns
+    // the leg pose. Attacks still drive the real claw arms via the shared clips.
     post(anim, dt, ctx, tgt) {
       const act = anim.action;
-      if (act && !act.fadingOut && !act.clip.loop) {
+      const attacking = act && !act.fadingOut && !act.clip.loop;
+      if (attacking) {
         tgt.hipsRot[1] *= 0.2; tgt.torso[1] *= 0.2; tgt.torso[2] *= 0.4;
       }
+      const ratio = Math.min(1, (ctx.speed || 0) / (ctx.maxSpeed || 10));
+      const grounded = ctx.grounded !== false;
+      const m = anim.mech;
+      const wantK = grounded ? ratio : 0;
+      m._walkK = (m._walkK ?? 0) + (wantK - (m._walkK ?? 0)) * Math.min(1, dt * 8);
+      m._gaitPhase = (m._gaitPhase || 0) + (2 + 6 * ratio) * dt;
+      // A crab carries its claws steady while scuttling — damp the shared walk's
+      // humanoid arm counter-swing so the heavy pincers don't wag (and shear).
+      if (!attacking && ratio > 0.03) {
+        const keep = Math.max(0.08, 1 - 2.2 * ratio); // freeze the claws by mid-speed
+        const r = anim.rest;
+        for (const j of ['shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'handL', 'handR']) {
+          for (let i = 0; i < 3; i++) tgt[j][i] = r[j][i] + (tgt[j][i] - r[j][i]) * keep;
+        }
+      }
+    },
+    build(mech) {
+      const byName = {};
+      mech.group.traverse((o) => { if (o.isBone) byName[o.name] = o; });
+      // (hip bone, tripod group 0|1, side +1 left / -1 right). The FRONT pair
+      // sits right against the pincer bases, so animating it tears claw verts —
+      // hold it steady and drive the 4 mid/back legs in diagonal pairs (reads as
+      // a crab scuttle; the front legs just plant).
+      // (hip, tripod group, side, amp) — mid legs sit closer to the pincers so
+      // they swing at half amplitude to stay clear of the claw skin.
+      const legs = [
+        ['thighL', 0, 1, 1.0], ['legMRhip', 0, -1, 0.5],
+        ['legMLhip', 1, 1, 0.5], ['thighR', 1, -1, 1.0],
+      ].map(([n, g, sx, amp]) => ({ b: byName[n], g, sx, amp })).filter((l) => l.b);
+      for (const l of legs) { l.bx = l.b.rotation.x; l.by = l.b.rotation.y; l.bz = l.b.rotation.z; }
+      mech.postDress = () => {
+        const k = mech._walkK || 0;
+        if (k < 0.002) { for (const l of legs) l.b.rotation.set(l.bx, l.by, l.bz); return; }
+        const ph = mech._gaitPhase || 0;
+        for (const l of legs) {
+          const p = ph + (l.g ? Math.PI : 0);
+          const sweep = 0.28 * k * l.amp * Math.cos(p);             // fore-aft swing (about local z)
+          const lift = 0.2 * k * l.amp * Math.max(0, Math.sin(p));  // foot lifts on the swing half
+          l.b.rotation.set(l.bx + lift * l.sx, l.by, l.bz + sweep);
+        }
+      };
     },
   },
 

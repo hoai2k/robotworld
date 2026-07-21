@@ -970,6 +970,7 @@
       "bindPose": "native",
       "yawOffset": 270,
       "rig": "jerry",
+      "heightScale": 0.59,
       "boneOverrides": {
         "hips": "tripoRoot",
         "torso": "tripo1_Right_Limb_0",
