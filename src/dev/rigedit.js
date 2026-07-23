@@ -50,10 +50,24 @@ export async function runRigEdit(startId) {
   scene.add(gizmo.getHelper ? gizmo.getHelper() : gizmo);
   gizmo.addEventListener('dragging-changed', (e) => {
     orbit.enabled = !e.value;
-    if (e.value) dragSnap = snapshotRig();   // capture pre-drag state for undo
-    else onEditCommit();                     // reweight when the drag ends
+    if (e.value) { dragSnap = snapshotRig(); captureSoloMoveTargets(); }  // pre-drag state
+    else { onEditCommit(); soloMoveTargets = null; }                      // reweight on release
   });
   gizmo.addEventListener('objectChange', onGizmoMove);
+
+  // Solo move: freeze the world positions of the selected bone's DIRECT children
+  // at drag-start. Re-pinning them there each frame (below) keeps the whole
+  // subtree still while only the selected joint moves.
+  function captureSoloMoveTargets() {
+    soloMoveTargets = null;
+    if (!soloMove || !selName) return;
+    soloMoveTargets = new Map();
+    for (const bd of rigObj.bones) {
+      if (bd.parent !== selName) continue;
+      const c = byName[bd.name];
+      if (c) soloMoveTargets.set(bd.name, c.getWorldPosition(new THREE.Vector3()));
+    }
+  }
 
   // ---- state ----
   let mesh = null, armature = null, container = null;
@@ -67,6 +81,8 @@ export async function runRigEdit(startId) {
   let soloRoot = null;             // solo a bone's subtree (declutter the rest)
   let undoStack = [], redoStack = [];
   let dragSnap = null;             // rig snapshot captured at gizmo drag-start
+  let soloMove = false;            // move a joint WITHOUT dragging its subtree
+  let soloMoveTargets = null;      // Map childName -> frozen world pos during a solo-move drag
 
   const LS_KEY = () => `rigedit:${id}`;
 
@@ -301,8 +317,24 @@ export async function runRigEdit(startId) {
     }
   }
 
+  const _smp = new THREE.Vector3();
   function onGizmoMove() {
     if (!selName) return;
+    // solo move: counter-move the direct children so their world positions stay
+    // put — only the selected joint shifts, the rest of the limb holds still
+    // relative to the geometry (grandchildren ride their frozen parents, so
+    // pinning direct children freezes the whole subtree)
+    if (soloMove && soloMoveTargets) {
+      const sel = byName[selName];
+      sel.updateWorldMatrix(true, false);
+      for (const [name, worldTarget] of soloMoveTargets) {
+        const c = byName[name];
+        if (!c) continue;
+        _smp.copy(worldTarget);
+        sel.worldToLocal(_smp);   // where the child must sit in the moved parent's space
+        c.position.copy(_smp);
+      }
+    }
     // moving the bind: keep the mesh at REST (don't deform while editing)
     if (!swinging) rebindRest(mesh, bones);
   }
@@ -412,8 +444,15 @@ export async function runRigEdit(startId) {
   // ---- export ----
   function exportRig() {
     syncRigFromBones();
-    const lines = rigObj.bones.map((b) =>
-      `    { name: '${b.name}', parent: ${b.parent ? `'${b.parent}'` : 'null'}, pos: [${b.pos.map((v) => v.toFixed(2)).join(', ')}] },`);
+    const lines = rigObj.bones.map((b) => {
+      // preserve the semantic flags the rig depends on — `post` (renders a black
+      // rod along the bone) and `bias` (skin win-radius tuning) — so a
+      // round-trip through Export doesn't silently drop them
+      let extra = '';
+      if (b.post !== undefined) extra += `, post: ${typeof b.post === 'object' ? JSON.stringify(b.post) : b.post}`;
+      if (b.bias !== undefined) extra += `, bias: ${b.bias}`;
+      return `    { name: '${b.name}', parent: ${b.parent ? `'${b.parent}'` : 'null'}, pos: [${b.pos.map((v) => v.toFixed(2)).join(', ')}]${extra} },`;
+    });
     const txt = `export const ${id.toUpperCase()}_RIG = {\n  bones: [\n${lines.join('\n')}\n  ],\n};\n`;
     out.value = txt; out.style.display = 'block'; out.select();
     navigator.clipboard?.writeText(txt).catch(() => {});
@@ -434,6 +473,11 @@ export async function runRigEdit(startId) {
   const bColor = tog('Color view', () => setColorMode(!colorOn));
   const bSolo = tog('Solo subtree (S)', () => { if (selName) toggleSolo(selName); });
   modeRow.append(bMove, bColor, bSolo); panel.appendChild(modeRow);
+
+  const smRow = el('div', 'display:flex;gap:6px;margin:0 0 6px');
+  const bSoloMove = tog('Solo move: off', () => { soloMove = !soloMove; refreshModeButtons(); });
+  bSoloMove.title = 'When on, dragging a joint moves ONLY that joint — its child joints stay put relative to the geometry instead of following.';
+  smRow.append(bSoloMove); panel.appendChild(smRow);
 
   const histRow = el('div', 'display:flex;gap:6px;margin:0 0 6px');
   histRow.append(tog('↶ Undo', undo), tog('↷ Redo', redo));
@@ -462,6 +506,8 @@ export async function runRigEdit(startId) {
     bColor.style.background = colorOn ? '#24405e' : '#1a2433';
     bSolo.style.background = soloRoot ? '#1f7a4d' : '#1a2433';
     bSolo.textContent = soloRoot ? `Solo: ${soloRoot} (S)` : 'Solo subtree (S)';
+    bSoloMove.style.background = soloMove ? '#8a5a1f' : '#1a2433';
+    bSoloMove.textContent = `Solo move: ${soloMove ? 'ON' : 'off'}`;
   }
 
   panel.appendChild(lbl('Bones (click to select, drag gizmo to place)'));
@@ -566,6 +612,18 @@ export async function runRigEdit(startId) {
   engine.onRender = () => orbit.update();
   engine.start();
   window.__rigedit = { get rig() { return rigObj; }, byName: () => byName,
-    solo: toggleSolo, undo, redo, select: selectBone };
+    solo: toggleSolo, undo, redo, select: selectBone,
+    // test hook: drive the real solo-move path (capture → move → counter-adjust)
+    _simSoloMove: (boneName, dx, dy, dz) => {
+      soloMove = true; selName = boneName; captureSoloMoveTargets();
+      const before = {};
+      for (const [n] of (soloMoveTargets || [])) before[n] = byName[n].getWorldPosition(new THREE.Vector3()).toArray();
+      const b = byName[boneName]; b.position.x += dx; b.position.y += dy; b.position.z += dz;
+      onGizmoMove();
+      const after = {};
+      for (const [n] of (soloMoveTargets || [])) after[n] = byName[n].getWorldPosition(new THREE.Vector3()).toArray();
+      soloMoveTargets = null;
+      return { before, after };
+    } };
   return engine;
 }
