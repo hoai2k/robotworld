@@ -51,7 +51,9 @@ export async function runSkinTool(startId) {
   let mesh = null;           // the SkinnedMesh
   let bones = [];            // skeleton bones
   let pristine = null;       // {skinIndex, skinWeight} copies of the raw file
-  let analysis = null;       // pristine analysis — ALL ops select against this
+  let analysis = null;       // pristine analysis — ops with {comp} ids select against this
+  let liveAnalysis = null;   // post-ops analysis — ALL picking/regions use this, so
+                             // painted splits become their own selectable islands
   let colorAttr = null;      // Float32BufferAttribute vertexColors
   let ops = [];              // current op list (manifest skinOps replacement)
   let selComp = null;        // selected island (from pristine analysis)
@@ -91,10 +93,9 @@ export async function runSkinTool(startId) {
     // in a 4-comp RGBA attribute; this switches it back)
     if (mesh.geometry.getAttribute('color') !== colorAttr) mesh.geometry.setAttribute('color', colorAttr);
     // colors reflect the CURRENT (post-ops) dominant bone so a rebind is
-    // instantly visible; islands still come from the pristine analysis.
-    const live = analyzeSkin(mesh);
+    // instantly visible
     for (let i = 0; i < n; i++) {
-      const c = boneColor(live.domBone[i]);
+      const c = boneColor(liveAnalysis.domBone[i]);
       colorAttr.setXYZ(i, c.r, c.g, c.b);
     }
     if (selComp) {
@@ -113,8 +114,19 @@ export async function runSkinTool(startId) {
     mesh.geometry.attributes.skinIndex.needsUpdate = true;
     mesh.geometry.attributes.skinWeight.needsUpdate = true;
     applySkinOps(mesh, ops, analysis);
+    liveAnalysis = analyzeSkin(mesh);
     rebuildColors();
     renderOps();
+  }
+
+  // Selector for an op made from a LIVE island: islands unchanged since load
+  // keep the compact pristine {comp:id} address; anything reshaped by earlier
+  // ops or painting is addressed as an explicit vert list.
+  function selectorFor(comp) {
+    const pid = analysis.compId[comp.verts[0]];
+    if (analysis.comps[pid].count === comp.count &&
+        comp.verts.every((v) => analysis.compId[v] === pid)) return { comp: pid };
+    return { verts: comp.verts.slice() };
   }
 
   // ---- undo/redo (snapshots of the ops list) ----
@@ -204,7 +216,7 @@ export async function runSkinTool(startId) {
     ops = (raw.entry.skinOps || []).map((o) => ({ ...o }));
     applyAllOps();
     buildBoneList();
-    setStatus(`${id.toUpperCase()} — ${analysis.comps.length} islands, ${bones.length} bones.` +
+    setStatus(`${id.toUpperCase()} — ${liveAnalysis.comps.length} islands, ${bones.length} bones.` +
       `\nClick a wrong-colored patch to select it.`);
   }
 
@@ -221,7 +233,7 @@ export async function runSkinTool(startId) {
     // the small (usually miscolored) patch the user is aiming at
     let best = null;
     for (const vi of [f.a, f.b, f.c]) {
-      const comp = analysis.comps[analysis.compId[vi]];
+      const comp = liveAnalysis.comps[liveAnalysis.compId[vi]];
       if (!best || comp.count < best.comp.count) best = { vi, comp };
     }
     return best;
@@ -257,7 +269,13 @@ export async function runSkinTool(startId) {
     }
   });
   renderer.domElement.addEventListener('pointerup', (ev) => {
-    if (painting) { painting = false; strokePushed = false; return; }
+    if (painting) {
+      painting = false; strokePushed = false;
+      // the stroke rewrote weights in place — refresh the island partition so
+      // the painted patch is immediately its own pickable region
+      liveAnalysis = analyzeSkin(mesh);
+      return;
+    }
     if (paintMode) {
       const dd = renderer.domElement._down;
       if (!dd || Math.hypot(ev.clientX - dd.x, ev.clientY - dd.y) > 6) return; // a drag (orbit)
@@ -266,8 +284,7 @@ export async function runSkinTool(startId) {
         // the clicked patch's CURRENT dominant bone becomes the paint color
         const h = pick(ev);
         if (h) {
-          const live = analyzeSkin(mesh);
-          const b = bones[live.domBone[h.vi]];
+          const b = bones[liveAnalysis.domBone[h.vi]];
           if (b) setPaintBone(b.name);
         }
       } else if (paintPhase === 'pickRegion') {
@@ -283,8 +300,7 @@ export async function runSkinTool(startId) {
     if (!hit) return;
     if (mode === 'picktarget') {
       // rebind the selected island to the clicked point's CURRENT bone
-      const live = analyzeSkin(mesh);
-      const targetBone = bones[live.domBone[hit.vi]];
+      const targetBone = bones[liveAnalysis.domBone[hit.vi]];
       if (selComp && targetBone) addOp(selComp, targetBone.name);
       mode = 'select';
       updateModeUI();
@@ -309,7 +325,7 @@ export async function runSkinTool(startId) {
   function addOp(comp, toBone) {
     if (comp.boneName === toBone) { setStatus('That island already belongs to ' + toBone); return; }
     pushUndo();
-    ops.push({ sel: { comp: comp.id }, to: toBone });
+    ops.push({ sel: selectorFor(comp), to: toBone });
     selComp = null;
     applyAllOps();
     setStatus(`Rebound island #${comp.id} (${comp.count}v) → ${toBone}`);
@@ -323,7 +339,7 @@ export async function runSkinTool(startId) {
     if (!selComp) { setStatus('Select an island first (click a patch).'); return; }
     const c = selComp;
     pushUndo();
-    ops.push({ sel: { comp: c.id }, to: c.boneName });
+    ops.push({ sel: selectorFor(c), to: c.boneName });
     selComp = null;
     applyAllOps();
     setStatus(`Island #${c.id} (${c.count}v) rebound 100% to ${c.boneName} — secondary weights removed.`);
@@ -400,9 +416,8 @@ export async function runSkinTool(startId) {
     if (!paintColorAttr || paintColorAttr.count !== n) {
       paintColorAttr = new THREE.BufferAttribute(new Float32Array(n * 4), 4);
     }
-    const live = analyzeSkin(mesh);
     for (let i = 0; i < n; i++) {
-      const c = boneColor(live.domBone[i]);
+      const c = boneColor(liveAnalysis.domBone[i]);
       paintColorAttr.setXYZW(i, c.r, c.g, c.b, regionSet.has(i) ? 1 : PAINT_FADE);
     }
     mesh.geometry.setAttribute('color', paintColorAttr);
@@ -749,12 +764,14 @@ export async function runSkinTool(startId) {
   };
   engine.start();
   window.__skinTool = { engine, panel, get mesh() { return mesh; }, get ops() { return ops; }, get analysis() { return analysis; },
+    get live() { return liveAnalysis; },
+    addOp,
     addOpByComp: (cid, to) => { const c = analysis.comps[cid]; if (c) addOp(c, to); },
     selectComp: (cid) => { const c = analysis.comps[cid]; if (c) { selComp = c; rebuildColors(); } },
     bindSelfHard: rebindSelfHard, undo, redo, load,
     // paint-mode hooks (for testing/scripting)
     paint: { enter: enterPaintMode, exit: exitPaintMode, bone: setPaintBone,
-      region: (cid) => { const c = analysis.comps[cid]; if (c) enterRegion(c); },
+      region: (cid) => { const c = liveAnalysis.comps[cid]; if (c) enterRegion(c); },
       strokeAt: (worldVec, bone) => {   // paint all region verts within brush of a world point
         if (bone) setPaintBone(bone);
         if (!regionSet || !paintBone) return 0;
@@ -768,7 +785,8 @@ export async function runSkinTool(startId) {
         const jnt = mesh.geometry.attributes.skinIndex, wgt = mesh.geometry.attributes.skinWeight, c = boneColor(ti);
         for (const vi of hitVerts) { paintSet.add(vi); paintOp.sel.verts.push(vi);
           jnt.setXYZW(vi, ti, 0, 0, 0); wgt.setXYZW(vi, 1, 0, 0, 0); paintColorAttr.setXYZW(vi, c.r, c.g, c.b, 1); }
-        jnt.needsUpdate = wgt.needsUpdate = paintColorAttr.needsUpdate = true; strokePushed = false; renderOps();
+        jnt.needsUpdate = wgt.needsUpdate = paintColorAttr.needsUpdate = true; strokePushed = false;
+        liveAnalysis = analyzeSkin(mesh); renderOps();
         return hitVerts.length;
       },
       get state() { return { paintMode, paintPhase, paintBone, region: paintRegion?.id, brushRadius }; },
