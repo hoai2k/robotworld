@@ -242,7 +242,15 @@ export async function runSkinTool(startId) {
       const dd = renderer.domElement._down;
       if (!dd || Math.hypot(ev.clientX - dd.x, ev.clientY - dd.y) > 6) return; // a drag (orbit)
       if (!mesh) return;
-      if (paintPhase === 'pickRegion') {
+      if (paintPhase === 'pickBone') {
+        // the clicked patch's CURRENT dominant bone becomes the paint color
+        const h = pick(ev);
+        if (h) {
+          const live = analyzeSkin(mesh);
+          const b = bones[live.domBone[h.vi]];
+          if (b) setPaintBone(b.name);
+        }
+      } else if (paintPhase === 'pickRegion') {
         const h = pick(ev);
         if (h) enterRegion(h.comp);
       }
@@ -302,8 +310,9 @@ export async function runSkinTool(startId) {
   }
 
   // ================= PAINT MODE =================
-  // Split one island across two bones: pick a bone (the paint color) + a region
-  // (the island), then brush-paint sub-parts of that region onto the bone.
+  // Split one island across two bones: click a patch to pick a bone (the paint
+  // color), click a region (the island — the rest fades), then brush-paint
+  // sub-parts of that region onto the bone.
   // Painted verts become a { sel:{verts:[...]}, to } op — exportable + applied
   // at game load like every other op.
   function setOrbitPaintMode(on) {
@@ -319,7 +328,8 @@ export async function runSkinTool(startId) {
     selComp = null; stopWiggle(); mode = 'select'; updateModeUI();
     setOrbitPaintMode(true);
     updatePaintUI();
-    setStatus('PAINT: pick a BONE in the list below (the paint color).');
+    setStatus('PAINT: click a patch on the model to choose the COLOR (its bone).' +
+      '\n(The bone list on the left works as a palette too.)');
   }
   function exitPaintMode() {
     paintMode = false; paintPhase = 'off'; painting = false;
@@ -334,11 +344,12 @@ export async function runSkinTool(startId) {
   function setPaintBone(name) {
     paintBone = name;
     paintOp = null; paintSet = null;   // a bone change starts a fresh paint op
-    if (paintPhase === 'pickBone') paintPhase = 'pickRegion';
+    // if a solo region is already active, go straight (back) to painting
+    if (paintPhase === 'pickBone') paintPhase = regionSet ? 'paint' : 'pickRegion';
     updatePaintUI();
     setStatus(paintRegion
       ? `PAINT: now painting → ${name}. Left-drag over the region.`
-      : `PAINT: color = ${name}. Now click a REGION on the model.`);
+      : `PAINT: color = ${name}. Now click the REGION to solo (others fade).`);
   }
   // skinned world position of a vertex (rest pose) — matches the raycast hit
   // space so the brush selects what's under the cursor
@@ -537,22 +548,43 @@ export async function runSkinTool(startId) {
     b._r = rad; brushBtns.push(b); brushRow.appendChild(b);
   }
   paintPanel.appendChild(brushRow);
-  paintPanel.appendChild(actionBtn('Pick a different region', () => {
+  const repickRow = document.createElement('div');
+  repickRow.style.cssText = 'display:flex;gap:6px';
+  repickRow.appendChild(actionBtn('Change color', () => {
+    if (!paintMode) return;
+    paintPhase = 'pickBone';
+    updatePaintUI();
+    setStatus('PAINT: click a patch on the model to choose the new COLOR (its bone).');
+  }));
+  repickRow.appendChild(actionBtn('Change region', () => {
     if (!paintMode) return;
     paintPhase = 'pickRegion'; paintRegion = null; regionSet = null; regionWorld = null;
     paintOp = null; paintSet = null;
     if (mesh) mesh.material = showTex ? texturedMat : boneMat;
     applyAllOps();
     updatePaintUI();
-    setStatus('PAINT: click a REGION on the model to paint within.');
+    setStatus('PAINT: click the REGION to solo (others fade).');
   }));
+  paintPanel.appendChild(repickRow);
   panel.appendChild(paintPanel);
   function updatePaintUI() {
     paintBtn.style.background = paintMode ? '#7a3fb0' : '#1a2433';
     paintBtn.style.color = paintMode ? '#fff' : '#cfe0f5';
     paintBtn.textContent = paintMode ? 'Painting — click to exit (P)' : 'Paint geometry (P)';
     paintPanel.style.display = paintMode ? 'block' : 'none';
-    paintInfo.textContent = `color: ${paintBone || '—'}  ·  region: ${paintRegion ? '#' + paintRegion.id : '—'}`;
+    const phaseHint = { pickBone: 'click model = choose color', pickRegion: 'click model = solo region',
+      paint: 'left-drag = paint' }[paintPhase] || '';
+    paintInfo.innerHTML = '';
+    if (paintBone) {
+      const bi = bones.findIndex((b) => b.name === paintBone);
+      const sw = document.createElement('span');
+      sw.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;` +
+        `vertical-align:-1px;background:#${boneColor(bi).getHexString()}`;
+      paintInfo.appendChild(sw);
+    }
+    paintInfo.appendChild(document.createTextNode(
+      `color: ${paintBone || '—'}  ·  region: ${paintRegion ? '#' + paintRegion.id : '—'}` +
+      (phaseHint ? ` · ${phaseHint}` : '')));
     for (const b of brushBtns) b.style.outline = (b._r === brushRadius) ? '2px solid #b98cff' : '';
   }
 
@@ -662,9 +694,10 @@ export async function runSkinTool(startId) {
     + '2. “Rebind → click target” (Q), then click the part it should move with<br>'
     + '3. Wiggle (W) to verify · SPACE pauses a wiggle to click a stretched piece<br>'
     + '4. “Bind 100% to own bone” (B) drops a patch’s secondary weights.<br>'
-    + '5. “Paint geometry” (P): pick a bone (list) + a region (click model), then '
-    + 'LEFT-drag to paint part of the region onto that bone — splits one island in two. '
-    + 'RIGHT-drag orbits while painting.<br>'
+    + '5. “Paint geometry” (P): click a patch to pick the COLOR (its bone), click '
+    + 'the REGION to solo it (others fade), then LEFT-drag to paint part of the '
+    + 'region onto that bone — splits one island in two. Painted verts recolor '
+    + 'live. RIGHT-drag orbits while painting.<br>'
     + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
