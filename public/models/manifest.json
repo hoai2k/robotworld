@@ -1511,7 +1511,22 @@
           2.1
         ]
       }
-    }
+    },
+    "skinOps": [
+      {"sel":{"comp":22},"to":"mouth"},
+      {"sel":{"comp":30},"to":"shoulderR"},
+      {"sel":{"comp":67},"to":"legFRhip"},
+      {"sel":{"comp":32},"to":"shoulderL"},
+      {"sel":{"comp":34},"to":"mouth"},
+      {"sel":{"comp":28},"to":"shoulderL"},
+      {"sel":{"comp":25},"to":"shoulderL"},
+      {"sel":{"comp":42},"to":"shoulderL"},
+      {"sel":{"comp":5},"to":"shoulderR"},
+      {"sel":{"comp":31},"to":"shoulderR"},
+      {"sel":{"comp":43},"to":"shoulderR"},
+      {"sel":{"comp":48},"to":"shoulderR"},
+      {"sel":{"comp":58},"to":"shoulderR"}
+    ]
   },
   "fenrir": {
     "url": "models/mech_fenrir.glb",
