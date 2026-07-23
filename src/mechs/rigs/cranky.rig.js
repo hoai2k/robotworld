@@ -20,26 +20,26 @@ export const CRANKY_RIG = {
     //      split out so the pincer can open/close.
     { name: 'shoulderL', parent: 'torso', pos: [0.04, 0.38, 0.14], bias: 0.4 },
     { name: 'elbowL', parent: 'shoulderL', pos: [0.18, 0.33, 0.28], bias: 0.4 },
-    { name: 'handL', parent: 'elbowL', pos: [0.27, 0.24, 0.29], bias: 0.4 },
-    { name: 'clawL', parent: 'handL', pos: [0.37, 0.18, 0.31], bias: 0.4 },
+    { name: 'handL', parent: 'elbowL', pos: [0.27, 0.22, 0.30], bias: 0.4 },
+    { name: 'clawL', parent: 'handL', pos: [0.40, 0.14, 0.13], bias: 0.4 },
     // ---- RIGHT giant claw (-z) as the right arm ----
     { name: 'shoulderR', parent: 'torso', pos: [0.04, 0.38, -0.14], bias: 0.4 },
     { name: 'elbowR', parent: 'shoulderR', pos: [0.16, 0.33, -0.25], bias: 0.4 },
-    { name: 'handR', parent: 'elbowR', pos: [0.26, 0.23, -0.30], bias: 0.4 },
-    { name: 'clawR', parent: 'handR', pos: [0.36, 0.17, -0.32], bias: 0.4 },
+    { name: 'handR', parent: 'elbowR', pos: [0.29, 0.23, -0.29], bias: 0.4 },
+    { name: 'clawR', parent: 'handR', pos: [0.38, 0.18, -0.16], bias: 0.4 },
     // ==== SIX crab legs. The BACK pair carries the game leg joints and now has
     //      a 4th joint — hip->knee->ankle->foot — so the skin follows the whole
     //      leg; the gait swings the thigh. ====
     // back-left  (game legL)
     { name: 'thighL', parent: 'hips', pos: [-0.13, 0.41, 0.23] },
-    { name: 'kneeL', parent: 'thighL', pos: [-0.19, 0.44, 0.42] },
-    { name: 'ankleL', parent: 'kneeL', pos: [-0.22, 0.03, 0.46] },
-    { name: 'footL', parent: 'ankleL', pos: [-0.23, 0.01, 0.52] },
+    { name: 'kneeL', parent: 'thighL', pos: [-0.16, 0.39, 0.32] },
+    { name: 'ankleL', parent: 'kneeL', pos: [-0.19, 0.44, 0.43] },
+    { name: 'footL', parent: 'ankleL', pos: [-0.22, 0.04, 0.47] },
     // back-right (game legR)
     { name: 'thighR', parent: 'hips', pos: [-0.13, 0.42, -0.22] },
-    { name: 'kneeR', parent: 'thighR', pos: [-0.19, 0.44, -0.40] },
-    { name: 'ankleR', parent: 'kneeR', pos: [-0.22, 0.05, -0.48] },
-    { name: 'footR', parent: 'ankleR', pos: [-0.23, 0.01, -0.54] },
+    { name: 'kneeR', parent: 'thighR', pos: [-0.17, 0.42, -0.35] },
+    { name: 'ankleR', parent: 'kneeR', pos: [-0.20, 0.44, -0.42] },
+    { name: 'footR', parent: 'ankleR', pos: [-0.22, 0.03, -0.48] },
     // mid-left (bias>1 on hip+knee: kept off the pincer base so a step can't
     //          tear the claw)
     { name: 'legMLhip', parent: 'hips', pos: [-0.06, 0.28, 0.09], bias: 1.3 },
