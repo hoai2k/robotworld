@@ -227,11 +227,31 @@ export async function runSkinTool(startId) {
     return best;
   }
 
+  // does the pointer event land on the mech at all? (any island)
+  function rayHitsMesh(ev) {
+    if (!mesh) return false;
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    return raycaster.intersectObject(mesh, false).length > 0;
+  }
+
+  // In paint mode a left-drag starting on the mech paints, but one starting on
+  // empty space should orbit as normal (to reach the region's other sides).
+  // OrbitControls' own pointerdown listener registered first, so decide here on
+  // window CAPTURE — it runs before target listeners — by flipping its LEFT
+  // binding per press.
+  window.addEventListener('pointerdown', (ev) => {
+    if (!paintMode || ev.button !== 0 || ev.target !== renderer.domElement) return;
+    orbit.mouseButtons.LEFT = rayHitsMesh(ev) ? null : THREE.MOUSE.ROTATE;
+  }, true);
+
   renderer.domElement.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
     ev._downX = ev.clientX; ev._downY = ev.clientY;
     renderer.domElement._down = { x: ev.clientX, y: ev.clientY };
-    if (paintMode && paintPhase === 'paint') {
+    if (paintMode && paintPhase === 'paint' && rayHitsMesh(ev)) {
       painting = true; strokePushed = false;
       paintStroke(ev);
     }
@@ -370,7 +390,8 @@ export async function runSkinTool(startId) {
     paintPhase = 'paint';
     paintOp = null; paintSet = null;
     updatePaintUI();
-    setStatus(`PAINT: region #${comp.id} (${comp.count}v). Left-drag = paint → ${paintBone}. Right-drag = orbit.`);
+    setStatus(`PAINT: region #${comp.id} (${comp.count}v). Left-drag on the mech = paint → ${paintBone}.` +
+      `\nLeft-drag on empty space (or right-drag) = orbit.`);
   }
   // RGBA vertex colors: region opaque in its live bone color, everything else
   // faded to PAINT_FADE alpha so the region stands out
@@ -697,7 +718,7 @@ export async function runSkinTool(startId) {
     + '5. “Paint geometry” (P): click a patch to pick the COLOR (its bone), click '
     + 'the REGION to solo it (others fade), then LEFT-drag to paint part of the '
     + 'region onto that bone — splits one island in two. Painted verts recolor '
-    + 'live. RIGHT-drag orbits while painting.<br>'
+    + 'live. Left-drag on empty space (or right-drag anywhere) orbits.<br>'
     + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
