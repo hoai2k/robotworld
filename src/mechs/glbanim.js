@@ -203,12 +203,35 @@ export const GLB_ANIM = {
     post(anim, dt, ctx, tgt) {
       const act = anim.action;
       const attacking = act && !act.fadingOut && !act.clip.loop;
+      const m = anim.mech;
       if (attacking) {
         tgt.hipsRot[1] *= 0.2; tgt.torso[1] *= 0.2; tgt.torso[2] *= 0.4;
+        // STRONG attack (clawSnap): the shared "clamp" swings each shoulder so
+        // far inboard the giant pincers CROSS past the centerline. Cap the
+        // inward yaw so the two claws MEET and smash together in the middle
+        // instead of passing through each other. (Left inward yaw is +, right
+        // is -, so min/max only clips the clamp, not the wind-up spread.)
+        if (act.clip.name === 'clawSnap') {
+          const CAP = 0.20;
+          tgt.shoulderL[1] = Math.min(tgt.shoulderL[1], CAP);
+          tgt.shoulderR[1] = Math.max(tgt.shoulderR[1], -CAP);
+          tgt.handL[1] = Math.min(tgt.handL[1], CAP);
+          tgt.handR[1] = Math.max(tgt.handR[1], -CAP);
+        }
       }
+      // Pincer clench — drives the clawL/clawR jaw bones (not game joints, so
+      // the retarget never touches them) via postDress below. Jaws spread OPEN
+      // on the wind-up, SNAP shut through the strike, then ease back open.
+      let clench = 0;
+      if (attacking) {
+        const ph = Math.min(1, act.t / act.clip.dur);
+        clench = ph < 0.30 ? -0.7 * (ph / 0.30)
+          : ph < 0.50 ? (ph - 0.30) / 0.20
+            : Math.max(0, 1 - (ph - 0.50) / 0.50);
+      }
+      m._clawClench = (m._clawClench ?? 0) + (clench - (m._clawClench ?? 0)) * Math.min(1, dt * 16);
       const ratio = Math.min(1, (ctx.speed || 0) / (ctx.maxSpeed || 10));
       const grounded = ctx.grounded !== false;
-      const m = anim.mech;
       const wantK = grounded ? ratio : 0;
       m._walkK = (m._walkK ?? 0) + (wantK - (m._walkK ?? 0)) * Math.min(1, dt * 8);
       m._gaitPhase = (m._gaitPhase || 0) + (2 + 6 * ratio) * dt;
@@ -236,16 +259,27 @@ export const GLB_ANIM = {
         ['legMLhip', 1, 1, 0.5], ['thighR', 1, -1, 1.0],
       ].map(([n, g, sx, amp]) => ({ b: byName[n], g, sx, amp })).filter((l) => l.b);
       for (const l of legs) { l.bx = l.b.rotation.x; l.by = l.b.rotation.y; l.bz = l.b.rotation.z; }
+      // movable pincer jaws (custom-rig claw bones, children of the hands) —
+      // swung open/closed by _clawClench about local X (the jaws gape down at
+      // rest, so +X opens wider and -X clamps them shut; both claws same sign).
+      const claws = ['clawL', 'clawR']
+        .map((n) => ({ b: byName[n], rx: byName[n]?.rotation.x || 0 })).filter((c) => c.b);
       mech.postDress = () => {
         const k = mech._walkK || 0;
-        if (k < 0.002) { for (const l of legs) l.b.rotation.set(l.bx, l.by, l.bz); return; }
         const ph = mech._gaitPhase || 0;
-        for (const l of legs) {
-          const p = ph + (l.g ? Math.PI : 0);
-          const sweep = 0.28 * k * l.amp * Math.cos(p);             // fore-aft swing (about local z)
-          const lift = 0.2 * k * l.amp * Math.max(0, Math.sin(p));  // foot lifts on the swing half
-          l.b.rotation.set(l.bx + lift * l.sx, l.by, l.bz + sweep);
+        if (k < 0.002) { for (const l of legs) l.b.rotation.set(l.bx, l.by, l.bz); }
+        else {
+          for (const l of legs) {
+            const p = ph + (l.g ? Math.PI : 0);
+            const sweep = 0.28 * k * l.amp * Math.cos(p);             // fore-aft swing (about local z)
+            const lift = 0.2 * k * l.amp * Math.max(0, Math.sin(p));  // foot lifts on the swing half
+            l.b.rotation.set(l.bx + lift * l.sx, l.by, l.bz + sweep);
+          }
         }
+        // pincer open/close: -X clamps the jaw shut, +X gapes it open
+        const cc = mech._clawClench || 0;
+        const A = 0.55;                                               // full-clench angle
+        for (const c of claws) c.b.rotation.x = c.rx - cc * A;
       };
     },
   },
