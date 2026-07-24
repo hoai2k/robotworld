@@ -242,13 +242,33 @@ export const SIGNATURES = {
 
   cranky(anim, dt, ctx, tgt) {
     const J = anim.J, t = anim.t;
-    // crab menace: the pincers gape and breathe at rest, then SNAP shut
-    // when a strike lands
-    const striking = anim.action && !anim.action.fadingOut && !anim.action.clip.loop;
-    const gape = striking ? 0.02 : 0.34 + Math.sin(t * 1.4) * 0.14;
+    const act = anim.action;
+    // crab menace: the pincers gape WIDE through a strike's wind-up, then
+    // SNAP shut at the clamp (synced to the shared clip's own timing via
+    // act.t/dur), easing back open after — otherwise breathe at rest.
+    const striking = act && !act.fadingOut && !act.clip.loop;
+    let gape;
+    if (striking) {
+      const ph = Math.min(1, act.t / act.clip.dur);
+      gape = ph < 0.30 ? lerp(0.34, 0.55, ph / 0.30)
+        : ph < 0.50 ? lerp(0.55, 0.02, (ph - 0.30) / 0.20)
+          : lerp(0.02, 0.34, Math.min(1, (ph - 0.50) / 0.5));
+    } else {
+      gape = 0.34 + Math.sin(t * 1.4) * 0.14;
+    }
     for (const sd of ['L', 'R']) {
       const jw = J['jaw' + sd];
       if (jw) jw.rotation.x = lerp(jw.rotation.x, -gape, dt * (striking ? 22 : 8));
+    }
+    // STRONG attack (clawSnap): the shared "clamp" swings each shoulder so far
+    // inboard the giant pincers CROSS past the centerline. Cap the inward yaw
+    // (min/max — the wind-up spread is untouched) so the claws MEET at the
+    // middle instead of passing through each other. Mirrors the GLB fix in
+    // glbanim.js's cranky profile.
+    if (striking && act.clip.name === 'clawSnap') {
+      const CAP = 0.20;
+      tgt.shoulderL[1] = Math.min(tgt.shoulderL[1], CAP);
+      tgt.shoulderR[1] = Math.max(tgt.shoulderR[1], -CAP);
     }
     // crab SCUTTLE: stride-synced shell roll + waddle yaw so the walk
     // reads sideways-crabby (via tgt — the smoother owns hips/torso)
