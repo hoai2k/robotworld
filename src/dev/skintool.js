@@ -51,7 +51,9 @@ export async function runSkinTool(startId) {
   let mesh = null;           // the SkinnedMesh
   let bones = [];            // skeleton bones
   let pristine = null;       // {skinIndex, skinWeight} copies of the raw file
-  let analysis = null;       // pristine analysis — ALL ops select against this
+  let analysis = null;       // pristine analysis — ops with {comp} ids select against this
+  let liveAnalysis = null;   // post-ops analysis — ALL picking/regions use this, so
+                             // painted splits become their own selectable islands
   let colorAttr = null;      // Float32BufferAttribute vertexColors
   let ops = [];              // current op list (manifest skinOps replacement)
   let selComp = null;        // selected island (from pristine analysis)
@@ -77,6 +79,10 @@ export async function runSkinTool(startId) {
   let painting = false;      // left button held & painting
   let strokePushed = false;  // did this stroke already snapshot for undo
   let brushRadius = 0.30;    // world units (model is normalized ~7 tall)
+  let brushMode = 'radius';  // radius | loop (screen-space lasso selection)
+  let looping = false;       // left button held, drawing the lasso
+  let loopPts = [];          // lasso polygon, client coords
+  let loopCanvas = null;     // 2D overlay the lasso is drawn on
   const PAINT_FADE = 0.12;
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
@@ -91,10 +97,9 @@ export async function runSkinTool(startId) {
     // in a 4-comp RGBA attribute; this switches it back)
     if (mesh.geometry.getAttribute('color') !== colorAttr) mesh.geometry.setAttribute('color', colorAttr);
     // colors reflect the CURRENT (post-ops) dominant bone so a rebind is
-    // instantly visible; islands still come from the pristine analysis.
-    const live = analyzeSkin(mesh);
+    // instantly visible
     for (let i = 0; i < n; i++) {
-      const c = boneColor(live.domBone[i]);
+      const c = boneColor(liveAnalysis.domBone[i]);
       colorAttr.setXYZ(i, c.r, c.g, c.b);
     }
     if (selComp) {
@@ -113,8 +118,19 @@ export async function runSkinTool(startId) {
     mesh.geometry.attributes.skinIndex.needsUpdate = true;
     mesh.geometry.attributes.skinWeight.needsUpdate = true;
     applySkinOps(mesh, ops, analysis);
+    liveAnalysis = analyzeSkin(mesh);
     rebuildColors();
     renderOps();
+  }
+
+  // Selector for an op made from a LIVE island: islands unchanged since load
+  // keep the compact pristine {comp:id} address; anything reshaped by earlier
+  // ops or painting is addressed as an explicit vert list.
+  function selectorFor(comp) {
+    const pid = analysis.compId[comp.verts[0]];
+    if (analysis.comps[pid].count === comp.count &&
+        comp.verts.every((v) => analysis.compId[v] === pid)) return { comp: pid };
+    return { verts: comp.verts.slice() };
   }
 
   // ---- undo/redo (snapshots of the ops list) ----
@@ -204,7 +220,7 @@ export async function runSkinTool(startId) {
     ops = (raw.entry.skinOps || []).map((o) => ({ ...o }));
     applyAllOps();
     buildBoneList();
-    setStatus(`${id.toUpperCase()} — ${analysis.comps.length} islands, ${bones.length} bones.` +
+    setStatus(`${id.toUpperCase()} — ${liveAnalysis.comps.length} islands, ${bones.length} bones.` +
       `\nClick a wrong-colored patch to select it.`);
   }
 
@@ -221,28 +237,89 @@ export async function runSkinTool(startId) {
     // the small (usually miscolored) patch the user is aiming at
     let best = null;
     for (const vi of [f.a, f.b, f.c]) {
-      const comp = analysis.comps[analysis.compId[vi]];
+      const comp = liveAnalysis.comps[liveAnalysis.compId[vi]];
       if (!best || comp.count < best.comp.count) best = { vi, comp };
     }
     return best;
   }
+
+  // does the pointer event land on the mech at all? (any island)
+  function rayHitsMesh(ev) {
+    if (!mesh) return false;
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    return raycaster.intersectObject(mesh, false).length > 0;
+  }
+  // ...and specifically on the SOLO REGION (not the faded rest of the mech)?
+  function rayHitsRegion(ev) {
+    if (!mesh || !regionSet) return false;
+    const r = renderer.domElement.getBoundingClientRect();
+    mouse.x = ((ev.clientX - r.left) / r.width) * 2 - 1;
+    mouse.y = -((ev.clientY - r.top) / r.height) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObject(mesh, false);
+    if (!hits.length) return false;
+    const f = hits[0].face;
+    return regionSet.has(f.a) || regionSet.has(f.b) || regionSet.has(f.c);
+  }
+
+  // In paint mode, LEFT-drag paints only when it starts on the ACTIVE TARGET
+  // (radius brush: the solo region · loop brush: anywhere on the mech);
+  // grabbing anything else — faded geometry or empty space — orbits as normal,
+  // so the model can be turned to reach the region's other sides. During the
+  // pick phases every left-drag orbits (a clean <6px click still picks).
+  // OrbitControls' own pointerdown listener registered first, so decide here on
+  // window CAPTURE — it runs before target listeners — by flipping its LEFT
+  // binding per press.
+  window.addEventListener('pointerdown', (ev) => {
+    if (!paintMode || ev.button !== 0 || ev.target !== renderer.domElement) return;
+    let paints = false;
+    if (paintPhase === 'paint') {
+      paints = brushMode === 'loop' ? rayHitsMesh(ev) : rayHitsRegion(ev);
+    }
+    orbit.mouseButtons.LEFT = paints ? null : THREE.MOUSE.ROTATE;
+  }, true);
 
   renderer.domElement.addEventListener('pointerdown', (ev) => {
     if (ev.button !== 0) return;
     ev._downX = ev.clientX; ev._downY = ev.clientY;
     renderer.domElement._down = { x: ev.clientX, y: ev.clientY };
     if (paintMode && paintPhase === 'paint') {
-      painting = true; strokePushed = false;
-      paintStroke(ev);
+      if (brushMode === 'loop') {
+        if (rayHitsMesh(ev)) {
+          looping = true;
+          loopPts = [{ x: ev.clientX, y: ev.clientY }];
+          drawLoop();
+        }
+      } else if (rayHitsRegion(ev)) {
+        painting = true; strokePushed = false;
+        paintStroke(ev);
+      }
     }
   });
   renderer.domElement.addEventListener('pointerup', (ev) => {
-    if (painting) { painting = false; strokePushed = false; return; }
+    if (looping) { finishLoop(); return; }
+    if (painting) {
+      painting = false; strokePushed = false;
+      // the stroke rewrote weights in place — refresh the island partition so
+      // the painted patch is immediately its own pickable region
+      liveAnalysis = analyzeSkin(mesh);
+      return;
+    }
     if (paintMode) {
       const dd = renderer.domElement._down;
       if (!dd || Math.hypot(ev.clientX - dd.x, ev.clientY - dd.y) > 6) return; // a drag (orbit)
       if (!mesh) return;
-      if (paintPhase === 'pickRegion') {
+      if (paintPhase === 'pickBone') {
+        // the clicked patch's CURRENT dominant bone becomes the paint color
+        const h = pick(ev);
+        if (h) {
+          const b = bones[liveAnalysis.domBone[h.vi]];
+          if (b) setPaintBone(b.name);
+        }
+      } else if (paintPhase === 'pickRegion') {
         const h = pick(ev);
         if (h) enterRegion(h.comp);
       }
@@ -255,8 +332,7 @@ export async function runSkinTool(startId) {
     if (!hit) return;
     if (mode === 'picktarget') {
       // rebind the selected island to the clicked point's CURRENT bone
-      const live = analyzeSkin(mesh);
-      const targetBone = bones[live.domBone[hit.vi]];
+      const targetBone = bones[liveAnalysis.domBone[hit.vi]];
       if (selComp && targetBone) addOp(selComp, targetBone.name);
       mode = 'select';
       updateModeUI();
@@ -271,6 +347,7 @@ export async function runSkinTool(startId) {
   });
 
   renderer.domElement.addEventListener('pointermove', (ev) => {
+    if (looping) { loopPts.push({ x: ev.clientX, y: ev.clientY }); drawLoop(); return; }
     if (painting) { paintStroke(ev); return; }
     if (!mesh || ev.buttons) return;
     const hit = pick(ev);
@@ -281,7 +358,10 @@ export async function runSkinTool(startId) {
   function addOp(comp, toBone) {
     if (comp.boneName === toBone) { setStatus('That island already belongs to ' + toBone); return; }
     pushUndo();
-    ops.push({ sel: { comp: comp.id }, to: toBone });
+    ops.push({ sel: selectorFor(comp), to: toBone });
+    // CLOSE any live paint op: later strokes must append AFTER this rebind in
+    // the ops list, or replay-order (game load) undoes them under it
+    paintOp = null; paintSet = null;
     selComp = null;
     applyAllOps();
     setStatus(`Rebound island #${comp.id} (${comp.count}v) → ${toBone}`);
@@ -295,15 +375,17 @@ export async function runSkinTool(startId) {
     if (!selComp) { setStatus('Select an island first (click a patch).'); return; }
     const c = selComp;
     pushUndo();
-    ops.push({ sel: { comp: c.id }, to: c.boneName });
+    ops.push({ sel: selectorFor(c), to: c.boneName });
+    paintOp = null; paintSet = null;   // close any live paint op (order matters on replay)
     selComp = null;
     applyAllOps();
     setStatus(`Island #${c.id} (${c.count}v) rebound 100% to ${c.boneName} — secondary weights removed.`);
   }
 
   // ================= PAINT MODE =================
-  // Split one island across two bones: pick a bone (the paint color) + a region
-  // (the island), then brush-paint sub-parts of that region onto the bone.
+  // Split one island across two bones: click a patch to pick a bone (the paint
+  // color), click a region (the island — the rest fades), then brush-paint
+  // sub-parts of that region onto the bone.
   // Painted verts become a { sel:{verts:[...]}, to } op — exportable + applied
   // at game load like every other op.
   function setOrbitPaintMode(on) {
@@ -319,10 +401,12 @@ export async function runSkinTool(startId) {
     selComp = null; stopWiggle(); mode = 'select'; updateModeUI();
     setOrbitPaintMode(true);
     updatePaintUI();
-    setStatus('PAINT: pick a BONE in the list below (the paint color).');
+    setStatus('PAINT: click a patch on the model to choose the COLOR (its bone).' +
+      '\n(The bone list on the left works as a palette too.)');
   }
   function exitPaintMode() {
     paintMode = false; paintPhase = 'off'; painting = false;
+    clearLoop();
     paintBone = null; paintRegion = null; regionSet = null; regionWorld = null;
     paintOp = null; paintSet = null;
     setOrbitPaintMode(false);
@@ -334,11 +418,12 @@ export async function runSkinTool(startId) {
   function setPaintBone(name) {
     paintBone = name;
     paintOp = null; paintSet = null;   // a bone change starts a fresh paint op
-    if (paintPhase === 'pickBone') paintPhase = 'pickRegion';
+    // if a solo region is already active, go straight (back) to painting
+    if (paintPhase === 'pickBone') paintPhase = regionSet ? 'paint' : 'pickRegion';
     updatePaintUI();
     setStatus(paintRegion
       ? `PAINT: now painting → ${name}. Left-drag over the region.`
-      : `PAINT: color = ${name}. Now click a REGION on the model.`);
+      : `PAINT: color = ${name}. Now click the REGION to solo (others fade).`);
   }
   // skinned world position of a vertex (rest pose) — matches the raycast hit
   // space so the brush selects what's under the cursor
@@ -359,7 +444,8 @@ export async function runSkinTool(startId) {
     paintPhase = 'paint';
     paintOp = null; paintSet = null;
     updatePaintUI();
-    setStatus(`PAINT: region #${comp.id} (${comp.count}v). Left-drag = paint → ${paintBone}. Right-drag = orbit.`);
+    setStatus(`PAINT: region #${comp.id} (${comp.count}v). Left-drag on the REGION = paint → ${paintBone}.` +
+      `\nGrab anything else (faded mech or empty space) to orbit.`);
   }
   // RGBA vertex colors: region opaque in its live bone color, everything else
   // faded to PAINT_FADE alpha so the region stands out
@@ -368,9 +454,8 @@ export async function runSkinTool(startId) {
     if (!paintColorAttr || paintColorAttr.count !== n) {
       paintColorAttr = new THREE.BufferAttribute(new Float32Array(n * 4), 4);
     }
-    const live = analyzeSkin(mesh);
     for (let i = 0; i < n; i++) {
-      const c = boneColor(live.domBone[i]);
+      const c = boneColor(liveAnalysis.domBone[i]);
       paintColorAttr.setXYZW(i, c.r, c.g, c.b, regionSet.has(i) ? 1 : PAINT_FADE);
     }
     mesh.geometry.setAttribute('color', paintColorAttr);
@@ -393,6 +478,12 @@ export async function runSkinTool(startId) {
     }
     if (!hitVerts.length) return;
     if (!strokePushed) { pushUndo(); strokePushed = true; }
+    paintVerts(hitVerts);
+  }
+
+  // apply the paint (weights + colors + live op) to a batch of region verts —
+  // shared by the radius brush and the loop selector. Caller handles pushUndo.
+  function paintVerts(hitVerts) {
     if (!paintOp || paintOp.to !== paintBone) {
       paintOp = { sel: { verts: [] }, to: paintBone }; ops.push(paintOp); paintSet = new Set();
     }
@@ -407,6 +498,71 @@ export async function runSkinTool(startId) {
     }
     jnt.needsUpdate = true; wgt.needsUpdate = true; paintColorAttr.needsUpdate = true;
     renderOps();
+  }
+
+  // ---- loop selector ("magic loop"): lasso a screen region, paint the region
+  // verts inside it. Exact polygon containment, no feathering; back-facing
+  // verts are skipped so a tight loop doesn't bleed through to the far side.
+  function drawLoop() {
+    const r = renderer.domElement.getBoundingClientRect();
+    if (!loopCanvas) {
+      loopCanvas = document.createElement('canvas');
+      loopCanvas.style.cssText = 'position:fixed;pointer-events:none;z-index:40';
+      document.body.appendChild(loopCanvas);
+    }
+    loopCanvas.style.left = r.left + 'px'; loopCanvas.style.top = r.top + 'px';
+    if (loopCanvas.width !== Math.round(r.width)) loopCanvas.width = Math.round(r.width);
+    if (loopCanvas.height !== Math.round(r.height)) loopCanvas.height = Math.round(r.height);
+    const ctx = loopCanvas.getContext('2d');
+    ctx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+    if (loopPts.length < 2) return;
+    ctx.strokeStyle = '#e88cff'; ctx.lineWidth = 1.5; ctx.setLineDash([6, 4]);
+    ctx.beginPath();
+    ctx.moveTo(loopPts[0].x - r.left, loopPts[0].y - r.top);
+    for (const p of loopPts) ctx.lineTo(p.x - r.left, p.y - r.top);
+    // closing edge back to the start so the user sees the area that will fill
+    ctx.lineTo(loopPts[0].x - r.left, loopPts[0].y - r.top);
+    ctx.stroke();
+  }
+  function clearLoop() {
+    looping = false; loopPts = [];
+    if (loopCanvas) loopCanvas.getContext('2d').clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+  }
+  function pointInPoly(x, y, pts) {
+    let inside = false;
+    for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+      const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+      if ((yi > y) !== (yj > y) && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function finishLoop() {
+    const pts = loopPts;
+    clearLoop();
+    if (pts.length < 3 || !regionSet || !paintBone) return;
+    const r = renderer.domElement.getBoundingClientRect();
+    const nrm = mesh.geometry.attributes.normal;
+    const nMat = new THREE.Matrix3().getNormalMatrix(mesh.matrixWorld);
+    const camPos = camera.position;
+    const v = new THREE.Vector3(), nv = new THREE.Vector3();
+    const hitVerts = [];
+    for (const vi of regionSet) {
+      if (paintSet && paintSet.has(vi)) continue;
+      const w = regionWorld.get(vi);
+      // front-facing only (normal toward the camera)
+      nv.set(nrm.getX(vi), nrm.getY(vi), nrm.getZ(vi)).applyMatrix3(nMat);
+      if (nv.dot(v.copy(w).sub(camPos)) >= 0) continue;
+      const p = v.copy(w).project(camera);
+      if (p.z > 1) continue;   // behind the camera
+      const sx = r.left + ((p.x + 1) / 2) * r.width;
+      const sy = r.top + ((1 - (p.y + 1) / 2)) * r.height;
+      if (pointInPoly(sx, sy, pts)) hitVerts.push(vi);
+    }
+    if (!hitVerts.length) { setStatus('Loop caught 0 region verts — draw around visible region geometry.'); return; }
+    pushUndo();
+    paintVerts(hitVerts);
+    liveAnalysis = analyzeSkin(mesh);
+    setStatus(`Loop painted ${hitVerts.length}v → ${paintBone}.`);
   }
 
   // ---- bone wiggle (verify what moves) ----
@@ -533,27 +689,59 @@ export async function runSkinTool(startId) {
   brushRow.style.cssText = 'display:flex;gap:6px;margin-bottom:5px';
   const brushBtns = [];
   for (const [lab, rad] of [['S', 0.15], ['M', 0.30], ['L', 0.55]]) {
-    const b = actionBtn(lab, () => { brushRadius = rad; updatePaintUI(); });
+    const b = actionBtn(lab, () => { brushMode = 'radius'; brushRadius = rad; updatePaintUI(); });
     b._r = rad; brushBtns.push(b); brushRow.appendChild(b);
   }
+  {
+    // magic loop: lasso an area on screen, paint every region vert inside it
+    const b = actionBtn('Loop', () => {
+      brushMode = 'loop'; updatePaintUI();
+      setStatus('LOOP: left-drag on the mech to lasso an area — region verts inside it\nget painted on release. Drag empty space (or right-drag) to orbit.');
+    });
+    b._loop = true; brushBtns.push(b); brushRow.appendChild(b);
+  }
   paintPanel.appendChild(brushRow);
-  paintPanel.appendChild(actionBtn('Pick a different region', () => {
+  const repickRow = document.createElement('div');
+  repickRow.style.cssText = 'display:flex;gap:6px';
+  repickRow.appendChild(actionBtn('Change color', () => {
+    if (!paintMode) return;
+    paintPhase = 'pickBone';
+    updatePaintUI();
+    setStatus('PAINT: click a patch on the model to choose the new COLOR (its bone).');
+  }));
+  repickRow.appendChild(actionBtn('Change region', () => {
     if (!paintMode) return;
     paintPhase = 'pickRegion'; paintRegion = null; regionSet = null; regionWorld = null;
     paintOp = null; paintSet = null;
     if (mesh) mesh.material = showTex ? texturedMat : boneMat;
     applyAllOps();
     updatePaintUI();
-    setStatus('PAINT: click a REGION on the model to paint within.');
+    setStatus('PAINT: click the REGION to solo (others fade).');
   }));
+  paintPanel.appendChild(repickRow);
   panel.appendChild(paintPanel);
   function updatePaintUI() {
     paintBtn.style.background = paintMode ? '#7a3fb0' : '#1a2433';
     paintBtn.style.color = paintMode ? '#fff' : '#cfe0f5';
     paintBtn.textContent = paintMode ? 'Painting — click to exit (P)' : 'Paint geometry (P)';
     paintPanel.style.display = paintMode ? 'block' : 'none';
-    paintInfo.textContent = `color: ${paintBone || '—'}  ·  region: ${paintRegion ? '#' + paintRegion.id : '—'}`;
-    for (const b of brushBtns) b.style.outline = (b._r === brushRadius) ? '2px solid #b98cff' : '';
+    const phaseHint = { pickBone: 'click model = choose color', pickRegion: 'click model = solo region',
+      paint: 'left-drag = paint' }[paintPhase] || '';
+    paintInfo.innerHTML = '';
+    if (paintBone) {
+      const bi = bones.findIndex((b) => b.name === paintBone);
+      const sw = document.createElement('span');
+      sw.style.cssText = `display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;` +
+        `vertical-align:-1px;background:#${boneColor(bi).getHexString()}`;
+      paintInfo.appendChild(sw);
+    }
+    paintInfo.appendChild(document.createTextNode(
+      `color: ${paintBone || '—'}  ·  region: ${paintRegion ? '#' + paintRegion.id : '—'}` +
+      (phaseHint ? ` · ${phaseHint}` : '')));
+    for (const b of brushBtns) {
+      const active = b._loop ? brushMode === 'loop' : (brushMode === 'radius' && b._r === brushRadius);
+      b.style.outline = active ? '2px solid #b98cff' : '';
+    }
   }
 
   panel.appendChild(label('Ops (this session + committed)'));
@@ -590,7 +778,12 @@ export async function runSkinTool(startId) {
       const x = document.createElement('button');
       x.textContent = '✕';
       x.style.cssText = 'background:#3a2027;color:#ff9c9c;border:1px solid #553;border-radius:4px;cursor:pointer;font-size:10px;padding:1px 6px';
-      x.onclick = () => { pushUndo(); ops.splice(i, 1); applyAllOps(); };
+      x.onclick = () => {
+        pushUndo(); ops.splice(i, 1);
+        paintOp = null; paintSet = null;   // the live paint op may be the one deleted
+        applyAllOps();
+        if (paintMode && regionSet) refreshPaintColors();
+      };
       row.append(t, x);
       opsEl.appendChild(row);
     });
@@ -662,9 +855,12 @@ export async function runSkinTool(startId) {
     + '2. “Rebind → click target” (Q), then click the part it should move with<br>'
     + '3. Wiggle (W) to verify · SPACE pauses a wiggle to click a stretched piece<br>'
     + '4. “Bind 100% to own bone” (B) drops a patch’s secondary weights.<br>'
-    + '5. “Paint geometry” (P): pick a bone (list) + a region (click model), then '
-    + 'LEFT-drag to paint part of the region onto that bone — splits one island in two. '
-    + 'RIGHT-drag orbits while painting.<br>'
+    + '5. “Paint geometry” (P): click a patch to pick the COLOR (its bone), click '
+    + 'the REGION to solo it (others fade), then LEFT-drag on the region to paint '
+    + 'it onto that bone — splits one island in two. Painted verts recolor live. '
+    + 'Grabbing anything that isn’t the region (faded mech, empty space) orbits. '
+    + 'The Loop brush lassos an area instead: drag a loop, region verts inside '
+    + 'are painted exactly (front-facing only, no feathering).<br>'
     + 'Undo/redo: Ctrl+Z / Ctrl+Shift+Z · Export when happy.<br>'
     + 'Orbit: drag · Zoom: wheel · Pan: right-drag · Esc: deselect';
   panel.appendChild(help);
@@ -695,12 +891,14 @@ export async function runSkinTool(startId) {
   };
   engine.start();
   window.__skinTool = { engine, panel, get mesh() { return mesh; }, get ops() { return ops; }, get analysis() { return analysis; },
+    get live() { return liveAnalysis; },
+    addOp,
     addOpByComp: (cid, to) => { const c = analysis.comps[cid]; if (c) addOp(c, to); },
     selectComp: (cid) => { const c = analysis.comps[cid]; if (c) { selComp = c; rebuildColors(); } },
-    bindSelfHard: rebindSelfHard, undo, redo, load,
+    bindSelfHard: rebindSelfHard, undo, redo, load, applyAllOps,
     // paint-mode hooks (for testing/scripting)
     paint: { enter: enterPaintMode, exit: exitPaintMode, bone: setPaintBone,
-      region: (cid) => { const c = analysis.comps[cid]; if (c) enterRegion(c); },
+      region: (cid) => { const c = liveAnalysis.comps[cid]; if (c) enterRegion(c); },
       strokeAt: (worldVec, bone) => {   // paint all region verts within brush of a world point
         if (bone) setPaintBone(bone);
         if (!regionSet || !paintBone) return 0;
@@ -714,10 +912,12 @@ export async function runSkinTool(startId) {
         const jnt = mesh.geometry.attributes.skinIndex, wgt = mesh.geometry.attributes.skinWeight, c = boneColor(ti);
         for (const vi of hitVerts) { paintSet.add(vi); paintOp.sel.verts.push(vi);
           jnt.setXYZW(vi, ti, 0, 0, 0); wgt.setXYZW(vi, 1, 0, 0, 0); paintColorAttr.setXYZW(vi, c.r, c.g, c.b, 1); }
-        jnt.needsUpdate = wgt.needsUpdate = paintColorAttr.needsUpdate = true; strokePushed = false; renderOps();
+        jnt.needsUpdate = wgt.needsUpdate = paintColorAttr.needsUpdate = true; strokePushed = false;
+        liveAnalysis = analyzeSkin(mesh); renderOps();
         return hitVerts.length;
       },
-      get state() { return { paintMode, paintPhase, paintBone, region: paintRegion?.id, brushRadius }; },
+      brush: (m) => { if (m === 'loop') brushMode = 'loop'; else { brushMode = 'radius'; if (typeof m === 'number') brushRadius = m; } updatePaintUI(); },
+      get state() { return { paintMode, paintPhase, paintBone, region: paintRegion?.id, brushMode, brushRadius }; },
       get regionCentroidWorld() {
         if (!regionSet) return null;
         const v = new THREE.Vector3(); let n = 0;
